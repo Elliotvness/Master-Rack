@@ -86,14 +86,37 @@ longer a blocker.
 decision; the fixture itself lands with `C-08`).
 
 ### P0-005 · Resolve or formally park the 59E beam face height
-**Why it matters.** 5.92″ across all 42 catalog rows vs 5.928″ in a documentation table. It feeds a
-lookup key, and under the no-interpolation rule a wrong key silently sends every lookup off-grid.
-**Files.** Read-only sources; destination is the future catalog manifest.
-**Dependencies.** A person must read the published source chart.
-**Acceptance.** Either figure is confirmed against the source with a page reference, or the
-discrepancy is recorded in `source_anomalies[]` and neither value is treated as settled.
-**Verification.** Manual: page reference recorded in the catalog manifest.
-**Status.** `Blocked` — human/source input. **Evidence:** `Blocked by source`.
+**Why it mattered.** 5.92″ across all 42 catalog rows vs 5.928″ in a documentation table.
+
+**Correction to the original framing, found 2026-08-31 by reading the code.** This item was written
+claiming face height "feeds a lookup key, and a wrong key silently sends every lookup off-grid".
+**That is not true.** The beam lookup key is `family + series + span` (`kernel-catalog/src/lookup.ts`);
+`faceHeightIn` is loaded and carried as descriptive data and is not read by `lookup()` at all. No
+capacity, span or clearance result depends on the figure today. The item was over-rated as `P0`
+on a misreading, and the correction is recorded rather than quietly dropped.
+
+**Source reading, 2026-08-31 (EL).** The source chart reads **5.93**. That is a third distinct
+value, and it **corroborates rather than conflicts**: 5.928 rounds to 5.93 at two decimals, whereas
+5.92 is a genuinely different printing. So the reading favours the documentation table over the
+transcribed catalog rows.
+
+**Disposition — parked, not settled.** Three readings and still no page reference, so none of the
+three is promoted to a fact:
+- **The 42 catalog rows are NOT edited.** They stay at 5.92 as published, because transcribe-as-published
+  is what keeps the extract reconcilable against its source. Silently "fixing" a row destroys that.
+- All three values, the reader, the date and the reason are recorded on the catalog manifest under
+  `face_height_59e_status`, plus a `source_anomalies[]` entry, with `page_ref` deliberately left
+  empty and `disposition: UNRESOLVED_NON_BLOCKING`.
+
+**What would make it blocking again.** The first time face height is used **dimensionally** — bay
+pitch measured from a beam face, or an elevation drawn to scale. At that point a page reference is
+required before the number may be used. Until then it is carried, not consumed.
+**Files.** `data/catalog/interlake-2026-08/manifest.json`.
+**Acceptance.** Either a figure confirmed with a page reference, **or** the discrepancy recorded and
+neither value treated as settled. **Met by the second branch.**
+**Verification.** `python -c` over the beam data confirms all 42 rows of 59E/59ER remain at 5.92 as
+published; the manifest carries all three readings. **Run 2026-08-31: PASS.**
+**Status.** `Complete` — formally parked with the record intact. **Evidence:** `Confirmed implemented`.
 
 ### P0-006 · Close the OD-06 veto window explicitly
 **Why it matters.** Micrometre storage is the recommendation and is correct under every future
@@ -445,7 +468,7 @@ None of these can be resolved by writing code. Each needs a person, a document o
 |---|---|---|---|
 | RH-01 | **Name the external pilot client** (`OD-20b`). Criteria settled; one audited account fits. Blocks no development, but `R-01` — *will a client actually do this work* — stays open until an outside organization submits unaided. Must be a new-material job, or the pilot tests the off-ramp rather than the configurator. | Nothing technical; should be named before P2-002 | EL |
 | ~~RH-02~~ | ~~Reconcile the three Carson counts (P0-004)~~ **Closed 2026-08-31.** EL: the two quotes are reference only and are disregarded; as-built drawing 0005-01 R-1 governs. 6,824 net is established. | — | EL |
-| RH-03 | Read the source chart for 59E face height (P0-005) | Catalog ingestion confidence | EL |
+| ~~RH-03~~ | ~~Read the source chart for 59E face height (P0-005)~~ **Closed 2026-08-31.** EL read the chart as **5.93**, corroborating the 5.928 documentation table over the transcribed 5.92. Parked rather than settled: no page reference yet, rows left as published, and face height is not a lookup key so nothing depends on it. Reopens if face height is ever used dimensionally. | — | EL |
 | RH-04 | Confirm the Entra licence tier. OIDC works on any tier; SCIM needs P1+. Without it, offboarding is a quarterly-review checklist item, not an automated one. | Nothing in MVP-1 | IT |
 | RH-05 | Confirm the nominated fallback catalog approver is positioned to catch a **capacity-table** error specifically — a different competence from design or sales review (`OD-07`). | `B-04` release gate | EL |
 | RH-06 | Legal review of the standing disclaimer before any client sees it, and confirmation against PE board rules in the states sold into (`OD-16`, `R-03`). | P2-005 | Counsel |
@@ -494,8 +517,8 @@ Postgres, and the catalog proven against real published data. The next five are:
    the rule's own tier, so the tier must exist as data before a check can be written.
 3. **B-03** — migrate the three verified frame-capacity tables (435 reconciled cells) from
    `rack-app`, the same way the beam data was extracted.
-4. **P0-005 / RH-03** — the 59E face height. Now the **only** source blocker left on the critical
-   path, and it needs a person to read one chart.
+4. **`C-04`** — the twelve MVP checks, once `B-05` gives them tiers to be ceilinged by. With
+   `P0-004` and `P0-005` both closed, **no source blocker remains on the critical path.**
 5. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
    proven rather than one.
 

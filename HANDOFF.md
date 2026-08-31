@@ -21,7 +21,7 @@ and `C-03` (`kernel-geom`). **`B-05` then `C-04` is next.**
 | Blueprint revision | **Rev C**, 2026-08-31 |
 | Decisions | **21 of 21 settled.** One item deliberately open — see §7 |
 | Code written | Five pure kernel packages, the database layer, the API layer, five mechanical checks |
-| Tests | **352 passing** across 17 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
+| Tests | **354 passing** across 17 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
 | Verification | `pnpm verify` green, exit 0; results recorded in `docs/CURRENT_STATE.md` §4 |
 | Next | `B-05` (rule packs with tiers), then `C-04` (the twelve checks). Full order in §5 |
 
@@ -120,7 +120,7 @@ Then the rest of Group B and C, D (client app), E (internal app). Full backlog i
 Do not treat these as settled just because they appear in an inherited artifact.
 
 - ~~**The Carson acceptance fixture's headline number is contested.**~~ **Resolved 2026-08-31 (EL).** The two quotes (`Q-38857-1`: 916 bays / 7,196; `Q-38857-8`: 551 / 4,268) are **reference material, not acceptance sources**, and are disregarded — they are priced commercial documents from different points in the job's life, not statements of what was installed. As-built drawing **0005-01 R-1 governs**: 916 bays, 6,980 gross, 156 lost, **6,824 net**, which is also the only one of the three that reconciles against its own breakdown. The `C-08` fixture asserts the breakdown, not just the headline. That three artifacts disagreed at all stays in the narrative as the clearest evidence for why this product should exist.
-- **59E beam face height:** 5.92″ in the catalog data (all 42 rows) vs 5.928″ in a documentation table. Unresolved. A person must read the source chart. Do not carry either forward as settled.
+- **59E beam face height: parked with the record intact, 2026-08-31.** 5.92″ on all 42 catalog rows, 5.928″ in a documentation table, and the source chart read by EL as **5.93″** — which corroborates 5.928 (it rounds to 5.93) over 5.92. Still no page reference, so **none of the three is settled** and the 42 rows stay at 5.92 **as published**, because transcribe-as-published is what keeps the extract reconcilable. All three readings are on the catalog manifest under `face_height_59e_status`. **It is not blocking:** contrary to how this was originally written, face height is *not* a lookup key — the key is `family + series + span` — so no capacity result depends on it. It becomes blocking the first time face height is used dimensionally.
 - **Seven quarantined capacity tables** in `rack-app` are proven wrong — one overstates capacity by up to 72% at HbL 120″ because it was indexed on overall frame height under an HbL label. Do not port them.
 - **Every rate and multiplier in `rack-takeoff` is uncited**, including all of `BEAM_CAP`. The file's own banner says the capacities are "plausible ballpark figures, NOT any manufacturer's published capacities". Drop them; verified data for the same thing exists in the other two projects.
 - **Performance figures from the spikes were measured under software rasterization** in a cloud container. They are a floor, not a measurement on target hardware. Re-run in Phase 0.

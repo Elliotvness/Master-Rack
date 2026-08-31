@@ -25,12 +25,12 @@ index). **`C-04`..`C-08` and `B-03`/`B-05` are the next real work.**
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **50+** across five pure kernel packages, `db`, `apps/api`, `tools/` |
-| Product tests | **352**, all passing across 17 files (pure + real-Postgres + real catalog data) |
+| Product tests | **354**, all passing across 17 files (pure + real-Postgres + real catalog data) |
 | Kernel coverage | **100%** statements, branches, functions, lines on all **five** kernel packages |
 | Catalog data | 378 verified Interlake beam rows, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
-| Version control | **git, 17 commits**, working tree clean |
+| Version control | **git, 18 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -80,6 +80,34 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `P0-005` closed: the 59E face height, parked and pinned**
+
+| Check | Command | Result |
+|---|---|---|
+| Rows unchanged | `pnpm test` | **PASS.** All 42 rows of 59E/59ER still read `5.92` — the value as published |
+| The discrepancy cannot reach a capacity | `pnpm test` | **PASS.** Perturbing every 59E face height to 5.93 and re-running the lookup returns a byte-identical result, because the key is `family + series + span` |
+| **The new gate fires** | deliberate break | **PROVEN.** Changing the pin to `5.93` turned the row test red (1 failed / 24); reverted and re-run green |
+| Whole pipeline | `pnpm verify` | **PASS.** 354/354 tests (was 352); typecheck, lint, boundaries, self-test, RLS all green |
+| Kernel coverage | `pnpm coverage` | **PASS.** `kernel-catalog/src` still 100% on all four measures; no threshold breached |
+
+**EL read the source chart as 5.93.** That is a *third* distinct value, and it corroborates rather
+than conflicts: 5.928 rounds to 5.93 at two decimals, whereas 5.92 is a genuinely different
+printing. So the reading favours the documentation table over the transcribed rows — but it still
+arrives **without a page reference**, so no figure is promoted to a fact. All three readings, the
+reader and the date are recorded on the catalog manifest under `face_height_59e_status`, with
+`page_ref` deliberately empty.
+
+**The 42 rows were not "corrected".** Transcribe-as-published is what keeps the extract
+reconcilable against its source; editing a row to match a better reading destroys the property that
+makes the data trustworthy. The rows stay at 5.92 and the disagreement is carried as data.
+
+**A correction to the backlog, recorded rather than quietly dropped.** `P0-005` was written claiming
+face height "feeds a lookup key, and a wrong key silently sends every lookup off-grid". Reading
+`kernel-catalog/src/lookup.ts` shows that is **false** — `faceHeightIn` is loaded, carried, and never
+read by `lookup()`. The item was rated `P0` on a misreading of the code. It is non-blocking today,
+and the second new test pins exactly that property, so if face height ever *does* become load-bearing
+the test stops being true and the question returns on its own rather than being forgotten.
 
 **2026-08-31 — state review (re-run of the whole gate, no code change)**
 
@@ -336,8 +364,12 @@ From `HANDOFF.md` §6, and all still open:
    0005-01 R-1 governs: 916 bays / 6,980 gross / 156 lost / **6,824 net** — the only one of the
    three artifacts whose own breakdown reconciles. `P0-004` closed; the `C-08` fixture will assert
    the breakdown as well as the headline.
-2. **59E beam face height:** 5.92″ in the catalog data (42 rows) vs 5.928″ in a docs table.
-   A person must read the source chart. Neither figure carries forward as settled.
+2. **59E beam face height: parked 2026-08-31, not settled.** 5.92″ on the 42 catalog rows, 5.928″
+   in a docs table, source chart read by EL as **5.93″** — corroborating 5.928 over 5.92. No page
+   reference yet, so no figure is promoted; the rows stay at 5.92 as published and all three
+   readings sit on the manifest. **Not blocking:** face height is not a lookup key (the key is
+   `family + series + span`), so no capacity result depends on it. The original `P0-005` framing
+   claimed otherwise and was wrong; see `TODO.md` for the correction.
 3. **Seven quarantined capacity tables** in `rack-app` are proven wrong. Do not port.
 4. **Every rate in `rack-takeoff` is uncited**, by its own admission.
 5. **Performance figures came from software rasterization in a cloud container.** A floor, not a

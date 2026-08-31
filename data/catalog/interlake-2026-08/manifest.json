@@ -1,44 +1,55 @@
 {
-  "catalog_rev": "interlakemecalux.com live chart, retrieved 2026-08-19",
-  "checked_at": "",
-  "checked_by": "",
-  "code_basis": "2012 RMI and 2001 AISI specifications",
-  "constraints": {
-    "brace_required_over_in": 126,
-    "crossbar_required_over_in_when_decked": 90
-  },
-  "content_sha256": "9c3feb456c57b0fb6924a3661d4a493a6c4330ee859bbfb1cb0d683f25fbabcc",
-  "deflection_limit": "L/180",
-  "digitised_at": "2026-08-19",
-  "digitised_by": "automated extract (Claude)",
-  "headers": [
-    "family",
-    "series",
-    "face_height_in",
-    "span_in",
-    "deflection_in",
-    "part_number",
-    "code_18",
-    "capacity_lbs"
-  ],
-  "load_basis": "Uniformly distributed product load plus dead load, PER PAIR of beams (dead load = weight of beams). Static load only. Value is the lesser of strength in bending and L/180 deflection.",
-  "manufacturer": "Interlake Mecalux",
-  "page_ref": "Beam Load Capacities Chart, all beam faces, all lengths",
-  "rev": "2026-08",
-  "row_count": 378,
-  "sheet_name": "Step Beam Capacities",
-  "source_anomalies": [
-    "part_number UM005516 appears on 2 rows: 65QR/F5M/54in; 65QR/F5M/60in",
-    "part_number UM005517 appears on 2 rows: 65QR/F5M/66in; 65QR/F5M/72in",
-    "code_18 IB65QT05400RSA400 is 17 chars, expected 18 (65QR/F5M/54in)",
-    "code_18 IB65QT06600RSA400 is 17 chars, expected 18 (65QR/F5M/66in)",
-    "code_18 IB65QT07800RSA400 is 17 chars, expected 18 (65QR/F5M/78in)",
-    "code_18 IB65QT12600RSA400 is 17 chars, expected 18 (65QR/F5M/126in)",
-    "code_18 IB65QT15000RSA400 is 17 chars, expected 18 (65QR/F5M/150in)"
-  ],
-  "source_pdf": "",
-  "source_status_carried": "PENDING_CHECK",
-  "source_url": "https://www.interlakemecalux.com/beam-load-capacities",
-  "status": "DRAFT",
-  "units": "lbs"
+ "catalog_rev": "interlakemecalux.com live chart, retrieved 2026-08-19",
+ "checked_at": "",
+ "checked_by": "",
+ "code_basis": "2012 RMI and 2001 AISI specifications",
+ "constraints": {
+  "brace_required_over_in": 126,
+  "crossbar_required_over_in_when_decked": 90
+ },
+ "content_sha256": "9c3feb456c57b0fb6924a3661d4a493a6c4330ee859bbfb1cb0d683f25fbabcc",
+ "deflection_limit": "L/180",
+ "digitised_at": "2026-08-19",
+ "digitised_by": "automated extract (Claude)",
+ "face_height_59e_status": {
+  "catalog_rows_as_published": 5.92,
+  "disposition": "UNRESOLVED_NON_BLOCKING",
+  "documentation_table": 5.928,
+  "page_ref": "",
+  "read_at": "2026-08-31",
+  "read_by": "Elliott Villacorta",
+  "read_from_source_chart": 5.93,
+  "reason": "Three readings, none carrying a page reference. Not blocking: face height is not a lookup key and no capacity, span or clearance result depends on it. Blocking the moment face height is used dimensionally - e.g. bay pitch from beam face, or an elevation drawn to scale."
+ },
+ "headers": [
+  "family",
+  "series",
+  "face_height_in",
+  "span_in",
+  "deflection_in",
+  "part_number",
+  "code_18",
+  "capacity_lbs"
+ ],
+ "load_basis": "Uniformly distributed product load plus dead load, PER PAIR of beams (dead load = weight of beams). Static load only. Value is the lesser of strength in bending and L/180 deflection.",
+ "manufacturer": "Interlake Mecalux",
+ "page_ref": "Beam Load Capacities Chart, all beam faces, all lengths",
+ "rev": "2026-08",
+ "row_count": 378,
+ "sheet_name": "Step Beam Capacities",
+ "source_anomalies": [
+  "part_number UM005516 appears on 2 rows: 65QR/F5M/54in; 65QR/F5M/60in",
+  "part_number UM005517 appears on 2 rows: 65QR/F5M/66in; 65QR/F5M/72in",
+  "code_18 IB65QT05400RSA400 is 17 chars, expected 18 (65QR/F5M/54in)",
+  "code_18 IB65QT06600RSA400 is 17 chars, expected 18 (65QR/F5M/66in)",
+  "code_18 IB65QT07800RSA400 is 17 chars, expected 18 (65QR/F5M/78in)",
+  "code_18 IB65QT12600RSA400 is 17 chars, expected 18 (65QR/F5M/126in)",
+  "code_18 IB65QT15000RSA400 is 17 chars, expected 18 (65QR/F5M/150in)",
+  "face_height_in 5.92 is transcribed verbatim on all 42 rows of families 59E/59ER; a documentation table for the same beam gives 5.928, and the source chart was read by Elliott Villacorta on 2026-08-31 as 5.93. The rows are NOT altered: the published value stays as printed so the extract remains reconcilable against its source. 5.93 corroborates 5.928 (which rounds to 5.93 at two decimals) over 5.92. face_height_in is carried as descriptive data only and is not part of any lookup key (key = family + series + span), so the discrepancy affects no capacity result. Resolve to a single figure with a page reference before face height is ever used dimensionally."
+ ],
+ "source_pdf": "",
+ "source_status_carried": "PENDING_CHECK",
+ "source_url": "https://www.interlakemecalux.com/beam-load-capacities",
+ "status": "DRAFT",
+ "units": "lbs"
 }
