@@ -1,0 +1,248 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  DerivationError,
+  QueueError,
+  acknowledgementClock,
+  ageHours,
+  deriveInternalRevision,
+  internalNote,
+  orderQueue,
+  organizationsInQueue,
+  quoteDeliveryClock,
+  stripInternalRevisions,
+  type QueueEntry,
+  type SourceSubmission,
+} from './index.js';
+
+function entry(over: Partial<QueueEntry> = {}): QueueEntry {
+  return {
+    submissionId: 'sub-1',
+    organizationId: 'org-a',
+    organizationName: 'Harbor Logistics',
+    projectNumber: 'P-1001',
+    status: 'submitted',
+    submittedAt: '2026-08-31T08:00:00Z',
+    acknowledgedAt: null,
+    quotedAt: null,
+    blockerCount: 0,
+    reviewCount: 1,
+    ...over,
+  };
+}
+
+function source(over: Partial<SourceSubmission> = {}): SourceSubmission {
+  return {
+    submissionId: 'sub-1',
+    revisionId: 'rev-1',
+    contentHash: 'sha256:abc123',
+    waivers: [],
+    ...over,
+  };
+}
+
+describe('E-01/E-02 \u2014 the queue spans every organization', () => {
+  // The client app is org-scoped by RLS; the internal app is not. That
+  // asymmetry is the reason the two are separate bundles.
+
+  it('carries submissions from more than one organization', () => {
+    const entries = [
+      entry({ submissionId: 'a', organizationId: 'org-a' }),
+      entry({ submissionId: 'b', organizationId: 'org-b' }),
+      entry({ submissionId: 'c', organizationId: 'org-c' }),
+    ];
+    expect(organizationsInQueue(entries)).toEqual(['org-a', 'org-b', 'org-c']);
+  });
+
+  it('orders oldest first, because the queue exists to stop things being forgotten', () => {
+    const ordered = orderQueue([
+      entry({ submissionId: 'new', submittedAt: '2026-08-31T12:00:00Z' }),
+      entry({ submissionId: 'old', submittedAt: '2026-08-29T09:00:00Z' }),
+      entry({ submissionId: 'mid', submittedAt: '2026-08-30T09:00:00Z' }),
+    ]);
+    expect(ordered.map((e) => e.submissionId)).toEqual(['old', 'mid', 'new']);
+  });
+
+  it('breaks ties deterministically, so a re-render never reshuffles rows', () => {
+    const same = '2026-08-31T08:00:00Z';
+    const ordered = orderQueue([
+      entry({ submissionId: 'z', submittedAt: same }),
+      entry({ submissionId: 'a', submittedAt: same }),
+      entry({ submissionId: 'm', submittedAt: same }),
+    ]);
+    expect(ordered.map((e) => e.submissionId)).toEqual(['a', 'm', 'z']);
+  });
+
+  it('does not mutate the caller\u2019s array', () => {
+    const entries = [entry({ submissionId: 'b' }), entry({ submissionId: 'a' })];
+    orderQueue(entries);
+    expect(entries[0]?.submissionId).toBe('b');
+  });
+});
+
+describe('the two clocks, per OD-11', () => {
+  const now = '2026-08-31T20:00:00Z';
+
+  it('runs the acknowledgement clock until a human picks it up', () => {
+    const running = acknowledgementClock(entry(), now);
+    expect(running.running).toBe(true);
+    expect(running.hours).toBe(12);
+  });
+
+  it('STOPS the clock at the acknowledgement, not at now', () => {
+    // A stopped clock that keeps counting is just wrong.
+    const stopped = acknowledgementClock(
+      entry({ acknowledgedAt: '2026-08-31T10:00:00Z' }),
+      now,
+    );
+    expect(stopped.running).toBe(false);
+    expect(stopped.hours).toBe(2);
+  });
+
+  it('measures quote delivery from submission, not from acknowledgement', () => {
+    const clock = quoteDeliveryClock(
+      entry({ acknowledgedAt: '2026-08-31T10:00:00Z', quotedAt: '2026-08-31T18:00:00Z' }),
+      now,
+    );
+    expect(clock.hours).toBe(10);
+    expect(clock.running).toBe(false);
+  });
+
+  it('runs the quote clock against NOW while no quote has been returned', () => {
+    // The counterpart of the stopped case: an unquoted submission must keep
+    // counting, or an item could sit forgotten while its clock reads zero.
+    const running = quoteDeliveryClock(entry(), now);
+    expect(running.running).toBe(true);
+    expect(running.hours).toBe(12);
+  });
+
+  it('runs the acknowledgement clock even after a quote exists, if never acknowledged', () => {
+    // The two clocks are independent. Quoting without acknowledging is a
+    // process failure worth still being able to see.
+    const clock = acknowledgementClock(
+      entry({ quotedAt: '2026-08-31T18:00:00Z' }),
+      now,
+    );
+    expect(clock.running).toBe(true);
+  });
+
+  it('computes age from SUPPLIED instants, never a clock read', () => {
+    // Rendering the queue twice from the same data must be identical.
+    expect(ageHours('2026-08-31T08:00:00Z', '2026-08-31T20:00:00Z')).toBe(12);
+    expect(ageHours('2026-08-31T08:00:00Z', '2026-08-31T08:59:00Z')).toBe(0);
+  });
+
+  it('refuses unparseable or out-of-order instants', () => {
+    expect(() => ageHours('not-a-date', '2026-08-31T08:00:00Z')).toThrow(QueueError);
+    expect(() => ageHours('2026-08-31T20:00:00Z', '2026-08-31T08:00:00Z')).toThrow(
+      /cannot be negative/,
+    );
+  });
+});
+
+describe('E-04 \u2014 deriving an internal revision', () => {
+  it('leaves the source content hash unchanged', () => {
+    const s = source();
+    const { derived, source: after } = deriveInternalRevision(s, 'rev-2');
+    expect(after.contentHash).toBe('sha256:abc123');
+    expect(derived.derivedFromRevisionId).toBe('rev-1');
+    expect(derived.derivedFromSubmissionId).toBe('sub-1');
+  });
+
+  it('forks into the C lineage, separate from the client P lineage', () => {
+    const { derived } = deriveInternalRevision(source(), 'rev-2');
+    expect(derived.code).toBe('C');
+  });
+
+  it('does NOT carry waivers over', () => {
+    // A waiver is a judgement about one specific configuration. Carrying it
+    // would apply a decision to a configuration nobody made it about.
+    const { derived, source: after } = deriveInternalRevision(
+      source({ waivers: ['aisle width waived by EL'] }),
+      'rev-2',
+    );
+    expect(derived.waivers).toEqual([]);
+    // And the source keeps its own.
+    expect(after.waivers).toEqual(['aisle width waived by EL']);
+  });
+
+  it('marks the derived revision as never client-visible', () => {
+    const { derived } = deriveInternalRevision(source(), 'rev-2');
+    expect(derived.clientVisible).toBe(false);
+  });
+
+  it('refuses to reuse the source revision id, or an empty one', () => {
+    expect(() => deriveInternalRevision(source(), 'rev-1')).toThrow(/must not reuse/);
+    expect(() => deriveInternalRevision(source(), '  ')).toThrow(/needs an identifier/);
+  });
+
+  it('refuses a source with no content hash', () => {
+    expect(() => deriveInternalRevision(source({ contentHash: '' }), 'rev-2')).toThrow(
+      DerivationError,
+    );
+  });
+});
+
+describe('AC-14 \u2014 an internal revision is ABSENT from client responses, not locked', () => {
+  it('removes internal items entirely', () => {
+    // "Locked" tells a client something exists that they may not see, which is
+    // itself information: it says we are working on a variant of their job.
+    const items = [
+      { id: 'p1', clientVisible: undefined },
+      { id: 'c1', clientVisible: false as const },
+      { id: 'p2', clientVisible: undefined },
+    ];
+    const visible = stripInternalRevisions(items);
+    expect(visible.map((i) => i.id)).toEqual(['p1', 'p2']);
+  });
+
+  it('leaves no trace of the internal item at all', () => {
+    const { derived } = deriveInternalRevision(source(), 'rev-2');
+    const visible = stripInternalRevisions([derived]);
+    expect(visible).toEqual([]);
+    expect(JSON.stringify(visible)).not.toMatch(/rev-2/);
+  });
+
+  it('keeps items that carry no visibility marker', () => {
+    const items = [{ id: 'p1' }, { id: 'p2' }];
+    expect(stripInternalRevisions(items)).toHaveLength(2);
+  });
+});
+
+describe('E-05 \u2014 an internal note is a DISTINCT ENTITY, not a flagged message', () => {
+  it('is marked never client-visible by construction', () => {
+    // Not the same table with a flag: a flag is one wrong default or one
+    // SELECT * away from being published, and the failure is silent.
+    const note = internalNote({
+      id: 'n-1',
+      submissionId: 'sub-1',
+      authorId: 'staff-1',
+      body: 'Client may accept a narrower aisle; confirm with ops.',
+      createdAt: '2026-08-31T12:00:00Z',
+    });
+    expect(note.clientVisible).toBe(false);
+  });
+
+  it('is stripped from anything client-facing', () => {
+    const note = internalNote({
+      id: 'n-1',
+      submissionId: 'sub-1',
+      authorId: 'staff-1',
+      body: 'internal only',
+      createdAt: '2026-08-31T12:00:00Z',
+    });
+    expect(stripInternalRevisions([note])).toEqual([]);
+  });
+
+  it('refuses an empty note', () => {
+    expect(() =>
+      internalNote({
+        id: 'n-1',
+        submissionId: 'sub-1',
+        authorId: 'staff-1',
+        body: '   ',
+        createdAt: '2026-08-31T12:00:00Z',
+      }),
+    ).toThrow(/must carry a body/);
+  });
+});

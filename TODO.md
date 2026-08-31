@@ -577,7 +577,7 @@ ten live submissions (`OD-11`), and neither clock is ever labelled *engineering 
 ### P3-001 · `E-01`/`E-02` Organization administration and the submission queue
 **Acceptance.** Queue spans all organizations with status, age against both clocks, finding counts.
 **Verification.** p95 < 800 ms at 5,000 seeded submissions.
-**Dependencies.** P2-004. **Status.** `Not started`. **Evidence:** `Planned only`.
+**Dependencies.** P2-004. **Status.** `Queue logic done`. **Evidence:** `apps/internal-web/src/lib/queue.ts`, 23 tests. Both OD-11 clocks stop at their stop-time. The perf check is still outstanding — it needs the seeded 5,000-row dataset, which does not exist yet.
 
 ### P3-002 · `E-03` Internal BOM view with the "show your work" trace
 **Why it matters.** The strongest differentiator against spreadsheet estimating, and the fastest way
@@ -591,13 +591,14 @@ used material. Structured data plus components — not string-concatenated HTML.
 `ruleId`, `confirmed` flag and `sourceObjectIds`, and `C-04` records `ceilingApplied` on every
 finding — so "why is this not a pass?" and "which rule produced this quantity?" are already
 answerable from stored data without recomputation. This item is the *view*, not the data.
-**Status.** `Not started`. **Evidence:** `Planned only`.
+**Status.** `Trace model done`. **Evidence:** `apps/internal-web/src/lib/trace.ts`, 27 tests. Answers all four §12.4 questions from stored data with no recomputation; `NoCatalogBasis` keeps the no-table-basis branch as a complete answer. React components are not yet built.
 
 ### P3-003 · `E-04`/`E-05` Derive internal revision and internal notes
 **Acceptance.** Deriving leaves the source submission's `content_hash` unchanged, and the derived
 revision is **absent from every client-facing response** — not shown as locked (`AC-14`). Waivers do
 not carry over. Internal notes are a distinct entity from client-visible messages.
 **Verification.** `AC-14`; the leakage test covers the client submission route after a derivation exists.
+**Status.** `Derivation done`. **Evidence:** `deriveInternalRevision`/`stripInternalRevisions` in `queue.ts`. Both invariants proven by deliberate breakage (waivers carried over → 1 test red; internal items kept in client output → 3 red). The API-route leakage test lands with the internal routes.
 **Dependencies.** P2-004. **Status.** `Not started`. **Evidence:** `Planned only`.
 
 ### P3-004 · `E-09` Determinism harness in CI

@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **819**, all passing across 34 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
+| Product tests | **869**, all passing across 36 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified beam rows **and 435 verified frame-capacity cells**, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **9**: kernel-boundary self-test + scan, **app-boundary self-test + scan**, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 33 commits**, working tree clean |
+| Version control | **git, 34 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,55 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `E-01`..`E-05`: the internal application**
+
+| Check | Command | Result |
+|---|---|---|
+| Internal-web tests | `pnpm test` | **PASS.** 50 tests: the §12.4 trace, the queue, derivation, internal notes |
+| **The no-table-basis branch survives** | deliberate break | **PROVEN.** Treating a named absence as a gap turned **1 test red** |
+| **Unresolved shows its reason** | deliberate break | **PROVEN.** Rendering `0` instead turned **2 tests red** |
+| **Trace consistency is checked** | deliberate break | **PROVEN.** Dropping the final-step comparison turned **1 test red** |
+| **Waivers do not carry over** | deliberate break | **PROVEN.** Carrying them into a derived revision turned **1 test red** |
+| **`AC-14` — absent, not locked** | deliberate break | **PROVEN.** Keeping internal items in client output turned **3 tests red** |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **869/869** tests across 36 files |
+| Coverage | `pnpm coverage` | **PASS.** `trace.ts` and `queue.ts` at **100%** |
+
+**`E-03` — "show your work" — answers §12.4's four questions from stored data alone.** That phrase
+is load-bearing: a trace that re-runs the engine to explain itself proves only that the engine is
+self-consistent *today*, and cannot explain a submission frozen two years ago against a catalog
+release since superseded. So the module **renders** a stored trace and performs no arithmetic.
+`traceInconsistencies()` is a **consistency** check rather than a recomputation — it confirms the
+stored result of each step is carried into the next, catching a trace assembled from mismatched
+pieces, without evaluating the formula.
+
+**The branch that shows no table basis at all is kept, and is a COMPLETE answer.** `NoCatalogBasis`
+is a named absence carrying the measured geometry and the reason — not a null, which would render as
+a blank panel section, and a blank reads as *"we did not check"*. On half of all jobs this is the
+correct output, not a degraded one. `unanswerableQuestions()` treats it as answered, and flags it
+only when the *reason* is missing.
+
+**An unconfirmed rule is flagged.** A one-job observation looks identical to an established rule on
+a sheet unless the panel says otherwise, which is how a single job's coincidence becomes a company
+standard.
+
+**`E-04`: waivers do not carry into a derived internal revision.** A waiver is a judgement about one
+specific configuration; carrying it would silently apply a decision to a configuration nobody made
+it about. The derived revision forks into the `C` lineage and cannot write back, so the client's
+submitted record stays the thing they actually submitted.
+
+**`AC-14`: an internal revision is ABSENT from client responses, not locked.** "Locked" tells a
+client something exists that they may not see, which is itself information — it says we are working
+on a variant of their job, and invites the question we cannot answer.
+
+**`E-05`: an internal note is a distinct entity, not a flagged message.** A flag is one wrong
+default, one missing predicate or one `SELECT *` away from publication, and the failure is silent.
+
+**Two pieces of dead code removed rather than tested.** `TraceError` was exported but never thrown,
+and `buildTracePanel` carried `?? 0` fallbacks inside a branch where the narrowing already proved
+them unreachable. Both were unreachable guards implying doubt the types had settled — the same
+pattern found earlier in `PreviewError`, which suggests writing the error class before knowing it is
+needed is a habit worth watching.
 
 **2026-08-31 — `D-08` status and clone-to-draft: Group D complete**
 

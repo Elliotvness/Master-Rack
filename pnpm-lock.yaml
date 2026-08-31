@@ -60,6 +60,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/kernel-units
 
+  apps/internal-web: {}
+
   packages/db:
     dependencies:
       pg:

@@ -21,9 +21,9 @@ and `C-03` (`kernel-geom`). **`B-05` then `C-04` is next.**
 | Blueprint revision | **Rev C**, 2026-08-31 |
 | Decisions | **21 of 21 settled.** One item deliberately open — see §7 |
 | Code written | Nine pure packages, the database layer, the API layer, **seven** mechanical gates |
-| Tests | **819 passing** across 34 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
+| Tests | **869 passing** across 36 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
 | Verification | `pnpm verify` green, exit 0; results recorded in `docs/CURRENT_STATE.md` §4 |
-| Next | **Group E — the internal application.** Groups A, B, C and D are complete |
+| Next | `E-07`/`E-08` (WORM anchoring, client PDF) and `E-09` (determinism harness). `E-01`..`E-06` are built |
 
 **Start with `README.md` for how to run the checks, `TODO.md` for what is next, and
 `docs/CURRENT_STATE.md` for what has actually been run rather than what is planned.**

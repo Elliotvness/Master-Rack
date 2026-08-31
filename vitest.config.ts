@@ -40,6 +40,9 @@ const alias = {
   '@rms/client-web': fileURLToPath(
     new URL('./apps/client-web/src/index.ts', import.meta.url),
   ),
+  '@rms/internal-web': fileURLToPath(
+    new URL('./apps/internal-web/src/index.ts', import.meta.url),
+  ),
 };
 
 export default defineConfig({
@@ -151,6 +154,15 @@ export default defineConfig({
         // The client bundle's namespace guard and the AC-01 collapse are the
         // two controls that keep an internal field off a client screen. Both
         // are pure logic, so 100% is achievable and anything less is untested.
+        // The internal trace is the evidence an estimator relies on to defend
+        // a number. Pure logic, so 100% is achievable and anything less means
+        // an unexercised branch in the one feature that explains the engine.
+        'apps/internal-web/src/lib/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
         'apps/client-web/src/lib/**': {
           branches: 100,
           functions: 100,
