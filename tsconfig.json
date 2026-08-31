@@ -1,4 +1,7 @@
 {
   "files": [],
-  "references": [{ "path": "./packages/kernel-units" }]
+  "references": [
+    { "path": "./packages/kernel-units" },
+    { "path": "./packages/kernel-model" }
+  ]
 }

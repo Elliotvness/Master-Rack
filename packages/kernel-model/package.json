@@ -1,0 +1,15 @@
+{
+  "name": "@rms/kernel-model",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Canonical project model, deterministic serialisation and content hashing. Pure.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@rms/kernel-units": "workspace:*"
+  }
+}

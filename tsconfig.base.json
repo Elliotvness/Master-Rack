@@ -29,7 +29,8 @@
 
     "baseUrl": ".",
     "paths": {
-      "@rms/kernel-units": ["packages/kernel-units/src/index.ts"]
+      "@rms/kernel-units": ["packages/kernel-units/src/index.ts"],
+      "@rms/kernel-model": ["packages/kernel-model/src/index.ts"]
     }
   }
 }

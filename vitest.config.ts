@@ -11,6 +11,9 @@ const alias = {
   '@rms/kernel-units': fileURLToPath(
     new URL('./packages/kernel-units/src/index.ts', import.meta.url),
   ),
+  '@rms/kernel-model': fileURLToPath(
+    new URL('./packages/kernel-model/src/index.ts', import.meta.url),
+  ),
 };
 
 export default defineConfig({
@@ -31,6 +34,12 @@ export default defineConfig({
        */
       thresholds: {
         'packages/kernel-units/src/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
+        'packages/kernel-model/src/**': {
           branches: 100,
           functions: 100,
           lines: 100,
