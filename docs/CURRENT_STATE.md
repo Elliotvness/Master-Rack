@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **646**, all passing across 26 files (pure + real-Postgres + real catalog and rule data) |
+| Product tests | **657**, all passing across 27 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified Interlake beam rows, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **7**: boundary self-test + scan, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 25 commits**, working tree clean |
+| Version control | **git, 26 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,40 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `C-08` golden fixtures: `P1-014` closed, the derivation kernel complete**
+
+| Check | Command | Result |
+|---|---|---|
+| The fixture is CONSUMED | `pnpm test` | **PASS.** 11 tests read `fixtures/golden/carson-0005-01-r1.json` from disk |
+| **Proven consumed** | deleted the fixture | **PROVEN.** The build failed with `ENOENT`. The reference project's fixtures are read by nothing; this one cannot quietly become decorative |
+| **The decisive probe** | deliberate break | **PROVEN.** An engine inflating gross AND lost by 100 still returns **net = 6,824** — the right headline by the wrong route. The fixture caught it on gross (7,080) and lost (256). A headline-only fixture would have passed it |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **657/657** tests across 27 files |
+| Coverage | `pnpm coverage` | **PASS.** All thresholds met, including the new application floors |
+
+**`P1-014` is complete.** The derivation kernel now runs end to end: units, model, catalog, geometry,
+counts, rules, the twelve checks, the BOM, the display list, the provenance lint, and a golden
+fixture wired into the test run. Every gate has been proven to fire by deliberate breakage.
+
+**The fixture asserts the breakdown, not the headline** — and the probe shows why that distinction
+is the entire point. `gross − lost = net` is checked, along with the engine's own invariants
+(`net + lost = gross`, and the per-reason breakdown summing to the total), against a job that was
+actually installed.
+
+**An arithmetic finding while building it.** `6,980 / 916 = 7.6201`, which is not an integer, so
+**no uniform level count reproduces the as-built gross**. Carson is a mixed configuration and the
+drawing does not break it down by run. The fixture therefore records `beam_levels_per_bay` as
+`not_established`, with the arithmetic reason — rather than inventing a configuration that happens
+to multiply out. A fixture encoding a guess is worse than no fixture: it is a wrong answer with a
+test defending it. The same applies to the 156 lost positions, which the drawing gives as a total
+with no per-reason breakdown.
+
+**A test asserts every `not_established` entry carries a reason longer than a marker word**, so the
+section cannot decay into a list of bare `TODO`s.
+
+**The rejected artifacts are recorded inside the fixture.** `Q-38857-1` and `Q-38857-8` appear in
+`source.disregarded` with the reason they were rejected, so a future reader knows they were
+considered rather than missed — and cannot "restore" a number that was deliberately dropped.
 
 **2026-08-31 — review finding: the coverage gate had a blind spot over the riskiest code**
 

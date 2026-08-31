@@ -12,11 +12,12 @@ backlog id, that id is named.
 > `P1-003` (`A-03`), `P1-004` (`A-04`), `P1-005` (`A-05`), `P1-006` (`A-06`), `P1-007` (`A-07`),
 > `P1-008` (`A-08`), `P1-009` (`A-09`), `P1-010` (`A-10`), `P1-011` (`A-11`), `P1-013` (`C-01`).
 > **Partial:** `P1-012` (`B-01`/`B-02`/`B-04`/`B-05`/`B-06` done; **`B-03` outstanding**) and
-> `P1-014` (`C-02`..`C-07` done; **`C-08` outstanding** — the golden fixtures).
+> **`P1-014` is COMPLETE** (`C-02`..`C-08`). The whole derivation kernel, with every gate proven
+> to fire by deliberate breakage.
 > **Also closed:** `P0-004` (Carson count established) and `P0-005` (59E face height parked).
-> **Last full run, 2026-08-31: `pnpm verify` PASS** — **646/646** tests across 26 files, boundary
-> self-test + scan (31 files, **9** pure packages), provenance self-test + lint (60 files),
-> `check-rls` 19 tables, exit 0. **Coverage now measures `apps/` too**, with ratcheted floors.
+> **Last full run, 2026-08-31: `pnpm verify` PASS** — **657/657** tests across 27 files, boundary
+> self-test + scan (31 files, **9** pure packages), provenance self-test + lint (61 files),
+> `check-rls` 19 tables, exit 0. Coverage measures `apps/` too, with ratcheted floors.
 > Everything else is `Planned only` unless its own row says otherwise. Nothing here may be marked
 > `Complete` without recording the verification command and its actual result.
 
@@ -328,7 +329,7 @@ carry `{text, established}`, never a bare string; an unestablished value never r
 (`AC-07`). **Golden fixtures are wired into the test run** — the reference project's are not, and
 that defect must not be inherited.
 **Verification.** `pnpm test`; fixture deltas within stated tolerance; `node tools/lint-provenance.mjs` fails on a formatter applied to a raw value.
-**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `C-02` through `C-07`; **`C-08` `Planned only`**.
+**Status.** **`Complete`.** **Evidence:** `Confirmed implemented` for `C-02` through `C-08`.
 
 **`C-02` (`kernel-derive`) — Complete and verified 2026-08-31.** Pure geometry and pallet-position
 counts over provenanced quantities, no catalog or rule number invented in application code:
@@ -458,6 +459,27 @@ gates in the chain. **Three probes, all fired:** formatting a raw number in a re
 failed the lint; renaming the scan roots produced *"Refusing to report a pass for a scan that
 checked nothing"* rather than a silent green; and **disabling the linter's own detection was caught
 by its self-test** — the control on the control.
+
+**`C-08` (golden fixtures) — Complete and verified 2026-08-31. This closes `P1-014`.**
+`fixtures/golden/carson-0005-01-r1.json` plus `kernel-derive/src/golden.test.ts`, which consumes it.
+- **Wired into the test run**, which is the entire point. The reference project's fixtures are read
+  by nothing — a control that looks like a control and has never once failed. **Proven consumed:**
+  deleting the fixture fails the build with `ENOENT`.
+- **Asserts the breakdown, not the headline.** `gross − lost = net`, plus the engine's own
+  invariants, against a job that was actually installed.
+- **The decisive probe:** an engine inflating gross AND lost by 100 still returns **net = 6,824** —
+  the right answer by the wrong route. The fixture caught it on gross (7,080) and lost (256). A
+  headline-only fixture would have passed it.
+- **An arithmetic finding.** `6,980 / 916 = 7.6201`, not an integer, so **no uniform level count
+  reproduces the as-built gross**. Carson is a mixed configuration and the drawing does not break it
+  down by run, so `beam_levels_per_bay` is recorded as `not_established` **with the reason** rather
+  than inventing a configuration that multiplies out. A fixture encoding a guess is worse than no
+  fixture: a wrong answer with a test defending it.
+- A test asserts every `not_established` entry carries a real reason, so the section cannot decay
+  into bare markers. The two rejected quotes are recorded in `source.disregarded`, so a future reader
+  knows they were considered rather than missed.
+**Verification.** `pnpm verify` **PASS**, exit 0 — 657/657 tests (+11); coverage green including the
+new application floors.
 
 ---
 
@@ -635,15 +657,15 @@ catalog migration and lookup (`B-01`/`B-02`/`B-04`/`B-06`), and the first two ke
 coverage on all five pure kernel packages, RLS/auth/authz/DTO/audit/outbox proven against real
 Postgres, and the catalog proven against real published data. The next five are:
 
-1. **`C-08`** — the golden fixtures, **wired into the test run**. The reference project's are not
-   consumed by anything, and that defect must not be inherited. `P0-004` established 6,824 net from
-   the as-built drawing, and the fixture asserts the breakdown (gross − lost = net) rather than only
-   the headline, so an engine reaching the right total by the wrong route still goes red.
+1. **`B-03`** — migrate the three verified frame-capacity tables (435/435 reconciled cells) from
+   `rack-app`, the same way the beam data was extracted. This is the last piece of Group B, and
+   `C-04`'s beam/frame compatibility check currently takes compatibility as an input because the
+   data is not here yet.
 2. **`B-03`** — migrate the three verified frame-capacity tables (435 reconciled cells) from
    `rack-app`, the same way the beam data was extracted. `C-04`'s beam/frame compatibility check
    currently takes compatibility as an input because this data is not here yet.
-3. **`P1-014` closes** once `C-08` lands — the whole derivation kernel, from units to BOM to
-   drawing, with every gate proven to fire by deliberate breakage.
+3. **Group D (`D-01`/`D-02`)** — the client application can now begin. The trustworthy model the
+   brief demanded before any UI is built and proven: `P1-014` is complete.
 4. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
    proven rather than one.
 5. **The catalog and rule-pack approvers** (`RH-05`). Both packs sit in `DRAFT`, both gates refuse
@@ -653,45 +675,47 @@ Postgres, and the catalog proven against real published data. The next five are:
 
 ---
 
-## File-impact plan for the next unblocked task (P1-014 · `C-08`)
+## File-impact plan for the next unblocked task (P1-012 · `B-03`)
 
-`C-08` is the golden fixtures. The reference project has fixtures and **nothing consumes them** —
-the reuse register flags this explicitly, and inheriting that defect would mean writing the fixtures
-and still having no gate.
+`B-03` migrates the three verified frame-capacity tables — 435/435 cells reconciled across two
+independent extraction paths, the best-provenanced asset in any of the four reference trees.
 
 **New files**
 
 ```
-fixtures/golden/carson-0005-01-r1.json    the as-built drawing's counts, with their provenance:
-                                          916 bays / 6,980 gross / 156 lost / 6,824 net
-fixtures/golden/README.md                 what each fixture is, which artifact it came from, and
-                                          what a failure means
-packages/kernel-derive/src/golden.test.ts the fixture WIRED INTO the test run
+data/catalog/interlake-2026-08/frames.json    3 tables, extracted verbatim, DRAFT
+tools/extract-frames.py                       parse via ast; the source is NEVER executed, the same
+                                              decision the beam extract made
+packages/kernel-catalog/src/frames.ts         frame capacity lookup, exact-grid only
+packages/kernel-catalog/src/frames.test.ts    against the real extracted data
 ```
 
 **Modified files**
 
 ```
-docs/CURRENT_STATE.md · TODO.md           results, only after the commands pass
+packages/kernel-catalog/src/index.ts          export the frame lookup
+docs/CURRENT_STATE.md · TODO.md               results, only after the commands pass
 ```
 
-**The design point, decided in advance.** The fixture asserts the **breakdown**, not only the
-headline: `gross − lost = net`, and the per-reason loss breakdown summing to the total loss. An
-engine that reaches 6,824 by the wrong route — right total, wrong lost-position accounting — must
-still go red. `C-02`'s `positionAccounting` already returns all three figures together, so there is
-something real to assert against rather than a single number.
+**What must NOT be ported.** The **seven `QUARANTINED` capacity tables** in `rack-app`. One
+overstates capacity by up to **72%** at HbL 120" because it was indexed on overall frame height under
+an HbL label. They stay where they are. The extractor should refuse them by name rather than relying
+on someone remembering.
 
-**What must NOT happen.** The two quotes (`Q-38857-1`, `Q-38857-8`) are reference material and are
-disregarded per `P0-004`. Their counts do not enter the fixture, in any form.
+**The open question to carry, not resolve.** The 59E face-height reading (`P0-005`) is parked at
+three values with no page reference. Frame data may make face height load-bearing for the first time
+— if a frame lookup keys on it, `P0-005` reopens and needs a page reference before the number is
+used.
 
 **Verification before marking complete**
 
 ```
+python tools/extract-frames.py     # verbatim, 435 cells
 pnpm verify
+pnpm coverage
 ```
 
-Then prove the gate fires: change the lost-position count so the total still reaches 6,824 by a
-different route, and confirm the fixture test goes red anyway.
+Then prove the gate fires: alter one extracted cell and confirm the reconciliation test goes red.
 
 Record the actual output in `docs/CURRENT_STATE.md` §4. A task is not complete because it looks
 done; it is complete when the command has been run and its result written down.

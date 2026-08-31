@@ -1,0 +1,35 @@
+{
+  "$comment": "Golden fixture. See README.md in this directory before changing anything here.",
+  "id": "carson-0005-01-r1",
+  "title": "Carson Phase 4 — as-built pallet position count",
+  "source": {
+    "artifact": "Drawing 0005-01 R-1 (as-built)",
+    "authority": "SOLE. Established by owner decision 2026-08-31 (P0-004).",
+    "disregarded": [
+      "Quote Q-38857-1 (916 bays / 7,196 net) — a priced commercial document, not a statement of what was installed",
+      "Quote Q-38857-8 (551 bays / 4,268 net) — a different scope at a different point in the job's life"
+    ],
+    "why_this_artifact": "It is the only one of the three whose own breakdown reconciles: 6,980 gross − 156 lost = 6,824 net, exactly."
+  },
+  "established": {
+    "bays": 916,
+    "gross_positions": 6980,
+    "lost_positions": 156,
+    "net_positions": 6824,
+    "picking_levels": 324,
+    "anchors_per_upright_frame": 4
+  },
+  "not_established": {
+    "beam_levels_per_bay": "NOT RECORDED. 6,980 / 916 = 7.6201, so no uniform level count reproduces the gross figure — the job is a mixed configuration and the drawing does not break it down by run. A fixture asserting a per-bay level count would be inventing one.",
+    "loss_breakdown_by_reason": "NOT RECORDED. The drawing gives the 156 total; it does not say which positions were lost or why. The engine's per-reason breakdown therefore cannot be checked against this artifact.",
+    "positions_per_bay": "NOT RECORDED, and not derivable without the level count."
+  },
+  "cross_check": {
+    "anchor_ratio": {
+      "anchors": 3812,
+      "frames": 953,
+      "ratio": 4.0,
+      "note": "3,812 / 953 = 4.000 exactly. Independent of the position count, and the basis for the BOM's anchor rule."
+    }
+  }
+}
