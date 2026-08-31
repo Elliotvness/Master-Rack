@@ -82,3 +82,13 @@ export {
   type AuditOutcome,
   type ChainVerification,
 } from './audit/chain.js';
+
+export {
+  backoffFor,
+  claimBatch,
+  enqueue,
+  markDispatched,
+  markFailure,
+  type OutboxMessage,
+  type OutboxStatus,
+} from './outbox/outbox.js';
