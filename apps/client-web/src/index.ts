@@ -91,3 +91,16 @@ export {
   type ComparisonTable,
   type OptionSummary,
 } from './lib/comparison.js';
+
+export {
+  SUBMIT_STEPS,
+  SubmitError,
+  stepsInOrder,
+  submit,
+  submitRefusals,
+  type Derivation,
+  type SubmitEffects,
+  type SubmitInput,
+  type SubmitResult,
+  type SubmitStep,
+} from './lib/submit.js';

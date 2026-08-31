@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **775**, all passing across 32 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
+| Product tests | **797**, all passing across 33 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified beam rows **and 435 verified frame-capacity cells**, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **9**: kernel-boundary self-test + scan, **app-boundary self-test + scan**, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 31 commits**, working tree clean |
+| Version control | **git, 32 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,43 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `D-07`/`E-06`: the submit transaction**
+
+| Check | Command | Result |
+|---|---|---|
+| Submit tests | `pnpm test` | **PASS.** 22 tests: the nine-step order, `AC-10`, and the do-nothing refusal |
+| **Order enforced: freeze before persist** | deliberate break | **PROVEN.** Persisting derived rows first turned **2 tests red** |
+| **Order enforced: audit before outbox** | deliberate break | **PROVEN.** Enqueueing early turned **2 tests red** |
+| **`AC-10` — every reason** | deliberate break | **PROVEN.** Reporting only the first refusal turned **2 tests red** |
+| **Reviews do not block** | deliberate break | **PROVEN.** Blocking on engineering-review findings turned **1 test red** |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **797/797** tests across 33 files |
+| Coverage | `pnpm coverage` | **PASS.** `submit.ts` at **100%** |
+
+**The one place client data crosses into internal workflow, and it crosses once.** §13.1 fixes nine
+steps and *"if any step fails, nothing happened"*. The steps are modelled explicitly and the
+completed list is **returned**, so the order can be asserted rather than inferred — an invariant
+nobody can observe is one nobody can defend.
+
+**Two orderings carry the weight, and both are now proven by breaking them:**
+
+- **Re-derive before refusing.** Checking a cached finding set would let a revision submit against
+  results that no longer match its inputs; the submission would be internally inconsistent from the
+  moment it froze.
+- **Freeze before persisting derived rows.** The rows are keyed to the content hash, so the hash must
+  be final first. Persisting first keys them to a hash that can still change.
+
+**The outbox is last, deliberately.** An email must not be sent for a transaction that rolled back.
+A test asserts that a failure at `create_submission` leaves **no audit write and no outbox message**
+— the refusal path performs `rederive` and nothing else.
+
+**`AC-10`: a refusal lists every reason.** Blockers *and* a missing acknowledgement are reported
+together, so a client does not tick the assumption box only to discover three blockers behind it.
+Surfacing one problem at a time turns a single correction into several round trips and hides the
+scope of the work.
+
+**Only a `BLOCKER` stops a submit.** A review item is what the submission is *for*; blocking on one
+would strand every job touching an under-sourced rule, which is most of them.
 
 **2026-08-31 — `D-06` comparison, and a gap it exposed in the app separation**
 
