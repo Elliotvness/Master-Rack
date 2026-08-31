@@ -23,6 +23,9 @@ const alias = {
   '@rms/kernel-rules': fileURLToPath(
     new URL('./packages/kernel-rules/src/index.ts', import.meta.url),
   ),
+  '@rms/kernel-checks': fileURLToPath(
+    new URL('./packages/kernel-checks/src/index.ts', import.meta.url),
+  ),
   '@rms/kernel-geom': fileURLToPath(
     new URL('./packages/kernel-geom/src/index.ts', import.meta.url),
   ),
@@ -77,6 +80,12 @@ export default defineConfig({
           statements: 100,
         },
         'packages/kernel-rules/src/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
+        'packages/kernel-checks/src/**': {
           branches: 100,
           functions: 100,
           lines: 100,

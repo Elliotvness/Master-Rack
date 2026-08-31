@@ -18,20 +18,22 @@ assertion, `A-07` sessions and authentication, `A-08` `authorize()`, `A-09` the 
 has begun: the verified Interlake catalog is migrated (`B-01`/`B-02`/`B-04`/`B-06`) with a
 no-interpolation lookup. The derivation kernel has two slices landed — `C-02` `kernel-derive`
 (geometry and pallet-position counts) and `C-03` `kernel-geom` (obstruction faces and the clearance
-index). Group B's rule pack (`B-05`) has landed with the verification-tier ceiling that `AC-19`
-requires. **`C-04` (the twelve checks) and `B-03` (frame capacity) are the next real work.**
+index). Group B's rule pack (`B-05`) has landed with the verification-tier ceiling, and `C-04` —
+the twelve MVP checks with that ceiling applied by the framework — is complete and its control
+proven by deliberate breakage. **`C-05`..`C-08` (BOM, display list, provenance lint, golden
+fixtures) and `B-03` (frame capacity) are the next real work.**
 
 | | |
 |---|---|
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
-| Production source files | **55+** across six pure kernel packages, `db`, `apps/api`, `tools/` |
-| Product tests | **400**, all passing across 19 files (pure + real-Postgres + real catalog and rule data) |
-| Kernel coverage | **100%** statements, branches, functions, lines on all **six** kernel packages |
+| Production source files | **60+** across seven pure kernel packages, `db`, `apps/api`, `tools/` |
+| Product tests | **456**, all passing across 21 files (pure + real-Postgres + real catalog and rule data) |
+| Kernel coverage | **100%** statements, branches, functions, lines on all **seven** kernel packages |
 | Catalog data | 378 verified Interlake beam rows, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
-| Version control | **git, 19 commits**, working tree clean |
+| Version control | **git, 20 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -81,6 +83,46 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `C-04` `kernel-checks`: the twelve MVP checks and the ceiling framework**
+
+| Check | Command | Result |
+|---|---|---|
+| Framework tests | `pnpm test` | **PASS.** 20 tests: the ceiling applied centrally, the citation carried, silence named, `closed_by` mandatory, duplicate check codes refused |
+| The twelve checks | `pnpm test` | **PASS.** 36 tests, one or more per check, incl. `AC-08` off-grid brackets, `AC-09` no table basis for uncatalogued material, and the clean-configuration baseline that produces **no findings at all** |
+| **`AC-19` proven by breaking it — probe 1** | deliberate break | **PROVEN.** Rewriting the aisle check to claim `PASS` against its `SECONDARY` rule went **red** (1 failed / 56): the framework still returned ENGINEERING REVIEW REQUIRED |
+| **`AC-19` proven by breaking it — probe 2** | deliberate break | **PROVEN, and this is the decisive one.** Demoting `GEOM-TOP-OF-LOAD` from `PRIMARY` to `SECONDARY` **in `rules.json`, editing no code at all**, turned check 4's outcome from `BLOCKER` into `ENGINEERING_REVIEW_REQUIRED`. Both probes reverted and re-verified |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. 456/456 tests (was 400); boundaries now **25 files across 7 pure packages** |
+| Kernel coverage | `pnpm coverage` | **PASS.** `kernel-checks/src` at **100%** statements / branches / functions / lines |
+
+**The control is structural, not a convention.** A `Check` returns an `Observation`; only
+`runChecks` produces a `Finding`; and `applyCeiling` is called in exactly one place. A developer
+therefore cannot write a check that returns PASS against a secondary-sourced rule, because a check
+**cannot produce a finding at all**. Probe 2 is the proof that matters: the tier lives in data, and
+moving it changed a verdict with no code touched. That is the property `AC-19` actually asks for,
+and it is what makes an unresolved source conflict safe to ship — the conflict caps the conclusion
+automatically rather than relying on someone remembering.
+
+**What the check set refuses to conclude.** Check 5 observes a `BLOCKER` on an aisle shortfall and
+is capped at ENGINEERING REVIEW REQUIRED, because the load-face convention has no located code
+basis. Check 11 reports the measured flue dimension and is forced to NOT EVALUATED, so **no
+fire-protection verdict is reachable** even though the check runs and the number is shown. Check 12
+names uncatalogued material and states that capacity cannot be established from geometry, carrying
+no capacity and **no table basis at all** (`AC-09`) — its citation names the product's own scope
+constraint, because no table was read.
+
+**Three §11.1 failure modes are asserted rather than assumed.** *Silence is not a pass*:
+`silentChecks()` names every check that reported nothing, so the screen can show it rather than omit
+it. *Missing input is not engineering review*: a `MISSING_INPUT` observation survives even a
+`SECONDARY` rule, so the client's actionable list is never buried inside things they cannot act on.
+*An unestablished value is never a numeral* (`AC-07`): `FindingParameter` is a discriminated union
+where `value` is `null` exactly when `established` is false, making "unestablished but here is the
+number anyway" unrepresentable rather than merely discouraged.
+
+**A defect the coverage gate caught:** `checks.ts` carried `n.kind === 'value' ? n.label : n.label`
+— a ternary whose branches are identical, left over from an earlier shape of the provenance walk. It
+was dead logic pretending to be a decision. Deleted rather than tested, because the honest fix for
+an uncoverable branch is usually that the branch should not exist.
 
 **2026-08-31 — `B-05` `kernel-rules`: rule packs and the verification-tier ceiling**
 

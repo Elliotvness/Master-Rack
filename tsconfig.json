@@ -7,6 +7,7 @@
     { "path": "./packages/kernel-derive" },
     { "path": "./packages/kernel-geom" },
     { "path": "./packages/kernel-rules" },
+    { "path": "./packages/kernel-checks" },
     { "path": "./packages/db" },
     { "path": "./apps/api" }
   ]

@@ -1,0 +1,16 @@
+{
+  "name": "@rms/kernel-checks",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The MVP check set and the framework that applies the tier ceiling. Pure.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@rms/kernel-units": "workspace:*",
+    "@rms/kernel-rules": "workspace:*"
+  }
+}

@@ -12,10 +12,10 @@ backlog id, that id is named.
 > `P1-003` (`A-03`), `P1-004` (`A-04`), `P1-005` (`A-05`), `P1-006` (`A-06`), `P1-007` (`A-07`),
 > `P1-008` (`A-08`), `P1-009` (`A-09`), `P1-010` (`A-10`), `P1-011` (`A-11`), `P1-013` (`C-01`).
 > **Partial:** `P1-012` (`B-01`/`B-02`/`B-04`/`B-05`/`B-06` done; **`B-03` outstanding**) and
-> `P1-014` (`C-02`/`C-03` done; `C-04`..`C-08` outstanding).
+> `P1-014` (`C-02`/`C-03`/**`C-04`** done; `C-05`..`C-08` outstanding).
 > **Also closed:** `P0-004` (Carson count established) and `P0-005` (59E face height parked).
-> **Last full run, 2026-08-31: `pnpm verify` PASS** — **400/400** tests across 19 files, boundary
-> self-test + scan (21 files, **6** pure packages), `check-rls` 19 tables, exit 0.
+> **Last full run, 2026-08-31: `pnpm verify` PASS** — **456/456** tests across 21 files, boundary
+> self-test + scan (25 files, **7** pure packages), `check-rls` 19 tables, exit 0.
 > Everything else is `Planned only` unless its own row says otherwise. Nothing here may be marked
 > `Complete` without recording the verification command and its actual result.
 
@@ -298,7 +298,7 @@ carry `{text, established}`, never a bare string; an unestablished value never r
 (`AC-07`). **Golden fixtures are wired into the test run** — the reference project's are not, and
 that defect must not be inherited.
 **Verification.** `pnpm test`; fixture deltas within stated tolerance; `node tools/lint-provenance.mjs` fails on a formatter applied to a raw value.
-**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `C-02` and `C-03`; the rest `Planned only`.
+**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `C-02`, `C-03` and `C-04`; `C-05`..`C-08` `Planned only`.
 
 **`C-02` (`kernel-derive`) — Complete and verified 2026-08-31.** Pure geometry and pallet-position
 counts over provenanced quantities, no catalog or rule number invented in application code:
@@ -338,6 +338,29 @@ span-bucketed clearance index (ADR-006/007), pure integer-µm geometry, no inven
 **Verification.** `pnpm verify` **PASS** — 352/352 tests (+23 in `kernel-geom`), `kernel-geom/src`
 at **100%** coverage, boundary scan now 18 files across 5 pure packages, RLS green. Wired into the
 three-way alias table and project references.
+
+**`C-04` (`kernel-checks`) — Complete and verified 2026-08-31.** The twelve MVP checks (§11.4) and
+the framework that applies the verification-tier ceiling to everything they observe:
+- **The control is structural.** A `Check` returns an `Observation`; only `runChecks` produces a
+  `Finding`; `applyCeiling` is called in exactly one place. A check cannot overstate its authority
+  because a check cannot produce a finding at all.
+- **`AC-19` proven by two deliberate breaks**, not by assertion. Rewriting the aisle check to claim
+  `PASS` against its `SECONDARY` rule went red. **More importantly**, demoting a rule from `PRIMARY`
+  to `SECONDARY` **in `rules.json` with no code edited** turned check 4's verdict from `BLOCKER` into
+  `ENGINEERING_REVIEW_REQUIRED`. Both reverted and re-verified.
+- **`AC-07` is made unrepresentable, not merely enforced.** `FindingParameter` is a discriminated
+  union where `value` is `null` exactly when `established` is false.
+- **`AC-08`**: an off-grid span returns both brackets and no capacity, and the reason names that the
+  engine does not interpolate. **`AC-09`**: uncatalogued material carries no capacity and no table
+  basis at all, its citation naming the product's scope constraint because no table was read.
+- **Silence is not a pass**: `silentChecks()` names every check that reported nothing, so the screen
+  can show it rather than omit it. **Missing input survives a weak tier**, so the client's actionable
+  list is never buried in things they cannot act on.
+- `closed_by` is mandatory and the framework refuses a finding without one.
+**Verification.** `pnpm verify` **PASS**, exit 0 — 456/456 tests (+56), `kernel-checks/src` at
+**100%** coverage, boundary scan now 25 files across **7** pure packages, RLS green. **A defect the
+coverage gate caught:** a ternary whose branches were identical — dead logic pretending to be a
+decision — deleted rather than tested.
 
 ---
 
@@ -509,15 +532,16 @@ catalog migration and lookup (`B-01`/`B-02`/`B-04`/`B-06`), and the first two ke
 coverage on all five pure kernel packages, RLS/auth/authz/DTO/audit/outbox proven against real
 Postgres, and the catalog proven against real published data. The next five are:
 
-1. **P1-014** (`C-04`..`C-08`) — the derivation kernel: geometry and counts (bay pitch, run length,
-   overhang allocation, aisle clear width, gross/lost/net positions), the twelve checks with the
-   tier ceiling applied by the framework, the BOM with its unresolved register, the display list,
-   and the golden fixtures. This is the trustworthy model the brief demands before any UI.
+1. **P1-014** (`C-05`..`C-08`) — the rest of the derivation kernel: the BOM with its unresolved
+   register, the display list, the provenance lint, and the golden fixtures wired into the test run.
+   Geometry, counts and the twelve checks are done. This is the trustworthy model the brief demands
+   before any UI.
 2. **B-03** — migrate the three verified frame-capacity tables (435 reconciled cells) from
    `rack-app`, the same way the beam data was extracted. `C-04`'s beam/frame compatibility check
    wants it.
 3. **C-05..C-08** — the BOM with its unresolved register, the display list, the provenance lint,
-   and the golden fixtures (now unblocked: `P0-004` established 6,824 net from the as-built drawing).
+   and the golden fixtures (unblocked: `P0-004` established 6,824 net from the as-built drawing, and
+   the fixture asserts the breakdown rather than only the headline).
 4. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
    proven rather than one.
 5. **The catalog and rule-pack approvers.** Both packs sit in `DRAFT` and both gates refuse
@@ -525,28 +549,27 @@ Postgres, and the catalog proven against real published data. The next five are:
 
 ---
 
-## File-impact plan for the next unblocked task (P1-014 · `C-04`)
+## File-impact plan for the next unblocked task (P1-014 · `C-05`)
 
-`B-05` has landed, so the twelve checks are unblocked: every check now has a rule with a tier, and
-`applyCeiling` is proven exhaustive. `C-04` is the framework plus the checks themselves.
+`C-05` is the BOM. Its hard parts are already enforced in the schema: a line references
+`part_revision_id` **XOR** `uncatalogued_part_id`, and carries `qty` **XOR** `unresolved_reason`.
+The derivation must respect both without a third state appearing.
 
 **New files**
 
 ```
-packages/kernel-checks/src/framework.ts       runChecks(): the ONE place the ceiling is applied
-packages/kernel-checks/src/framework.test.ts  a check returning PASS against a SECONDARY rule must
-                                              come back ENGINEERING REVIEW REQUIRED; a check naming
-                                              an absent rule must throw, not silently skip
-packages/kernel-checks/src/finding.ts         the §11.3 shape: parameters carry {value, established},
-                                              closed_by is mandatory, citation is internal-only
-packages/kernel-checks/src/checks/*.ts        the twelve checks, each pure and rule-driven
-packages/kernel-checks/src/checks.test.ts     per-check cases incl. UNKNOWN propagation
+packages/kernel-bom/src/bom.ts            derive lines from a revision; every line carries rule
+                                          text, confirmed, and source object ids
+packages/kernel-bom/src/bom.test.ts       AC-13: a line is a quantity or a reason, never both or
+                                          neither; regeneration is byte-identical from the revision
+packages/kernel-bom/src/unresolved.ts     the unresolved register: wire decks, row spacers,
+                                          footplates and protectors emit UNRESOLVED with reasons
 ```
 
 **Modified files**
 
 ```
-tsconfig.base.json · vitest.config.ts · tsconfig.json   the @rms/kernel-checks alias, three-way
+tsconfig.base.json · vitest.config.ts · tsconfig.json   the @rms/kernel-bom alias, three-way
                                                         agreement + a 100% coverage threshold
 docs/CURRENT_STATE.md · TODO.md                         results, only after the commands pass
 ```
@@ -554,23 +577,25 @@ docs/CURRENT_STATE.md · TODO.md                         results, only after the
 **Untouched, explicitly**
 
 ```
-packages/kernel-rules/**            the ceiling is consumed, never re-implemented or bypassed
-packages/kernel-units/** · kernel-model/** · kernel-derive/** · kernel-geom/** · kernel-catalog/**
-rack-master-studio-blueprint.html   rebuild only via src/build.py
+packages/kernel-checks/** · kernel-rules/**    the ceiling is consumed, never re-implemented
+rack-master-studio-blueprint.html             rebuild only via src/build.py
 C:\Rack Master\Resourse (do not delete or overwrite files)\**   read-only, always
 ```
+
+**The trap to avoid, stated in advance.** None of the three conflicting wire-deck formulas may be
+adopted. All three disagree, so the deck quantity emits as `UNRESOLVED` with the reasons — inventing
+a fourth formula to make the BOM look complete is precisely the failure this product exists to
+prevent.
 
 **Verification before marking complete**
 
 ```
-pnpm db:up && pnpm migrate
 pnpm verify          # typecheck, lint, tests, boundaries, self-test, RLS
-pnpm coverage        # 100% on kernel-checks, threshold enforced
+pnpm coverage        # 100% on kernel-bom, threshold enforced
 ```
 
-Then prove the gate fires rather than observing it pass: write a check that returns `PASS` against a
-`SECONDARY`-tier rule and confirm the framework downgrades it, and demote a rule's tier in the seed
-pack and confirm the affected findings drop to the ceiling **without any check being edited**.
+Then prove the gate fires: construct a line carrying both a quantity and an unresolved reason and
+confirm it is refused, and regenerate a BOM twice asserting byte-identical output.
 
 Record the actual output in `docs/CURRENT_STATE.md` §4. A task is not complete because it looks
 done; it is complete when the command has been run and its result written down.

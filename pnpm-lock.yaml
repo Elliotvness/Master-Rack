@@ -64,6 +64,15 @@ importers:
         specifier: workspace:*
         version: link:../kernel-units
 
+  packages/kernel-checks:
+    dependencies:
+      '@rms/kernel-rules':
+        specifier: workspace:*
+        version: link:../kernel-rules
+      '@rms/kernel-units':
+        specifier: workspace:*
+        version: link:../kernel-units
+
   packages/kernel-derive:
     dependencies:
       '@rms/kernel-units':
