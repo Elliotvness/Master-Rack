@@ -7,11 +7,11 @@ backlog id, that id is named.
 **Status values:** `Not started` · `In progress` · `Blocked` · `Needs review` · `Complete`
 **Evidence values:** `Confirmed implemented` · `Implemented but unverified` · `Planned only` · `Blocked by decision/source/input`
 
-> **Baseline, stated once so no item below has to repeat it:** Phase 0 has started.
-> `P0-001`, `P0-002`, `P1-001` (`A-01`), `P1-002` (`A-02`) and `P1-003` (`A-03`) are **Complete**,
-> each with its verification command and result recorded. Everything else is `Planned only` unless
-> its own row says otherwise. Nothing here may be marked `Complete` without recording the
-> verification command and its actual result.
+> **Baseline, stated once so no item below has to repeat it:** Phase 0 is substantially built.
+> **Complete and verified:** `P0-001`, `P0-002`, `P1-001` (`A-01`), `P1-002` (`A-02`),
+> `P1-003` (`A-03`), `P1-004` (`A-04`), `P1-005` (`A-05`), `P1-006` (`A-06`), `P1-013` (`C-01`).
+> Everything else is `Planned only` unless its own row says otherwise. Nothing here may be marked
+> `Complete` without recording the verification command and its actual result.
 
 **Standing constraints on every item:**
 - The four trees under `Resourse (do not delete or overwrite files)\` are **read-only**. Copy out; never write in.
@@ -135,8 +135,9 @@ table. `migrator`/`app_user` role split is what makes RLS real rather than decor
 **Acceptance.** Every tenant table has `organization_id`, `ENABLE` + `FORCE ROW LEVEL SECURITY`, and
 a policy per operation including `INSERT ... WITH CHECK`. Every uniqueness constraint is composite
 with `organization_id`. `app_user` owns nothing and has neither `SUPERUSER` nor `BYPASSRLS`.
-**Verification.** Migrations apply to a clean Postgres 16; cross-tenant `SELECT` returns zero rows and cross-tenant `INSERT` is refused, both against a real database.
-**Status.** `Not started`. **Evidence:** `Planned only`.
+**Verification.** Migrations apply to a clean Postgres 16; cross-tenant `SELECT` returns zero rows and cross-tenant `INSERT` is refused, both against a real database. **Run 2026-08-31: PASS** — `pnpm migrate` applied `0001_init.sql` and `0002_rls.sql`; 27 tenancy tests green against real Postgres. Proven to fail: disabling RLS on `app.project` turned 5 tests red.
+**Also enforced at the database layer, beyond the original acceptance criteria:** frozen revisions and their derived rows refuse changes by trigger; audit events refuse UPDATE and DELETE; the catalog approval gate refuses an APPROVED release whose approver is the digitiser or which carries no recorded verification path; a BOM line must carry exactly one part reference and either a quantity or an unresolved reason.
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ### P1-005 · `A-05` `withTenant()` + lint ban on raw pool checkout
 **Why it matters.** `set_config(..., true)` inside an explicit transaction is the only safe shape. A
@@ -145,8 +146,8 @@ client — a cross-tenant leak waiting for a load spike.
 **Files.** `packages/db/with-tenant.ts`, lint rule config.
 **Dependencies.** P1-004.
 **Acceptance.** One wrapper is the only database entry point; raw checkout fails lint.
-**Verification.** `pnpm lint` fails on a file that checks out a connection directly; wrapper unit test asserts the GUC is set and reverted at COMMIT.
-**Status.** `Not started`. **Evidence:** `Planned only`.
+**Verification.** `pnpm lint` fails on a file that checks out a connection directly; wrapper unit test asserts the GUC is set and reverted at COMMIT. **Run 2026-08-31: PASS** — `withTenant()` uses `set_config(..., true)` inside an explicit transaction; eslint bans both raw `pg` imports and `pool.connect()` outside the wrapper.
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ### P1-006 · `A-06` CI assertion that RLS is universal
 **Why it matters.** The forgotten table is the realistic failure, not the wrong policy.
@@ -154,8 +155,8 @@ client — a cross-tenant leak waiting for a load spike.
 **Dependencies.** P1-004.
 **Acceptance.** Reads `pg_class.relrowsecurity` and `pg_policy` for every table in the application
 schema; adding a table without RLS fails CI. (`AC-05`.)
-**Verification.** `node tools/check-rls.mjs`; add a bare table and confirm CI goes red.
-**Status.** `Not started`. **Evidence:** `Planned only`.
+**Verification.** `node tools/check-rls.mjs`; add a bare table and confirm CI goes red. **Run 2026-08-31: PASS** — 16 tables inspected, all enabled and forced with a policy per operation; `app_user` confirmed to have neither SUPERUSER nor BYPASSRLS. **Proven to fail:** disabling RLS on one table produced `app.project: row-level security is NOT ENABLED`.
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ### P1-007 · `A-07` Sessions, cookies, OIDC for staff, password + TOTP for clients
 **Why it matters.** Internal accounts see every organization's data. Email magic links are not an
@@ -233,8 +234,9 @@ truncating hash is the one failure mode a hash must not have.
 units, bounded depth that **fails loudly**. Hash covers content only; the exclusion list
 (lineage, timestamps, author, note) is held as data so a test can assert exactly what is covered.
 Deep freeze on publish so mutation is a `TypeError`.
-**Verification.** Hash-stability test written before the hashing code; property test asserting key-order independence; a depth-exceeding structure raises rather than truncating.
-**Status.** `Not started`. **Evidence:** `Planned only`.
+**Verification.** Hash-stability test written before the hashing code; property test asserting key-order independence; a depth-exceeding structure raises rather than truncating. **Run 2026-08-31: PASS** — 81 tests across `canonical`, `sha256` and `revision`; 100% coverage. **The test earned its keep immediately:** it caught a SHA-256 padding bug at the 55-byte block boundary that would have made every stored hash wrong.
+**Also delivered:** the revision lifecycle — refusals list every reason and carry their own audit event, publish deep-freezes, `cloneToDraft` leaves the source hash untouched, and `mayWaive()` throws naming `OD-09` rather than defaulting permissive.
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ### P1-014 · `C-02`..`C-08` Derivation, checks, BOM, display list, fixtures
 **Why it matters.** This is the trustworthy model the brief demands before any polish.
@@ -415,73 +417,67 @@ Each carries the condition that would change the answer. "Not yet" is not "never
 
 ## The five most important next actions
 
-`P0-001`, `P0-002`, `P1-001`, `P1-002` and `P1-003` are **Complete** and verified (2026-08-31).
+Complete and verified (2026-08-31): `P0-001`, `P0-002`, `P1-001` (`A-01`), `P1-002` (`A-02`),
+`P1-003` (`A-03`), `P1-004` (`A-04`), `P1-005` (`A-05`), `P1-006` (`A-06`), `P1-013` (`C-01`).
 The next five are:
 
-1. **P1-004** (`A-04`) — Postgres schema v1 with RLS on every tenant table. The largest remaining
-   retrofit risk; it touches every table.
-2. **P1-013** (`C-01`) — `kernel-model` canonical hashing. **Write the hash-stability test first.**
-   Independent of the database, so it can run in parallel with `A-04`.
-3. **P0-004 / RH-02** — reconcile the three conflicting Carson counts. Human work, and it gates the
-   fixture that gates the engine.
+1. **P1-007** (`A-07`) — sessions, cookie hardening, OIDC for staff, password + TOTP for clients.
+   The last foundation piece before authorization can be built on top of it.
+2. **P1-008 / P1-009** (`A-08`/`A-09`) — `authorize()` with the boot-time route-coverage assertion,
+   then the DTO layer and the leakage contract test. Worth ten times more written against six routes
+   than two hundred, so it must land before the routes multiply.
+3. **P1-010** (`A-10`) — audit hash chaining and the transactional write helper. The table and its
+   append-only trigger exist; the chain does not.
 4. **P1-012** (`B-01`/`B-02`) — migrate the verified Interlake catalog into declarative data with
-   provenance intact. Also closes the `OD-06` veto window (`P0-006`) and makes the 18-of-21 span
+   provenance intact. Closes the `OD-06` veto window (`P0-006`) and makes the 18-of-21 span
    assertion real.
-5. **P0-003** — install Playwright and run `verify-visual.py` once, so both documented documentation
-   gates are proven rather than one.
+5. **P0-004 / RH-02** — reconcile the three conflicting Carson counts. Human work, and it gates the
+   fixture that gates the engine.
 
 ---
 
-## File-impact plan for the next unblocked task (P1-004 · `A-04`)
-
-`A-01`, `A-02` and `A-03` are done; the file-impact plan that stood here has been executed. The
-next plan covers the database foundation.
+## File-impact plan for the next unblocked task (P1-007 · `A-07`)
 
 **New files**
 
 ```
-packages/db/package.json · tsconfig.json
-packages/db/migrations/0001_init.sql          organizations, users, memberships, projects,
-                                              revisions, and the audience split
-packages/db/policies/0001_rls.sql             ENABLE + FORCE + a policy per operation, per table
-packages/db/src/with-tenant.ts                A-05: the only database entry point
-tools/check-rls.mjs                           A-06: reads pg_class.relrowsecurity and pg_policy
-tools/check-rls.test.ts                       asserts a bare table is caught
-docker-compose.yml                            a real Postgres 16 for the RLS tests
+packages/db/migrations/0003_sessions.sql   session table, cookie-token hash, expiry, revocation
+apps/api/package.json · tsconfig.json      the first application package
+apps/api/src/auth/session.ts               create, read, regenerate, revoke; opaque tokens only
+apps/api/src/auth/session.test.ts          incl. AC-17: deactivation kills sessions and invitations
+apps/api/src/auth/invitation.ts            256-bit CSPRNG token, sha256 at rest, single-use redeem
+apps/api/src/auth/invitation.test.ts       AC-01: identical response for expired/revoked/used/absent
 ```
 
 **Modified files**
 
 ```
-package.json           add db scripts: migrate, check:rls
-vitest.config.ts       add the @rms/db alias; keep the three-way alias agreement
-tsconfig.base.json     add the @rms/db path
-tsconfig.json          add the project reference
-eslint.config.mjs      add the raw-pool-checkout ban once there is a pool to ban
-.github/workflows/ci.yml   add a Postgres service and the RLS assertions
-docs/CURRENT_STATE.md  append the verification results
-TODO.md                statuses, only after the commands pass
+tsconfig.base.json · tsconfig.json · vitest.config.ts   the @rms/api alias, three-way agreement
+package.json                                            add the apps/* workspace scripts
+.github/workflows/ci.yml                                no change expected; Postgres already present
+docs/CURRENT_STATE.md · TODO.md                         results, only after the commands pass
 ```
 
 **Untouched, explicitly**
 
 ```
-rack-master-studio-blueprint.html   rebuild only via src/build.py, never edited directly
-src/**                              the documentation toolchain is independent
-packages/kernel-units/**            no kernel package may learn about the database
+packages/kernel-*/**                no kernel package may learn about sessions or HTTP
+rack-master-studio-blueprint.html   rebuild only via src/build.py
 C:\Rack Master\Resourse (do not delete or overwrite files)\**   read-only, always
 ```
 
 **Verification before marking complete**
 
 ```
-docker compose up -d db
-pnpm migrate
-node tools/check-rls.mjs        # every table: RLS enabled, forced, a policy per operation
-pnpm test                       # incl. cross-tenant read returns empty, cross-tenant insert refused
-pnpm verify
+pnpm db:up && pnpm migrate
+pnpm verify          # typecheck, lint, tests, boundaries, self-test, RLS
+pnpm coverage
 ```
+
+Then prove the gate fires: redeem an invitation twice and assert the second attempt is
+indistinguishable from an expired one, in status, body and timing.
 
 Record the actual output in `docs/CURRENT_STATE.md` §4. A task is not complete because it looks
 done; it is complete when the command has been run and its result written down.
+
 

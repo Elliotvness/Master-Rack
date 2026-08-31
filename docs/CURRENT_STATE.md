@@ -10,19 +10,21 @@ Status vocabulary used here, carried from `rack-engine/CLAUDE.md`:
 
 ## 1. Headline
 
-**Phase 0 has started.** The planning package is complete and the first three foundation tasks
-(`A-01` scaffold, `A-02` `kernel-units`, `A-03` boundary checker) are implemented, verified and
-committed. Everything above the kernel — schema, tenancy, auth, apps — is still planning only.
+**Phase 0 is substantially built.** The planning package is complete and six foundation tasks are
+implemented, verified and committed: `A-01` scaffold, `A-02` `kernel-units`, `A-03` boundary
+checker, `C-01` `kernel-model`, `A-04` schema + RLS, `A-05` `withTenant()`, `A-06` RLS assertion.
+Authentication, authorization, the DTO layer and both applications remain planning only.
 
 | | |
 |---|---|
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
-| Production source files | **9** (`packages/kernel-units/src`, `tools/`) |
-| Product tests | **68**, all passing |
-| Kernel coverage | **100%** statements, branches, functions, lines (gate enforced in CI) |
+| Production source files | **17** (`packages/kernel-units`, `kernel-model`, `db`, `tools/`) |
+| Product tests | **176**, all passing (149 pure + 27 against real Postgres) |
+| Kernel coverage | **100%** statements, branches, functions, lines on both kernel packages |
+| Database | Postgres 16, 16 tables, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
-| Version control | **git, 3 commits**, working tree clean |
+| Version control | **git, 6 commits**, working tree clean |
 
 ## 2. Naming
 
@@ -110,6 +112,39 @@ unproven:**
 Not verified: `verify-visual.py` (needs Playwright, not installed) — `P0-003` remains open. CI has
 never run on a real runner; the workflow is written but unexercised.
 
+**2026-08-31 — Phase 0 continued (`C-01`, `A-04`, `A-05`, `A-06`)**
+
+| Check | Command | Result |
+|---|---|---|
+| C-01 hash stability | `pnpm test` | **PASS.** Written before the hashing code; 38 canonical + 17 SHA-256 + 26 revision tests |
+| C-01 SHA-256 vectors | (in `pnpm test`) | **PASS** against FIPS 180-4 `abc`, the two multi-block examples, the million-`a` case, five padding boundaries, and independently pinned UTF-8 digests |
+| A-04 migrations | `pnpm migrate` | **PASS.** `0001_init.sql`, `0002_rls.sql` applied to Postgres 16 |
+| A-06 RLS assertion | `pnpm check:rls` | **PASS.** 16 tables, all RLS enabled + forced with a policy per operation; `app_user` has no SUPERUSER or BYPASSRLS |
+| A-04/A-05 tenancy | `pnpm test` | **PASS.** 27 tests against **real Postgres**, not a mock |
+| Whole pipeline | `pnpm verify` | **PASS.** 176/176 tests; typecheck, lint, boundaries, self-test, RLS all green |
+| Kernel coverage | `pnpm coverage` | **PASS.** 100% statements / branches / functions / lines on `kernel-units` **and** `kernel-model` |
+
+**The gates were proven to fire, not merely observed passing.** RLS was disabled on one table in the
+throwaway container: 5 tenancy tests went red and `check-rls` named `app.project` by name. Both were
+restored and re-verified immediately.
+
+**Three defects the gates caught during this build:**
+
+1. **SHA-256 padding was wrong at the 55-byte boundary**, where the message plus its marker byte
+   plus the 8 length bytes fits a block exactly. The formula appended a whole extra block and
+   produced a confidently wrong digest. Caught only because the test vectors included the boundary
+   lengths rather than just `abc`. This is the single strongest argument for writing the
+   hash-stability test first: every hash stored by the system would have been wrong and nothing
+   downstream would have noticed.
+2. **The tenancy suite silently skipped all 27 tests.** The `available` flag was set in `beforeAll`,
+   but Vitest evaluates `it` vs `it.skip` at collection time, so the flag was always false when the
+   suite was built. It reported a green run while testing nothing — the worst possible failure mode
+   for exactly these tests. Now probed at module load with top-level await.
+3. **`convert()` double-counted scale** (recorded in the previous session).
+
+Still not verified: `verify-visual.py` (`P0-003`), and CI on a real runner.
+
+
 
 ## 5. Canonical flow — is it confirmed?
 
@@ -134,23 +169,29 @@ Project → Draft Revision → Rack Configuration → Version-pinned Catalog + R
 |---|---|---|
 | **Fixed-point units with mandatory provenance** | **CONFIRMED IMPLEMENTED** | `packages/kernel-units`, 68 tests, 100% coverage. µm/millipound bases, `BASIS_BOUND`, allocate-never-divide, fail-closed walkers, `VERIFY` display rule |
 | **Kernel purity enforcement** | **CONFIRMED IMPLEMENTED** | `tools/check-boundaries.mjs` + self-test proving all 10 violation types are caught |
-| Canonical rack/configuration data model | **PLANNED ONLY** — fully specified | §7.2 entity reference, 22 entities, Figures 4–5 |
-| Draft vs published/locked revisions | **PLANNED ONLY** — specified to database level | §3.3, §13.3 six immutability layers, `FR-RV-01..05` |
-| Version-pinned catalogs and rule sources | **PLANNED ONLY** — specified; source data exists in reference trees | §10, `FR-CT-01..06`. Data at `rack-engine/catalog/interlake-2026-08` and `rack-app/frame_capacity_published_2025` (read-only) |
-| Validation findings with source traceability | **PLANNED ONLY** — specified, incl. the tier ceiling | §11.1–11.4, 12-check MVP set, `outcome = min(result, ceiling(tier))` |
-| BOM generation tied to selected revision | **PLANNED ONLY** — specified with the one irreversible schema decision | §12.2 `part_revision_id XOR uncatalogued_part_id` |
+| **Canonical serialisation and content hashing** | **CONFIRMED IMPLEMENTED** | `packages/kernel-model/canonical.ts` + `sha256.ts`. Hash-stability test written first; 55 tests |
+| **Draft vs frozen revisions** | **CONFIRMED IMPLEMENTED at both layers** | `kernel-model/revision.ts` (refusals list every reason, deep freeze) **and** database triggers refusing content change or deletion |
+| **Tenant isolation** | **CONFIRMED IMPLEMENTED** | 16 tables with RLS enabled + forced, `withTenant()` transaction-local context, 27 tests against real Postgres, proven to fail when RLS is removed |
+| Canonical rack/configuration data model | **PARTIAL** — schema exists, the entity graph does not | `0001_init.sql` has the tables; the typed option/run/bay/level graph is `C-02` |
+| Version-pinned catalogs and rule sources | **PARTIAL** — schema and approval gate exist, data not migrated | `catalog_release` with a CHECK enforcing approver ≠ digitiser and a recorded verification path. Data migration is `B-02` |
+| Validation findings with source traceability | **PARTIAL** — tables exist, checks do not | `finding` + `finding_internal_detail` split; the 12 checks are `C-04` |
+| BOM generation tied to selected revision | **PARTIAL** — schema enforces the hard parts | `bom_line` with `part_revision_id XOR uncatalogued_part_id` and `qty XOR unresolved_reason`. Derivation is `C-05` |
+| Audit history | **PARTIAL** — table and append-only enforcement exist | `audit_event` with a trigger refusing UPDATE/DELETE, revoked privileges, and no RLS policy for either. Hash chaining is `A-10` |
 | Floor-plan and elevation outputs | **PLANNED ONLY** | `FR-CP-08/09`, display-list + 3 renderers (§6.2) |
 | Client options and quote-request submission | **PLANNED ONLY** | `FR-QS-01..06`, §13.1 submit transaction |
 | Internal review / quote workflow | **PLANNED ONLY** (MVP-1 partial; quoting is Phase 3) | `FR-IR-01..07`, §3.4 status lifecycle |
-| Audit history | **PLANNED ONLY** — schema, hash chain and append-only trigger specified | §13.6, `NFR-AUD-01..06` |
 | PE disclaimer + external-review workflow | **PLANNED ONLY — text written and version-controlled by design** | §9.3 standing disclaimer, `OD-16` (never a seal, name or licence number) |
-| Testing | **CONFIRMED IMPLEMENTED for the kernel** (68 tests, 100% coverage gate). Planned only above it | §16.1 ten test layers, `AC-01..AC-20` |
+| Testing | **CONFIRMED IMPLEMENTED for the kernel and the database layer** | 176 tests, 100% kernel coverage, real-Postgres tenancy suite |
 | Build verification | **CONFIRMED IMPLEMENTED.** `pnpm verify` for the product; `src/verify.py` for the docs | Both run this pass, all green |
 | Deployment readiness | **PLANNED ONLY** | `OD-01` settled: single-region managed Postgres + Object Lock storage |
 
-Of the twenty acceptance criteria, one is now partly evidenced: **`AC-07`** (an unestablished value
-never renders as a numeral) is enforced and tested at the formatter level. It is not fully met until
-the UI and PDF renderers exist and are covered by the same rule.
+Acceptance criteria now partly or fully evidenced: **`AC-04`** (cross-tenant reads empty, writes
+refused), **`AC-05`** (every table RLS-enabled, forced, with policies — asserted in CI), **`AC-07`**
+(unestablished values never render as numerals, at the formatter), **`AC-10`** (refusals list every
+reason), **`AC-11`** (frozen revisions immutable at the database layer), **`AC-13`** (a BOM line is
+a quantity or a reason, never both or neither), **`AC-18`** (the catalog approval gate). Each is
+evidenced at the layer built so far, not end to end — the routes and applications they ultimately
+describe do not exist yet.
 
 ## 7. Reusable assets in the four read-only reference projects
 

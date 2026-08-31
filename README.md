@@ -2,10 +2,12 @@
 
 Rack Master Studio is a client self-service pallet-rack configuration and quote-intake web application. Clients do the early configuration work themselves inside controlled guardrails; McMurray Stern receives a structured, revision-pinned submission and keeps its catalog, BOM, pricing, estimating and engineering workflow behind a hard boundary.
 
-**Status: Phase 0 in progress.** Planning is complete (blueprint **Rev C**, 21 of 21 decisions
-settled). The first three foundation tasks are built and verified: the monorepo scaffold (`A-01`),
-`kernel-units` (`A-02`) and the boundary checker (`A-03`). See `TODO.md` for what is next and
-`docs/CURRENT_STATE.md` for what has actually been run.
+**Status: Phase 0 substantially built.** Planning is complete (blueprint **Rev C**, 21 of 21
+decisions settled). Built and verified: the monorepo scaffold (`A-01`), `kernel-units` (`A-02`),
+the boundary checker (`A-03`), `kernel-model` with canonical hashing and the revision lifecycle
+(`C-01`), the Postgres schema with row-level security (`A-04`), `withTenant()` (`A-05`) and the
+RLS assertion (`A-06`). See `TODO.md` for what is next and `docs/CURRENT_STATE.md` for what has
+actually been run.
 
 Prepared 2026-08-31 for EL, McMurray Stern.
 
@@ -15,31 +17,39 @@ Prepared 2026-08-31 for EL, McMurray Stern.
 
 ```
 pnpm install
-pnpm verify        # typecheck -> lint -> test -> boundary self-test -> boundary check
+pnpm db:up && pnpm migrate    # Postgres 16 in Docker, then the schema and RLS policies
+pnpm verify                   # typecheck -> lint -> test -> boundaries -> RLS
 ```
 
 | Command | What it does |
 |---|---|
 | `pnpm typecheck` | `tsc --build` with `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` |
-| `pnpm test` | Vitest. 68 tests today |
-| `pnpm coverage` | Enforces **100%** statements/branches/functions/lines on `kernel-units` |
-| `pnpm lint` | ESLint, including the bans on `Date.now()` and `Math.random()` |
+| `pnpm test` | Vitest. 176 tests: 149 pure, 27 against a real Postgres |
+| `pnpm coverage` | Enforces **100%** statements/branches/functions/lines on both kernel packages |
+| `pnpm lint` | ESLint: bans `Date.now()`, `Math.random()`, raw `pg` imports and raw pool checkout |
 | `pnpm check:boundaries:selftest` | Writes 10 real violations and asserts each is caught |
 | `pnpm check:boundaries` | Asserts no kernel package imports I/O, a framework, a driver or an app |
+| `pnpm check:rls` | Asserts every table has RLS enabled, forced, and a policy per operation |
 | `pnpm check:docs` | Rebuilds the blueprint and runs its 11 structural checks |
 
 **Run the self-test before the checker, always.** A checker that silently stopped working reports a
 clean pass forever, which is worse than having no checker.
 
+**The tenancy tests need a real database.** They skip loudly without one. Row-level security fails
+*silently* — a `SELECT` returns empty rather than raising — so a mock that returns what the test
+expects proves nothing at all.
+
 ### Layout
 
 ```
 packages/kernel-units/   pure fixed-point quantities: µm, millipounds, unit + origin
+packages/kernel-model/   canonical serialisation, content hashing, revision lifecycle
+packages/db/             schema, RLS policies, and withTenant() — the only way in
 tools/                   the mechanical checks that guard the invariants
 src/                     the blueprint's Python build toolchain (independent of the product)
 ```
 
-### Two conventions worth knowing before you edit anything
+### Three conventions worth knowing before you edit anything
 
 **Lengths are stored in integer micrometres.** Not millimetres. 48″ is 1219.2 mm, and an integer-mm
 store rounds it to 1219, which reads back as 47.9921″ and no longer matches its own capacity-table
@@ -49,6 +59,10 @@ Millimetres are what users see; µm is only how it is stored.
 **A number the model cannot establish is never printed as a numeral.** The formatter returns
 `VERIFY`. A number on a screen is a claim, and if the model does not know it, the screen must not
 print it.
+
+**`withTenant()` is the only way to reach the database.** It sets the tenant context
+*transaction-locally*. A session-scoped `SET` looks identical in review and survives the connection
+returning to the pool, which serves one client's building to another under load.
 
 ---
 
@@ -124,5 +138,5 @@ were inspected **read-only**. Nothing in them was edited, deleted, moved, rename
 
 What it does gate is a conclusion. `R-01` — *will a commercial client actually do this configuration work themselves* — is the risk the whole business case rests on, and it is retired only when one organization outside McMurray Stern completes a submission unaided. The internal dogfood pilot (`OD-20a`) will find real defects and should happen; it measures usability, not willingness.
 
-Development on Phase 0 has started. `A-01`, `A-02` and `A-03` are done and verified; `A-04`
-(Postgres schema and RLS) is next. See `TODO.md`.
+Development on Phase 0 is under way. `A-01`–`A-06` and `C-01` are done and verified; `A-07`
+(sessions and authentication) is next. See `TODO.md`.
