@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **869**, all passing across 36 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
+| Product tests | **874**, all passing across 37 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified beam rows **and 435 verified frame-capacity cells**, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **9**: kernel-boundary self-test + scan, **app-boundary self-test + scan**, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 34 commits**, working tree clean |
+| Version control | **git, 35 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,44 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `E-09`: the determinism harness**
+
+| Check | Command | Result |
+|---|---|---|
+| Determinism self-test | `pnpm check:determinism:selftest` | **PASS.** 7 divergence types caught, 3 legitimate outputs allowed |
+| Determinism check | `pnpm check:determinism` | **PASS.** 4 cases byte-identical across two environments and matching the pin |
+| **`now()` in a quantity path** | deliberate break | **PROVEN RED.** `case 'bom' is NOT deterministic across machines` |
+| **A silent constant change** | deliberate break | **PROVEN RED** by the pin alone — `frames * 4` → `frames * 5`, identical on both machines |
+| **A dropped corpus case** | deliberate break | **PROVEN RED.** Renaming a case fails as "pinned but no longer runs" |
+| **Both children in the SAME environment** | deliberate break | **PROVEN RED.** Refuses to certify agreement it did not earn |
+| **`compareRuns` gutted** | deliberate break | **PROVEN RED.** The self-test reports 4 MISSED divergences |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **874/874** tests, determinism wired into `verify` and CI |
+
+**A same-process double-run would have been theatre.** `AC-12` asks for byte-identical regeneration
+*on two machines*. Two runs inside one process share a clock, a locale, a timezone and a module
+cache, so every implicit input they might leak is identical by construction and the comparison
+passes regardless of what the code reads. The second machine is therefore simulated: the corpus runs
+in two separate child processes under `Pacific/Kiritimati` and `Pacific/Midway`, 26 hours apart and
+across the date line.
+
+**The pin is the other half, and it is the half that catches an unintended engine change.** Two runs
+of a changed engine agree perfectly with each other. Only a stored digest notices that they no
+longer agree with last week. `frames * 4` → `frames * 5` is deterministic, reproducible, and wrong,
+and the cross-machine check alone is blind to it.
+
+**A claimed hostility that never arrived was found and removed.** The first version also set `LANG`
+and `LC_ALL` to `tr_TR.UTF-8`, on the reasoning that Turkish is the classic locale trap. Measuring
+it rather than assuming it showed Node ignores both on Windows — the children resolved to `en-US`
+either way, so the check advertised a locale comparison it never performed. A green result that
+reads as evidence about locale, while testing nothing about locale, is worse than staying silent.
+The variables were dropped, and the corpus now reports the environment it actually *observes*;
+`assertEnvironmentsDiffer` refuses to certify agreement unless the children genuinely ran
+differently. That guard is itself proven by breakage.
+
+**The self-test matters more here than for the other three checkers.** They scan source and fail
+loudly when broken. This one compares hashes, and a broken hash comparison fails GREEN — it would
+report "byte-identical" forever while comparing nothing.
 
 **2026-08-31 — `E-01`..`E-05`: the internal application**
 

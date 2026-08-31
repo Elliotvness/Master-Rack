@@ -606,7 +606,7 @@ not carry over. Internal notes are a distinct entity from client-visible message
 output. A failure means an unintended engine change or a leaked implicit input. BOM regenerates
 byte-identically twice on two machines (`AC-12`).
 **Verification.** Nightly CI job green; deliberately introducing `now()` into a quantity path turns it red.
-**Dependencies.** P2-004. **Status.** `Not started`. **Evidence:** `Planned only`.
+**Dependencies.** P2-004. **Status.** `Done`. **Evidence:** `tools/check-determinism.mjs`, its self-test, and a pinned corpus in `fixtures/determinism/digests.txt`. Wired into `pnpm verify` and CI, on push, PR and a nightly schedule. The `now()` break was performed and turned it red, as did a silent constant change (caught by the pin alone), a dropped case, and forcing both children into the same environment. Runs against the pinned corpus rather than historical submission manifests, because no manifest store exists yet — `E-07` is where that arrives.
 
 ### P3-005 · `AC-20` End-to-end walkthrough of all eight MVP steps
 **Acceptance.** One executable transcript ending in byte-identical BOM regeneration and a frozen,

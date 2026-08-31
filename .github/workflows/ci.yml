@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
+  # E-09 asks for a NIGHTLY re-render. It also runs on every PR, which is
+  # strictly stronger, but the schedule is kept: a nightly run catches drift
+  # that arrives from outside the repository - a dependency republished under
+  # the same range, or a runner image with different ICU data - on a day when
+  # nobody pushed anything.
+  schedule:
+    - cron: '17 6 * * *'
 
 jobs:
   verify:
@@ -83,6 +90,16 @@ jobs:
 
       - name: RLS coverage assertion
         run: pnpm check:rls
+
+      # E-09 / AC-12. The self-test runs first for the usual reason, and it
+      # matters most here: a broken hash comparison fails GREEN, so this check
+      # would certify byte-identical regeneration forever while comparing
+      # nothing at all.
+      - name: Determinism self-test
+        run: pnpm check:determinism:selftest
+
+      - name: Determinism check
+        run: pnpm check:determinism
 
       - name: Kernel coverage gate
         run: pnpm coverage
