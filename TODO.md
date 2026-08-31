@@ -12,10 +12,10 @@ backlog id, that id is named.
 > `P1-003` (`A-03`), `P1-004` (`A-04`), `P1-005` (`A-05`), `P1-006` (`A-06`), `P1-007` (`A-07`),
 > `P1-008` (`A-08`), `P1-009` (`A-09`), `P1-010` (`A-10`), `P1-011` (`A-11`), `P1-013` (`C-01`).
 > **Partial:** `P1-012` (`B-01`/`B-02`/`B-04`/`B-05`/`B-06` done; **`B-03` outstanding**) and
-> `P1-014` (`C-02`/`C-03`/`C-04`/**`C-05`** done; `C-06`..`C-08` outstanding).
+> `P1-014` (`C-02`/`C-03`/`C-04`/`C-05`/**`C-06`** done; `C-07`/`C-08` outstanding).
 > **Also closed:** `P0-004` (Carson count established) and `P0-005` (59E face height parked).
-> **Last full run, 2026-08-31: `pnpm verify` PASS** — **487/487** tests across 22 files, boundary
-> self-test + scan (28 files, **8** pure packages), `check-rls` 19 tables, exit 0.
+> **Last full run, 2026-08-31: `pnpm verify` PASS** — **513/513** tests across 23 files, boundary
+> self-test + scan (31 files, **9** pure packages), `check-rls` 19 tables, exit 0.
 > Everything else is `Planned only` unless its own row says otherwise. Nothing here may be marked
 > `Complete` without recording the verification command and its actual result.
 
@@ -304,7 +304,7 @@ carry `{text, established}`, never a bare string; an unestablished value never r
 (`AC-07`). **Golden fixtures are wired into the test run** — the reference project's are not, and
 that defect must not be inherited.
 **Verification.** `pnpm test`; fixture deltas within stated tolerance; `node tools/lint-provenance.mjs` fails on a formatter applied to a raw value.
-**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `C-02`, `C-03`, `C-04` and `C-05`; `C-06`..`C-08` `Planned only`.
+**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `C-02`, `C-03`, `C-04`, `C-05` and `C-06`; `C-07`/`C-08` `Planned only`.
 
 **`C-02` (`kernel-derive`) — Complete and verified 2026-08-31.** Pure geometry and pallet-position
 counts over provenanced quantities, no catalog or rule number invented in application code:
@@ -389,6 +389,30 @@ unresolved register (§12):
 coverage on the first run, boundary scan 28 files across **8** pure packages. **Both gates proven to
 fire:** adopting a wire-deck formula turned 3 tests red; letting back-to-back rows share frames
 turned 5 red with exactly the off-by-one the rule prevents (`expected 21 to be 22`).
+
+**`C-06` (`display-list`) — Complete and verified 2026-08-31.** The renderer-neutral drawing model
+(ADR-003). One display list, three renderers: Canvas 2D for plans, inline SVG for elevations,
+server-side PDF for documents.
+- **A renderer consumes; it may not recompute a dimension** (§8). The extent is supplied rather than
+  inferred from the items, and geometry is integer micrometres in **model space** — a pixel is a
+  rendering decision, and baking one in is how two renderers drift apart.
+- **`{text, established}` on every text entry, never a bare string.** A bare string has already lost
+  the distinction between "144 inches" and "we do not know".
+- **`AC-07` at the drawing layer**, asserted as *no digit anywhere* in an unestablished entry rather
+  than as a string match against `VERIFY`.
+- **A dimension the model cannot state still draws** its witness lines and prints `VERIFY`. Omitting
+  it would read as "no dimension applies", which is a different claim from "we cannot state it".
+- The elevation witnesses every level **from the floor datum**, not from the level below: a chain of
+  relative dimensions accumulates the reader's error.
+- The plan draws **n+1 uprights for n bays**, so `kernel-derive`'s rule is visible where a person
+  can check it.
+**Verification.** `pnpm verify` **PASS**, exit 0 — 513/513 tests (+26), `display-list/src` at
+**100%** coverage, boundary scan 31 files across **9** pure packages. **Both gates proven to fire:**
+making an unknown aisle width print `0"` turned 2 tests red (the exact `AC-07` leak), and drawing n
+uprights instead of n+1 turned 2 red. **Two defects the gates caught:** an untested `?? null` branch
+on the optional label, and a test asserting a fractional micrometre is refused that **failed to
+fail** — the guard was unreachable, since µm has scale 1 and lengths are integers. The guard was
+deleted and the test rewritten to assert a real refusal (a load where a length belongs).
 
 ---
 
@@ -566,14 +590,15 @@ catalog migration and lookup (`B-01`/`B-02`/`B-04`/`B-06`), and the first two ke
 coverage on all five pure kernel packages, RLS/auth/authz/DTO/audit/outbox proven against real
 Postgres, and the catalog proven against real published data. The next five are:
 
-1. **`C-06`** — the display list: text entries carrying `{text, established}`, never a bare string,
-   so the canvas and the PDF render from one source and cannot disagree about a number.
+1. **`C-07`** — the provenance lint: any formatter call on a raw value rather than a provenanced
+   quantity fails the build. This is the mechanical enforcement of the rule `C-06` relies on — that
+   a renderer may not recompute a dimension. Port from `rack-studio/prototype/lint-provenance.mjs`.
 2. **`B-03`** — migrate the three verified frame-capacity tables (435 reconciled cells) from
    `rack-app`, the same way the beam data was extracted. `C-04`'s beam/frame compatibility check
    currently takes compatibility as an input because this data is not here yet.
-3. **`C-07`/`C-08`** — the provenance lint, and the golden fixtures **wired into the test run**,
-   which the reference project's are not. Unblocked: `P0-004` established 6,824 net from the
-   as-built drawing, and the fixture asserts the breakdown rather than only the headline.
+3. **`C-08`** — the golden fixtures **wired into the test run**, which the reference project's are
+   not. Unblocked: `P0-004` established 6,824 net from the as-built drawing, and the fixture asserts
+   the breakdown rather than only the headline.
 4. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
    proven rather than one.
 5. **The catalog and rule-pack approvers** (`RH-05`). Both packs sit in `DRAFT`, both gates refuse
@@ -583,47 +608,50 @@ Postgres, and the catalog proven against real published data. The next five are:
 
 ---
 
-## File-impact plan for the next unblocked task (P1-014 · `C-06`)
+## File-impact plan for the next unblocked task (P1-014 · `C-07`)
 
-`C-06` is the display list: the single source both the canvas and the PDF render from, so a drawing
-and a sheet can never disagree about a number.
+`C-07` is the provenance lint. `C-06` states the rule — a renderer consumes a display list and may
+not recompute a dimension — and this is what enforces it mechanically rather than by review.
 
 **New files**
 
 ```
-packages/display-list/src/entry.ts        text entries carry {text, established}, never a bare
-                                          string; an unestablished value renders VERIFY (AC-07)
-packages/display-list/src/entry.test.ts   a bare string must not typecheck as an entry; an
-                                          unestablished value never reaches a numeral
-packages/display-list/src/plan.ts         plan + elevation display lists from derived geometry
-packages/display-list/src/plan.test.ts    the same list drives both views; no view recomputes
+tools/lint-provenance.mjs        AST scan: a formatter applied to a raw number rather than to a
+                                 provenanced Quantity fails the build
+tools/selftest-provenance.mjs    writes each violation and asserts it is caught, in the shape of
+                                 tools/selftest-boundaries.mjs — a gate that never fires is unproven
 ```
 
 **Modified files**
 
 ```
-tsconfig.base.json · vitest.config.ts · tsconfig.json   the @rms/display-list alias, three-way
-                                                        agreement + a 100% coverage threshold
-docs/CURRENT_STATE.md · TODO.md                         results, only after the commands pass
+package.json                     add lint:provenance to the verify chain
+.github/workflows/ci.yml         same
+docs/CURRENT_STATE.md · TODO.md  results, only after the commands pass
 ```
 
 **Untouched, explicitly**
 
 ```
-packages/kernel-*/**                the display list consumes derived values; it derives nothing
+packages/**                      the lint reads the tree; it does not change it
 rack-master-studio-blueprint.html   rebuild only via src/build.py
 C:\Rack Master\Resourse (do not delete or overwrite files)\**   read-only, always
 ```
 
+**The design point.** The self-test matters more than the linter. A scan that silently matches
+nothing — a bad glob, a renamed directory — passes CI forever while enforcing nothing, which is the
+failure mode `check-boundaries` already guards against with its vacuous-glob check. Copy that
+guard.
+
 **Verification before marking complete**
 
 ```
+node tools/selftest-provenance.mjs   # every violation type caught
+node tools/lint-provenance.mjs       # the real tree is clean
 pnpm verify
-pnpm coverage        # 100% on display-list, threshold enforced
 ```
 
-Then prove the gate fires: put an unestablished value into a display entry and confirm it renders
-`VERIFY` rather than a number, and confirm a renderer cannot bypass the entry type with a raw string.
+Then prove the gate fires: format a raw number in a display builder and confirm the build goes red.
 
 Record the actual output in `docs/CURRENT_STATE.md` §4. A task is not complete because it looks
 done; it is complete when the command has been run and its result written down.

@@ -21,20 +21,21 @@ no-interpolation lookup. The derivation kernel has two slices landed — `C-02` 
 index). Group B's rule pack (`B-05`) has landed with the verification-tier ceiling, and `C-04` —
 the twelve MVP checks with that ceiling applied by the framework — is complete and its control
 proven by deliberate breakage. `C-05` — the internal takeoff BOM with its unresolved register — is
-complete. **`C-06`..`C-08` (display list, provenance lint, golden fixtures) and `B-03` (frame
-capacity) are the next real work.**
+complete, and `C-06` — the renderer-neutral display list — is complete with `AC-07` proven at the
+drawing layer. **`C-07`/`C-08` (provenance lint, golden fixtures) and `B-03` (frame capacity) are
+the next real work.**
 
 | | |
 |---|---|
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
-| Production source files | **65+** across eight pure kernel packages, `db`, `apps/api`, `tools/` |
-| Product tests | **487**, all passing across 22 files (pure + real-Postgres + real catalog and rule data) |
-| Kernel coverage | **100%** statements, branches, functions, lines on all **eight** kernel packages |
+| Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
+| Product tests | **513**, all passing across 23 files (pure + real-Postgres + real catalog and rule data) |
+| Kernel coverage | **100%** statements, branches, functions, lines on all **nine** pure packages |
 | Catalog data | 378 verified Interlake beam rows, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
-| Version control | **git, 21 commits**, working tree clean |
+| Version control | **git, 23 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -84,6 +85,45 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `C-06` `display-list`: the renderer-neutral drawing model**
+
+| Check | Command | Result |
+|---|---|---|
+| Display-list tests | `pnpm test` | **PASS.** 26 tests: the model's refusals, plan and elevation builders, and the one-list-many-renderers property |
+| **`AC-07` at the drawing layer** | `pnpm test` | **PASS.** An unestablished value renders `VERIFY`, asserted as *no digit anywhere* in the entry rather than as a string match |
+| **Gate fires — probe 1** | deliberate break | **PROVEN.** Making an unknown aisle width print `0"` instead of `VERIFY` turned **2 tests red**. This is the exact `AC-07` leak: a refusal in the engine that leaks a number into the interface is not a refusal |
+| **Gate fires — probe 2** | deliberate break | **PROVEN.** Drawing `n` uprights instead of `n+1` turned **2 tests red** (`expected length 4 but got 3`) — the off-by-one caught at the drawing layer, not just in derivation. Both probes reverted and re-verified |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. 513/513 tests (was 487); boundaries now **31 files across 9 pure packages** |
+| Kernel coverage | `pnpm coverage` | **PASS.** `display-list/src` at **100%** on all four measures |
+
+**One display list, three renderers.** Canvas 2D for plans, inline SVG for elevations, server-side
+PDF for documents. The blueprint's reasoning is a liability argument, not an aesthetic one: *"A
+drawing that prints differently from the screen is a support burden and a liability."* The client
+and internal PDFs are the same list with two render options, one watermarked and one not.
+
+**The boundary rule is what gives it teeth** (§8): a renderer consumes a display list and **may not
+recompute a dimension**. If it could, every provenance guarantee upstream would be void at the last
+inch — the screen would make claims the model never made. So the extent is *supplied* rather than
+inferred from the items, and geometry is carried as integer micrometres in **model space**: a pixel
+is a rendering decision, and baking one in is how two renderers drift apart.
+
+**`{text, established}`, never a bare string.** A bare string has already lost the distinction
+between "144 inches" and "we do not know", and by then it is too late to refuse. Every text-bearing
+entry carries its establishment flag to the renderer.
+
+**A dimension the model cannot state still draws.** Witness lines are emitted and the number prints
+`VERIFY`. Omitting it would read as *"no aisle dimension applies"*, which is a different claim from
+*"we cannot state it"* — and on a drawing that difference is the whole product.
+
+**Two defects the gates caught during this build.** The coverage gate found `rect()`'s `?? null`
+branch untested, which mattered because a renderer switching on `label !== null` must not also have
+to handle `undefined` — one absent representation, not two. And a test asserting that a fractional
+micrometre is refused **failed to fail**: lengths are stored as integer micrometres and µm has scale
+1, so `convert(q, 'um')` is exact by construction and the guard was unreachable. The guard was
+deleted and the test rewritten to assert what is real — that a *load* where a *length* belongs is
+refused. An unreachable guard is worse than none, because it implies a doubt the type system has
+already settled.
 
 **2026-08-31 — `C-05` `kernel-bom`: the internal takeoff and its unresolved register**
 

@@ -1,0 +1,15 @@
+{
+  "name": "@rms/display-list",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Renderer-neutral drawing model. One display list, three renderers. Pure.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@rms/kernel-units": "workspace:*"
+  }
+}

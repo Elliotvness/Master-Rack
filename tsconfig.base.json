@@ -37,6 +37,7 @@
       "@rms/kernel-rules": ["packages/kernel-rules/src/index.ts"],
       "@rms/kernel-checks": ["packages/kernel-checks/src/index.ts"],
       "@rms/kernel-bom": ["packages/kernel-bom/src/index.ts"],
+      "@rms/display-list": ["packages/display-list/src/index.ts"],
       "@rms/db": ["packages/db/src/index.ts"],
       "@rms/api": ["apps/api/src/index.ts"]
     }
