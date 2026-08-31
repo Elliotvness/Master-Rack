@@ -20,20 +20,21 @@ no-interpolation lookup. The derivation kernel has two slices landed — `C-02` 
 (geometry and pallet-position counts) and `C-03` `kernel-geom` (obstruction faces and the clearance
 index). Group B's rule pack (`B-05`) has landed with the verification-tier ceiling, and `C-04` —
 the twelve MVP checks with that ceiling applied by the framework — is complete and its control
-proven by deliberate breakage. **`C-05`..`C-08` (BOM, display list, provenance lint, golden
-fixtures) and `B-03` (frame capacity) are the next real work.**
+proven by deliberate breakage. `C-05` — the internal takeoff BOM with its unresolved register — is
+complete. **`C-06`..`C-08` (display list, provenance lint, golden fixtures) and `B-03` (frame
+capacity) are the next real work.**
 
 | | |
 |---|---|
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
-| Production source files | **60+** across seven pure kernel packages, `db`, `apps/api`, `tools/` |
-| Product tests | **456**, all passing across 21 files (pure + real-Postgres + real catalog and rule data) |
-| Kernel coverage | **100%** statements, branches, functions, lines on all **seven** kernel packages |
+| Production source files | **65+** across eight pure kernel packages, `db`, `apps/api`, `tools/` |
+| Product tests | **487**, all passing across 22 files (pure + real-Postgres + real catalog and rule data) |
+| Kernel coverage | **100%** statements, branches, functions, lines on all **eight** kernel packages |
 | Catalog data | 378 verified Interlake beam rows, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
-| Version control | **git, 20 commits**, working tree clean |
+| Version control | **git, 21 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -83,6 +84,43 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `C-05` `kernel-bom`: the internal takeoff and its unresolved register**
+
+| Check | Command | Result |
+|---|---|---|
+| BOM tests | `pnpm test` | **PASS.** 31 tests: the three established rules, the unresolved register, uncatalogued material, and byte-identical regeneration |
+| **`AC-13` made unrepresentable** | `pnpm test` | **PASS.** `BomLine` is a discriminated union: a resolved line has a quantity and a null reason, an unresolved line the reverse. "Both" and "neither" cannot be constructed, not merely refused |
+| **`AC-12` byte-identical regeneration** | `pnpm test` | **PASS.** `canonicalBom` is stable across repeated derivation, and independent of the order the caller listed source objects. Asserted non-vacuous: changing a bay count *does* change the bytes |
+| **Gate fires — probe 1** | deliberate break | **PROVEN.** Adopting a wire-deck formula turned **3 tests red**, including the register listing and the category total |
+| **Gate fires — probe 2** | deliberate break | **PROVEN.** Letting back-to-back rows share frames turned **5 tests red** with exactly the off-by-one the rule exists to prevent: `expected 21 to be 22`. Both probes reverted and re-verified |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. 487/487 tests (was 456); boundaries now **28 files across 8 pure packages** |
+| Kernel coverage | `pnpm coverage` | **PASS.** `kernel-bom/src` at **100%** on all four measures, first run, with no test written to chase a line |
+
+**Three quantities are derived; everything else is refused.** Frames = `(bays + 1) × rows` with
+back-to-back rows **not** sharing uprights, beams = `bays × levels × 2 × rows`, anchors = `frames × 4`
+(verified against a delivered job at 3,812 / 953 = 4.000 exactly). Wire decks, row spacers and
+footplates emit `UNRESOLVED` with their reasons.
+
+**That asymmetry is the deliverable, not a gap in it.** The reference projects contain three
+conflicting wire-deck formulas — `len >= 132 ? 3 : 2`, `max(2, ceil(len/60))`, and a one-job
+observation of about 1.14 per bay. **All three are named in the unresolved reason**, specifically so
+a future reader cannot "restore" one believing it was lost by accident. Probe 1 demonstrates the
+cost of adopting one: the BOM looks complete and rests on a number nobody can defend.
+
+**Each unresolved reason names what would close it**, so the register is a roadmap rather than a
+list of complaints. The row-spacer entry also records that the reference implementation hardcodes a
+12-inch spec string while ignoring its own editable flue field — a live defect, documented as not
+carried forward.
+
+**An unresolved line contributes nothing to a category total — null, never 0.** A zero reads as
+"none required", which is a different claim from "we cannot say", and on a takeoff sheet that
+difference is a purchase order.
+
+**Uncatalogued material yields a quantity but never a capacity.** The *count* is geometry and is as
+reliable as for a catalog part, so an uncatalogued frame counts identically. The *capacity* does not
+exist and there is deliberately no field for it. This is a normal output, not a degraded one, and it
+is what makes the schema able to represent the half of all jobs that carry such material.
 
 **2026-08-31 — `C-04` `kernel-checks`: the twelve MVP checks and the ceiling framework**
 

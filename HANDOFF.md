@@ -20,10 +20,10 @@ and `C-03` (`kernel-geom`). **`B-05` then `C-04` is next.**
 |---|---|
 | Blueprint revision | **Rev C**, 2026-08-31 |
 | Decisions | **21 of 21 settled.** One item deliberately open — see §7 |
-| Code written | Seven pure kernel packages, the database layer, the API layer, five mechanical checks |
-| Tests | **456 passing** across 21 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
+| Code written | Eight pure kernel packages, the database layer, the API layer, five mechanical checks |
+| Tests | **487 passing** across 22 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
 | Verification | `pnpm verify` green, exit 0; results recorded in `docs/CURRENT_STATE.md` §4 |
-| Next | `C-05` (the BOM) and `B-03` (frame capacity). Full order in §5 |
+| Next | `C-06` (the display list) and `B-03` (frame capacity). Full order in §5 |
 
 **Start with `README.md` for how to run the checks, `TODO.md` for what is next, and
 `docs/CURRENT_STATE.md` for what has actually been run rather than what is planned.**
@@ -112,8 +112,9 @@ Phase 0 in dependency order. None of it is client-specific, so it does not wait 
 slice of Group B, and `B-05` (the rule pack with its verification-tier ceiling) are also done. The
 `C-04` — the twelve MVP checks — is also complete, with `AC-19` proven by deliberate breakage:
 demoting a rule's tier **in the data, with no code edited**, changed a check's verdict from BLOCKER
-to ENGINEERING REVIEW REQUIRED. The live front is **`C-05`** (the BOM and its unresolved register)
-and **`B-03`** (the three frame-capacity tables).
+to ENGINEERING REVIEW REQUIRED. `C-05` — the BOM and its unresolved register — is complete: three
+quantities derived, wire decks and row spacers refused with all three conflicting formulas named.
+The live front is **`C-06`** (the display list) and **`B-03`** (the three frame-capacity tables).
 
 Then the rest of Group B and C, D (client app), E (internal app). Full backlog in blueprint §15.3.
 

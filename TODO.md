@@ -12,10 +12,10 @@ backlog id, that id is named.
 > `P1-003` (`A-03`), `P1-004` (`A-04`), `P1-005` (`A-05`), `P1-006` (`A-06`), `P1-007` (`A-07`),
 > `P1-008` (`A-08`), `P1-009` (`A-09`), `P1-010` (`A-10`), `P1-011` (`A-11`), `P1-013` (`C-01`).
 > **Partial:** `P1-012` (`B-01`/`B-02`/`B-04`/`B-05`/`B-06` done; **`B-03` outstanding**) and
-> `P1-014` (`C-02`/`C-03`/**`C-04`** done; `C-05`..`C-08` outstanding).
+> `P1-014` (`C-02`/`C-03`/`C-04`/**`C-05`** done; `C-06`..`C-08` outstanding).
 > **Also closed:** `P0-004` (Carson count established) and `P0-005` (59E face height parked).
-> **Last full run, 2026-08-31: `pnpm verify` PASS** — **456/456** tests across 21 files, boundary
-> self-test + scan (25 files, **7** pure packages), `check-rls` 19 tables, exit 0.
+> **Last full run, 2026-08-31: `pnpm verify` PASS** — **487/487** tests across 22 files, boundary
+> self-test + scan (28 files, **8** pure packages), `check-rls` 19 tables, exit 0.
 > Everything else is `Planned only` unless its own row says otherwise. Nothing here may be marked
 > `Complete` without recording the verification command and its actual result.
 
@@ -298,7 +298,7 @@ carry `{text, established}`, never a bare string; an unestablished value never r
 (`AC-07`). **Golden fixtures are wired into the test run** — the reference project's are not, and
 that defect must not be inherited.
 **Verification.** `pnpm test`; fixture deltas within stated tolerance; `node tools/lint-provenance.mjs` fails on a formatter applied to a raw value.
-**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `C-02`, `C-03` and `C-04`; `C-05`..`C-08` `Planned only`.
+**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `C-02`, `C-03`, `C-04` and `C-05`; `C-06`..`C-08` `Planned only`.
 
 **`C-02` (`kernel-derive`) — Complete and verified 2026-08-31.** Pure geometry and pallet-position
 counts over provenanced quantities, no catalog or rule number invented in application code:
@@ -361,6 +361,28 @@ the framework that applies the verification-tier ceiling to everything they obse
 **100%** coverage, boundary scan now 25 files across **7** pure packages, RLS green. **A defect the
 coverage gate caught:** a ternary whose branches were identical — dead logic pretending to be a
 decision — deleted rather than tested.
+
+**`C-05` (`kernel-bom`) — Complete and verified 2026-08-31.** The internal takeoff and its
+unresolved register (§12):
+- **`AC-13` is unrepresentable rather than refused.** `BomLine` is a discriminated union: resolved
+  carries a quantity and a null reason, unresolved carries the reverse. Neither "both" nor "neither"
+  can be constructed.
+- **Three established rules, and nothing else.** Frames = `(bays + 1) × rows` with back-to-back rows
+  **not** sharing uprights; beams = `bays × levels × 2 × rows`; anchors = `frames × 4`, verified
+  against a delivered job at 3,812 / 953 = 4.000 exactly. The n+1 property is asserted from both
+  ends for n ∈ {1, 2, 5, 20, 82}, not by example.
+- **Wire decks, row spacers and footplates emit `UNRESOLVED`.** All three conflicting wire-deck
+  formulas are **named in the reason**, so a future reader cannot restore one believing it was lost
+  by accident. Every reason states what would close it.
+- **An unresolved line contributes nothing to a category total — null, never 0.** A zero reads as
+  "none required", which on a takeoff sheet is a purchase order.
+- **`AC-12`**: `canonicalBom` regenerates byte-identically, is independent of the caller's source-id
+  ordering, and is asserted non-vacuous (changing a bay count changes the bytes).
+- Uncatalogued material yields a quantity but **no capacity field at all**.
+**Verification.** `pnpm verify` **PASS**, exit 0 — 487/487 tests (+31), `kernel-bom/src` at **100%**
+coverage on the first run, boundary scan 28 files across **8** pure packages. **Both gates proven to
+fire:** adopting a wire-deck formula turned 3 tests red; letting back-to-back rows share frames
+turned 5 red with exactly the off-by-one the rule prevents (`expected 21 to be 22`).
 
 ---
 
@@ -532,16 +554,15 @@ catalog migration and lookup (`B-01`/`B-02`/`B-04`/`B-06`), and the first two ke
 coverage on all five pure kernel packages, RLS/auth/authz/DTO/audit/outbox proven against real
 Postgres, and the catalog proven against real published data. The next five are:
 
-1. **P1-014** (`C-05`..`C-08`) — the rest of the derivation kernel: the BOM with its unresolved
-   register, the display list, the provenance lint, and the golden fixtures wired into the test run.
-   Geometry, counts and the twelve checks are done. This is the trustworthy model the brief demands
-   before any UI.
+1. **P1-014** (`C-06`..`C-08`) — the rest of the derivation kernel: the display list (text entries
+   carrying `{text, established}`, never a bare string), the provenance lint, and the golden
+   fixtures wired into the test run. Geometry, counts, the twelve checks and the BOM are done.
 2. **B-03** — migrate the three verified frame-capacity tables (435 reconciled cells) from
    `rack-app`, the same way the beam data was extracted. `C-04`'s beam/frame compatibility check
    wants it.
-3. **C-05..C-08** — the BOM with its unresolved register, the display list, the provenance lint,
-   and the golden fixtures (unblocked: `P0-004` established 6,824 net from the as-built drawing, and
-   the fixture asserts the breakdown rather than only the headline).
+3. **C-08** — the golden fixtures wired into the test run, which the reference project's are not.
+   Unblocked: `P0-004` established 6,824 net from the as-built drawing, and the fixture asserts the
+   breakdown rather than only the headline.
 4. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
    proven rather than one.
 5. **The catalog and rule-pack approvers.** Both packs sit in `DRAFT` and both gates refuse
@@ -549,27 +570,26 @@ Postgres, and the catalog proven against real published data. The next five are:
 
 ---
 
-## File-impact plan for the next unblocked task (P1-014 · `C-05`)
+## File-impact plan for the next unblocked task (P1-014 · `C-06`)
 
-`C-05` is the BOM. Its hard parts are already enforced in the schema: a line references
-`part_revision_id` **XOR** `uncatalogued_part_id`, and carries `qty` **XOR** `unresolved_reason`.
-The derivation must respect both without a third state appearing.
+`C-06` is the display list: the single source both the canvas and the PDF render from, so a drawing
+and a sheet can never disagree about a number.
 
 **New files**
 
 ```
-packages/kernel-bom/src/bom.ts            derive lines from a revision; every line carries rule
-                                          text, confirmed, and source object ids
-packages/kernel-bom/src/bom.test.ts       AC-13: a line is a quantity or a reason, never both or
-                                          neither; regeneration is byte-identical from the revision
-packages/kernel-bom/src/unresolved.ts     the unresolved register: wire decks, row spacers,
-                                          footplates and protectors emit UNRESOLVED with reasons
+packages/display-list/src/entry.ts        text entries carry {text, established}, never a bare
+                                          string; an unestablished value renders VERIFY (AC-07)
+packages/display-list/src/entry.test.ts   a bare string must not typecheck as an entry; an
+                                          unestablished value never reaches a numeral
+packages/display-list/src/plan.ts         plan + elevation display lists from derived geometry
+packages/display-list/src/plan.test.ts    the same list drives both views; no view recomputes
 ```
 
 **Modified files**
 
 ```
-tsconfig.base.json · vitest.config.ts · tsconfig.json   the @rms/kernel-bom alias, three-way
+tsconfig.base.json · vitest.config.ts · tsconfig.json   the @rms/display-list alias, three-way
                                                         agreement + a 100% coverage threshold
 docs/CURRENT_STATE.md · TODO.md                         results, only after the commands pass
 ```
@@ -577,25 +597,20 @@ docs/CURRENT_STATE.md · TODO.md                         results, only after the
 **Untouched, explicitly**
 
 ```
-packages/kernel-checks/** · kernel-rules/**    the ceiling is consumed, never re-implemented
-rack-master-studio-blueprint.html             rebuild only via src/build.py
+packages/kernel-*/**                the display list consumes derived values; it derives nothing
+rack-master-studio-blueprint.html   rebuild only via src/build.py
 C:\Rack Master\Resourse (do not delete or overwrite files)\**   read-only, always
 ```
-
-**The trap to avoid, stated in advance.** None of the three conflicting wire-deck formulas may be
-adopted. All three disagree, so the deck quantity emits as `UNRESOLVED` with the reasons — inventing
-a fourth formula to make the BOM look complete is precisely the failure this product exists to
-prevent.
 
 **Verification before marking complete**
 
 ```
-pnpm verify          # typecheck, lint, tests, boundaries, self-test, RLS
-pnpm coverage        # 100% on kernel-bom, threshold enforced
+pnpm verify
+pnpm coverage        # 100% on display-list, threshold enforced
 ```
 
-Then prove the gate fires: construct a line carrying both a quantity and an unresolved reason and
-confirm it is refused, and regenerate a BOM twice asserting byte-identical output.
+Then prove the gate fires: put an unestablished value into a display entry and confirm it renders
+`VERIFY` rather than a number, and confirm a renderer cannot bypass the entry type with a raw string.
 
 Record the actual output in `docs/CURRENT_STATE.md` §4. A task is not complete because it looks
 done; it is complete when the command has been run and its result written down.

@@ -58,6 +58,12 @@ importers:
         specifier: ^8.11.0
         version: 8.23.1
 
+  packages/kernel-bom:
+    dependencies:
+      '@rms/kernel-units':
+        specifier: workspace:*
+        version: link:../kernel-units
+
   packages/kernel-catalog:
     dependencies:
       '@rms/kernel-units':
