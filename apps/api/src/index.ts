@@ -72,3 +72,13 @@ export {
   type FindingClientDTO,
   type ProjectClientDTO,
 } from './dto/client.js';
+
+export {
+  GENESIS_PREV_HASH,
+  appendAuditEvent,
+  chainHash,
+  verifyAuditChain,
+  type AuditEventContent,
+  type AuditOutcome,
+  type ChainVerification,
+} from './audit/chain.js';
