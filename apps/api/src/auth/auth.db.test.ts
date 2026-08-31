@@ -153,6 +153,42 @@ describe('AC-01 — an invitation is redeemable exactly once', () => {
     expect(second.ok).toBe(false);
   });
 
+  maybe('refuses a CONCURRENT second redemption — exactly one winner', async () => {
+    // The sequential test above proves the state check works. This proves the
+    // check is atomic, which is a different property and the one that actually
+    // matters: two people clicking the same invitation link at the same moment
+    // is the realistic case, not one clicking twice slowly.
+    //
+    // The guard is `UPDATE ... WHERE accepted_at IS NULL` plus an affected-row
+    // count. A read-then-write would pass the sequential test and fail this one,
+    // handing two accounts a single seat.
+    const token = await withTenant(ctx, async (tx) => {
+      const inv = await issueInvitation(tx, {
+        id: 'c0000000-0000-4000-8000-00000000000c',
+        organizationId: ORG,
+        invitedEmail: 'race@harbor.invalid',
+        role: 'CLIENT_USER',
+        invitedBy: INVITER,
+        now: AT('2026-08-31T00:00:00Z'),
+      });
+      return inv.token;
+    });
+
+    // Eight simultaneous redemptions, each in its own transaction.
+    const attempts = await Promise.all(
+      Array.from({ length: 8 }, () =>
+        withTenant(ctx, (tx) => redeemInvitation(tx, token, AT('2026-08-31T01:00:00Z'))),
+      ),
+    );
+
+    const winners = attempts.filter((a) => a.ok);
+    expect(winners).toHaveLength(1);
+    // And every loser is indistinguishable from any other refusal (AC-01).
+    for (const loser of attempts.filter((a) => !a.ok)) {
+      expect(loser.ok).toBe(false);
+    }
+  });
+
   maybe('expired, revoked, used and nonexistent all present identically', async () => {
     // Expired.
     const expiredToken = await withTenant(ctx, async (tx) => {

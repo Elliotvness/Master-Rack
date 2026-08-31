@@ -80,6 +80,36 @@ describe('password hashing', () => {
     expect(verifyPassword('x', 'scrypt$notanumber$8$1$c2FsdA$aGFzaA')).toBe(false);
     expect(verifyPassword('x', 'scrypt$16384$8$1$c2FsdA$')).toBe(false);
   });
+
+  it('survives stored PARAMETERS that make scrypt itself throw', () => {
+    // A corrupted row can carry integers that parse fine and then blow up
+    // inside scrypt — N not a power of two, N zero or negative, r or p zero,
+    // or values large enough to exceed the memory limit. Each must return
+    // false on the login path rather than crashing it: a corrupted credential
+    // row is a data problem, not an availability problem, and a 500 here is
+    // both an outage and an oracle telling an attacker the row is unusual.
+    const corrupted = [
+      'scrypt$0$8$1$c2FsdA$aGFzaA',
+      'scrypt$-1$8$1$c2FsdA$aGFzaA',
+      'scrypt$3$8$1$c2FsdA$aGFzaA',
+      'scrypt$16384$0$1$c2FsdA$aGFzaA',
+      'scrypt$16384$8$0$c2FsdA$aGFzaA',
+      'scrypt$1073741824$8$1$c2FsdA$aGFzaA',
+      'scrypt$16384$999999$1$c2FsdA$aGFzaA',
+      'scrypt$16384$8$999999$c2FsdA$aGFzaA',
+    ];
+    for (const stored of corrupted) {
+      expect(() => verifyPassword('x', stored)).not.toThrow();
+      expect(verifyPassword('x', stored)).toBe(false);
+    }
+  });
+
+  it('never returns true for an empty expected hash', () => {
+    // A zero-length expected value would make timingSafeEqual trivially agree
+    // if the length check were removed. Asserted so that check cannot be
+    // dropped as redundant.
+    expect(verifyPassword('', 'scrypt$16384$8$1$c2FsdA$')).toBe(false);
+  });
 });
 
 describe('recovery codes', () => {

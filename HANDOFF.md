@@ -21,7 +21,7 @@ and `C-03` (`kernel-geom`). **`B-05` then `C-04` is next.**
 | Blueprint revision | **Rev C**, 2026-08-31 |
 | Decisions | **21 of 21 settled.** One item deliberately open — see §7 |
 | Code written | Nine pure packages, the database layer, the API layer, **seven** mechanical gates |
-| Tests | **513 passing** across 23 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
+| Tests | **646 passing** across 26 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
 | Verification | `pnpm verify` green, exit 0; results recorded in `docs/CURRENT_STATE.md` §4 |
 | Next | `C-08` (golden fixtures) and `B-03` (frame capacity). Full order in §5 |
 

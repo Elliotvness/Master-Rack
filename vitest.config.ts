@@ -51,14 +51,37 @@ export default defineConfig({
     fileParallelism: false,
     coverage: {
       provider: 'v8',
-      include: ['packages/*/src/**/*.ts'],
-      exclude: ['packages/*/src/**/*.test.ts', 'packages/*/src/index.ts'],
+      /**
+       * Everything shipped is MEASURED. An unmeasured directory reports no
+       * number, which reads as no problem — apps/ was excluded here and its
+       * authorization layer sat at 71% behind a headline of 100%.
+       */
+      include: ['packages/*/src/**/*.ts', 'apps/*/src/**/*.ts'],
+      exclude: [
+        'packages/*/src/**/*.test.ts',
+        'packages/*/src/index.ts',
+        'apps/*/src/**/*.test.ts',
+        'apps/*/src/index.ts',
+      ],
       reporter: ['text', 'json-summary'],
       /**
-       * Blueprint §16.1: 100% branch coverage is enforced on kernel-units,
-       * kernel-derive and kernel-checks. These are pure, cheap to test, and
-       * where correctness actually lives. A refusal that is never exercised is
-       * a refusal nobody knows is broken.
+       * Blueprint §16.1: 100% coverage is enforced on every pure package. They
+       * are pure, cheap to test, and where correctness actually lives. A
+       * refusal that is never exercised is a refusal nobody knows is broken.
+       *
+       * The application and database layers carry FLOOR thresholds rather than
+       * 100%, and the difference is deliberate rather than a concession:
+       *
+       *   - A pure function's every branch is reachable from its arguments, so
+       *     100% is achievable and anything less means a refusal is untested.
+       *   - An I/O layer has branches reachable only from a driver fault or a
+       *     corrupted row. Chasing those to 100% produces mocks that assert the
+       *     mock, which is worse than an honest gap: it converts a known
+       *     weakness into a false assurance.
+       *
+       * These floors are a RATCHET. They sit just under the measured value, so
+       * a regression fails the build while an improvement is free. Raise them
+       * when the number rises; never lower them to make a build pass.
        */
       thresholds: {
         'packages/kernel-units/src/**': {
@@ -114,6 +137,55 @@ export default defineConfig({
           functions: 100,
           lines: 100,
           statements: 100,
+        },
+
+        // --- Application and database layers: ratcheted floors, not 100% ---
+
+        // The authorization layer is the control for R-02, the leakage risk
+        // that destroys the product's reason to exist. Every action x every
+        // role is enumerated in authz/matrix.test.ts; what remains uncovered is
+        // defensive branching.
+        'apps/api/src/authz/**': {
+          branches: 90,
+          functions: 100,
+          lines: 92,
+          statements: 92,
+        },
+        // Session, invitation and password handling. The uncovered lines are
+        // driver-fault paths inside scrypt and Postgres error handling.
+        'apps/api/src/auth/**': {
+          branches: 85,
+          functions: 100,
+          lines: 96,
+          statements: 96,
+        },
+        // The DTO layer is the leakage boundary itself, and the audit chain
+        // must be provably complete. Both are fully covered and stay that way.
+        'apps/api/src/dto/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
+        'apps/api/src/audit/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
+        'apps/api/src/outbox/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
+        // withTenant() is the only correct path to the database. Its guards are
+        // covered; the remainder is pool and driver plumbing.
+        'packages/db/src/**': {
+          branches: 85,
+          functions: 83,
+          lines: 73,
+          statements: 73,
         },
       },
     },

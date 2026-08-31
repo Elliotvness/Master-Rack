@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **513**, all passing across 23 files (pure + real-Postgres + real catalog and rule data) |
-| Kernel coverage | **100%** statements, branches, functions, lines on all **nine** pure packages |
+| Product tests | **646**, all passing across 26 files (pure + real-Postgres + real catalog and rule data) |
+| Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified Interlake beam rows, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **7**: boundary self-test + scan, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 24 commits**, working tree clean |
+| Version control | **git, 25 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,60 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — review finding: the coverage gate had a blind spot over the riskiest code**
+
+| Check | Command | Result |
+|---|---|---|
+| Coverage now measures `apps/` | `pnpm coverage` | **PASS.** `apps/api` was **excluded from measurement entirely**; it is now included with ratcheted floors |
+| Authorization matrix | `pnpm test` | **PASS.** **114 new tests** — every action × every role, enumerated rather than sampled |
+| Concurrent invitation redemption | `pnpm test` | **PASS.** 8 simultaneous redemptions of one token, **exactly one winner** |
+| `withTenant` guards | `pnpm test` | **PASS.** 7 tests for the refusals that fire before a database is reached |
+| **The ratchet bites** | deliberate break | **PROVEN.** Deleting the authorization matrix dropped authz to 85.8% lines / 77.3% functions and **failed the build** against the new floors. Reverted and re-verified |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **646/646** tests (was 513) across 26 files |
+
+**What the review found.** `vitest.config.ts` measured only `packages/*/src/**`. Everything under
+`apps/` — authentication, authorization, the DTO leakage boundary, the audit chain — produced **no
+coverage number at all**, and an unmeasured directory reads as an unproblematic one. Measured
+manually, the picture was uncomfortable:
+
+| | Before | After |
+|---|---|---|
+| `authz/authorize.ts` | **70.9%** | **92.4%** |
+| `auth/policy.ts` | **63.6%** | **100%** |
+| `apps/api/src/auth` overall | 93.2% | 97.0% |
+
+The kernel sat at 100% while the layer carrying the actual commercial risk sat at 71%, behind a
+headline that said "100% on all nine pure packages" — true, and misleading.
+
+**The authorization matrix is the substantive addition.** The existing suite was example-based, and
+examples leave holes: several actions had no test at all. The new suite enumerates **every action
+against every role**, with the expected decision written out by hand rather than derived from the
+implementation — a table derived from the code would agree with a bug. A test asserts the table
+covers exactly `KNOWN_ACTIONS`, so adding an action without deciding its policy for each role fails.
+
+**A distinction the matrix forced into the open.** The first draft asserted that *every* client
+denial on an internal resource returns 404, and it **failed against correct code**. Reading `AC-03`
+settled it: a 404 is required when a client asks for an internal **artifact**, because a 403 would
+confirm the object exists. But attempting a staff-only **capability** — creating an organization,
+approving a release — leaks nothing about existence, and a 404 there would be dishonest in the other
+direction. The code was right and the test was wrong. The two groups are now listed explicitly, so
+the distinction is a decision on the record rather than an accident.
+
+**Why the application floors are not 100%, stated so it is not mistaken for a concession.** A pure
+function's every branch is reachable from its arguments, so 100% is achievable and anything less
+means an untested refusal. An I/O layer has branches reachable only from a driver fault or a
+corrupted row; chasing those to 100% produces mocks that assert the mock, converting a known
+weakness into a false assurance. The floors sit just under the measured value and are a **ratchet**:
+a regression fails the build, an improvement is free, and lowering one to make a build pass is the
+one thing that must not happen.
+
+**Two genuinely valuable behaviours are now asserted rather than assumed.** Eight concurrent
+redemptions of a single invitation yield exactly one winner — the sequential test proved the state
+check, this proves it is *atomic*, and a read-then-write would pass the first and fail this one.
+And `verifyPassword` survives stored parameters that make scrypt itself throw, because a corrupted
+credential row is a data problem, not an availability problem, and a 500 on the login path is both
+an outage and an oracle.
 
 **2026-08-31 — `C-07` provenance lint: enforcing the rule `C-06` only states**
 

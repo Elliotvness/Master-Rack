@@ -14,9 +14,9 @@ backlog id, that id is named.
 > **Partial:** `P1-012` (`B-01`/`B-02`/`B-04`/`B-05`/`B-06` done; **`B-03` outstanding**) and
 > `P1-014` (`C-02`..`C-07` done; **`C-08` outstanding** — the golden fixtures).
 > **Also closed:** `P0-004` (Carson count established) and `P0-005` (59E face height parked).
-> **Last full run, 2026-08-31: `pnpm verify` PASS** — **513/513** tests across 23 files, boundary
-> self-test + scan (31 files, **9** pure packages), **provenance self-test + lint (57 files)**,
-> `check-rls` 19 tables, exit 0.
+> **Last full run, 2026-08-31: `pnpm verify` PASS** — **646/646** tests across 26 files, boundary
+> self-test + scan (31 files, **9** pure packages), provenance self-test + lint (60 files),
+> `check-rls` 19 tables, exit 0. **Coverage now measures `apps/` too**, with ratcheted floors.
 > Everything else is `Planned only` unless its own row says otherwise. Nothing here may be marked
 > `Complete` without recording the verification command and its actual result.
 
@@ -60,6 +60,29 @@ behaviour that keeps the document usable inside a preview pane.
 **Acceptance.** The script runs to completion and its output is recorded in `docs/CURRENT_STATE.md` §4.
 **Verification.** `python src\verify-visual.py`.
 **Status.** `Not started`. **Evidence:** `Implemented but unverified`.
+
+### P0-007 · Close the coverage blind spot over the application layer
+**Why it mattered.** `vitest.config.ts` measured only `packages/*/src/**`, so everything under
+`apps/` — authentication, authorization, the DTO leakage boundary, the audit chain — produced **no
+coverage number at all**. An unmeasured directory reads as an unproblematic one, and the headline
+"100% on all nine pure packages" was true while the authorization layer sat at **70.9%**. The kernel
+was the best-tested code in the repository and the layer carrying the commercial risk was the least.
+**Found.** By review, 2026-08-31, not by a gate — which is itself the point: a gate that does not
+measure something cannot report it missing.
+**Resolution.**
+- Coverage now includes `apps/*/src/**`. `authorize.ts` **70.9% → 92.4%**, `policy.ts` **63.6% → 100%**.
+- **114 new authorization tests**: every action × every role, enumerated rather than sampled, with
+  the expected decisions written by hand so the table cannot agree with a bug.
+- Application floors are **ratcheted, not 100%**, and deliberately so: a pure function's branches are
+  all reachable from its arguments, but an I/O layer has branches reachable only from a driver fault,
+  and chasing those produces mocks that assert the mock — a false assurance is worse than an honest gap.
+**A defect the new matrix surfaced in the TEST, not the code.** The first draft asserted 404 for
+every client denial on an internal resource and failed against correct code. `AC-03` covers internal
+**artifacts**, where a 403 would confirm existence; a staff-only **capability** leaks nothing, and a
+404 there would be dishonest in the other direction. The two groups are now listed explicitly.
+**Verification.** `pnpm verify` **PASS**, 646/646. **Ratchet proven to bite:** deleting the
+authorization matrix dropped authz to 85.8% and **failed the build**. Reverted and re-verified.
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ### P0-004 · Reconcile the Carson acceptance numbers before they become a golden fixture
 **Why it mattered.** Three artifacts gave three pallet-position counts for one job: 916 bays / 6,824
