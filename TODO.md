@@ -21,7 +21,8 @@ backlog id, that id is named.
 >
 > **P1 is complete, and Group D has begun.** `D-01` (invitation acceptance) and `D-02` (facility
 > entry) and `D-03` (the option builder, carrying demo beat 5) are built and verified in
-> `apps/client-web`. **`D-04`/`D-05` — the preview and findings panel — are next.**
+> `apps/client-web`, along with `D-04`/`D-05` (the preview and the findings panel). **`D-06`
+> comparison and `D-07`/`E-06` the submit transaction are next.**
 > Everything else is `Planned only` unless its own row says otherwise. Nothing here may be marked
 > `Complete` without recording the verification command and its actual result.
 

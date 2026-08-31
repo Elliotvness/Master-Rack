@@ -62,3 +62,17 @@ export {
   type SpanChoice,
   type SpanSelection,
 } from './lib/options.js';
+
+export {
+  PreviewSequencer,
+  REVIEW_WORDING,
+  canSubmit,
+  clientActionList,
+  groupFindings,
+  summarise,
+  type ClientFinding,
+  type FindingGroups,
+  type PreviewResult,
+  type PreviewState,
+  type SummaryCounts,
+} from './lib/preview.js';

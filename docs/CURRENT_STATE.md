@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **737**, all passing across 30 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
+| Product tests | **757**, all passing across 31 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified beam rows **and 435 verified frame-capacity cells**, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **7**: boundary self-test + scan, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 29 commits**, working tree clean |
+| Version control | **git, 30 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,51 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `D-04`/`D-05`: the preview and findings panel**
+
+| Check | Command | Result |
+|---|---|---|
+| Preview and findings tests | `pnpm test` | **PASS.** 20 tests: the staleness guard, the finding split, submission gating |
+| **Stale results discarded** | deliberate break | **PROVEN.** Applying every result regardless of generation turned **2 tests red** |
+| **Stale FAILURES discarded** | deliberate break | **PROVEN.** Letting a late error through turned **1 test red** |
+| **The finding split holds** | deliberate break | **PROVEN.** Merging review items into the client action list turned **2 tests red** |
+| **A null count is not a zero** | deliberate break | **PROVEN.** Rendering an unestablished position count as `0` turned **1 test red** |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **757/757** tests across 31 files, against the live database |
+| Coverage | `pnpm coverage` | **PASS.** `preview.ts` at **100%** |
+
+**"Nothing displays from a stale computation" is a correctness requirement, not a performance one.**
+A client changes a span, then changes it again before the first derivation lands. If the slower
+earlier result arrives second, the screen shows a **real drawing of a configuration the client no
+longer has**, and nothing on the page indicates it. So every derivation carries a generation number
+and a result is applied only if it is still the newest. Late results are discarded, not merged and
+not queued.
+
+The sequencer also discards a stale **failure**, which is the subtler half: a late error would
+otherwise replace a good current drawing with an error belonging to inputs the client has already
+moved past. `isCurrent()` reports false the moment a new derivation begins, so a renderer can tell
+the difference between "this is the answer" and "this was the answer".
+
+**Missing input and engineering review are separate lists**, per §11.1. One is a task the client can
+finish in thirty seconds; the other needs a person with authority. `clientActionList()` contains
+**only blockers and missing inputs** — a review item is a notification, not a task, and putting it on
+the action list asks the client to do something only we can do. Blockers come first because they
+stop progress.
+
+**Review items do not block submission.** A review item is what the submission is *for*; blocking on
+one would strand every job touching an under-sourced rule, which is most of them. Only a `BLOCKER`
+stops a submit.
+
+**Client-facing wording never exposes the mechanism** (`R-15`). The panel says *"Our team will review
+this before your quote is issued"* rather than naming tiers or rules — asserted by a test that the
+wording contains no such vocabulary.
+
+**A `ClientFinding` carries no citation, rule id or tier.** `AC-02` at the panel layer: the client
+sees severity and `closed_by`; the citation lives in `finding_internal_detail` and never crosses.
+
+**Dead code removed rather than tested.** The coverage gate found `PreviewError` exported but never
+constructed. An unused error class is a claim that something can fail in a way nothing produces, so
+it was deleted instead of given a test.
 
 **2026-08-31 — `D-03` the option builder: demo beat 5, implemented**
 
