@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **881**, all passing across 38 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
+| Product tests | **884**, all passing across 38 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified beam rows **and 435 verified frame-capacity cells**, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **9**: kernel-boundary self-test + scan, **app-boundary self-test + scan**, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 37 commits**, working tree clean |
+| Version control | **git, 38 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,40 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `P0-005` CLOSED: the 59E face height resolved to the published figure**
+
+| Check | Command | Result |
+|---|---|---|
+| Catalog suite | `pnpm test` | **PASS.** 10 PSG-authority tests |
+| **59E reverted to the superseded 5.92** | deliberate break | **PROVEN RED**, 2 tests |
+| **59E "corrected" to 5.94 by rounding** | deliberate break | **PROVEN RED**, 2 tests |
+| **65E/65Q silently closed to 6.56** | deliberate break | **PROVEN RED** |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **884/884** tests |
+
+**The park is closed because the page reference finally exists.** PSG 2025 p.84 prints the 59E
+profile as `5 15/16"` with `(5.93")` beside it. Three readings had been in play — 5.92 on all 42
+transcribed rows, 5.928 in a documentation table, and 5.93 read from the chart — and none could be
+promoted while none carried a reference. 5.92 is now superseded outright: **it appears nowhere in
+the 98-page source document.**
+
+**A trap worth naming: 5.93 is NOT a rounding.** `5 15/16` is 5.9375, which rounds to **5.94**. The
+manufacturer's parenthesised figure is a *truncation they chose*, not arithmetic anyone can
+re-derive. The catalog records 5.93 because that is what the source prints; "correcting" it to 5.94
+would substitute our arithmetic for the manufacturer's own statement. Both wrong values are pinned
+by test, and the 5.94 break was performed to prove the pin holds.
+
+**The same page-84 cross-check found a SECOND discrepancy, deliberately left open.**
+`65E/65ER/65Q/65QR` carry `6.54`, but page 84 prints those profiles as `6 9/16"` (6.5625, rendered
+`6.56"`). Our value matches neither the fraction nor the printed decimal. It is **not** changed
+here: the owner ruled on 59E specifically, and applying that ruling to a different family would be
+inventing a decision nobody made. The unresolved `6.54` is **pinned by test**, so the gap cannot be
+quietly closed by a later edit — it has to be ruled on, and the test updated with it. Non-blocking
+on the same grounds `P0-005` was: face height is not a lookup key, and `lookup()` never reads it.
+
+**The superseded release keeps its old answer.** `interlake-2026-08` still asserts 5.92, with the
+test renamed to say so. A frozen release that quietly acquires a newer answer stops being a record
+of what was believed at the time, and every submission pinned to it would silently re-rate.
 
 **2026-08-31 — `P0-008`: PSG 2025 established as sole authority for beam capacity**
 

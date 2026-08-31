@@ -217,29 +217,35 @@ describe('data validation refuses malformed rows', () => {
   });
 });
 
-describe('P0-005 — the 59E face-height discrepancy is parked, not laundered', () => {
-  // Three readings exist for one dimension: 5.92 on all 42 transcribed rows,
-  // 5.928 in a documentation table, and 5.93 read from the source chart by EL
-  // on 2026-08-31. None carries a page reference, so none is promoted to fact.
+describe('P0-005 — the 59E face-height discrepancy, as it stood in 2026-08', () => {
+  // HISTORICAL. This release is frozen: it records what the 2026-08 extract
+  // transcribed, and it must keep doing so. P0-005 was CLOSED on 2026-08-31
+  // against PSG 2025 p.84, which prints the 59E profile as 5 15/16" (5.93"),
+  // and the resolved value ships in interlake-2026-09. The assertions here are
+  // deliberately NOT updated to 5.93: a superseded release that quietly
+  // acquires the new answer stops being a record of what was believed at the
+  // time, and every submission pinned to it would silently re-rate.
   //
-  // These tests exist so the parking decision is ENFORCED rather than merely
-  // written down. Two things must stay true until a page reference arrives.
+  // The resolution is asserted against the current release in
+  // psg-authority.test.ts.
 
-  it('keeps all 42 rows at the value as published, never silently corrected', () => {
+  it('keeps all 42 rows at the value the 2026-08 extract published', () => {
     const faces = rows.filter((r) => r.family.startsWith('59E'));
     expect(faces).toHaveLength(42);
-    // If someone "fixes" these to 5.928 or 5.93, the extract stops reconciling
-    // against its own source and the provenance claim becomes false.
+    // 5.92 appears nowhere in the source document — that is precisely why the
+    // discrepancy was raised — but this release transcribed it, so this release
+    // continues to report it.
     for (const r of faces) {
       expect(r.faceHeightIn).toBe(5.92);
     }
   });
 
-  it('does not let face height reach a lookup result, so the discrepancy cannot change a capacity', () => {
+  it('does not let face height reach a lookup result, so the discrepancy could not change a capacity', () => {
     // The key is family + series + span. Face height is carried as descriptive
-    // data only. This asserts the property that makes P0-005 non-blocking: two
-    // rows differing ONLY in face height are unreachable through lookup(),
-    // because lookup never reads it.
+    // data only. This is the property that made P0-005 non-blocking, and it is
+    // still the property that makes the OPEN 65E/65Q face-height discrepancy
+    // non-blocking today: two rows differing only in face height are
+    // unreachable through lookup(), because lookup never reads it.
     const before = catalog.lookup({ family: '59E', series: 'F5M', span: inches(96) });
 
     const perturbed = new BeamCatalog(

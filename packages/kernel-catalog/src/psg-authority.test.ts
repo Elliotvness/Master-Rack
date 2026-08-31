@@ -201,3 +201,64 @@ describe('PSG 2025 is the sole authority for beam capacity', () => {
     ]);
   });
 });
+
+describe('P0-005 is closed: the 59E face height is resolved to the published figure', () => {
+  /**
+   * Page 84 prints the 59E profile as 5 15/16", which the guide itself renders
+   * as (5.93"). That is the page reference the parking decision was waiting
+   * for, so the value is now established rather than contested.
+   *
+   * 5.92 is superseded: it appears nowhere in the source document. 5.928 is
+   * superseded too - it rounds to 5.93 and was always the weaker corroboration.
+   * The two-decimal 5.93 is adopted rather than the exact 5.9375, because the
+   * catalog records what the source PRINTS.
+   */
+
+  it('all 42 rows of 59E/59ER carry the published 5.93', () => {
+    const rows = loadCatalog();
+    const faces = rows.filter((r) => r.family.startsWith('59E'));
+    expect(faces).toHaveLength(42);
+    for (const r of faces) {
+      expect(r.faceHeightIn).toBe(5.93);
+    }
+  });
+
+  it('5.93 is what the page PRINTS, and is not a rounding of the fraction', () => {
+    // Worth stating precisely, because the obvious assumption is wrong:
+    // 5 15/16 = 5.9375, which rounds to 5.94, NOT 5.93. The guide prints
+    // 5 15/16" and (5.93") side by side, so the parenthesised figure is a
+    // TRUNCATION the manufacturer chose, not a rounding anyone can re-derive.
+    // The catalog records the printed 5.93 because that is what the source
+    // says; a future reader who "corrects" it to 5.94 by rounding the fraction
+    // would be substituting their arithmetic for the manufacturer's statement.
+    expect(5 + 15 / 16).toBe(5.9375);
+    expect(Number((5 + 15 / 16).toFixed(2))).toBe(5.94); // what rounding gives
+    // and what the page actually prints:
+    const rows = loadCatalog();
+    expect(rows.find((r) => r.family === '59E')?.faceHeightIn).toBe(5.93);
+  });
+
+  it('records the 65E/65Q face heights as an OPEN discrepancy, not a resolved one', () => {
+    /**
+     * The same page-84 cross-check that resolved 59E found a second
+     * disagreement: 65E/65ER/65Q/65QR carry 6.54, but page 84 prints those
+     * profiles as 6 9/16", rendered (6.56").
+     *
+     * This test asserts the value is STILL 6.54. That is deliberate. The owner
+     * ruled on 59E specifically; applying that ruling to a different family
+     * would be inventing a decision nobody made. Pinning the unresolved value
+     * means the discrepancy cannot be silently closed by a later edit - it has
+     * to be ruled on, and this test updated with it.
+     */
+    const rows = loadCatalog();
+    const wide = rows.filter((r) => r.family.startsWith('65'));
+    // 65E, 65ER, 65Q, 65QR at 21 spans each.
+    expect(wide).toHaveLength(84);
+    for (const r of wide) {
+      expect(r.faceHeightIn).toBe(6.54);
+    }
+    // 6 9/16 = 6.5625, printed by the guide as (6.56"). Our 6.54 matches
+    // neither, which is exactly why it is open rather than merely imprecise.
+    expect(6 + 9 / 16).toBe(6.5625);
+  });
+});

@@ -13,7 +13,7 @@
   "brace_required_over_in": 126,
   "crossbar_required_over_in_when_decked": 90
  },
- "content_sha256": "45cd2907b69baa53e2f16edc6da6118d013dce174ddb0306167f7a47497e0b9b",
+ "content_sha256": "7327a91ebe1927f7943fb06999776d4c76960d29a494faacbe4b925dc26b7f80",
  "deflection_limit": "L/180 (p.88: 'lesser of strength in bending, or L/180 deflection criteria')",
  "digitised_at": "2026-08-31",
  "digitised_by": "automated extract (Claude)",
@@ -21,14 +21,14 @@
   "Mecalux Material Catalog (Mecalux_Material_Catalog.xlsx) - DISREGARDED FOR CAPACITY VALUES. It describes a different product line (25E, 31E, 35E, 39E, 43E, 47E, 55E, 65Q-DX) and carries no capacity data for twelve of the sixteen families this catalog covers (27E/27ER, 36E/36ER, 40E/40ER, 45E/45ER, 50ER, 59ER, 65ER, 65QR). Where both sources do overlap they disagree on every span - e.g. 65E at 48\" reads 17,115 lbs in PSG 2025 and 15,000 lbs in the Material Catalog. A prior reconciliation recommended using the Material Catalog for capacity lookups; that recommendation is superseded as IMPOSSIBLE TO SATISFY, not merely rejected - the data it points to does not exist for most of our families. Recorded here so a future reader does not 'restore' it under the impression it was dropped by accident."
  ],
  "face_height_59e_status": {
-  "catalog_rows_as_published": 5.92,
-  "disposition": "UNRESOLVED_NON_BLOCKING",
-  "documentation_table": 5.928,
-  "page_ref": "",
-  "read_at": "2026-08-31",
-  "read_by": "Elliott Villacorta",
-  "read_from_source_chart": 5.93,
-  "reason": "Three readings, none carrying a page reference. Not blocking: face height is not a lookup key and no capacity, span or clearance result depends on it. Blocking the moment face height is used dimensionally - e.g. bay pitch from beam face, or an elevation drawn to scale."
+  "disposition": "RESOLVED",
+  "note_on_precision": "5 15/16 = 5.9375. The guide's own two-decimal rendering is 5.93, i.e. truncated rather than rounded. Pinned by test so neither 5.94 nor 5.9375 can be introduced as a 'correction'.",
+  "page_ref": "p.84 'BEAM PROFILES'",
+  "printed_as": "5 15/16\" with (5.93\") printed beside it",
+  "reason": "P0-005 is closed. Three readings existed (5.92 on all 42 transcribed rows, 5.928 in a documentation table, 5.93 read from the chart) and none carried a page reference, so none could be promoted to fact. PSG 2025 p.84 prints the 59E profile as 5 15/16\" with (5.93\") beside it, which is the missing reference. NOTE: 5 15/16 is 5.9375, which ROUNDS TO 5.94, not 5.93 - the parenthesised figure is a truncation the manufacturer chose, not a rounding anyone can re-derive. 5.93 is adopted because it is what the source PRINTS; substituting 5.94 or 5.9375 would replace the manufacturer's own statement with our arithmetic. 5.92 is superseded (it appears nowhere in the document) and 5.928 with it.",
+  "resolved_at": "2026-08-31",
+  "resolved_by": "Elliott Villacorta",
+  "value_in": 5.93
  },
  "load_basis": "Uniformly distributed product load plus dead load, PER PAIR of beams (dead load = weight of beams). Static load only. Value is the lesser of strength in bending and L/180 deflection.",
  "manufacturer": "Interlake Mecalux",
@@ -39,7 +39,7 @@
   "code_18 IB65QT16200RRA4000 (65QR, 162\") carries end-plate letter 'R' where the F5M series specifies 'S'. Its 65Q sibling at the same span reads IB65QT16200RSA2000 and every other 65QR row reads ...RSA4000. Transcribed verbatim as published; pinned as a named exemption in psg-authority.test.ts so a NEW wrong letter still fails the build.",
   "Five 65QR code_18 values are 17 characters where the format specifies 18: IB65QT05400RSA400 (54\"), IB65QT06600RSA400 (66\"), IB65QT07800RSA400 (78\"), IB65QT12600RSA400 (126\"), IB65QT15000RSA400 (150\"). Published that way; the exact set is pinned by test so a sixth would fail.",
   "part_number UM005516 appears on 2 rows (65QR 54\" and 60\"); UM005517 appears on 2 rows (65QR 66\" and 72\"). Carried forward from the 2026-08 extract, unchanged.",
-  "face_height_in 5.92 is transcribed verbatim on all 42 rows of families 59E/59ER; a documentation table for the same beam gives 5.928, and the source chart was read by Elliott Villacorta on 2026-08-31 as 5.93. The rows are NOT altered: the published value stays as printed so the extract remains reconcilable against its source. 5.93 corroborates 5.928 (which rounds to 5.93 at two decimals) over 5.92. face_height_in is carried as descriptive data only and is not part of any lookup key (key = family + series + span), so the discrepancy affects no capacity result. Resolve to a single figure with a page reference before face height is ever used dimensionally."
+  "OPEN, NOT RULED ON: 65E/65ER/65Q/65QR carry face_height_in 6.54, but PSG 2025 p.84 prints the 65E and 65Q profiles as 6 9/16\" (6.5625, printed as 6.56\"). Same shape as the 59E discrepancy that P0-005 resolved, and found by the same page-84 cross-check. NOT changed here: 59E was resolved by an explicit owner decision, and silently applying that decision to a different family would be inventing a ruling nobody made. Face height is not a lookup key and no capacity, span or clearance result depends on it, so this is non-blocking on the same grounds P0-005 was. It becomes blocking the moment face height is used dimensionally - bay pitch measured from a beam face, or an elevation drawn to scale."
  ],
  "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
  "source_url": "https://www.interlakemecalux.com/",
