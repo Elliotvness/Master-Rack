@@ -10,21 +10,23 @@ Status vocabulary used here, carried from `rack-engine/CLAUDE.md`:
 
 ## 1. Headline
 
-**Phase 0 is substantially built.** The planning package is complete and six foundation tasks are
-implemented, verified and committed: `A-01` scaffold, `A-02` `kernel-units`, `A-03` boundary
-checker, `C-01` `kernel-model`, `A-04` schema + RLS, `A-05` `withTenant()`, `A-06` RLS assertion.
-Authentication, authorization, the DTO layer and both applications remain planning only.
+**Phase 0 Group A is essentially complete.** The planning package is complete and ten foundation
+tasks are implemented, verified and committed: `A-01` scaffold, `A-02` `kernel-units`, `A-03`
+boundary checker, `A-04` schema + RLS, `A-05` `withTenant()`, `A-06` RLS assertion, `A-07` sessions
+and authentication, `A-08` `authorize()`, `A-09` the DTO leakage layer, `A-10` the audit hash chain,
+plus `C-01` `kernel-model`. Only `A-11` (the transactional outbox) remains in Group A. Group B
+(catalog data) and the rest of Group C (derivation, checks, BOM) are the next real work.
 
 | | |
 |---|---|
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
-| Production source files | **17** (`packages/kernel-units`, `kernel-model`, `db`, `tools/`) |
-| Product tests | **176**, all passing (149 pure + 27 against real Postgres) |
+| Production source files | **30+** across `packages/kernel-units`, `kernel-model`, `db`, `apps/api`, `tools/` |
+| Product tests | **248**, all passing (pure + real-Postgres integration) |
 | Kernel coverage | **100%** statements, branches, functions, lines on both kernel packages |
-| Database | Postgres 16, 16 tables, RLS enabled + forced on every one |
+| Database | Postgres 16, 18 tables, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
-| Version control | **git, 6 commits**, working tree clean |
+| Version control | **git, 9 commits**, working tree clean |
 
 ## 2. Naming
 
@@ -144,7 +146,29 @@ restored and re-verified immediately.
 
 Still not verified: `verify-visual.py` (`P0-003`), and CI on a real runner.
 
-**2026-08-31 — Phase 0 continued (`A-07`)**
+**2026-08-31 — Group A complete (`A-08`, `A-09`, `A-10`)**
+
+| Check | Command | Result |
+|---|---|---|
+| A-08 authorize + route coverage | `pnpm test` | **PASS.** 23 tests: org and actor_type scoping, 404-not-403, `SERVICE_ENGINE` denied all (I-4), boot-time coverage assertion (AC-06) |
+| A-09 DTO leakage | `pnpm test` | **PASS.** 13 tests: forbidden-field constant matches §9.2, recursive walk at every depth, DTOs built field by field (AC-02) |
+| A-10 audit chain | `pnpm test` | **PASS.** 12 tests against real Postgres; chain verifies from genesis and **tamper detection proven** by corrupting a row (AC-15) |
+| Whole pipeline | `pnpm verify` | **PASS.** 248/248 tests; lint, boundaries, self-test, RLS all green |
+
+**A defect the gate caught:** `appendAuditEvent` first used `SELECT ... FOR UPDATE` to lock the
+chain head, but that requires UPDATE privilege, which the append-only application role deliberately
+lacks — `permission denied for table audit_event`. Replaced with a transaction-scoped advisory lock,
+which needs no table privilege and still serializes appends so two writers cannot fork the chain.
+
+**Phase 0 Group A is complete.** All eleven foundation tasks `A-01` through `A-11`… — with the
+exception of `A-11` (the transactional outbox), which remains the one Group A task not yet built.
+Everything else in Group A is done: scaffold, `kernel-units`, boundary checker, schema + RLS,
+`withTenant()`, the RLS assertion, sessions and auth, `authorize()`, the DTO layer, and the audit
+chain. Plus `C-01` from Group C.
+
+Still not verified: `verify-visual.py` (`P0-003`), CI on a real runner, and `A-11` (outbox).
+
+**2026-08-31 — earlier the same day (`A-07`)**
 
 | Check | Command | Result |
 |---|---|---|

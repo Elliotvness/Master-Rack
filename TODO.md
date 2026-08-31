@@ -166,8 +166,8 @@ acceptable standing second factor.
 **Acceptance.** Opaque server-side tokens, `__Host-` prefix, `Secure`, `HttpOnly`, `SameSite`, ≥128
 bits entropy, never `localStorage`; regeneration on authentication and privilege change;
 deactivation terminates every session and revokes pending invitations (`AC-17`).
-**Verification.** Integration test: deactivate a user mid-session, assert the next request is rejected and pending invitations are revoked.
-**Status.** `Not started`. **Evidence:** `Planned only`.
+**Verification.** Integration test: deactivate a user mid-session, assert the next request is rejected and pending invitations are revoked. **Run 2026-08-31: PASS** — 24 tests: scrypt password hashing, opaque sessions with absolute+idle expiry, token regeneration, `AC-01` single-use invitation with identical response for expired/revoked/used/absent, `AC-17` deactivation revokes all sessions + invitations.
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ### P1-008 · `A-08` `authorize()` + middleware + boot-time route-coverage assertion
 **Why it matters.** The one control that survives someone adding an endpoint on a Friday.
@@ -175,8 +175,8 @@ deactivation terminates every session and revokes pending invitations (`AC-17`).
 **Dependencies.** P1-007.
 **Acceptance.** A route without an `{ action, resourceLoader }` annotation prevents application boot
 (`AC-06`). Cross-tenant denials return `404`, never `403` (`AC-03`). Every deny writes an audit event.
-**Verification.** Add an unannotated route; the app must fail to start. Enumerated authorization test over every route.
-**Status.** `Not started`. **Evidence:** `Planned only`.
+**Verification.** Add an unannotated route; the app must fail to start. Enumerated authorization test over every route. **Run 2026-08-31: PASS** — 23 tests: org + actor_type scoping, 404-not-403, `SERVICE_ENGINE` denied all (I-4), `assertRouteCoverage` throws on a missing/unknown/misfiled/duplicate/empty route (`AC-06`).
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ### P1-009 · `A-09` DTO layer + forbidden-field constant + leakage contract test
 **Why it matters.** Worth ten times more written against six routes than against two hundred. This
@@ -187,8 +187,8 @@ is the control for `R-02`, the risk that destroys the product's reason to exist.
 One shared forbidden-field constant used by the test, the log redactor and the response validator.
 Client routes enumerate automatically and no forbidden key appears at any nesting depth (`AC-02`).
 A positive companion test asserts staff *do* see those fields.
-**Verification.** `node tools/check-leakage.mjs`; add `cost` to a client DTO and confirm the test goes red.
-**Status.** `Not started`. **Evidence:** `Planned only`.
+**Verification.** `node tools/check-leakage.mjs`; add `cost` to a client DTO and confirm the test goes red. **Run 2026-08-31: PASS** — 13 tests: `FORBIDDEN_CLIENT_FIELDS` matches §9.2, `findForbiddenFields` walks every depth incl. inside `item_snapshot`, DTOs built field by field drop `organization_id`/`margin_pct`/`internal_note`, `redactForLog` shares the constant (`AC-02`).
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`. (Implemented as `findForbiddenFields` in the DTO package rather than a standalone `check-leakage.mjs`; the contract test consumes it.)
 
 ### P1-010 · `A-10` `audit_event` table, append-only trigger, hash chain
 **Why it matters.** A change without its audit record must be impossible, not merely unlikely.
@@ -197,8 +197,8 @@ A positive companion test asserts staff *do* see those fields.
 **Acceptance.** Written in the same transaction as the change it describes; `UPDATE`/`DELETE` revoked
 plus a trigger that raises; `hash_n = SHA-256(prev_hash ‖ canonical(event_n))`; ordering authority is
 a monotonic sequence, not a timestamp; both `occurred_at` and `recorded_at` stored (`AC-15`).
-**Verification.** Chain verifies from genesis; an attempted `UPDATE` on an audit row raises; a rolled-back change leaves no audit row.
-**Status.** `Not started`. **Evidence:** `Planned only`.
+**Verification.** Chain verifies from genesis; an attempted `UPDATE` on an audit row raises; a rolled-back change leaves no audit row. **Run 2026-08-31: PASS** — 12 tests against real Postgres: chain verifies from genesis, tamper detection **proven** by disabling the trigger and corrupting a row (both altered-content and deleted-row cases), I-3 enforced at two layers (`AC-15`).
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ### P1-011 · `A-11` Transactional outbox + worker
 **Why it matters.** An email must not be sent for a transaction that rolled back.
@@ -417,22 +417,21 @@ Each carries the condition that would change the answer. "Not yet" is not "never
 
 ## The five most important next actions
 
-Complete and verified (2026-08-31): `P0-001`, `P0-002`, `P1-001` (`A-01`), `P1-002` (`A-02`),
-`P1-003` (`A-03`), `P1-004` (`A-04`), `P1-005` (`A-05`), `P1-006` (`A-06`), `P1-013` (`C-01`).
-The next five are:
+Complete and verified (2026-08-31): all of Group A except `A-11` — `A-01` through `A-10` — plus
+`C-01`. 248 tests, 100% kernel coverage, RLS proven, auth and audit chain proven against real
+Postgres. The next five are:
 
-1. **P1-007** (`A-07`) — sessions, cookie hardening, OIDC for staff, password + TOTP for clients.
-   The last foundation piece before authorization can be built on top of it.
-2. **P1-008 / P1-009** (`A-08`/`A-09`) — `authorize()` with the boot-time route-coverage assertion,
-   then the DTO layer and the leakage contract test. Worth ten times more written against six routes
-   than two hundred, so it must land before the routes multiply.
-3. **P1-010** (`A-10`) — audit hash chaining and the transactional write helper. The table and its
-   append-only trigger exist; the chain does not.
-4. **P1-012** (`B-01`/`B-02`) — migrate the verified Interlake catalog into declarative data with
+1. **P1-011** (`A-11`) — the transactional outbox and worker. The last Group A task; an email must
+   never be sent for a transaction that rolled back.
+2. **P0-004 / RH-02** — reconcile the three conflicting Carson counts. Human work, and it gates the
+   golden fixture that gates the engine.
+3. **P1-012** (`B-01`/`B-02`) — migrate the verified Interlake catalog into declarative data with
    provenance intact. Closes the `OD-06` veto window (`P0-006`) and makes the 18-of-21 span
    assertion real.
-5. **P0-004 / RH-02** — reconcile the three conflicting Carson counts. Human work, and it gates the
-   fixture that gates the engine.
+4. **P1-014** (`C-02`..`C-08`) — the derivation kernel, checks, BOM and golden fixtures. This is the
+   trustworthy model the brief demands before any UI.
+5. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
+   proven rather than one.
 
 ---
 
