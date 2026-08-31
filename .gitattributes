@@ -1,0 +1,15 @@
+# Determinism: the blueprint must rebuild byte-identically from src/, and the
+# kernel must hash identically on every machine. Normalise to LF everywhere and
+# never let a checkout rewrite line endings.
+* text=auto eol=lf
+
+# Windows-only launchers genuinely need CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary.
+*.png binary
+*.jpg binary
+*.pdf binary
+*.zip binary
+*.xlsx binary
