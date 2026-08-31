@@ -21,9 +21,9 @@ no-interpolation lookup. The derivation kernel has two slices landed — `C-02` 
 index). Group B's rule pack (`B-05`) has landed with the verification-tier ceiling, and `C-04` —
 the twelve MVP checks with that ceiling applied by the framework — is complete and its control
 proven by deliberate breakage. `C-05` — the internal takeoff BOM with its unresolved register — is
-complete, and `C-06` — the renderer-neutral display list — is complete with `AC-07` proven at the
-drawing layer. **`C-07`/`C-08` (provenance lint, golden fixtures) and `B-03` (frame capacity) are
-the next real work.**
+complete, `C-06` — the renderer-neutral display list — is complete with `AC-07` proven at the
+drawing layer, and `C-07` — the provenance lint that enforces it mechanically — is in the verify
+chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real work.**
 
 | | |
 |---|---|
@@ -35,7 +35,8 @@ the next real work.**
 | Catalog data | 378 verified Interlake beam rows, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
-| Version control | **git, 23 commits**, working tree clean |
+| Mechanical gates | **7**: boundary self-test + scan, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
+| Version control | **git, 24 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -85,6 +86,43 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `C-07` provenance lint: enforcing the rule `C-06` only states**
+
+| Check | Command | Result |
+|---|---|---|
+| Self-test | `pnpm lint:provenance:selftest` | **PASS.** All **8** violation types caught **and all 6 legal forms allowed** — the second half matters as much as the first |
+| Real tree | `pnpm lint:provenance` | **PASS.** 57 files scanned, clean |
+| **Gate fires — probe 1** | deliberate break | **PROVEN on real source.** Making a display builder format a raw number (`displayText(convert(…) * 2)`) failed the lint, exit 1 |
+| **Gate fires — probe 2** | deliberate break | **PROVEN.** Renaming the scan roots so the lint matched nothing produced *"Refusing to report a pass for a scan that checked nothing"*, exit 1 — not a silent green |
+| **Gate fires — probe 3, the control on the control** | deliberate break | **PROVEN.** Disabling the linter's numeric-literal detection was caught by its **own self-test**: `MISSED a real violation: numeric literal passed to a formatter`. All three reverted and re-verified |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0, with both new gates in the chain. 513/513 tests |
+
+**What it enforces.** `C-06` states that a renderer consumes a display list and may not recompute a
+dimension. That is one line of prose, and the failure it prevents is one line of code written in a
+hurry: `formatLength(96)` instead of `formatLength(inches(96))`. A `Quantity` carries a unit and an
+origin, so the formatter can refuse to print a numeral for an unestablished value. A raw number
+carries neither, so it always prints — and `AC-07` is silently bypassed at the last inch, on the one
+surface a client actually reads.
+
+**Why a source scan when the type checker already rejects this.** Because `as never`,
+`as unknown as Quantity`, `@ts-expect-error` and a hand-built object literal all defeat the type
+system, and every one of them appears in real code under deadline pressure. A cast is precisely how
+a raw number reaches a formatter. The lint flags the cast itself: provenance carried through a cast
+is fiction.
+
+**Deliberately narrow, and that is a design decision.** A bare identifier is **not** flagged, because
+`formatLength(x)` is correct when `x` is a `Quantity`, and deciding that needs types rather than
+text. The lint flags only what is provably wrong: a numeric literal, arithmetic on raw numbers,
+`.value` reached past the quantity, a numeric coercion, or a laundering cast. **A linter that flags
+correct code trains people to ignore it, and an ignored gate is an absent gate** — which is why the
+self-test asserts the negative cases too, including a formatter named in a comment or inside a
+string.
+
+**The self-test is the more important artifact.** A linter that silently stopped working reports a
+clean pass forever, and the build stays green while the invariant rots. Probe 3 is the proof that
+this cannot happen quietly: breaking the detection turns the self-test red, so the checker cannot
+decay without saying so.
 
 **2026-08-31 — `C-06` `display-list`: the renderer-neutral drawing model**
 

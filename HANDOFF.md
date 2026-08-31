@@ -20,10 +20,10 @@ and `C-03` (`kernel-geom`). **`B-05` then `C-04` is next.**
 |---|---|
 | Blueprint revision | **Rev C**, 2026-08-31 |
 | Decisions | **21 of 21 settled.** One item deliberately open — see §7 |
-| Code written | Nine pure packages, the database layer, the API layer, five mechanical checks |
+| Code written | Nine pure packages, the database layer, the API layer, **seven** mechanical gates |
 | Tests | **513 passing** across 23 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
 | Verification | `pnpm verify` green, exit 0; results recorded in `docs/CURRENT_STATE.md` §4 |
-| Next | `C-07` (provenance lint), `C-08` (golden fixtures), `B-03` (frame capacity). Full order in §5 |
+| Next | `C-08` (golden fixtures) and `B-03` (frame capacity). Full order in §5 |
 
 **Start with `README.md` for how to run the checks, `TODO.md` for what is next, and
 `docs/CURRENT_STATE.md` for what has actually been run rather than what is planned.**
@@ -116,8 +116,9 @@ to ENGINEERING REVIEW REQUIRED. `C-05` — the BOM and its unresolved register �
 quantities derived, wire decks and row spacers refused with all three conflicting formulas named.
 `C-06` — the renderer-neutral display list — is complete: one list, three renderers, every text
 entry carrying `{text, established}`, and `AC-07` proven by making an unknown aisle width print a
-number and watching the tests go red. The live front is **`C-07`/`C-08`** (provenance lint and the
-golden fixtures) and **`B-03`** (the three frame-capacity tables).
+number and watching the tests go red. `C-07` — the provenance lint — now enforces that rule mechanically, and its own self-test proves it
+still catches a formatter applied to a raw value. The live front is **`C-08`** (the golden fixtures,
+wired into the test run) and **`B-03`** (the three frame-capacity tables).
 
 Then the rest of Group B and C, D (client app), E (internal app). Full backlog in blueprint §15.3.
 

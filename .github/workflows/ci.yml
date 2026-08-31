@@ -65,6 +65,14 @@ jobs:
       - name: Boundary check
         run: pnpm check:boundaries
 
+      # Same reasoning as the boundary self-test: prove the provenance lint
+      # still catches a formatter applied to a raw value before trusting it.
+      - name: Provenance lint self-test
+        run: pnpm lint:provenance:selftest
+
+      - name: Provenance lint
+        run: pnpm lint:provenance
+
       - name: RLS coverage assertion
         run: pnpm check:rls
 

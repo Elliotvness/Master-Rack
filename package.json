@@ -16,12 +16,14 @@
     "lint": "eslint .",
     "check:boundaries": "node tools/check-boundaries.mjs",
     "check:boundaries:selftest": "node tools/selftest-boundaries.mjs",
+    "lint:provenance": "node tools/lint-provenance.mjs",
+    "lint:provenance:selftest": "node tools/selftest-provenance.mjs",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "migrate": "node tools/migrate.mjs",
     "check:rls": "node tools/check-rls.mjs",
     "check:docs": "python src/build.py",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:boundaries:selftest && pnpm check:boundaries && pnpm check:rls",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:boundaries:selftest && pnpm check:boundaries && pnpm lint:provenance:selftest && pnpm lint:provenance && pnpm check:rls",
     "clean": "tsc --build --clean"
   },
   "devDependencies": {
