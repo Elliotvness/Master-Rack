@@ -1,0 +1,120 @@
+<section id="s10">
+  <h2 class="sh"><span class="num">10</span>Catalog, rule, source and data-provenance strategy</h2>
+
+  <h3>10.1 Two artifacts, two clocks</h3>
+  <p>Part data and standards change on completely different schedules and are approved by different people. They are therefore two independently versioned, independently pinned artifacts:</p>
+  <div class="cards">
+    <div class="card"><h5>Catalog release</h5><p>One manufacturer, one published revision. Parts, geometry, published capacity cases, published footnotes. Sourced from a specific document at a specific page.</p></div>
+    <div class="card"><h5>Rule pack release</h5><p>Dimensional conventions, clearance rules, aisle rules, operational rules. Each rule cites a standard, an edition and a section, and carries a verification tier.</p></div>
+  </div>
+  <p>A revision pins exactly one of each, and both pins sit inside the hashed content. A catalog change therefore <b>cannot</b> alter a submitted revision — the vocabulary here is Oracle Fusion Configurator's, deliberately: a <b>workspace</b> is drafted, <b>released</b> to produce a numbered <b>version</b> with an <b>effective start date</b>, and the latest version is the one with the latest effective start date, not necessarily the most recently released one.</p>
+
+  <h3>10.2 Release lifecycle and the two-person rule</h3>
+<pre><code>DRAFT ──approve──▶ APPROVED ──a newer release──▶ SUPERSEDED ──▶ RETIRED
+   ▲                    │
+   └── edits allowed    └── immutable; may be pinned by new revisions</code></pre>
+  <ul>
+    <li>Only an <code>APPROVED</code> release can be pinned by a <b>new</b> revision. Existing revisions keep their pins forever, including to <code>SUPERSEDED</code> releases, so a two-year-old submission still renders.</li>
+    <li><b>The approver may not be the digitiser.</b> A machine extraction is evidence, not a signature. A release with a null <code>approved_by</code> fails the build — this gate already exists in <code>rack-app</code> (<code>validate_engineering.py</code> exits non-zero) and it is the reason its beam data can be trusted and its legacy frame data cannot.</li>
+    <li>Superseding a release must list every open request pinned to the old one, before the retire is allowed.</li>
+    <li><b>Named for MVP-1:</b> one person holds both the catalog-approver and rule-pack-owner roles, with a nominated fallback approver for the case where that person is also the digitiser. Formally accepted for MVP-1 and to be revisited when a second internal engineering resource exists.</li>
+    <li><b>The approver's procedure is part of the gate, not a convention.</b> A name without a verification act is ceremony — the 72% overstatement was caught by reconciliation, not by a signature. So: the release must carry a recorded verification path as data; the approver independently spot-checks <b>20 cells or 5% of the table, whichever is greater, with the tool drawing the sample at random</b> (an approver-chosen sample drifts toward the easy cells); <b>any mismatch fails the entire release</b> — there is no partial pass and no "approve with notes"; the approver records sample size, cells, source document and page, and outcome; and the signature attaches to that record. "Approved" with no verification record behind it is not a state the schema can represent.</li>
+    <li><b>Gate on the verification act, not on the digitiser's identity.</b> A rule of the form <em>"refuse when the approving user equals the digitiser id"</em> is necessary but not sufficient: running an extraction script sets the digitiser to a machine identity, which lets one person approve data they produced themselves and satisfies the check trivially. A machine is a tool, not an independent party. What actually makes the Interlake sets trustworthy is not that a machine typed them — it is that one was cross-checked 357/357 and the other reconciled 435/435 across two independent extraction paths. <b>So the gate should require, for single-human approval, a recorded independent verification path</b> — a full cross-check or a two-path reconciliation, stored as data on the release. Absent that, the release needs a second human. This closes the loophole and it is also what the record should say when someone asks in two years why the table was trusted.</li>
+  </ul>
+  <div class="note stop">
+    <div class="t">The lesson the reference projects paid for</div>
+    <p><code>rack-app/docs/FRAME_VERIFICATION.md</code> records a quarantined frame table indexed on <em>overall frame height</em> under a field labelled <code>height_hbl_in</code> — <b>overstating capacity by up to 72% at HbL 120"</b>. It looked completely plausible. It was caught only because two independent extraction paths were reconciled cell by cell (435/435) and because the file's own status field said <code>QUARANTINED</code> until a human signed it. Copy that entire mechanism: status on the data, gate on the status, and a second human in the loop.</p>
+  </div>
+
+  <h3>10.3 Catalog file format</h3>
+  <p>Declarative JSON or TOML validated against a published schema. <b>Never executable code.</b> <code>rack-engine</code> loads its catalog with <code>runpy.run_path</code>, which executes a Python module as data — defensible for one vendored file in an internal tool, and an arbitrary-code-execution vector the moment a catalog file could be uploaded or edited by anyone outside the core team.</p>
+<pre><code>data/catalog/interlake-2026-08/
+  manifest.json        { manufacturer, rev, status, effective_from,
+                         source_document, source_url, page_ref,
+                         units, load_basis, deflection_limit, code_basis,
+                         digitised_by, digitised_at,
+                         approved_by, approved_at,
+                         content_sha256, source_anomalies[] }
+  parts.json           part + part_revision records
+  capacity/            one file per published table, with its own page_ref
+  CHANGELOG.md</code></pre>
+  <p>Fields worth carrying over verbatim from <code>rack-engine/catalog/interlake-2026-08/</code>, because each one was added for a reason:</p>
+  <ul>
+    <li><code>load_basis</code> — the table's own sentence, transcribed. A point load checked against a uniformly-distributed-load chart is not a conservative answer, it is the wrong answer, and only the basis text makes that detectable.</li>
+    <li><code>deflection_limit</code> and <code>code_basis</code> — so a value can be cited, not just quoted.</li>
+    <li><code>source_anomalies[]</code> — the manufacturer's own errors, transcribed as published and flagged. The Interlake set has seven: two duplicated part numbers and five 17-character codes where 18 are expected. Silently "fixing" them destroys the ability to reconcile against the source.</li>
+    <li><code>constraints</code> — published footnotes as data (e.g. bracing required over 126", crossbar required over 90" when decked). <b>Reported, never enforced</b> until an actual check exists, because enforcing a footnote is a check and a check needs a test.</li>
+  </ul>
+
+  <h3>10.4 Lookup semantics</h3>
+  <ol>
+    <li><b>Never interpolate a published capacity table.</b> An off-grid span returns <code>OFF_GRID</code> with <em>both</em> brackets and <b>no value</b>. This is the single most important behaviour in the engine and it is already implemented and tested in both <code>rack-engine</code> and <code>rack-app</code>.</li>
+    <li><b>Never nearest-match a part.</b> "Not found" does not mean "probably this one". A part the manufacturer never published cannot be constructed.</li>
+    <li><b>Used or generic material gets no capacity, ever.</b> The result is <code>NO_PUBLISHED_CAPACITY</code> naming the part, and the trace shows <b>no table basis at all</b> — quoting one would imply a lookup that never happened.</li>
+    <li><b>Basis before number.</b> If the load basis does not match the table's basis, the check returns <code>OUTSIDE_TABLE_BASIS</code> before it looks at any number.</li>
+    <li><b>A refusal that leaks a number into the UI is not a refusal.</b> This is worth a test of its own; <code>rack-engine/tests/test_provenance.py</code> has it.</li>
+  </ol>
+
+  <h3>10.5 Rule packs and verification tiers</h3>
+  <p>A rule is not a constant. It is a record with a citation and a confidence, and its confidence <b>caps what it is allowed to conclude</b>. This is the governing decision of the <em>Rack Screening Register</em> Rev B — a separate piece of prior screening-rule research by the product owner, not one of the four reference trees — and it survives into this product unchanged, because it is what keeps the tool honest in front of a client.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Verification tier</th><th>Meaning</th><th>Maximum outcome the rule may produce</th></tr></thead>
+    <tbody>
+      <tr><td><code>PRIMARY</code></td><td>Read in the standard or the manufacturer's own published document</td><td><span class="chip c-ok">Pass</span> or <span class="chip c-stop">Blocker</span></td></tr>
+      <tr><td><code>REPRODUCED</code></td><td>Reproduced from a source that quotes the standard, and independently reconciled</td><td><span class="chip c-stop">Blocker</span> with a cite-check stamp; a clean Pass is not available</td></tr>
+      <tr><td><code>AHJ_INTERPRETATION</code></td><td>A specific authority's published handout or interpretation</td><td><span class="chip c-info">Engineering review required</span>, flagged for AHJ confirmation</td></tr>
+      <tr><td><code>SECONDARY</code></td><td>Cited from a secondary source; the standard itself has not been read</td><td><span class="chip c-info">Engineering review required</span></td></tr>
+      <tr><td><code>NOT_FOUND</code></td><td>No source located</td><td><span class="chip c-neutral">Not evaluated</span> — named on screen, never rendered as a pass</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note warn">
+    <div class="t">What this number means for scoping</div>
+    <p>In that same <em>Rack Screening Register</em> work, <b>17 of 31 checks reported "Engineering Review Required" purely because the rule was cited from a secondary source rather than from the standard itself.</b> That number is not a defect in the geometry — it is the measure of how much of this product is <em>authority data</em> rather than arithmetic. Buying the standards, or getting a PE to confirm a handful of rules, moves more checks to green than any amount of engineering effort will.</p>
+  </div>
+
+  <h3>10.6 Provenance model</h3>
+  <p>Adopt the shape of W3C PROV, even though we will never emit RDF. Using the standard's shape forces the field most homegrown designs omit — <code>hadPlan</code>, the slot for <em>which version of the rule was executed</em>.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>PROV concept</th><th>Our table</th><th>Carries</th></tr></thead>
+    <tbody>
+      <tr><td><code>Entity</code></td><td><code>prov_entity</code></td><td>An input binding, a part revision, a derived value, a BOM line, a document.</td></tr>
+      <tr><td><code>Activity</code></td><td><code>prov_activity</code></td><td>A formula evaluation, a rule firing, a takeoff computation, an approval.</td></tr>
+      <tr><td><code>Agent</code></td><td><code>prov_agent</code></td><td>The client user, the internal estimator, or the engine as a <code>SoftwareAgent</code> with its version.</td></tr>
+      <tr><td><code>used</code></td><td><code>prov_used</code></td><td>Which inputs this step consumed.</td></tr>
+      <tr><td><code>wasGeneratedBy</code></td><td><code>prov_generated</code></td><td>Which step produced this value.</td></tr>
+      <tr><td><b><code>hadPlan</code></b></td><td><code>prov_association</code></td><td><b>Which rule version or formula version was executed.</b> Non-null is a constraint, not a convention.</td></tr>
+      <tr><td><code>wasDerivedFrom</code></td><td><code>prov_derivation</code></td><td>Internal BOM line ← preliminary configuration object; revision ← parent revision.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Three implementation rules make this work rather than becoming a documentation exercise:</p>
+  <ol>
+    <li><b>The trace is a by-product of evaluation, not a separate logging pass.</b> Each node of the expression tree yields <code>{expr_id, op, operands[], operand_provenance[], value, unit, rounding}</code> as it evaluates. Reconstructing a trace afterwards from logs is how traceability projects fail.</li>
+    <li><b>Units are provenance.</b> Dimensional analysis catches a large share of takeoff errors for free, and unit confusion — lineal feet vs square feet vs each — is the classic building-products failure.</li>
+    <li><b>Rounding is a versioned rule, not an implementation detail.</b> Record the mode and precision per step. Otherwise "why does the new revision say 118 anchors and the old one said 117" is unanswerable.</li>
+  </ol>
+
+  <h3>10.7 Catalog ingestion lineage</h3>
+  <p>A separate, coarser concern from calculation provenance. Each catalog or price-file load is a run producing a new release; recording it in OpenLineage's Job/Run/Dataset shape gives "where did this value come from" for the ingestion pipeline without polluting the per-value calculation trace. PROV for the calc graph, OpenLineage for the pipeline that feeds it — do not use one for both.</p>
+
+  <h3>10.8 Known source conflicts to carry into the register, unresolved</h3>
+  <p>These came out of the prior research and must be recorded as open, not quietly settled by picking one:</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Conflict</th><th>State</th></tr></thead>
+    <tbody>
+      <tr><td>Which MH16.1 edition applies — LA County DPW enforces 2021, City of Fresno cites 2023, RMI says the 2024 IBC adopted 2021. Section numbers differ across editions (deflection 5.3 → 9.3; plaque 1.4.2 → 4.5).</td><td><span class="chip c-stop">Open</span></td></tr>
+      <tr><td>The NFPA 13 section for the 18-inch rule: two secondary sources give different section numbers. One is wrong.</td><td><span class="chip c-stop">Open</span></td></tr>
+      <tr><td>Measuring aisles load-face-to-load-face rests on one shared SoCal AHJ handout template, not on code. CFC Ch. 32 contains no definition of "aisle".</td><td><span class="chip c-warn">Documented convention, not a code rule</span></td></tr>
+      <tr><td>No US model code sets a maximum rack row length; it is derived from dead-end aisle, common path, fire-department access door spacing and travel distance.</td><td><span class="chip c-warn">Derived, must be labelled as such</span></td></tr>
+      <tr><td>Dock-face setback has no code number at all; the 50–60 ft used in practice is pure convention.</td><td><span class="chip c-warn">Convention — never present as a requirement</span></td></tr>
+      <tr><td>Dead load is member-specific: beams carry their own weight, frames use 2% of product load. Two published sources disagree. Never share a constant between them.</td><td><span class="chip c-stop">Open — flagged in data</span></td></tr>
+      <tr><td>Santa Fe Springs runs its own Building &amp; Safety Division and its own fire department; its rack handout could not be located and must be obtained by phone.</td><td><span class="chip c-stop">Action outstanding</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="sub">None of these block MVP-1, because MVP-1's validation is deliberately scoped to geometry, capacity-table lookup and completeness — not to code conformance. They block any claim of compliance, which the product does not make.</p>
+</section>

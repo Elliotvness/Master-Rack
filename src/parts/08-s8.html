@@ -1,0 +1,196 @@
+<section id="s8">
+  <h2 class="sh"><span class="num">08</span>API and service boundary recommendations</h2>
+
+  <h3>8.1 Two API surfaces, not one with flags</h3>
+  <p>The single highest-leverage API decision is to expose <b>two separate route namespaces backed by two separate DTO families</b>, rather than one namespace whose responses vary by role.</p>
+<pre><code>/api/client/v1/...      reachable only by a principal with actor_type = 'client'
+/api/internal/v1/...    reachable only by a principal with actor_type = 'staff'</code></pre>
+  <p>A shared route that "hides fields for clients" makes leakage a serialization bug — invisible in review, easy to reintroduce, and impossible to test exhaustively. Two namespaces make it a routing bug: loud, greppable, and coverable by a test that walks every client route and asserts a forbidden key appears at no nesting depth (<a href="#s16">§16</a>).</p>
+
+  <h3>8.2 Route inventory</h3>
+  <p class="sub">MVP-1 unless a row says otherwise. The <code>/api/client</code> and <code>/api/internal</code> namespaces are hard-separated by <code>actor_type</code>: a client principal can reach no internal route, and <code>client_admin</code> is a client principal.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Method + path</th><th>Purpose</th><th>Authorization</th></tr></thead>
+    <tbody>
+      <tr><td colspan="3" style="background:var(--panel-2);font-weight:650">Client surface</td></tr>
+      <tr><td><code>POST /api/auth/invite/accept</code></td><td>Redeem an invitation, set a credential</td><td>Anonymous + valid single-use token</td></tr>
+      <tr><td><code>GET /api/client/v1/projects</code></td><td>Projects assigned to my organization</td><td><code>client</code>, org-scoped query</td></tr>
+      <tr><td><code>GET /api/client/v1/projects/:id/revisions</code></td><td>My revision history (<code>audience='client'</code> only)</td><td><code>client</code>, org-scoped</td></tr>
+      <tr><td><code>POST /api/client/v1/revisions/:id/facility</code></td><td>Upsert facility input</td><td><code>client</code>, revision must be <code>DRAFT</code></td></tr>
+      <tr><td><code>POST /api/client/v1/revisions/:id/units</code></td><td>Add / update a unit</td><td>as above</td></tr>
+      <tr><td><code>POST /api/client/v1/revisions/:id/options</code></td><td>Create / update / duplicate an option</td><td>as above</td></tr>
+      <tr><td><code>GET  /api/client/v1/revisions/:id/preview</code></td><td>Display list, counts, assumptions, client-safe findings</td><td><code>client</code>, org-scoped</td></tr>
+      <tr><td><code>GET  /api/client/v1/revisions/:id/compare?options=</code></td><td>Option comparison table</td><td>as above</td></tr>
+      <tr><td><code>POST /api/client/v1/revisions/:id/submit</code></td><td>Freeze + manifest + create submission</td><td><code>client</code>, idempotency key required</td></tr>
+      <tr><td><code>POST /api/client/v1/revisions/:id/clone</code></td><td>Clone a frozen revision to a new draft</td><td><code>client</code></td></tr>
+      <tr><td><code>GET  /api/client/v1/submissions/:id</code></td><td>Status and disposition. RFI thread is <b>phase 2</b>.</td><td><code>client</code>, org-scoped</td></tr>
+      <tr><td><code>GET  /api/client/v1/documents/:id</code></td><td>Signed, short-lived URL for a watermarked PDF</td><td><code>client</code>; access is an audit event</td></tr>
+      <tr><td colspan="3" style="background:var(--panel-2);font-weight:650">Internal surface</td></tr>
+      <tr><td><code>GET  /api/internal/v1/queue</code></td><td>Submissions across all organizations</td><td><code>staff</code></td></tr>
+      <tr><td><code>GET  /api/internal/v1/submissions/:id</code></td><td>Full package incl. BOM, citations, notes</td><td><code>staff</code></td></tr>
+      <tr><td><code>GET  /api/internal/v1/revisions/:id/bom</code></td><td>Internal BOM / takeoff</td><td><code>staff</code>; also gated by the table policy</td></tr>
+      <tr><td><code>POST /api/internal/v1/submissions/:id/derive</code></td><td>Create a derived internal revision</td><td><code>staff</code></td></tr>
+      <tr><td><code>POST /api/internal/v1/revisions/:id/notes</code></td><td>Internal note</td><td><code>staff</code></td></tr>
+      <tr><td><code>POST /api/internal/v1/submissions/:id/status</code></td><td>Set status / decline with reason — <b>phase 2</b></td><td><code>staff</code></td></tr>
+      <tr><td><code>POST /api/internal/v1/organizations</code></td><td>Create a client organization</td><td><code>staff</code></td></tr>
+      <tr><td><code>POST /api/client/v1/invitations</code></td><td>Client admin invites a colleague into their own organization</td><td><code>client_admin</code>, own org enforced server-side</td></tr>
+      <tr><td><code>POST /api/internal/v1/invitations</code></td><td>Issue an invitation into any organization</td><td><code>staff</code></td></tr>
+      <tr><td><code>POST /api/internal/v1/catalog/releases/:id/approve</code></td><td>Approve a catalog or rule release</td><td><code>internal_admin</code>, checker ≠ digitiser, re-auth</td></tr>
+      <tr><td><code>GET  /api/internal/v1/audit</code></td><td>Audit browser — <b>phase 2</b>. MVP-1 reads the audit table directly.</td><td><code>internal_admin</code>; export re-auths</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>8.3 Enforcement rules</h3>
+  <ol>
+    <li><b>Every route declares its policy, or the app does not boot.</b> A startup assertion walks the router and fails if any handler lacks an <code>{ action, resourceLoader }</code> annotation. This is the one control that survives "someone added an endpoint on a Friday".</li>
+    <li><b>Scoped fetch, never fetch-then-check.</b> <code>currentOrg.revisions.find(id)</code>, not <code>Revision.find(id)</code> followed by an authorization call. Fetch-then-check fails open when the second line is forgotten; scoped fetch fails closed.</li>
+    <li><b>Deny returns 404 for cross-tenant objects.</b> A <code>403</code> confirms the object exists.</li>
+    <li><b>No mass assignment.</b> Request bodies bind to explicit input DTOs. <code>organization_id</code>, <code>role</code>, <code>audience</code>, <code>lifecycle_state</code> and every price field are structurally unreachable from a request body.</li>
+    <li><b>Outbound schema validation.</b> Client-facing response types are declared <code>additionalProperties: false</code> in the OpenAPI schema and validated at runtime — failing the response in non-production, alerting in production.</li>
+    <li><b>Idempotency keys</b> on <code>submit</code>, <code>derive</code>, <code>clone</code> and <code>invite</code>. A double-click must not produce two submissions.</li>
+    <li><b>Every deny is an audit event</b>, not just a log line.</li>
+  </ol>
+
+  <h3>8.4 Service boundaries</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Boundary</th><th>Rule</th><th>Enforced by</th></tr></thead>
+    <tbody>
+      <tr><td>Kernel ↔ everything else</td><td>No kernel package may import an HTTP framework, a database driver, a filesystem or clock API, or an app package. Zero I/O, no <code>Date.now()</code>, no RNG.</td><td>AST scan over every kernel file, with a self-test that writes a violation and asserts it is caught. Both patterns already exist in <code>rack-studio/tools</code> and <code>rack-app/tests/test_architecture.py</code>.</td></tr>
+      <tr><td>Client app ↔ internal DTOs</td><td>The client application may not import from the internal DTO module.</td><td>Build-time boundary check plus separate bundles.</td></tr>
+      <tr><td>API ↔ database</td><td>All database access goes through <code>withTenant(orgId, fn)</code>, which opens a transaction and sets the RLS GUC. Raw pool checkout is banned.</td><td>Lint rule + code review + the RLS backstop.</td></tr>
+      <tr><td>Derivation ↔ persistence</td><td>Derivation reads a revision object and returns a result. It never queries and never writes.</td><td>Function signature: <code>derive(revision, catalog, rules) → DerivedResult</code>.</td></tr>
+      <tr><td>Documents ↔ derivation</td><td>A renderer consumes a display list. It may not recompute a dimension. A drawing must never print a number the model did not produce.</td><td>Provenance lint: any formatter call on a raw value rather than a provenanced quantity fails the build (ported from <code>rack-studio/prototype/lint-provenance.mjs</code>).</td></tr>
+      <tr><td>Notifications ↔ transaction</td><td>Emails are enqueued through a transactional outbox, never sent inline.</td><td>No mailer import outside the notifier worker.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>8.5 Interoperability posture</h3>
+  <p>Do not build EDI or cXML now. <b>Do</b> shape the intake schema so that a later mapping is mechanical rather than a rewrite: line-level <code>buyer_part_id</code> / <code>supplier_part_id</code>, ISO 4217 currency, ISO 8601 dates, UN/CEFACT unit-of-measure codes, and a quote-level <code>valid_until</code>. If a client large enough to run Ariba ever appears, cXML <code>QuoteRequest</code> maps onto the submission and <code>QuoteMessage</code> / X12 843 maps onto the response. Knowing the target shape costs nothing today.</p>
+</section>
+
+<section id="s9">
+  <h2 class="sh"><span class="num">09</span>Client-visible versus internal-only</h2>
+
+  <h3>9.1 The structural rule</h3>
+  <div class="note stop">
+    <div class="t">The decision that matters most in this document</div>
+    <p>Internal commercial data lives in <b>physically separate tables</b> whose row-level security policy additionally requires <code>actor_type = 'staff'</code>. It is not a column on a shared row that gets filtered out on the way to the client.</p>
+    <p>This converts "did we remember to strip a field?" — a serialization bug, invisible in code review, silently reintroduced by any new column — into "did we join a table we should not have?" — a query bug, visible in review, catchable by a test that greps for a table name, and blocked at the database even if the query is written.</p>
+  </div>
+
+  <figure id="fig6">
+    <div class="fig-scroll">
+    <svg viewBox="0 0 1160 560" role="img" aria-label="Access boundary: a client principal reaches only client-safe tables through the client API, while a staff principal reaches both client-safe and internal-only tables; the internal tables carry an additional row-level security predicate requiring a staff actor type, so a client query is blocked at the database as well as at the API.">
+      <defs>
+        <marker id="br2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a"/></marker>
+        <marker id="br2-o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a-o"/></marker>
+        <marker id="br2-s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a-s"/></marker>
+      </defs>
+
+      <rect x="24" y="40" width="250" height="72" rx="7" class="s-box-o"/>
+      <text x="149" y="64" class="s-t-o" text-anchor="middle">CLIENT principal</text>
+      <text x="149" y="82" class="s-t2" text-anchor="middle">actor_type = 'client'</text>
+      <text x="149" y="98" class="s-t2" text-anchor="middle">organization_id = their org</text>
+
+      <rect x="24" y="150" width="250" height="72" rx="7" class="s-box-s"/>
+      <text x="149" y="174" class="s-t-s" text-anchor="middle">STAFF principal</text>
+      <text x="149" y="192" class="s-t2" text-anchor="middle">actor_type = 'staff'</text>
+      <text x="149" y="208" class="s-t2" text-anchor="middle">all organizations</text>
+
+      <rect x="340" y="40" width="230" height="72" rx="7" class="s-box"/>
+      <text x="455" y="64" class="s-t" text-anchor="middle">/api/client/v1</text>
+      <text x="455" y="82" class="s-t2" text-anchor="middle">client DTOs only</text>
+      <text x="455" y="98" class="s-t2" text-anchor="middle">additionalProperties: false</text>
+
+      <rect x="340" y="150" width="230" height="72" rx="7" class="s-box"/>
+      <text x="455" y="174" class="s-t" text-anchor="middle">/api/internal/v1</text>
+      <text x="455" y="192" class="s-t2" text-anchor="middle">staff DTOs</text>
+      <text x="455" y="208" class="s-t2" text-anchor="middle">separate bundle, separate types</text>
+
+      <line x1="274" y1="76" x2="334" y2="76" class="s-ln-o" marker-end="url(#br2-o)"/>
+      <line x1="274" y1="186" x2="334" y2="186" class="s-ln-s" marker-end="url(#br2-s)"/>
+      <polyline points="274,100 312,100 312,168 334,168" class="s-ln-s" marker-end="url(#br2-s)"/>
+      <text x="300" y="132" class="s-t2" text-anchor="end">staff may also</text>
+      <text x="300" y="145" class="s-t2" text-anchor="end">use the client view</text>
+
+      <line x1="640" y1="24" x2="640" y2="520" class="s-zone"/>
+      <text x="640" y="540" class="s-tt" text-anchor="middle">AUDIENCE BOUNDARY — ENFORCED TWICE</text>
+
+      <text x="700" y="26" class="s-hd">CLIENT-SAFE TABLES — RLS ON organization_id</text>
+      <rect x="700" y="38" width="436" height="176" rx="9" class="s-box-o"/>
+      <rect x="716" y="58" width="200" height="30" rx="5" class="s-box"/><text x="726" y="78" class="s-t2">project · revision</text>
+      <rect x="928" y="58" width="192" height="30" rx="5" class="s-box"/><text x="938" y="78" class="s-t2">facility_input · unit_input</text>
+      <rect x="716" y="96" width="200" height="30" rx="5" class="s-box"/><text x="726" y="116" class="s-t2">option · option_parameter</text>
+      <rect x="928" y="96" width="192" height="30" rx="5" class="s-box"/><text x="938" y="116" class="s-t2">derived_layout</text>
+      <rect x="716" y="134" width="200" height="30" rx="5" class="s-box"/><text x="726" y="154" class="s-t2">assumption</text>
+      <rect x="928" y="134" width="192" height="30" rx="5" class="s-box"/><text x="938" y="154" class="s-t2">finding (client projection)</text>
+      <rect x="716" y="172" width="404" height="30" rx="5" class="s-box"/><text x="726" y="192" class="s-t2">submission (status fields) · document (P-status only)</text>
+
+      <text x="700" y="248" class="s-hd">INTERNAL-ONLY TABLES — RLS ALSO REQUIRES A STAFF ACTOR</text>
+      <rect x="700" y="260" width="436" height="216" rx="9" class="s-box-s"/>
+      <rect x="716" y="280" width="200" height="30" rx="5" class="s-box"/><text x="726" y="300" class="s-t2">bom_line · bom_run</text>
+      <rect x="928" y="280" width="192" height="30" rx="5" class="s-box"/><text x="938" y="300" class="s-t2">part · part_revision</text>
+      <rect x="716" y="318" width="200" height="30" rx="5" class="s-box"/><text x="726" y="338" class="s-t2">catalog_release · capacity</text>
+      <rect x="928" y="318" width="192" height="30" rx="5" class="s-box"/><text x="938" y="338" class="s-t2">rule_pack · rule · citation</text>
+      <rect x="716" y="356" width="200" height="30" rx="5" class="s-box"/><text x="726" y="376" class="s-t2">internal_note</text>
+      <rect x="928" y="356" width="192" height="30" rx="5" class="s-box"/><text x="938" y="376" class="s-t2">finding_internal_detail</text>
+      <rect x="716" y="394" width="404" height="30" rx="5" class="s-box"/><text x="726" y="414" class="s-t2">cost · price · margin · discount · supplier   (not built in MVP-1)</text>
+      <rect x="716" y="432" width="404" height="30" rx="5" class="s-box"/><text x="726" y="452" class="s-t2">revision WHERE audience = 'internal'   ·   audit_event</text>
+
+      <polyline points="570,76 620,76 620,120 694,120" class="s-ln-o" marker-end="url(#br2-o)"/>
+      <polyline points="570,170 660,170 660,120 694,120" class="s-ln-s" marker-end="url(#br2-s)"/>
+      <polyline points="570,202 660,202 660,366 694,366" class="s-ln-s" marker-end="url(#br2-s)"/>
+
+      <polyline points="600,96 600,340 690,340" class="s-ln-s" stroke-dasharray="5 4"/>
+      <line x1="628" y1="316" x2="656" y2="364" class="s-ln-s"/>
+      <line x1="656" y1="316" x2="628" y2="364" class="s-ln-s"/>
+      <text x="586" y="280" class="s-t-s" text-anchor="end">a client-facing query</text>
+      <text x="586" y="296" class="s-t-s" text-anchor="end">cannot reach these —</text>
+      <text x="586" y="312" class="s-t-s" text-anchor="end">refused by the API,</text>
+      <text x="586" y="328" class="s-t-s" text-anchor="end">and refused again</text>
+      <text x="586" y="344" class="s-t-s" text-anchor="end">by the RLS policy</text>
+    </svg>
+    </div>
+    <figcaption><b>Figure 6 · Client / internal access boundary.</b> The crossed-out dashed path is the failure this design is built to make impossible. A client principal is stopped twice and independently: once by routing and DTO construction at the API, and once by a row-level security predicate at the database that no forgotten <code>WHERE</code> clause, new ORM eager-load, or ad-hoc report query can bypass. Because the two controls fail in different ways — RLS silently returns empty results, the API layer fails loudly in tests — they are genuinely complementary rather than redundant.</figcaption>
+  </figure>
+
+  <h3>9.2 Visibility matrix</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Information</th><th>Client</th><th>Internal</th><th>Where it lives</th></tr></thead>
+    <tbody>
+      <tr><td>Facility and unit inputs as entered</td><td><span class="chip c-ok">Visible</span></td><td><span class="chip c-ok">Visible</span></td><td>Client-safe</td></tr>
+      <tr><td>Option parameters</td><td><span class="chip c-ok">Visible</span></td><td><span class="chip c-ok">Visible</span></td><td>Client-safe</td></tr>
+      <tr><td>Preliminary plan and elevation</td><td><span class="chip c-ok">Watermarked</span></td><td><span class="chip c-ok">Unwatermarked</span></td><td>Same display list, two render options</td></tr>
+      <tr><td>Gross / lost / net pallet positions</td><td><span class="chip c-ok">Visible</span></td><td><span class="chip c-ok">Visible</span></td><td>Client-safe</td></tr>
+      <tr><td>Aisle clear width, bay pitch, run length</td><td><span class="chip c-ok">Visible</span></td><td><span class="chip c-ok">Visible</span></td><td>Client-safe</td></tr>
+      <tr><td>Assumption register</td><td><span class="chip c-ok">Visible</span></td><td><span class="chip c-ok">Visible</span></td><td>Client-safe</td></tr>
+      <tr><td>Finding severity + what would close it</td><td><span class="chip c-ok">Visible</span></td><td><span class="chip c-ok">Visible</span></td><td>Client-safe projection</td></tr>
+      <tr><td>Finding citation, standard, edition, section, verification tier</td><td><span class="chip c-stop">Hidden</span></td><td><span class="chip c-ok">Visible</span></td><td><code>finding_internal_detail</code></td></tr>
+      <tr><td>BOM / takeoff lines and quantities</td><td><span class="chip c-stop">Hidden</span></td><td><span class="chip c-ok">Visible</span></td><td><code>bom_line</code></td></tr>
+      <tr><td>Manufacturer part numbers</td><td><span class="chip c-stop">Hidden</span></td><td><span class="chip c-ok">Visible</span></td><td><code>part_revision</code></td></tr>
+      <tr><td>Catalog source document, page reference, digitiser, checker</td><td><span class="chip c-stop">Hidden</span></td><td><span class="chip c-ok">Visible</span></td><td><code>catalog_release</code></td></tr>
+      <tr><td>Published capacity tables</td><td><span class="chip c-stop">Hidden</span></td><td><span class="chip c-ok">Visible</span></td><td><code>capacity_case</code></td></tr>
+      <tr><td>Cost, price, margin, discount</td><td><span class="chip c-stop">Hidden</span></td><td><span class="chip c-warn">Not built</span></td><td>Internal-only tables, phase 3+</td></tr>
+      <tr><td>Internal notes</td><td><span class="chip c-stop">Hidden</span></td><td><span class="chip c-ok">Visible</span></td><td><code>internal_note</code></td></tr>
+      <tr><td>Internal derived revisions</td><td><span class="chip c-stop">Not present in response</span></td><td><span class="chip c-ok">Visible</span></td><td><code>revision WHERE audience='internal'</code></td></tr>
+      <tr><td>Procurement-ready export (CSV / XLSX / DXF)</td><td><span class="chip c-stop">Never</span></td><td><span class="chip c-warn">Phase 2+</span></td><td>Internal document pipeline</td></tr>
+      <tr><td>Audit events</td><td><span class="chip c-warn">Client admin only, own org</span></td><td><span class="chip c-ok">Full</span></td><td><code>audit_event</code></td></tr>
+      <tr><td>Other organizations' existence</td><td><span class="chip c-stop">Hidden</span></td><td><span class="chip c-ok">Visible</span></td><td>RLS on <code>organization</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>9.3 The preliminary-output rule</h3>
+  <p>Every client-facing plan, elevation and export carries the watermark and the disclaimer, and the status is made <b>physically inseparable from the artifact</b> — not a footer toggle. That means: a diagonal watermark across every page; a title-block status field; the <code>P</code> revision code; a filename convention (<code>…_P01_PRELIMINARY.pdf</code>); the status text repeated inside the drawing frame, because PDFs get screenshotted and re-cropped; and a distinct colour treatment so a printed copy is identifiable across a room.</p>
+  <div class="disclaimer">
+    <div class="wm">PRELIMINARY</div>
+    <div class="t">Standing disclaimer — carried on every client-facing output, versioned by <code>disclaimer_version_id</code></div>
+    <p>PRELIMINARY PLANNING AND QUOTE-REQUEST DOCUMENT. This material is for conceptual layout and estimating discussion only. It is not an installation drawing, engineered design, approval, or certification. Final scope, equipment selection, site conditions, manufacturer requirements, engineering where required, and applicable authority approvals remain subject to review.</p>
+  </div>
+  <p class="sub">The disclaimer text is versioned and the generated document stores which version it carried. Disclaimers get revised, and in two years someone will need to know exactly what a 2026 output said.</p>
+</section>

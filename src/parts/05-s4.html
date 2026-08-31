@@ -1,0 +1,237 @@
+<section id="s4">
+  <h2 class="sh"><span class="num">04</span>Functional requirements</h2>
+  <p class="sub">Requirement IDs are stable and are referenced by the acceptance tests in <a href="#s16">§16</a> and the backlog in <a href="#s15">§15</a>. <span class="chip c-ok">M1</span> = in MVP-1 · <span class="chip c-warn">M2</span> = phase 2 · <span class="chip c-neutral">Later</span> = beyond phase 2.</p>
+
+  <h3>4.1 Client planning and configuration</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-CP-01</code></td><td>A client can record a facility: name, address, and per-unit clear height, gross area, column grid (bay spacing down-aisle and cross-aisle, column size), and dock/door positions. Every field is individually markable as <b>not known</b>, which produces a finding rather than a default.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CP-02</code></td><td>A facility has one or more <b>units</b>. Each unit is configured independently and carries its own options, findings and takeoff.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CP-03</code></td><td>A client records operational requirements per unit: pallet footprint and height, pallet gross weight, pallets per bay, storage levels wanted or target position count, handling equipment type and its aisle requirement, sprinklered or not, commodity class if known.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CP-04</code></td><td>A client can create, name, duplicate and delete <b>configuration options</b> within a unit. MVP-1 supports selective pallet rack only, single-deep and back-to-back.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CP-05</code></td><td>Option parameters are drawn from a <b>controlled vocabulary</b>: the client picks from published frame heights, frame depths, beam lengths and beam faces present in the pinned catalog release. Free-text dimensional entry is not offered.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CP-06</code></td><td>The configurator filters remaining choices after each pick and states <b>why</b> an unavailable choice is unavailable. It never silently substitutes a nearest match.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CP-07</code></td><td>Every parameter change re-derives plan, elevation, counts, assumptions and findings within one interaction. No derived value is displayed from a stale computation.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CP-08</code></td><td>A preliminary <b>plan preview</b> shows unit outline, rack rows, aisles, flues, and — where the client supplied a grid — building columns, with clear-width aisle dimensions annotated.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CP-09</code></td><td>A preliminary <b>elevation preview</b> shows one representative bay per configuration at a single scale, with beam elevations and top-of-load dimensioned from model values.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CP-10</code></td><td>Column resolution: where a building column falls in a rack run the client chooses its disposition (in flue / consumes a position / consumes a bay / straddled) and the position count reflects the loss.</td><td><span class="chip c-warn">M2</span></td></tr>
+      <tr><td><code>FR-CP-11</code></td><td>Cross-aisle tunnels: geometry, header height, and the resulting position loss. The frame re-rating this implies is <b>flagged, never priced or resolved</b>.</td><td><span class="chip c-warn">M2</span></td></tr>
+      <tr><td><code>FR-CP-12</code></td><td>Undo/redo across the whole option, with each step a named, audited edit.</td><td><span class="chip c-warn">M2</span></td></tr>
+      <tr><td><code>FR-CP-13</code></td><td>Drag/click editing of the plan (select a run, split, lock, insert bay).</td><td><span class="chip c-neutral">Later</span></td></tr>
+      <tr><td><code>FR-CP-14</code></td><td><b>Uncatalogued material.</b> A client can describe existing or used material by measured geometry — component kind, profile dimensions, length, face height, gauge if known, condition note — with <b>no</b> capacity field offered. Every option containing one produces an <code>ENGINEERING REVIEW REQUIRED</code> finding naming the affected components. Counts, layout and footprint still derive normally.</td><td><span class="chip c-warn">M2</span></td></tr>
+      <tr><td><code>FR-CP-15</code></td><td>An option may mix catalog and uncatalogued material in one layout. This is the common shape of a real job, not an edge case.</td><td><span class="chip c-warn">M2</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.2 Option comparison</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-OC-01</code></td><td>Side-by-side comparison of 2–6 options within a unit on: net pallet positions, gross positions, positions lost and why, footprint consumed, aisle clear width, level count, top of load, and open-finding counts by severity.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-OC-02</code></td><td>Comparison never displays cost, price, part count, or any BOM quantity to a client principal.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-OC-03</code></td><td>Each compared value is traceable: clicking a number opens the derivation for that option (<a href="#s12">§12.4</a>).</td><td><span class="chip c-warn">M2</span></td></tr>
+      <tr><td><code>FR-OC-04</code></td><td>Comparison across units within a facility (a "six options across three units" view), which is the case that motivates the product.</td><td><span class="chip c-warn">M2</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.3 Quote submission</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-QS-01</code></td><td>A client selects one or more options and submits a request for quote with a free-text scope note and a required-by date.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-QS-02</code></td><td>Submission is blocked only by <b>blocker</b>-severity findings. Warnings, missing inputs and assumptions do <b>not</b> block; they travel with the submission and are shown to internal staff.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-QS-03</code></td><td>Before submitting, the client is shown a confirmation that lists every assumption the tool made on their behalf and every input it does not have, and must acknowledge it. The acknowledgement is an audit event.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-QS-04</code></td><td>On submit the revision is frozen (<a href="#s13">§13</a>), a submission manifest is written, and the client receives a preliminary PDF of what they submitted.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-QS-05</code></td><td>A client can clone a submission to a new draft at any time. The clone records <code>derived_from_revision_id</code>.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-QS-06</code></td><td>A client can withdraw a request. The revision is not deleted or altered.</td><td><span class="chip c-warn">M2</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.4 Internal review</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-IR-01</code></td><td>An internal queue lists submissions across all organizations with status, age against both SLA clocks, finding counts, and the submitting organization.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-IR-02</code></td><td>The submission detail view shows: client inputs as entered, derived plan and elevation, the assumption register, the findings register with full internal detail, the pinned catalog and rule releases, and the internal BOM/takeoff.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-IR-03</code></td><td>An internal user can create a derived internal revision from any submission with one action. The source submission is unchanged and the derivation is audited.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-IR-04</code></td><td>Internal notes are attached to a revision or a finding, are never visible to clients, and are a distinct entity from client-visible messages.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-IR-05</code></td><td>An internal user raises an RFI naming specific missing fields; the client sees exactly those fields and the request status changes to <code>NEEDS INFO</code>, pausing the quote clock.</td><td><span class="chip c-warn">M2</span></td></tr>
+      <tr><td><code>FR-IR-06</code></td><td>An internal user sets quote status and, on decline, must pick a structured reason.</td><td><span class="chip c-warn">M2</span></td></tr>
+      <tr><td><code>FR-IR-07</code></td><td>Diff view between any two revisions in a lineage: what parameters changed, and which derived outputs and BOM lines those changes affected.</td><td><span class="chip c-warn">M2</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.5 Revision control</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-RV-01</code></td><td>Every revision carries <code>revision_code</code> (<code>P01</code>/<code>C01</code>), <code>iteration</code>, <code>lifecycle_state</code>, <code>parent_revision_id</code>, <code>derived_from_revision_id</code>, actor, timestamp and content hash.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-RV-02</code></td><td>Every revision pins a <code>catalog_release_id</code> and a <code>rule_pack_release_id</code>. Those pins are inside the hashed content.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-RV-03</code></td><td>A frozen revision is immutable at the database layer, not by application convention. An attempted update fails loudly.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-RV-04</code></td><td>Reopening a frozen revision offers two explicit modes, following Oracle Configurator's shipped pattern: <b>reopen as submitted</b> (pinned to the original releases) or <b>revalidate against current releases</b>, which produces a new revision plus a diff report. The second is never silent.</td><td><span class="chip c-warn">M2</span></td></tr>
+      <tr><td><code>FR-RV-05</code></td><td>A refused transition writes an audit event stating every reason it was refused.</td><td><span class="chip c-ok">M1</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.6 BOM and takeoff</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-BM-01</code></td><td>An internal BOM/takeoff is derived from the submitted revision at submission time and is regenerable byte-identically from the revision alone.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-BM-02</code></td><td>Every BOM line carries: the rule that produced the quantity in words, whether that rule is <b>confirmed</b>, the catalog part <b>revision</b> it resolved to, a frozen snapshot of that part record, and the source objects in the configuration it came from.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-BM-03</code></td><td>A quantity the rules cannot establish is emitted as an <b>unresolved line with its reason</b>, never as a plausible number. See <a href="#s12">§12.3</a>.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-BM-04</code></td><td>BOM lines reference <code>part_revision_id</code>, never <code>part_id</code>.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-BM-05</code></td><td>Where-used: given a part revision, list every revision and open request that references it.</td><td><span class="chip c-warn">M2</span></td></tr>
+      <tr><td><code>FR-BM-06</code></td><td>Export the internal takeoff to CSV/XLSX for an internal principal only, with an audit event recording the row count.</td><td><span class="chip c-warn">M2</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.7 Documents</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-DC-01</code></td><td>Client-facing PDF carries a diagonal watermark on every page, the standing disclaimer, a title-block status field, the <code>P</code> revision code, and the short-form manifest hash.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-DC-02</code></td><td>The disclaimer text is versioned; the generated document stores the <code>disclaimer_version_id</code> it carried.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-DC-03</code></td><td>Every outbound document creates a row in a <b>document issue register</b>: document number, revision, status code, issue date, issued to, purpose, superseded-by.</td><td><span class="chip c-warn">M2</span></td></tr>
+      <tr><td><code>FR-DC-04</code></td><td>A <code>C</code>-status document can only be produced from a <code>RELEASED</code> internal revision with no unresolved blockers.</td><td><span class="chip c-neutral">Later</span></td></tr>
+      <tr><td><code>FR-DC-05</code></td><td>DXF/DWG output. <b>Internal only, and not before the reference set is validated against a real drafter's workflow.</b></td><td><span class="chip c-neutral">Later</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.8 Catalog and rules administration</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-CT-01</code></td><td>Catalog data is loaded from versioned, declarative files (JSON/TOML + schema) with a manifest carrying source document, page reference, digitiser, checker, and a content hash. <b>Never executable code.</b></td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CT-02</code></td><td>A release has a status: <code>DRAFT → APPROVED → SUPERSEDED → RETIRED</code>. Only <code>APPROVED</code> releases can be pinned by a new revision.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CT-03</code></td><td>Approval requires a named checker who is <b>not</b> the digitiser. A null checker fails the build.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CT-04</code></td><td>Rule packs are separate artifacts from catalog releases and are pinned independently.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CT-05</code></td><td>Every rule carries standard, edition, section, value, verification tier, and a source note. The verification tier caps what the rule may return (<a href="#s11">§11.2</a>).</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-CT-06</code></td><td>Superseding a release lists every open request pinned to the old one and lets an admin see the impact before retiring it.</td><td><span class="chip c-warn">M2</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.9 Notifications</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-NT-01</code></td><td>Transactional email only: invitation, invitation accepted (to the inviter and org owners, with IP and time), submission received, RFI raised, status changed, decline.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-NT-02</code></td><td>No commercial detail in any email body. Emails link into the app; they do not carry counts, quantities or documents as attachments.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-NT-03</code></td><td>Internal digest of the queue and SLA breaches.</td><td><span class="chip c-warn">M2</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>4.10 Administration</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Requirement</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><code>FR-AD-01</code></td><td>Create organizations; invite, list, deactivate users; assign projects to organizations.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-AD-02</code></td><td>Revoke a pending invitation; deactivating a user revokes their pending invitations and terminates their sessions.</td><td><span class="chip c-ok">M1</span></td></tr>
+      <tr><td><code>FR-AD-03</code></td><td>Audit log browser with filters by actor, organization, resource and action; export requires re-authentication.</td><td><span class="chip c-warn">M2</span></td></tr>
+      <tr><td><code>FR-AD-04</code></td><td>Per-project feature gating: which option templates a given client organization may use.</td><td><span class="chip c-warn">M2</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="s5">
+  <h2 class="sh"><span class="num">05</span>Non-functional requirements</h2>
+
+  <h3>5.1 Security</h3>
+  <ul>
+    <li><b>NFR-SEC-01</b> — All traffic TLS 1.3 (1.2 for compatibility); TLS 1.0/1.1 disabled per RFC 8996. HSTS on every response. App-to-database connections use <code>sslmode=verify-full</code>.</li>
+    <li><b>NFR-SEC-02</b> — Internal staff authenticate via OIDC SSO with phishing-resistant MFA (passkeys/WebAuthn). No local passwords for anyone who can see internal data.</li>
+    <li><b>NFR-SEC-03</b> — Client users: password (NIST SP 800-63B-4 compliant: 15-character minimum for single-factor, 8 with MFA; no composition rules; no forced rotation; full-password breach-list check) plus mandatory TOTP or passkey. <b>Email magic links are not an acceptable standing second factor</b> — NIST's own FAQ states email SHALL NOT be used as an out-of-band authenticator.</li>
+    <li><b>NFR-SEC-04</b> — Target AAL2. Internal sessions: 8-hour absolute, 30-minute idle. Client sessions: 24-hour absolute, 2-hour idle. Opaque server-side session tokens in <code>__Host-</code> prefixed, <code>Secure</code>, <code>HttpOnly</code>, <code>SameSite</code> cookies with ≥128 bits of entropy. Never <code>localStorage</code>.</li>
+    <li><b>NFR-SEC-05</b> — Session identifier regenerated on authentication and on any privilege change. Server-side revocation is mandatory; disabling an account terminates every session.</li>
+    <li><b>NFR-SEC-06</b> — Secrets live in a managed vault, never in source, config files, or environment variables. Secret scanning in CI.</li>
+    <li><b>NFR-SEC-07</b> — Deny-by-default routing: a route with no declared authorization policy fails at application boot, not at request time.</li>
+  </ul>
+
+  <h3>5.2 Data isolation</h3>
+  <ul>
+    <li><b>NFR-ISO-01</b> — Shared database, <code>organization_id</code> on every tenant-scoped row, Postgres row-level security on every such table, <b>and</b> the tenant predicate written explicitly in application queries. The two controls fail independently: RLS fails silently (empty results), application predicates fail loudly in tests.</li>
+    <li><b>NFR-ISO-02</b> — Every tenant-scoped table has <code>ENABLE</code> plus <code>FORCE ROW LEVEL SECURITY</code> and at least one policy covering <code>SELECT</code>, <code>INSERT</code> (<code>WITH CHECK</code>), <code>UPDATE</code> and <code>DELETE</code>. Asserted by a CI test that reads <code>pg_class.relrowsecurity</code> and <code>pg_policy</code> for every table in the application schema.</li>
+    <li><b>NFR-ISO-03</b> — The application database role owns nothing and has neither <code>SUPERUSER</code> nor <code>BYPASSRLS</code>. Migrations run as a separate owner role.</li>
+    <li><b>NFR-ISO-04</b> — Tenant context is set with <code>set_config('app.organization_id', $1, true)</code> <b>inside an explicit transaction</b>, never a session-scoped <code>SET</code>. Under a transaction pooler a session-scoped <code>SET</code> is a cross-tenant leak waiting for a load spike. Enforced by a single <code>withTenant()</code> wrapper; raw connection checkout is banned by lint.</li>
+    <li><b>NFR-ISO-05</b> — Every uniqueness constraint on tenant data is composite with <code>organization_id</code>. Foreign-key and unique checks bypass RLS entirely, so a global unique index leaks the existence of another tenant's rows through constraint-violation errors.</li>
+    <li><b>NFR-ISO-06</b> — Denials for cross-tenant object access return <code>404</code>, never <code>403</code>.</li>
+  </ul>
+
+  <h3>5.3 Auditability</h3>
+  <ul>
+    <li><b>NFR-AUD-01</b> — Audit events are written <b>in the same database transaction as the change they describe</b>. A change without its audit record must be impossible, not merely unlikely.</li>
+    <li><b>NFR-AUD-02</b> — The audit table is append-only: <code>UPDATE</code> and <code>DELETE</code> revoked from the application role plus a trigger that raises. Sealed batches ship to object storage with WORM retention.</li>
+    <li><b>NFR-AUD-03</b> — Events are hash-chained (<code>hash_n = SHA-256(prev_hash ‖ canonical(event_n))</code>) and the head hash is externally anchored daily.</li>
+    <li><b>NFR-AUD-04</b> — Ordering authority is a monotonic sequence, not a timestamp. Both <code>occurred_at</code> and <code>recorded_at</code> are stored; a large gap between them is itself alertable.</li>
+    <li><b>NFR-AUD-05</b> — Audit logs and application logs are separate pipelines. Application logs may be sampled and rotated; audit events may not.</li>
+    <li><b>NFR-AUD-06</b> — Retention: audit events 7 years in WORM, 13 months hot and queryable; application logs 30–90 days. Written down, and followed.</li>
+  </ul>
+
+  <h3>5.4 Performance</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Budget</th><th>Target</th><th>Measured how</th></tr></thead>
+    <tbody>
+      <tr><td>Parameter change → updated preview</td><td>p95 &lt; 120 ms on a 300-bay unit</td><td>Synthetic benchmark in CI on a fixed fixture</td></tr>
+      <tr><td>Full derivation (layout + validation + BOM)</td><td>p95 &lt; 400 ms server-side</td><td>Same fixture, server path</td></tr>
+      <tr><td>Submission (freeze + manifest + hash + BOM persist)</td><td>p95 &lt; 2 s</td><td>End-to-end test</td></tr>
+      <tr><td>Internal queue load</td><td>p95 &lt; 800 ms at 5,000 submissions</td><td>Seeded load test</td></tr>
+      <tr><td>Preliminary PDF generation</td><td>p95 &lt; 6 s, asynchronous with progress</td><td>Job queue metric</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="sub">These are provisional and should be re-derived once a real unit size distribution is known. The <code>rack-studio</code> spikes measured whole-building canvas draw at ~3.3 ms p95 batched and a clearance sweep at 1.34 ms p95 with a span-bucketed index versus 63.79 ms brute force — both under software rasterization in a cloud container, so treat them as a floor rather than a measurement.</p>
+
+  <h3>5.5 Backups and recovery</h3>
+  <ul>
+    <li><b>NFR-BK-01</b> — Point-in-time recovery on the primary database with a documented RPO of 5 minutes and RTO of 4 hours.</li>
+    <li><b>NFR-BK-02</b> — Submission manifests and generated documents live in object storage with versioning and Object Lock; they are not recreated from the database on restore, they <em>are</em> the record.</li>
+    <li><b>NFR-BK-03</b> — A restore is <b>tested</b> quarterly and the test produces an artifact. An untested backup is not a backup, and it is the first thing an auditor asks for.</li>
+    <li><b>NFR-BK-04</b> — Dump and ETL jobs run with <code>SET row_security = off</code> so a silently truncated backup is impossible — that setting errors rather than filtering.</li>
+  </ul>
+
+  <h3>5.6 Observability</h3>
+  <ul>
+    <li><b>NFR-OB-01</b> — Structured logs with a request correlation id propagated through every service call.</li>
+    <li><b>NFR-OB-02</b> — Alerts, not just logs. Logging without alerting fails the criterion outright — that is precisely what OWASP's 2025 rename to <em>Security Logging and Alerting Failures</em> is about. Every alert has a written playbook.</li>
+    <li><b>NFR-OB-03</b> — Named alerts on day one: any internal-only field appearing in a client-facing response (should be zero — treat as an incident); repeated authorization denials for one principal; an audit hash-chain verification failure; a determinism-harness failure; an SLA breach; a failed catalog release gate.</li>
+    <li><b>NFR-OB-04</b> — A per-revision "derivation trace" is queryable in production for support, without exposing it to clients.</li>
+  </ul>
+
+  <h3>5.7 Accessibility</h3>
+  <ul>
+    <li><b>NFR-A11Y-01</b> — WCAG 2.1 AA target. Contrast is <b>measured</b> by an automated audit over rendered text nodes in both themes, not asserted — the pattern already exists in <code>rack-studio/prototype/audit-ui.mjs</code>.</li>
+    <li><b>NFR-A11Y-02</b> — The configurator is fully keyboard operable. Every drawing carries a text alternative and every number shown in a drawing is also available in a table — a plan view is not the only route to a value.</li>
+    <li><b>NFR-A11Y-03</b> — Status is never communicated by colour alone; every severity carries a word.</li>
+    <li><b>NFR-A11Y-04</b> — Motion respects <code>prefers-reduced-motion</code>.</li>
+  </ul>
+
+  <h3>5.8 Privacy</h3>
+  <ul>
+    <li><b>NFR-PR-01</b> — The personal-data surface is deliberately thin: name, work email, work phone, role, organization. Nothing else is collected.</li>
+    <li><b>NFR-PR-02</b> — Client facility data is commercially sensitive to the client. It is never used for cross-tenant analytics without contractual permission, and aggregate internal reporting operates on de-identified counts.</li>
+    <li><b>NFR-PR-03</b> — A documented, tested per-organization deletion path. Audit events survive deletion in de-identified form (actor id retained, name removed).</li>
+    <li><b>NFR-PR-04</b> — Fields are classified <code>shared | internal | pii</code> in the schema, and that classification drives log redaction, export filtering and DTO construction automatically rather than by memory.</li>
+  </ul>
+</section>

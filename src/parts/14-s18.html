@@ -1,0 +1,380 @@
+<section id="s18">
+  <h2 class="sh"><span class="num">18</span>Open decisions — needed before development starts</h2>
+  <h3>18.1 Decisions taken — 2026-08-31</h3>
+  <p class="sub">Sixteen answered by EL. Two need a second pass, and one remains the highest-risk open item in the product. Full reasoning and the decision log are in <code>open-decisions.md</code>.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Decision</th><th>State</th></tr></thead>
+    <tbody>
+      <tr><td><code>OD-01</code></td><td>Single-region managed Postgres with Object Lock-capable storage; tenant plumbing designed so database-per-tenant is a config change</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-02</code></td><td><b>Microsoft Entra ID</b> for internal staff SSO. OIDC works on any tier; SCIM is conditional on P1+, and without it offboarding becomes a named step in the quarterly access review</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-03</code></td><td>Back-to-back and single row, floor level plus 2–6 beam levels, uniform bays within a run</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-04</code></td><td>Internal-created projects only in MVP-1</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-05</code></td><td>One organization per user in MVP-1</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-06</code></td><td>US Customary primary, <b>millimetres</b> in parentheses; length stored ×1000 as whole numbers so the fraction survives; mass in integer millipounds</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-07</code></td><td>The reconciled Interlake sets, approved by Elliott Villacorta — two-person rule satisfied as machine digitiser + human checker</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-08</code></td><td>Plan, elevation, position count, aisle clear widths, assumptions and findings. No schedule, no part descriptions, no capacities, no quantities</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-09</code></td><td>Waiver authority stays undecided in code — the function throws rather than defaulting permissive</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-10</code></td><td>Preliminary PDF issued at submit</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-11</code></td><td><b>1 business day</b> acknowledgement, <b>5 business days</b> quote delivery, both pausing on an open RFI. Hidden from external users until a baseline exists over ten live submissions. Neither clock is ever labelled <em>engineering review</em></td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-12</code></td><td>Coarse three-state client status view</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-13</code></td><td>Audit events 7 years; facility and configuration data 3 years after closure, then de-identified</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-14</code></td><td>De-identified aggregates only, stated in the terms of service</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-15</code></td><td>Rule-pack owner: Elliott Villacorta</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-16</code></td><td>Company name and a contact name only — no licence number, seal, stamp or engineer's name on any preliminary output, in any phase</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-17</code></td><td><b>2 of 4 structural jobs involve material with no published capacity</b> — ~7% by component count, but 91% of the volume sample is a single job, so the job count is the number that governs. Schema changed in response</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-18</code></td><td>Per-organization <b>defaults</b>, never restrictions</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-19</code></td><td>Single-writer with explicit stale-base rejection — refuse and reload, never merge</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-20a</code></td><td>Internal dogfood pilot — named, deployed as a closed trial, first three submissions treated as user research rather than a launch</td><td><span class="chip c-ok">Settled</span></td></tr>
+      <tr><td><code>OD-20b</code></td><td><b>External pilot client</b> — selection criteria settled (outside the company · new-material job · finishable in one sitting · a live opportunity · a relationship that survives a rough release). <b>The account name is a commercial call and remains open</b></td><td><span class="chip c-warn">Criteria settled, name open</span></td></tr>
+      <tr><td><code>OD-21</code></td><td>MVP-1 is <b>catalog-only with an explicit off-ramp</b> — declaring existing material keeps every input already entered and submits as an off-ramp request</td><td><span class="chip c-ok">Settled</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>18.2 When each outstanding answer is actually needed</h3>
+  <p class="sub"><b>The decision set is closed.</b> Every decision that gates Phase 0 — and every decision that gates MVP-1 — is answered. One item remains deliberately open: the <em>name</em> of the external pilot client, which is a commercial judgement rather than a design decision, and which gates no development work at all.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Outstanding</th><th>Earliest task it gates</th><th>Last responsible moment</th><th>Can it wait?</th></tr></thead>
+    <tbody>
+      <tr><td><code>OD-06</code> storage base</td><td><code>A-02</code> kernel-units — the first kernel task</td><td>Before <code>B-02</code> / <code>C-08</code>, when the catalog is ingested and golden fixtures are written</td><td><span class="chip c-ok">Yes</span> — and it needs a <b>veto, not a decision</b></td></tr>
+      <tr><td><code>OD-20b</code> pilot account name</td><td>nothing in development</td><td>Before MVP-1 is called <em>validated</em></td><td><span class="chip c-warn">Yes to build, no to conclude</span> — the premise stays untested until an outside client submits unaided</td></tr>
+      <tr><td><code>OD-17</code> matching feature</td><td>Phase 2</td><td>When Phase 2 is planned</td><td><span class="chip c-ok">Yes</span> — the safe behaviour is already the default</td></tr>
+      <tr><td><code>OD-20</code> pilot client</td><td>nothing in MVP-1 <em>development</em></td><td>Before MVP-1 ships to anyone</td><td><span class="chip c-warn">Yes, with a real cost</span></td></tr>
+      <tr><td><code>OD-02</code> Entra licence tier</td><td>SCIM provisioning only, not OIDC sign-in</td><td>Before staff offboarding matters in practice</td><td><span class="chip c-ok">Yes</span> — OIDC works on any tier</td></tr>
+      <tr><td><code>OD-07</code> fallback approver</td><td><code>B-04</code> release gate</td><td>Before the first catalog release is approved</td><td><span class="chip c-ok">Yes</span> — the gate refuses without it by design</td></tr>
+      <tr><td><code>OD-11</code> SLA measurement</td><td><code>E-02</code>, once clients see status</td><td>Before the targets are shown outside</td><td><span class="chip c-ok">Yes</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note ok">
+    <div class="t">OD-06 is a veto window, not a decision</div>
+    <p>It gates the first kernel task, which sounds urgent — but <b>no future answer makes micrometres wrong.</b> If the dual-unit decision stands, µm is correct. If dual units are later dropped and the product goes US-only, µm is still correct, just finer than needed. Millimetres are the only other candidate and they cannot represent the published lookup grid.</p>
+    <p>So proceed on micrometres and treat this as a veto window. It closes at <code>B-02</code> / <code>C-08</code>, because re-basing is a one-file change before the catalog and fixtures exist and a wide mechanical change after. If nothing is said before then, µm stands.</p>
+  </div>
+
+  <div class="note warn">
+    <div class="t">OD-20 can wait — and here is what deferring actually costs</div>
+    <p>Nothing technical. Phase 0 is tenant plumbing, row-level security, authorization, DTOs and the audit chain; none of it is client-specific and none of it changes based on who the pilot is. MVP-1 can be built end to end without a named client.</p>
+    <p>The cost is not rework — it is that <b>MVP-1 gets built against assumptions instead of against one real building.</b> The later a pilot appears, the less they shape the product, and the longer the central premise goes untested: that a client will actually do this configuration work themselves. Practical middle ground — start Phase 0 now, name the pilot before <code>D-03</code> (the option builder), which is the first task where a real client's requirements would change what you build.</p>
+  </div>
+
+  <h3>18.3 The two answers that need a second pass</h3>
+
+  <div class="note warn">
+    <div class="t">OD-06 — why the storage base changed</div>
+    <p>The dual display is accepted as answered. The metric <em>storage</em> base cannot be millimetres, and this is arithmetic rather than preference: 48&Prime; is 1219.2&nbsp;mm, and an integer-mm store rounds it to 1219, which reads back as 47.9921&Prime; and no longer matches the published lookup key. <b>18 of the 21 published spans miss their own key</b> that way, turning every capacity lookup silently off-grid and destroying the one behaviour the engine is built around.</p>
+    <p>Integer <b>micrometres</b> solve it: an inch is 25.4&nbsp;mm exactly, so every published inch value <em>and</em> every whole millimetre lands on a whole µm. That delivers the metric backend the answer asked for with no loss. Mass is asymmetric — the pound converts to metric exactly but not the reverse — so store integer millipounds and render kg as a derived, one-way display value.</p>
+  </div>
+
+  <div class="note stop">
+    <div class="t">OD-17 — answered, and re-cut against the source quotes</div>
+    <p>A job audit, then a second pass reading the eight source quotations. <b>Two of four structural racking jobs involve material with no published capacity</b> — one entirely used, one mixed. By component count, material value and pallet position the share is about 7%, but <b>a single job is 91% of the volume sample</b>, so those figures are not stable and the job count is the number that should govern: the failure this product can cause is per client, per job, and tonnage is the wrong denominator for a client-experience question.</p>
+    <p><b>Used-versus-new is a property of a component, not of a job.</b> The all-used job still purchases new end-of-aisle protectors; the mixed job reuses and buys within the same component type, and its scope block reconciles exactly — reused plus newly purchased equals installed, on every line. There is no job-level flag that would be correct, which is why the reference sits on the BOM line as <code>part_revision_id XOR uncatalogued_part_id</code> and the new <code>uncatalogued_part</code> entity has <b>no capacity column at all</b>. Absent by schema rather than blank by convention, so no future code path can fill it in.</p>
+    <p><b>The quotes also produced the clearest evidence yet for the product itself.</b> One job appears across three artifacts — a drawing and two quote revisions — carrying <b>three different pallet-position counts</b>, with a major scope reduction between revisions and nothing linking any of them to a shared model. A second job states two mutually inconsistent position counts on the same line of the same quote. This is the thesis of <a href="#s1">§1</a> evidenced from real paperwork rather than argued from first principles.</p>
+    <p><b>The matcher is still worth building in Phase 2; the derate still is not.</b> At half of all jobs an estimator aid saying <em>"this is dimensionally consistent with part X — go verify"</em> clearly earns its place. It must not transfer that part's published capacity onto the client's material, with or without a reduction: a used-material derate has no published basis, so it caps at <code>SECONDARY</code> tier, which §11.2's ceiling limits to <em>engineering review required</em> regardless of any click.</p>
+  </div>
+
+  <h3>18.4 The decisions and their reasoning</h3>
+  <p class="sub">Ordered by how much rework a late answer causes. <span class="chip c-stop">Blocking</span> gates work that starts early; <span class="chip c-warn">Phase 2</span> can wait but should not drift. These labels are deliberately coarse — <a href="#s18">§18.2</a> maps each outstanding answer to the specific task it gates. Each entry names what happens if it is not answered.</p>
+
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Decision</th><th>Options</th><th>Recommendation</th><th>When</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>OD-01</code></td>
+        <td><b>Who hosts this, and where?</b> Cloud provider, region, and whether any client will contractually require data residency or a dedicated database.</td>
+        <td>Single-region managed Postgres + object storage · a specific vendor's platform · self-hosted</td>
+        <td>Single-region managed Postgres with Object Lock-capable storage. Design the tenant plumbing so database-per-tenant is a config change if one client ever demands it.</td>
+        <td><span class="chip c-stop">Blocking</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-02</code></td>
+        <td><b>Which identity provider for internal staff?</b> This determines the SSO integration and whether SCIM is available.</td>
+        <td>Microsoft Entra ID (likely, given the Windows estate) · Google Workspace · a standalone IdP</td>
+        <td>Whatever McMurray Stern already uses for email and file access. Do not introduce a second identity system.</td>
+        <td><span class="chip c-stop">Blocking</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-03</code></td>
+        <td><b>What is the true MVP option template?</b> "Selective pallet rack" still spans single-deep, back-to-back, single-row-against-wall, and several level configurations.</td>
+        <td>Back-to-back + single row only · add wall rows · add double-deep</td>
+        <td>Back-to-back and single row, floor level plus 2–6 beam levels, uniform bays within a run. Everything else is a finding that says "our team will configure this".</td>
+        <td><span class="chip c-stop">Blocking</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-04</code></td>
+        <td><b>Can a client create a project, or only work in one we created?</b> Changes the invitation model and the abuse surface.</td>
+        <td>Internal-created only · client can add units to an existing project · client can create projects</td>
+        <td>Internal-created only in MVP-1. Client-created projects turn a controlled engagement into an inbound funnel and need a different qualification story.</td>
+        <td><span class="chip c-stop">Blocking</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-05</code></td>
+        <td><b>Can one person belong to more than one client organization?</b> A consultant working for two of our clients is a real case.</td>
+        <td>One org per user · multi-org with an explicit switcher</td>
+        <td>One organization per user in MVP-1; a second person account if needed. Multi-org membership makes every RLS policy and every session a harder problem.</td>
+        <td><span class="chip c-stop">Blocking</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-06</code></td>
+        <td><b>Units: US customary only, or metric too?</b> The prior work is split — the source drawing set that seeded <code>rack-studio</code> is metric and EN 15512; everything since re-targets US customary.</td>
+        <td>US customary only · both with a display toggle · both as stored data</td>
+        <td><b>Answered</b> — dual display (US primary, metric in parentheses), metric backend. <b>Corrected:</b> the storage base is integer <b>micrometres</b>, not millimetres, because integer mm cannot represent the published lookup grid; mass in integer millipounds. See <a href="#s18">§18.1</a>.</td>
+        <td><span class="chip c-stop">Blocking</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-07</code></td>
+        <td><b>Which catalog release ships first, and who approves it?</b> The two-person rule needs a named second person who is not the digitiser.</td>
+        <td>The 378-row Interlake beam set + 3 frame tables · a broader set · start from the source PDFs again</td>
+        <td>The already-reconciled sets, re-approved in the new system by a named person. Nominate that person now — the release gate blocks everything downstream and it needs a human, not a process.</td>
+        <td><span class="chip c-stop">Blocking</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-08</code></td>
+        <td><b>What exactly is on the client PDF?</b> The single sharpest commercial question in this document — every element is a decision about how transferable our work is.</td>
+        <td>Plan only · plan + elevation · plus dimensioned aisles · plus bay dimensions · plus position schedule</td>
+        <td>Plan, elevation, position count, aisle clear widths, assumptions and findings. <b>No bay-by-bay schedule, no part descriptions, no beam capacities, no quantities.</b> Decide this deliberately and write down the reasoning — it will be re-litigated by the first client who asks for more.</td>
+        <td><span class="chip c-stop">Blocking</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-09</code></td>
+        <td><b>Who may waive a finding, and which findings are waivable at all?</b> Currently undecided in every reference project, and correctly so.</td>
+        <td>Internal admin only · any internal user with a reason · a named engineering approver</td>
+        <td>Keep it undecided <em>in code</em>: the waiver function throws an error naming this decision rather than defaulting to permissive. Answer it before any waiver ships.</td>
+        <td><span class="chip c-stop">Blocking (as a non-default)</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-10</code></td>
+        <td><b>Do clients get a preliminary PDF at submit, or only after we accept the request?</b> Determines whether a client can generate a takeaway document without ever engaging us.</td>
+        <td>At submit · after internal acknowledgement · only on request</td>
+        <td>At submit — the document is what makes the tool feel worth using, and a preliminary plan with no quantities is a poor competitor package. Revisit if it is abused.</td>
+        <td><span class="chip c-stop">Blocking</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-11</code></td>
+        <td><b>Two SLA clocks — what are the actual targets?</b> Acknowledgement and quote delivery.</td>
+        <td>e.g. 1 business day / 5 business days</td>
+        <td>Set them from what the team can actually meet today, not from an aspiration. A breached SLA displayed to a client is worse than no SLA.</td>
+        <td><span class="chip c-warn">Phase 2</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-12</code></td>
+        <td><b>Do clients see the request status, or only the outcome?</b> Visible status is a service commitment.</td>
+        <td>Full status · received/in progress/complete only · outcome only</td>
+        <td>A coarse three-state view. Internal statuses like "in triage" invite questions the team should not have to field.</td>
+        <td><span class="chip c-warn">Phase 2</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-13</code></td>
+        <td><b>Retention: how long do we keep a client's facility data after a request is declined or expires?</b> Their layouts are commercially sensitive <em>to them</em>.</td>
+        <td>Indefinite · 3 years · 12 months after closure · client-configurable</td>
+        <td>Audit events 7 years; facility and configuration data 3 years after closure, then de-identified. Write it into the terms before the first client, not after.</td>
+        <td><span class="chip c-stop">Blocking</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-14</code></td>
+        <td><b>Do we ever use client configuration data in aggregate?</b> "What are clients configuring that we cannot serve" is genuinely valuable and genuinely sensitive.</td>
+        <td>Never · de-identified aggregates only · with contractual permission</td>
+        <td>De-identified aggregates only, and say so in the terms. The decline-reason enum gives most of the value with none of the exposure.</td>
+        <td><span class="chip c-warn">Phase 2</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-15</code></td>
+        <td><b>Who owns the rule packs, and what is the review cadence?</b> Standards editions move; a stale pack silently degrades every finding.</td>
+        <td>Product owner · an internal engineer · an external PE on retainer</td>
+        <td>Name a single owner now. A quarterly review with a written outcome is enough; an unowned pack is a slow failure that nobody notices.</td>
+        <td><span class="chip c-stop">Blocking</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-16</code></td>
+        <td><b>Is a preliminary output ever allowed to carry a name or a licence number?</b> A hard liability question.</td>
+        <td>Never · company name only · a named contact</td>
+        <td>Company name and a contact name only. <b>No licence number, no seal, no stamp, no engineer's name on any preliminary output, in any phase.</b> Confirm with counsel and against the PE board rules of the states we sell into.</td>
+        <td><span class="chip c-stop">Blocking</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-17</code></td>
+        <td><b>What share of our jobs use used or generic material with no published capacity?</b> Raised in <code>rack-app/docs/OUTPUT_FORMAT.md</code> §10 and never answered. If it is most of them, a catalog-driven configurator serves a minority of the work.</td>
+        <td>—</td>
+        <td>Answer it with real numbers before Phase 2. It could reshape the roadmap more than any technical decision in this document.</td>
+        <td><span class="chip c-stop">Blocking (for scope confidence)</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-18</code></td>
+        <td><b>Should the client's option choices be constrained per organization?</b> A client with a standard pallet and a standard truck should not be re-asked every time.</td>
+        <td>Global vocabulary · per-organization defaults · per-organization restrictions</td>
+        <td>Per-organization <em>defaults</em> in phase 2, not restrictions. Defaults save time; restrictions produce support calls.</td>
+        <td><span class="chip c-warn">Phase 2</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-19</code></td>
+        <td><b>Do we need concurrent editing within a client organization?</b> Two people from the same client in the same option at once.</td>
+        <td>Single-writer with stale-base rejection · last-write-wins · real-time collaboration</td>
+        <td>Single-writer with explicit stale-base rejection — the reference implementation already rejects rather than merges, which is the right behaviour. Real-time collaboration is a large, separate product.</td>
+        <td><span class="chip c-warn">Phase 2</span></td>
+      </tr>
+      <tr>
+        <td><code>OD-20</code></td>
+        <td><b>Who is the first client, and will they pilot it?</b> Not a technical decision, and the most important one here.</td>
+        <td>—</td>
+        <td>Name one before Phase 0 ends. A blueprint validated against one real client's actual building beats six months of speculative generality — and it is the only way to find out whether the client will actually do this work themselves.</td>
+        <td><span class="chip c-stop">Blocking</span></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note warn">
+    <div class="t">The three questions nobody has asked yet</div>
+    <p>Across all four reference projects, two validation gates were repeatedly deferred and never closed: <b>no PE has been asked whether this output is a useful input to them</b>, and <b>no drafter has confirmed which step of their workflow this actually removes</b>. For Rack Master Studio there is a third, and it is the one the entire business case rests on: <b>will a client actually do this configuration work themselves?</b> A tool that shifts work to someone who refuses to do it does not save the work — it adds a support channel. <code>OD-20</code> is how that gets answered. It is cheap to answer now and expensive to discover late.</p>
+  </div>
+</section>
+
+<section id="s19">
+  <h2 class="sh"><span class="num">19</span>Key risks, mitigations, and "do not build yet"</h2>
+
+  <h3>19.1 Risk register</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Risk</th><th>Severity</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td><code>R-01</code></td><td><b>Clients do not use it.</b> The premise is that a client will do configuration work we currently do for them. If they will not, the product adds a support channel and saves nothing.</td><td><span class="chip c-stop">Critical</span></td><td><b>Still open.</b> An internal pilot is now named and the gated-launch and research-study framing is right — but a pilot run inside our own organization measures usability, not willingness. Internal staff are paid to use it, already know rack, and cannot fall back to a phone call. <b>This risk is only retired by one external client organization completing a submission unaided</b> (<code>OD-20b</code>). Because MVP-1 is catalog-only (<code>OD-21</code>), that client must be a new-material job, or the pilot tests the off-ramp instead of the configurator.</td></tr>
+      <tr><td><code>R-02</code></td><td><b>Internal-only data leaks to a client.</b> One margin figure or part number in one API response destroys the product's reason to exist.</td><td><span class="chip c-stop">Critical</span></td><td>Physical table separation + RLS with an <code>actor_type</code> predicate + separate route namespaces + separate bundles + per-audience DTOs + an automated leakage contract test over enumerated routes + an alert treating any occurrence as an incident. Seven independent controls (<a href="#s14">§14.6</a>), because one is not enough.</td></tr>
+      <tr><td><code>R-03</code></td><td><b>A client relies on a preliminary output as if it were engineered.</b> A pallet-position count and a plan look authoritative.</td><td><span class="chip c-stop">Critical</span></td><td>Watermark and disclaimer physically inseparable from the artifact; findings that name what is <em>not</em> established; verification tiers that cap what the tool may conclude; no seal, name or licence number ever (<code>OD-16</code>); a legal review of the disclaimer before the first client sees it.</td></tr>
+      <tr><td><code>R-04</code></td><td><b>Cross-tenant data exposure.</b> One organization sees another's building, layout or submission.</td><td><span class="chip c-stop">Critical</span></td><td>RLS enabled and forced on every tenant table with CI enforcement; explicit predicates in application queries; composite unique constraints; <code>withTenant()</code> as the only database entry point; 404-not-403; cross-tenant tests against a real Postgres.</td></tr>
+      <tr><td><code>R-05</code></td><td><b>A wrong capacity number reaches a client.</b> The quarantined frame table overstated capacity by up to 72% and looked entirely plausible.</td><td><span class="chip c-stop">Critical</span></td><td>Status on the data; only <code>APPROVED</code> releases pinnable; two-person approval with the approver ≠ the digitiser; no interpolation, ever; no nearest-match; a build that fails on a null approver. All of these already exist in the reference projects and work.</td></tr>
+      <tr><td><code>R-06</code></td><td><b>The screen and the output disagree.</b> The exact failure that fragmented all four prior projects.</td><td><span class="chip c-warn">High</span></td><td>One kernel, compiled once, loaded by the browser and the server. Boundary checks that fail the build on a second implementation. A determinism harness that re-renders historical submissions nightly.</td></tr>
+      <tr><td><code>R-07</code></td><td><b>The BOM is mostly unresolved lines</b>, so internal review is barely faster than starting from scratch.</td><td><span class="chip c-warn">High</span></td><td>Measure it: track the unresolved-line count per submission as a product metric from day one. Each unresolved rule is a named, sourceable work item. If the ratio does not fall, the BOM is not the value and the roadmap should say so.</td></tr>
+      <tr><td><code>R-08</code></td><td><b>Authority data, not geometry, is the real work.</b> In prior analysis, 17 of 31 checks reported "engineering review required" purely because a rule was cited from a secondary source.</td><td><span class="chip c-warn">High</span></td><td>Scope MVP-1's checks to what the product can establish from catalog data and geometry alone. Budget separately — in money and calendar time — for buying standards and getting rules confirmed. Do not let it masquerade as engineering effort.</td></tr>
+      <tr><td><code>R-09</code></td><td><b>Sources conflict and stay conflicted</b> — MH16.1 editions, NFPA section numbers, aisle measurement conventions with no code basis.</td><td><span class="chip c-warn">High</span></td><td>Record conflicts as conflicts (<a href="#s10">§10.8</a>). Never silently choose. A tier that caps the outcome is the mechanism that makes an unresolved conflict safe to ship.</td></tr>
+      <tr><td><code>R-10</code></td><td><b>Fast-follower risk from CPQ platforms</b>, not from another rack startup — flagged in <code>rack-app/rack-review.html</code> and directly about this product.</td><td><span class="chip c-warn">High</span></td><td>The defensible asset is the verified catalog, the rule provenance and the McMurray Stern estimating relationship — not the configurator UI. Invest accordingly, and do not spend the first year on canvas polish.</td></tr>
+      <tr><td><code>R-11</code></td><td><b>Scope creep into CAD.</b> The first client will ask for DWG, and it will feel like a small step.</td><td><span class="chip c-warn">High</span></td><td>It is not on the roadmap for clients at all (<a href="#s19">§19.2</a>). No DXF writer has been validated against a real AutoCAD seat, and giving a client a DWG defeats the product's purpose.</td></tr>
+      <tr><td><code>R-12</code></td><td><b>Used and generic material.</b> <span class="chip c-ok">Measured</span> A job audit read against the source quotations found <b>two of four structural jobs involve material with no published capacity</b> — one entirely used, one mixed. About 7% by component count, but a single job is 91% of that sample, so the job count governs.</td><td><span class="chip c-neutral">Closed</span></td><td>Answered (<code>OD-17</code>) and designed for. The schema carries uncatalogued parts as a first-class reference (<a href="#s7">§7.2</a>, <a href="#s12">§12.2</a>), and <code>OD-21</code> settles the scope: MVP-1 is catalog-only with an explicit off-ramp that keeps the client's inputs rather than dead-ending them. Re-open only if the off-ramp rate in production differs sharply from half.</td></tr>
+      <tr><td><code>R-13</code></td><td><b>Catalog data goes stale</b> and every submission silently pins an outdated release.</td><td><span class="chip c-warn">Medium</span></td><td>Named release owner (<code>OD-15</code>); supersede shows impact on open requests; the pin is visible on every internal package and in the PDF title block.</td></tr>
+      <tr><td><code>R-14</code></td><td><b>Invitation tokens forwarded or leaked.</b> An emailed bearer token is inherently forwardable.</td><td><span class="chip c-warn">Medium</span></td><td>Single-use, 72-hour expiry, hashed at rest, revocable, no auto-login, acceptance notification with IP to the inviter and organization owners as the detection control.</td></tr>
+      <tr><td><code>R-15</code></td><td><b>Support load from findings clients cannot resolve.</b> Every "engineering review required" is a potential phone call.</td><td><span class="chip c-warn">Medium</span></td><td><code>closed_by</code> is mandatory on every finding, and client-facing wording for review-tier findings is "our team will review this" rather than exposing the mechanism. Measure calls per submission.</td></tr>
+      <tr><td><code>R-16</code></td><td><b>Two applications drift.</b> Client and internal front ends diverge in behaviour or in what they claim.</td><td><span class="chip c-neutral">Low</span></td><td>Shared component library and shared kernel; both applications derive from the same display list. Only presentation may differ.</td></tr>
+      <tr><td><code>R-17</code></td><td><b>Performance on a large facility.</b> A 2,000-bay building at interactive rates is not proven on target hardware.</td><td><span class="chip c-neutral">Low</span></td><td>The prior spikes give a floor, not a measurement — re-run them on real hardware in Phase 0. The span-bucketed clearance index already exists and is 48× faster than brute force.</td></tr>
+      <tr><td><code>R-18</code></td><td><b>Audit chain verification fails</b> and nobody notices until it matters.</td><td><span class="chip c-neutral">Low</span></td><td>Verify the chain on a schedule, alert on failure, and anchor the head externally so a failure is attributable to a time window.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>19.2 Do not build yet</h3>
+  <p>Each of these is excluded for a stated reason and has a named condition that would change the answer. "Not yet" is not "never" — except where it says never.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Item</th><th>Why not</th><th>What would change it</th></tr></thead>
+    <tbody>
+      <tr><td><b>Any claim of structural, manufacturer, PE, fire-protection, code or AHJ approval</b></td><td>The product does not hold the authority and cannot acquire it by computing carefully.</td><td><span class="chip c-stop">Never</span>, absent an approved authoritative workflow with a licensed professional inside it.</td></tr>
+      <tr><td><b>Detailed customer BOM, quantities or DWG/DXF export</b></td><td>This is the value the product exists to protect.</td><td><span class="chip c-stop">Never</span> for clients. Internal DXF is phase 4 at the earliest.</td></tr>
+      <tr><td><b>Engineering calculations</b> — FEA, Direct Strength Method, seismic from first principles</td><td>Out of scope by product definition, in every phase. The prior projects fenced this explicitly and the fence stands.</td><td><span class="chip c-stop">Never</span> in this product.</td></tr>
+      <tr><td><b>Public self-signup</b></td><td>The invitation model <em>is</em> the access-control model.</td><td>A deliberate decision to run an inbound funnel, with a matching abuse and qualification posture.</td></tr>
+      <tr><td><b>Automatic pricing</b></td><td>Every rate available is an uncited ballpark that has never been back-tested against a live vendor quote.</td><td>Validated rates, a named owner for them, and a decision that a machine may quote without a human.</td></tr>
+      <tr><td><b>Cost and margin data in the system at all</b></td><td>Not needed for MVP-1, and every day it does not exist is a day it cannot leak.</td><td>Phase 3, behind a role narrower than "sees the BOM".</td></tr>
+      <tr><td><b>Multi-manufacturer catalogs</b></td><td>One manufacturer's data took three passes to reach a trustworthy state. The cost is verification, not code.</td><td>The first catalog is stable and a second manufacturer is commercially required.</td></tr>
+      <tr><td><b>Staff impersonation of client users</b></td><td>The highest-risk feature in the product and the one most likely to leak in the wrong direction.</td><td>The audit and authorization layers have run in production for a while, and the read-only, capped, banner-marked, notified design is implemented as specified.</td></tr>
+      <tr><td><b>An external policy engine</b> (OPA / Cedar / OpenFGA)</td><td>Five roles and one relationship chain. It would add a network hop and a consistency problem for a policy set that fits in one file.</td><td>The policy table exceeds ~50 rules, or a customer requires custom roles.</td></tr>
+      <tr><td><b>A second runtime</b> (Python service)</td><td>Nothing in MVP-1 or phase 2 needs it. It buys a deployment problem and no capability.</td><td>DXF via <code>ezdxf</code> or a stamped calc package becomes a real requirement — both phase 4.</td></tr>
+      <tr><td><b>Real-time collaborative editing</b></td><td>A large, separate product. Single-writer with explicit stale-base rejection is correct and already proven.</td><td>Evidence that clients actually collaborate live inside one option.</td></tr>
+      <tr><td><b>Client-configurable rule packs or catalogs</b></td><td>It would hand a client the ability to change what the tool concludes, which is the opposite of the product's purpose.</td><td><span class="chip c-stop">Never</span>.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note ok">
+    <div class="t">The single thing to get right first</div>
+    <p>Two decisions in this document are structural and get exponentially more expensive to retrofit: <b>BOM lines reference a part revision, never a part</b>, and <b>the derivation is deterministic with every implicit input made explicit</b>. Everything else here — the audit chain, the tier ceilings, the issue register, even the tenant isolation — can be added later with effort. Those two cannot. Build them in week one and the rest of this blueprint stays achievable.</p>
+  </div>
+</section>
+
+<footer class="foot">
+  <p><b>Rack Master Studio — Product &amp; Technical Blueprint, Rev A.</b> Prepared 2026-08-31 for EL, McMurray Stern. This document is research and planning only; no production implementation has begun and none should begin before the blocking decisions in §18 are answered.</p>
+  <p>Companion files: <code>README.md</code> · <code>reference-project-inventory.md</code> · <code>reuse-register.md</code> · <code>open-decisions.md</code>.</p>
+  <p>Source projects at <code>C:\Rack Master\Resourse (do not delete or overwrite files)\</code> were inspected read-only. Nothing in them was edited, moved, renamed or deleted.</p>
+</footer>
+</main>
+</div>
+<script>
+(function(){
+  var root=document.documentElement;
+  try{var t=localStorage.getItem('rms-theme'); if(t){root.setAttribute('data-theme',t);}}catch(e){}
+  var tb=document.getElementById('themebtn');
+  if(tb){tb.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme');
+    var next = cur==='dark' ? 'light' : (cur==='light' ? 'dark' :
+      (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'light':'dark'));
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('rms-theme',next);}catch(e){}
+  });}
+
+  var nt=document.getElementById('navtoggle'), nav=document.getElementById('nav');
+  if(nt&&nav){nt.addEventListener('click',function(){
+    var open=nav.classList.toggle('open');
+    nt.setAttribute('aria-expanded',open?'true':'false');
+  });
+  nav.addEventListener('click',function(e){
+    if(e.target.closest('a') && window.innerWidth<=1000){nav.classList.remove('open');nt.setAttribute('aria-expanded','false');}
+  });}
+
+  var eb=document.getElementById('expandbtn');
+  if(eb){eb.addEventListener('click',function(){
+    var ds=document.querySelectorAll('details');
+    var anyClosed=false; ds.forEach(function(d){if(!d.open)anyClosed=true;});
+    ds.forEach(function(d){d.open=anyClosed;});
+    eb.textContent = anyClosed ? '⊟ Collapse all' : '⊞ Expand all';
+  });}
+
+  // In-document navigation, done in JS rather than by the browser.
+  // A preview pane embeds this file with srcdoc, and a srcdoc document inherits the
+  // HOST page's baseURI — so a plain href="#s5" resolves against the host, not this
+  // document, and clicking it navigates the pane away (on claude.ai, to a new chat).
+  // Intercepting the click keeps every jump inside this document, wherever it is opened.
+  document.addEventListener('click', function(e){
+    var t=e.target, a=(t&&t.closest)?t.closest('a[href]'):null;
+    if(!a) return;
+    var href=a.getAttribute('href')||'';
+    if(href.charAt(0)!=='#'||href.length<2) return;
+    var el=document.getElementById(href.slice(1));
+    if(!el) return;
+    e.preventDefault();
+    var d=el.closest?el.closest('details'):null;
+    while(d){ d.open=true; d=d.parentElement?d.parentElement.closest('details'):null; }
+    try{ el.scrollIntoView({behavior:'smooth',block:'start'}); }catch(err){ el.scrollIntoView(); }
+    if(nav && window.innerWidth<=1000){ nav.classList.remove('open'); if(nt) nt.setAttribute('aria-expanded','false'); }
+  });
+
+  var links={}, targets=[];
+  document.querySelectorAll('.nav a[href^="#"]').forEach(function(a){
+    var id=a.getAttribute('href').slice(1); links[id]=a;
+    var el=document.getElementById(id); if(el) targets.push(el);
+  });
+  if('IntersectionObserver' in window && targets.length){
+    var seen={};
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ seen[en.target.id]=en.isIntersecting ? en.boundingClientRect.top : null; });
+      var best=null,bestTop=Infinity;
+      targets.forEach(function(el){
+        var r=el.getBoundingClientRect();
+        if(r.top<=140 && r.bottom>140){best=el.id;bestTop=-1;}
+        else if(bestTop!==-1 && r.top>0 && r.top<bestTop){bestTop=r.top;best=el.id;}
+      });
+      Object.keys(links).forEach(function(k){links[k].classList.toggle('on',k===best);});
+    },{rootMargin:'-10% 0px -80% 0px',threshold:[0,1]});
+    targets.forEach(function(el){io.observe(el);});
+  }
+
+  window.addEventListener('beforeprint',function(){
+    document.querySelectorAll('details').forEach(function(d){d.dataset.wasOpen=d.open?'1':'0';d.open=true;});
+  });
+  window.addEventListener('afterprint',function(){
+    document.querySelectorAll('details').forEach(function(d){if(d.dataset.wasOpen==='0')d.open=false;});
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<section id="s2">
+  <h2 class="sh"><span class="num">02</span>User roles and permission matrix</h2>
+
+  <h3>Principals</h3>
+  <p>Three roles are required by the brief. Two more are recommended because they cost almost nothing to define now and are expensive to retrofit: a client-side administrator (so we are not the ones adding and removing a client's own staff), and a non-human service principal (so the calculation engine's actions are attributable and never masquerade as a person).</p>
+
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Role</th><th>Type</th><th>Scope</th><th>Exists in MVP-1</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>CLIENT_USER</code></td><td>External</td><td>One organization; only projects assigned to that organization</td><td><span class="chip c-ok">Yes</span></td><td>Configure options, compare, submit for quote, view preliminary output and status.</td></tr>
+      <tr><td><code>CLIENT_ADMIN</code></td><td>External</td><td>One organization</td><td><span class="chip c-ok">Yes</span></td><td>Everything a client user can do, plus invite and deactivate their own colleagues within the same organization.</td></tr>
+      <tr><td><code>INTERNAL_SALES</code></td><td>Internal staff</td><td>All organizations</td><td><span class="chip c-ok">Yes</span></td><td>Sales / designer / estimator. Create client orgs and projects, send invitations, review submissions, see internal BOM and catalog detail, create derived revisions, manage quote status.</td></tr>
+      <tr><td><code>INTERNAL_ADMIN</code></td><td>Internal staff</td><td>All organizations + platform</td><td><span class="chip c-ok">Yes</span></td><td>Everything above, plus user and role administration, catalog and rule-pack release, retention and audit export, and the destructive operations.</td></tr>
+      <tr><td><code>SERVICE_ENGINE</code></td><td>Non-human</td><td>System</td><td><span class="chip c-ok">Yes</span></td><td>The derivation engine. Writes derived outputs and audit events; can never authorise, approve, waive or release.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <div class="t">Why the actor type is a separate axis from the role</div>
+    <p>Organization isolation stops Client&nbsp;A seeing Client&nbsp;B. It does <b>nothing</b> to stop Client&nbsp;A seeing our margin on Client&nbsp;A's own project — those rows legitimately belong to Client&nbsp;A's organization. Two orthogonal dimensions are therefore required: <code>organization_id</code> (which rows) and <code>actor_type ∈ {client, staff, service}</code> (which tables and which fields). Conflating them is the single most common way a product like this leaks. See <a href="#s14">§14</a>.</p>
+  </div>
+
+  <h3>Permission matrix</h3>
+  <p class="sub"><span class="y">●</span> permitted &nbsp;·&nbsp; <span class="p">◐</span> permitted with a condition stated in the note &nbsp;·&nbsp; <span class="n">○</span> denied. A denial for a client is served as <code>404</code>, never <code>403</code> — a <code>403</code> confirms the object exists.</p>
+
+  <h4>Organizations, users and access</h4>
+  <div class="tw">
+  <table class="matrix compact">
+    <thead><tr><th>Capability</th><th>Client user</th><th>Client admin</th><th>Internal sales</th><th>Internal admin</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Self-register an account</td><td class="n">○</td><td class="n">○</td><td class="n">○</td><td class="n">○</td><td>No public signup exists at any tier.</td></tr>
+      <tr><td>Create a client organization</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td></td></tr>
+      <tr><td>Invite a user into own organization</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td>Role is fixed in the invitation row, never accepted from the client.</td></tr>
+      <tr><td>Invite a user into another organization</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td></td></tr>
+      <tr><td>Deactivate a user in own organization</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td>Deactivation terminates all that user's sessions immediately.</td></tr>
+      <tr><td>Grant or change internal roles</td><td class="n">○</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td>Re-authentication required.</td></tr>
+      <tr><td>See the list of other client organizations</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td>Our customer list is confidential to clients.</td></tr>
+      <tr><td>Impersonate a client user</td><td class="n">○</td><td class="n">○</td><td class="p">◐</td><td class="p">◐</td><td>Post-MVP. Read-only, 30-minute cap, banner-marked, audited, tenant admin notified.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>Projects, revisions and configuration</h4>
+  <div class="tw">
+  <table class="matrix compact">
+    <thead><tr><th>Capability</th><th>Client user</th><th>Client admin</th><th>Internal sales</th><th>Internal admin</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>See projects of own organization</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td>Client sees only projects explicitly assigned to their organization.</td></tr>
+      <tr><td>See projects of any organization</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td></td></tr>
+      <tr><td>Create a project</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td>MVP-1: internal-created only. Client-created projects are a later decision (<a href="#s18">OD-04</a>).</td></tr>
+      <tr><td>Enter facility / unit inputs</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td>Only on a <code>DRAFT</code> revision.</td></tr>
+      <tr><td>Create / edit configuration options</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td>Client is limited to the option types enabled for the project.</td></tr>
+      <tr><td>Compare options side by side</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td>Client comparison shows counts and geometry, never cost.</td></tr>
+      <tr><td>Submit an option for quote</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td>Freezes the revision (<a href="#s13">§13</a>).</td></tr>
+      <tr><td>Edit a submitted revision</td><td class="n">○</td><td class="n">○</td><td class="n">○</td><td class="n">○</td><td><b>Nobody.</b> Enforced in the database, not in application code.</td></tr>
+      <tr><td>Withdraw own submission</td><td class="p">◐</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td>Sets status; never deletes. The frozen revision remains.</td></tr>
+      <tr><td>Create a derived <em>client</em> revision from a submission</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td>Clone-to-draft. Original untouched, <code>derived_from</code> recorded.</td></tr>
+      <tr><td>Create a derived <em>internal</em> revision</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td>Internal revisions are invisible to the client entirely.</td></tr>
+      <tr><td>See internal revisions exist</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td>Not "see but locked" — not present in any client response.</td></tr>
+      <tr><td>Delete a project or revision</td><td class="n">○</td><td class="n">○</td><td class="n">○</td><td class="p">◐</td><td>Soft-delete only; audit rows are never removable.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>Outputs, BOM, catalog and commercial data</h4>
+  <div class="tw">
+  <table class="matrix compact">
+    <thead><tr><th>Capability</th><th>Client user</th><th>Client admin</th><th>Internal sales</th><th>Internal admin</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>View preliminary plan / elevation</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td>Always watermarked for the client (<a href="#s9">§9</a>).</td></tr>
+      <tr><td>View pallet-position counts and assumptions</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td></td></tr>
+      <tr><td>View validation findings</td><td class="p">◐</td><td class="p">◐</td><td class="y">●</td><td class="y">●</td><td>Client sees the client-safe projection: blockers, missing inputs, assumptions. Not the internal cite-check detail.</td></tr>
+      <tr><td>Export preliminary PDF</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td class="y">●</td><td>Watermarked, disclaimered, issue-registered.</td></tr>
+      <tr><td>Export DXF / DWG</td><td class="n">○</td><td class="n">○</td><td class="p">◐</td><td class="p">◐</td><td>Not in MVP-1 for anyone. Never for clients (<a href="#s19">§19</a>).</td></tr>
+      <tr><td>View internal BOM / takeoff</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td>Physically a separate table with its own policy.</td></tr>
+      <tr><td>View manufacturer part numbers</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td></td></tr>
+      <tr><td>View catalog source detail / capacity tables</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td>Page refs, source documents, digitiser and checker.</td></tr>
+      <tr><td>View cost, price, margin, discount</td><td class="n">○</td><td class="n">○</td><td class="p">◐</td><td class="p">◐</td><td><b>Not built in MVP-1 or phase 2</b> (<a href="#s19">§19.2</a>). When built in phase 3: gated to a narrower internal role than "sees the BOM".</td></tr>
+      <tr><td>View internal notes</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td>Internal notes are a separate entity from client-visible messages.</td></tr>
+      <tr><td>Write internal notes</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td></td></tr>
+      <tr><td>Request information (RFI) from the client</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td>Pauses the response clock (<a href="#s3">§3</a>).</td></tr>
+      <tr><td>Set quote status / decline with reason</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td class="y">●</td><td>Structured decline reason required.</td></tr>
+      <tr><td>Release a catalog or rule pack</td><td class="n">○</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td>Two-person rule: the releaser may not be the digitiser (<a href="#s10">§10</a>).</td></tr>
+      <tr><td>Override / waive a validation finding</td><td class="n">○</td><td class="n">○</td><td class="p">◐</td><td class="p">◐</td><td><b>No default grant.</b> Waiver authority is undecided (<a href="#s18">OD-09</a>) and the code refuses until it is decided (<a href="#s11">§11.5</a>). When decided: only waivable finding classes, never on a client-visible output, named acceptor recorded.</td></tr>
+      <tr><td>Read the audit log</td><td class="n">○</td><td class="p">◐</td><td class="p">◐</td><td class="y">●</td><td>Client admin: own organization's own events only. Internal sales: project-scoped.</td></tr>
+      <tr><td>Bulk export data</td><td class="n">○</td><td class="n">○</td><td class="n">○</td><td class="y">●</td><td>Re-authentication + audit event with row count.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note stop">
+    <div class="t">Non-negotiable invariants</div>
+    <p><b>I-1.</b> No response to a <code>client</code> principal may contain a cost, price, margin, discount, manufacturer part number, catalog page reference, supplier, BOM line, or internal note — at any nesting depth. Asserted by an automated contract test over every route (<a href="#s16">§16</a>).<br>
+    <b>I-2.</b> No principal, of any role, may mutate a submitted revision.<br>
+    <b>I-3.</b> No principal may delete an audit event.<br>
+    <b>I-4.</b> <code>SERVICE_ENGINE</code> may never approve, waive, release, or grant.</p>
+  </div>
+</section>

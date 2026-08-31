@@ -1,0 +1,297 @@
+<section id="s7">
+  <h2 class="sh"><span class="num">07</span>Canonical data model</h2>
+
+  <h3>7.1 The rule the model exists to enforce</h3>
+  <div class="note ok">
+    <div class="t">Architecture principle</div>
+    <p>There is <b>one</b> canonical, revision-pinned project model. The plan and elevation preview, the validation results, the assumptions, the BOM/takeoff, the client package, the internal quote package, the generated documents and the audit history are all <b>derived from the same revision</b>. There are no independent screen-only models. A configuration change either updates every derived output or it updates none of them.</p>
+  </div>
+  <p>Concretely this means the revision is the only thing that is <em>stored as fact</em>. Everything downstream is a function of it:</p>
+<pre><code>derive(revision) → { layout, findings, assumptions, bom, displayList }</code></pre>
+  <p>Derived rows are persisted (they are expensive and we need them queryable), but they are <b>caches with a provenance key</b>, not sources of truth. Each derived row carries the <code>revision_hash</code> and <code>engine_version</code> it was produced under, and any row whose key does not match the current revision is invalid and is recomputed rather than displayed. This is the mechanism that makes "no screen-only model" enforceable rather than aspirational.</p>
+
+  <figure id="fig4">
+    <div class="fig-scroll">
+    <svg viewBox="0 0 1180 770" role="img" aria-label="Entity relationship diagram: organizations own projects which own revisions; a revision owns facility, unit and option inputs, pins a catalog release and a rule pack release, and derives layout, findings, assumptions and BOM lines; BOM lines reference part revisions and findings reference rules; a submission and its audit chain hang off the revision.">
+      <defs>
+        <marker id="er" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a"/></marker>
+        <marker id="er-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a-a"/></marker>
+      </defs>
+
+      <text x="60" y="24" class="s-hd">TENANCY &amp; IDENTITY</text>
+      <rect x="60" y="34" width="200" height="72" rx="7" class="s-box"/>
+      <text x="70" y="53" class="s-t">organization</text>
+      <text x="70" y="70" class="s-t2">id · name · status</text>
+      <text x="70" y="84" class="s-t2">is_internal (bool)</text>
+      <text x="70" y="98" class="s-t2">← the tenant root</text>
+
+      <rect x="290" y="34" width="170" height="72" rx="7" class="s-box"/>
+      <text x="300" y="53" class="s-t">user</text>
+      <text x="300" y="70" class="s-t2">id · email · name</text>
+      <text x="300" y="84" class="s-t2">actor_type</text>
+      <text x="300" y="98" class="s-t2">status · mfa_enrolled</text>
+
+      <rect x="490" y="34" width="180" height="72" rx="7" class="s-box"/>
+      <text x="500" y="53" class="s-t">membership</text>
+      <text x="500" y="70" class="s-t2">user_id · org_id</text>
+      <text x="500" y="84" class="s-t2">role · granted_by</text>
+      <text x="500" y="98" class="s-t2">granted_at</text>
+
+      <rect x="700" y="34" width="200" height="72" rx="7" class="s-box"/>
+      <text x="710" y="53" class="s-t">invitation</text>
+      <text x="710" y="70" class="s-t2">token_hash · org_id · role</text>
+      <text x="710" y="84" class="s-t2">invited_email · expires_at</text>
+      <text x="710" y="98" class="s-t2">accepted_at · revoked_at</text>
+
+      <line x1="460" y1="70" x2="484" y2="70" class="s-ln" marker-end="url(#er)"/>
+      <line x1="490" y1="82" x2="266" y2="82" class="s-ln" marker-end="url(#er)"/>
+      
+      <rect x="430" y="140" width="330" height="72" rx="7" class="s-box"/>
+      <text x="444" y="160" class="s-t">project</text>
+      <text x="444" y="177" class="s-t2">id · organization_id · number · name</text>
+      <text x="444" y="191" class="s-t2">created_by (internal) · status</text>
+      <text x="444" y="205" class="s-t2">enabled_option_templates[]</text>
+      <polyline points="160,106 160,124 595,124 595,134" class="s-ln" marker-end="url(#er)"/>
+      <text x="360" y="118" class="s-lbl">owns</text>
+
+      <rect x="430" y="250" width="330" height="190" rx="9" class="s-box-a"/>
+      <text x="444" y="272" class="s-t-a">revision</text>
+      <text x="444" y="290" class="s-t2">id · project_id · organization_id</text>
+      <text x="444" y="305" class="s-t2">revision_code (P01 / C01) · iteration</text>
+      <text x="444" y="320" class="s-t2">lifecycle_state · audience (client|internal)</text>
+      <text x="444" y="335" class="s-t2">parent_revision_id · derived_from_revision_id</text>
+      <text x="444" y="350" class="s-t2">catalog_release_id · rule_pack_release_id ← pins</text>
+      <text x="444" y="365" class="s-t2">content_hash (SHA-256 of canonical JSON)</text>
+      <text x="444" y="380" class="s-t2">created_by · created_at · frozen_at</text>
+      <text x="444" y="401" class="s-tt">THE ONLY STORED FACT</text>
+      <text x="444" y="422" class="s-t2">frozen ⇒ UPDATE / DELETE revoked in the database</text>
+      <line x1="595" y1="212" x2="595" y2="244" class="s-ln" marker-end="url(#er)"/>
+
+      <polyline points="430,268 404,268 404,232 500,232 500,244" class="s-ln-a" marker-end="url(#er-a)"/>
+      <text x="400" y="224" class="s-t-a" text-anchor="end">self: parent_revision_id · derived_from_revision_id</text>
+
+      <text x="60" y="244" class="s-hd">OWNED BY THE REVISION</text>
+      <rect x="60" y="256" width="310" height="62" rx="7" class="s-box"/>
+      <text x="70" y="275" class="s-t">facility_input</text>
+      <text x="70" y="292" class="s-t2">address · gross_area · clear_height</text>
+      <text x="70" y="306" class="s-t2">column_grid · every field: value | NOT_KNOWN</text>
+      <rect x="60" y="332" width="310" height="62" rx="7" class="s-box"/>
+      <text x="70" y="351" class="s-t">unit_input</text>
+      <text x="70" y="368" class="s-t2">unit_ref · bounds · clear_height</text>
+      <text x="70" y="382" class="s-t2">pallet · handling equipment · sprinklered</text>
+      <rect x="60" y="408" width="310" height="76" rx="7" class="s-box"/>
+      <text x="70" y="427" class="s-t">option</text>
+      <text x="70" y="444" class="s-t2">unit_id · label · template (SELECTIVE_PALLET)</text>
+      <text x="70" y="458" class="s-t2">is_selected_for_submission</text>
+      <text x="70" y="472" class="s-t2">run/bay/level entity graph with stable ids</text>
+      <rect x="60" y="498" width="310" height="62" rx="7" class="s-box"/>
+      <text x="70" y="517" class="s-t">option_parameter</text>
+      <text x="70" y="534" class="s-t2">key · value (µm) · unit · origin</text>
+      <text x="70" y="548" class="s-t2">origin ∈ INPUT | DERIVED | CATALOG | RULE | UNKNOWN</text>
+
+      <line x1="424" y1="288" x2="376" y2="288" class="s-ln" marker-end="url(#er)"/>
+      <line x1="424" y1="345" x2="376" y2="360" class="s-ln" marker-end="url(#er)"/>
+      <line x1="424" y1="400" x2="376" y2="440" class="s-ln" marker-end="url(#er)"/>
+      <line x1="215" y1="484" x2="215" y2="492" class="s-ln" marker-end="url(#er)"/>
+
+      <text x="830" y="130" class="s-hd">PINNED REFERENCE — VERSIONED</text>
+      <rect x="830" y="142" width="290" height="66" rx="7" class="s-box-i"/>
+      <text x="840" y="161" class="s-t">catalog_release</text>
+      <text x="840" y="178" class="s-t2">manufacturer · rev · status · effective_from</text>
+      <text x="840" y="192" class="s-t2">source_document · digitised_by · approved_by</text>
+      <rect x="830" y="222" width="290" height="66" rx="7" class="s-box-i"/>
+      <text x="840" y="241" class="s-t">part_revision</text>
+      <text x="840" y="258" class="s-t2">part_id · rev · catalog_release_id</text>
+      <text x="840" y="272" class="s-t2">mfr_part_number · geometry · capacity_case[]</text>
+      <rect x="830" y="302" width="290" height="66" rx="7" class="s-box-i"/>
+      <text x="840" y="321" class="s-t">rule_pack_release</text>
+      <text x="840" y="338" class="s-t2">pack · rev · status · approved_by</text>
+      <text x="840" y="352" class="s-t2">effective_from</text>
+      <rect x="830" y="382" width="290" height="66" rx="7" class="s-box-i"/>
+      <text x="840" y="401" class="s-t">rule</text>
+      <text x="840" y="418" class="s-t2">id · standard · edition · section · value</text>
+      <text x="840" y="432" class="s-t2">verification_tier · source_note</text>
+      <line x1="975" y1="222" x2="975" y2="210" class="s-ln" marker-end="url(#er)"/>
+      <line x1="975" y1="382" x2="975" y2="370" class="s-ln" marker-end="url(#er)"/>
+      <polyline points="766,300 800,300 800,175 824,175" class="s-ln-a" marker-end="url(#er-a)"/>
+      <polyline points="766,312 800,312 800,335 824,335" class="s-ln-a" marker-end="url(#er-a)"/>
+      <text x="800" y="292" class="s-t-a">pins</text>
+
+      <text x="830" y="480" class="s-hd">DERIVED — NEVER EDITED DIRECTLY</text>
+      <rect x="830" y="492" width="290" height="54" rx="7" class="s-box"/>
+      <text x="840" y="511" class="s-t">derived_layout</text>
+      <text x="840" y="528" class="s-t2">plan + elevation display list · counts · revision_hash</text>
+      <rect x="830" y="556" width="290" height="54" rx="7" class="s-box"/>
+      <text x="840" y="575" class="s-t">finding</text>
+      <text x="840" y="592" class="s-t2">code · severity · rule_id · parameters · closed_by</text>
+      <rect x="830" y="620" width="290" height="54" rx="7" class="s-box"/>
+      <text x="840" y="639" class="s-t">assumption</text>
+      <text x="840" y="656" class="s-t2">key · assumed_value · why · acknowledged_at</text>
+      <rect x="830" y="684" width="290" height="60" rx="7" class="s-box-s"/>
+      <text x="840" y="703" class="s-t-s">bom_line — INTERNAL ONLY</text>
+      <text x="840" y="720" class="s-t2">part_revision_id · qty | UNRESOLVED · rule_text</text>
+      <text x="840" y="734" class="s-t2">confirmed · item_snapshot · source_object_ids</text>
+
+      <polyline points="766,430 796,430 796,519 824,519" class="s-ln" marker-end="url(#er)"/>
+      <polyline points="796,519 796,583 824,583" class="s-ln" marker-end="url(#er)"/>
+      <polyline points="796,583 796,647 824,647" class="s-ln" marker-end="url(#er)"/>
+      <polyline points="796,647 796,714 824,714" class="s-ln" marker-end="url(#er)"/>
+      <text x="802" y="452" class="s-lbl">derives</text>
+
+      <polyline points="1120,714 1150,714 1150,255 1126,255" class="s-ln" marker-end="url(#er)"/>
+      <polyline points="1120,590 1136,590 1136,415 1126,415" class="s-ln" marker-end="url(#er)"/>
+
+      <rect x="430" y="500" width="330" height="96" rx="7" class="s-box-o"/>
+      <text x="444" y="522" class="s-t-o">submission</text>
+      <text x="444" y="540" class="s-t2">revision_id · manifest_hash · prev_hash · this_hash</text>
+      <text x="444" y="555" class="s-t2">submitted_by · submitted_at · manifest_uri (WORM)</text>
+      <text x="444" y="570" class="s-t2">request_status · sla_ack_at · sla_quote_due</text>
+      <text x="444" y="586" class="s-t2">supersedes_submission_id · decline_reason</text>
+      <line x1="595" y1="440" x2="595" y2="494" class="s-ln" marker-end="url(#er)"/>
+
+      <rect x="430" y="632" width="330" height="96" rx="7" class="s-box"/>
+      <text x="444" y="654" class="s-t">audit_event</text>
+      <text x="444" y="672" class="s-t2">sequence (ordering authority) · occurred_at · recorded_at</text>
+      <text x="444" y="687" class="s-t2">actor · actor_type · actor_org · subject_org · impersonated_by</text>
+      <text x="444" y="702" class="s-t2">action · resource · before/after · outcome · reason</text>
+      <text x="444" y="718" class="s-t2">prev_hash · hash — append-only, never updated</text>
+      <line x1="595" y1="596" x2="595" y2="626" class="s-ln" marker-end="url(#er)"/>
+      <polyline points="424,380 400,380 400,660 424,660" class="s-ln-d" marker-end="url(#er)"/>
+      <text x="396" y="620" class="s-lbl" text-anchor="end">every edit</text>
+      <text x="396" y="634" class="s-lbl" text-anchor="end">and refusal</text>
+    </svg>
+    </div>
+    <figcaption><b>Figure 4 · Canonical entity model.</b> The blue box is the only stored fact. Everything on the left is owned by it and dies with it; everything on the right top is <em>pinned</em> by it (a version reference, never a live lookup); everything on the right bottom is <em>derived</em> from it and carries the hash it was derived under. The two long right-hand edges are the traceability that makes a BOM defensible: a BOM line points at a <b>part revision</b>, never a part, and a finding points at a <b>rule</b> inside a pinned pack, never at a constant in the code.</figcaption>
+  </figure>
+
+  <h3>7.2 Entity reference</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Entity</th><th>Owned by</th><th>Key fields</th><th>Audience</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>organization</code></td><td>—</td><td><code>id, name, status, is_internal</code></td><td>Both</td><td>The tenant root. McMurray Stern is itself an organization with <code>is_internal = true</code>, so staff need no special-case in the data model.</td></tr>
+      <tr><td><code>user</code></td><td>—</td><td><code>id, email, name, actor_type, status</code></td><td>Both</td><td><code>actor_type</code> is denormalised onto the user so it can be read without a join in an RLS policy.</td></tr>
+      <tr><td><code>membership</code></td><td>org + user</td><td><code>user_id, organization_id, role, granted_by, granted_at</code></td><td>Both</td><td>A user may belong to exactly one organization in MVP-1. Multi-org membership is <a href="#s18">OD-05</a>.</td></tr>
+      <tr><td><code>invitation</code></td><td>org</td><td><code>token_hash, organization_id, role, invited_email, invited_by, expires_at, accepted_at, revoked_at</code></td><td>Internal</td><td>Never stores the plaintext token. Role and org live here, not in the URL.</td></tr>
+      <tr><td><code>project</code></td><td>org</td><td><code>id, organization_id, number, name, status, enabled_option_templates[]</code></td><td>Both</td><td>Created by internal staff and assigned to a client organization.</td></tr>
+      <tr><td><code>revision</code></td><td>project</td><td>see figure</td><td>Split by <code>audience</code></td><td>The spine. <code>audience = 'internal'</code> revisions are invisible to client principals — not "visible but locked".</td></tr>
+      <tr><td><code>facility_input</code></td><td>revision</td><td><code>address, gross_area, clear_height, column_grid, dock_positions</code>; every field is <code>{value, unit, origin} | NOT_KNOWN</code></td><td>Client-safe</td><td>A missing value is a first-class state, never a zero or a default.</td></tr>
+      <tr><td><code>unit_input</code></td><td>revision</td><td><code>unit_ref, bounds, clear_height, pallet, handling_equipment, sprinklered, commodity_class</code></td><td>Client-safe</td><td>One per tenancy/room/zone. This is what makes "three units, six options" a first-class case.</td></tr>
+      <tr><td><code>option</code></td><td>revision + unit</td><td><code>label, template, is_selected_for_submission</code>, plus a run/bay/level entity graph with stable ids</td><td>Client-safe</td><td>Entity graph rather than flat scalars, so an edit can name what it edited (<code>rack-studio</code> ADR-008).</td></tr>
+      <tr><td><code>option_parameter</code></td><td>option</td><td><code>key, value, unit, origin</code></td><td>Client-safe</td><td>Origin is carried on the value, not inferred later.</td></tr>
+      <tr><td><code>catalog_release</code></td><td>—</td><td><code>manufacturer, rev, status, effective_from, source_document, digitised_by, approved_by, content_hash</code></td><td>Internal</td><td><code>status ∈ DRAFT | APPROVED | SUPERSEDED | RETIRED</code>.</td></tr>
+      <tr><td><code>part</code> / <code>part_revision</code></td><td>catalog_release</td><td><code>part_id, rev, mfr_part_number, geometry, capacity_cases[]</code></td><td>Internal</td><td>Discontinued parts remain resolvable so a historical revision still renders; they are just not selectable for new work.</td></tr>
+      <tr><td><code>rule_pack_release</code> / <code>rule</code></td><td>—</td><td><code>standard, edition, section, value, verification_tier, source_note</code></td><td>Internal detail; client sees the outcome</td><td>Separate from the catalog because standards and part data churn on completely different clocks.</td></tr>
+      <tr><td><code>derived_layout</code></td><td>revision</td><td><code>display_list, counts, revision_hash, engine_version</code></td><td>Split projection</td><td>One display list, three renderers. Text entries carry <code>{text, established}</code>, never a bare string.</td></tr>
+      <tr><td><code>finding</code></td><td>revision</td><td><code>code, severity, rule_id, parameters[], closed_by, source_references[]</code></td><td>Split projection</td><td>See <a href="#s11">§11</a>. The client sees severity and <code>closed_by</code>; internal sees the citation and tier.</td></tr>
+      <tr><td><code>assumption</code></td><td>revision</td><td><code>key, assumed_value, why, acknowledged_by, acknowledged_at</code></td><td>Client-safe</td><td>Acknowledgement at submission is an audit event.</td></tr>
+      <tr><td><code>uncatalogued_part</code></td><td>revision</td><td><code>kind, measured_geometry{}, gauge | NOT_KNOWN, condition_note, source ∈ CLIENT_EXISTING | USED_STOCK</code>; <b>no</b> capacity field exists on this table</td><td>Client-safe</td><td>Material with no published capacity — a client's existing rack, or used stock. <b>Half of all jobs contain some</b> (<a href="#s18">OD-17</a>). Capacity is absent by schema, not blank by convention, so no code path can populate it.</td></tr>
+      <tr><td><code>bom_line</code></td><td>revision</td><td><code>part_ref = part_revision_id XOR uncatalogued_part_id</code>, <code>qty | UNRESOLVED, rule_text, confirmed, item_snapshot, source_object_ids[], uom</code></td><td><b>Internal only</b></td><td>Physically a separate table with its own policy requiring <code>actor_type = 'staff'</code>. Exactly one of the two part references is non-null, enforced by a check constraint.</td></tr>
+      <tr><td><code>submission</code></td><td>revision</td><td><code>manifest_hash, prev_hash, this_hash, manifest_uri, request_status, sla_*, supersedes_submission_id, decline_reason</code></td><td>Split projection</td><td>The commercial record. Status lives here; the revision stays frozen regardless of status.</td></tr>
+      <tr><td><code>audit_event</code></td><td>—</td><td>see figure</td><td>Internal (client admin sees own-org subset)</td><td>Append-only, hash-chained, ordered by sequence not timestamp.</td></tr>
+      <tr><td><code>document</code> / <code>document_issue</code></td><td>revision</td><td><code>doc_number, revision_code, status_code, disclaimer_version_id, manifest_hash, issued_to, issued_at, superseded_by</code></td><td>Split projection</td><td>The issue register answers "who received P02 and did they get P03".</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>7.3 Value representation</h3>
+  <p>Three conventions, all lifted from the reference projects because they were the hardest-won lessons there:</p>
+  <ol>
+    <li><b>Fixed-point integers, stored in micrometres.</b> Lengths are integer <code>µm</code>; loads and capacities are integer <b>millipounds</b>. Division that is not exact is refused; quantities that must be split are <code>allocate()</code>d so the remainder goes somewhere explicit rather than into floating-point drift. <code>rack-studio/packages/units</code> is a complete, 100%-branch-covered implementation of the pattern, based on <code>mil</code> — the base changes, the mechanics do not.</li>
+    <li><b>Why micrometres and not millimetres.</b> One inch is 25.4&nbsp;mm exactly, so every published inch value is a whole number of µm (48&Prime;&nbsp;=&nbsp;1,219,200&nbsp;µm; the 5.92&Prime; beam face = 150,368&nbsp;µm) <em>and</em> every whole millimetre is a whole number of µm. Integer millimetres cannot do this: 48&Prime; is 1219.2&nbsp;mm, and rounding it to 1219 reads back as 47.9921&Prime;, which no longer matches the published lookup key. <b>18 of the 21 published spans miss their own key under integer-mm storage</b>, silently turning every lookup off-grid and destroying the one behaviour the engine is built around (<a href="#s10">§10.4</a>). Micrometres give a metric base with none of the loss.</li>
+    <li><b>Unit and origin travel with the value.</b> A number is <code>{value, unit, origin}</code>, where <code>origin ∈ INPUT | DERIVED | CATALOG | RULE | UNKNOWN</code>. Adding two values with different units raises rather than silently converting — because a silent foot-to-inch conversion puts a number in a package that nobody entered.</li>
+    <li><b>Per-basis units are not convertible.</b> A capacity published "per pair" is <code>lb/pr</code>, and converting it to <code>lb</code> is refused, because in a general-purpose unit library that conversion is a silent no-op that turns a per-pair capacity into a per-beam one. <code>rack-engine/model/quantity.py</code> encodes this as <code>BASIS_BOUND</code>; it is worth carrying over verbatim.</li>
+  </ol>
+
+  <h3>7.4 Canonical serialisation and hashing</h3>
+  <p>The revision's <code>content_hash</code> is <code>SHA-256</code> over a canonical JSON encoding: sorted keys, fixed number formatting, <code>undefined</code> dropped, explicit units, and a bounded recursion depth that <b>fails loudly</b> rather than truncating — a truncating hash is the one failure mode a hash must not have.</p>
+  <p>The hash covers <b>content only</b>. Lineage, timestamps, author and note are explicitly excluded, and that exclusion list is held as data so a test can assert it. Two revisions with identical content therefore have identical hashes, which is what makes "did this edit actually change anything?" a one-comparison question and what lets the artifact cache key be <code>sha256(revision_hash ‖ catalog_release ‖ rule_pack ‖ engine_version)</code>. Including <code>engine_version</code> in that key is deliberate: a bug fix must invalidate every cached artifact, because that is precisely how you find out which issued documents were affected.</p>
+  <div class="note warn">
+    <div class="t">Honest limit</div>
+    <p><code>SHA-256</code> here gives <b>tamper evidence</b>, not tamper proofing. It detects modification to anyone holding a later head hash. It does not stop a database superuser. That is why the head is anchored externally (<a href="#s13">§13.4</a>) and why customer-facing copy must say "tamper-evident, externally timestamped and independently re-verifiable" and never "tamper-proof".</p>
+  </div>
+
+  <h3>7.5 Derivation data flow</h3>
+  <figure id="fig5">
+    <div class="fig-scroll">
+    <svg viewBox="0 0 1180 470" role="img" aria-label="Data flow: client inputs feed a canonical revision which pins catalog and rule releases; layout calculation, validation and BOM derivation run in sequence from that revision and fan out into a client preview and an internal quote package, with every step writing audit events.">
+      <defs>
+        <marker id="dr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a"/></marker>
+        <marker id="dr-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a-a"/></marker>
+      </defs>
+
+      <rect x="392" y="42" width="712" height="50" rx="7" class="s-box-i"/>
+      <text x="748" y="63" class="s-t" text-anchor="middle">Pinned releases — catalog release + rule pack release</text>
+      <text x="748" y="80" class="s-t2" text-anchor="middle">resolved once, at the revision, and recorded inside the hashed content</text>
+      <line x1="472" y1="92" x2="472" y2="184" class="s-ln-d" marker-end="url(#dr)"/>
+      <line x1="656" y1="92" x2="656" y2="184" class="s-ln-d" marker-end="url(#dr)"/>
+      <line x1="840" y1="92" x2="840" y2="184" class="s-ln-d" marker-end="url(#dr)"/>
+
+      <rect x="24" y="190" width="160" height="80" rx="7" class="s-box"/>
+      <text x="104" y="216" class="s-t" text-anchor="middle">Client inputs</text>
+      <text x="104" y="233" class="s-t2" text-anchor="middle">facility · units</text>
+      <text x="104" y="247" class="s-t2" text-anchor="middle">requirements</text>
+      <text x="104" y="261" class="s-t2" text-anchor="middle">option parameters</text>
+
+      <rect x="208" y="190" width="160" height="80" rx="7" class="s-box-a"/>
+      <text x="288" y="216" class="s-t-a" text-anchor="middle">Draft revision</text>
+      <text x="288" y="233" class="s-t2" text-anchor="middle">canonical model</text>
+      <text x="288" y="247" class="s-t2" text-anchor="middle">stable entity ids</text>
+      <text x="288" y="261" class="s-t2" text-anchor="middle">content hash</text>
+
+      <rect x="392" y="190" width="160" height="80" rx="7" class="s-box"/>
+      <text x="472" y="216" class="s-t" text-anchor="middle">Layout calculation</text>
+      <text x="472" y="233" class="s-t2" text-anchor="middle">bay pitch · run length</text>
+      <text x="472" y="247" class="s-t2" text-anchor="middle">aisle clear width</text>
+      <text x="472" y="261" class="s-t2" text-anchor="middle">gross / lost / net positions</text>
+
+      <rect x="576" y="190" width="160" height="80" rx="7" class="s-box"/>
+      <text x="656" y="216" class="s-t" text-anchor="middle">Validation</text>
+      <text x="656" y="233" class="s-t2" text-anchor="middle">findings by severity</text>
+      <text x="656" y="247" class="s-t2" text-anchor="middle">assumptions register</text>
+      <text x="656" y="261" class="s-t2" text-anchor="middle">review-required flags</text>
+
+      <rect x="760" y="190" width="160" height="80" rx="7" class="s-box-s"/>
+      <text x="840" y="216" class="s-t-s" text-anchor="middle">BOM / takeoff</text>
+      <text x="840" y="233" class="s-t2" text-anchor="middle">qty + rule + confirmed</text>
+      <text x="840" y="247" class="s-t2" text-anchor="middle">part revision + snapshot</text>
+      <text x="840" y="261" class="s-t2" text-anchor="middle">unresolved register</text>
+
+      <line x1="184" y1="230" x2="202" y2="230" class="s-ln" marker-end="url(#dr)"/>
+      <line x1="368" y1="230" x2="386" y2="230" class="s-ln" marker-end="url(#dr)"/>
+      <line x1="552" y1="230" x2="570" y2="230" class="s-ln" marker-end="url(#dr)"/>
+      <line x1="736" y1="230" x2="754" y2="230" class="s-ln" marker-end="url(#dr)"/>
+
+      <polyline points="920,214 942,214 942,140 962,140" class="s-ln-o" marker-end="url(#dr)"/>
+      <polyline points="920,246 942,246 942,320 962,320" class="s-ln-s" marker-end="url(#dr)"/>
+
+      <rect x="962" y="106" width="194" height="70" rx="7" class="s-box-o"/>
+      <text x="1059" y="128" class="s-t-o" text-anchor="middle">Client preview</text>
+      <text x="1059" y="145" class="s-t2" text-anchor="middle">plan · elevation · counts</text>
+      <text x="1059" y="159" class="s-t2" text-anchor="middle">assumptions · findings</text>
+      <text x="1059" y="172" class="s-t2" text-anchor="middle">watermarked PDF</text>
+
+      <rect x="962" y="286" width="194" height="70" rx="7" class="s-box-s"/>
+      <text x="1059" y="308" class="s-t-s" text-anchor="middle">Internal package</text>
+      <text x="1059" y="325" class="s-t2" text-anchor="middle">everything above, plus</text>
+      <text x="1059" y="339" class="s-t2" text-anchor="middle">BOM · part numbers · citations</text>
+      <text x="1059" y="352" class="s-t2" text-anchor="middle">source detail · internal notes</text>
+
+      <text x="1059" y="222" class="s-tt" text-anchor="middle">ONE REVISION</text>
+      <text x="1059" y="240" class="s-tt" text-anchor="middle">TWO PROJECTIONS</text>
+
+      <rect x="208" y="300" width="712" height="46" rx="7" class="s-box-o"/>
+      <text x="564" y="329" class="s-t-o" text-anchor="middle">Submit → freeze → canonical manifest → SHA-256 → WORM object store</text>
+      <polyline points="288,270 288,286 564,286 564,294" class="s-ln-o" marker-end="url(#dr)"/>
+
+      <rect x="24" y="386" width="1132" height="48" rx="7" class="s-box"/>
+      <text x="590" y="408" class="s-t" text-anchor="middle">Audit history — every edit, every refusal, every submission, every disposition</text>
+      <text x="590" y="424" class="s-t2" text-anchor="middle">written in the same transaction as the change · append-only · hash-chained · ordered by sequence</text>
+      <line x1="288" y1="346" x2="288" y2="380" class="s-ln-d" marker-end="url(#dr)"/>
+      <line x1="564" y1="346" x2="564" y2="380" class="s-ln-d" marker-end="url(#dr)"/>
+      <line x1="1059" y1="356" x2="1059" y2="380" class="s-ln-d" marker-end="url(#dr)"/>
+    </svg>
+    </div>
+    <figcaption><b>Figure 5 · Data flow from client input to internal review.</b> The chain runs strictly left to right and each stage consumes only the stage before it plus the pinned releases entering from the top. The divergence at the right is the whole commercial argument: <b>one revision, two projections</b>. The client branch and the internal branch are not two computations that could disagree — they are two filters over the same derived result, and the internal-only content is added, never the client content subtracted.</figcaption>
+  </figure>
+</section>

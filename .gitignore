@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Test and coverage
+coverage/
+.vitest/
+
+# Python (documentation toolchain only)
+__pycache__/
+*.py[cod]
+
+# Editor and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Local environment. Secrets live in a managed vault, never here (NFR-SEC-06).
+.env
+.env.*
+!.env.example
+
+# Scratch
+_*.txt
+_scratch/

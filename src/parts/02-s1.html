@@ -1,0 +1,73 @@
+<header class="masthead">
+  <div class="eyebrow">Research &amp; planning deliverable · not an implementation</div>
+  <h1>Rack Master Studio</h1>
+  <p class="lede">A client self-service pallet-rack configuration and quote-intake application. Clients do the early configuration work themselves inside controlled guardrails; McMurray Stern receives a structured, revision-pinned submission and keeps its catalog, BOM, pricing, estimating and engineering workflow behind a hard boundary.</p>
+  <div class="meta">
+    <span><b>Document</b> rack-master-studio-blueprint.html</span>
+    <span><b>Revision</b> Rev C (planning — decision set closed)</span>
+    <span><b>Date</b> 2026-08-31</span>
+    <span><b>Owner</b> EL — Project Manager / CAD, McMurray Stern</span>
+    <span><b>Status</b> All 21 decisions taken · <span class="chip c-warn">Awaiting approval to build</span></span>
+  </div>
+  <div class="note stop">
+    <div class="t">Scope fence — read first</div>
+    <p>This blueprint describes a <b>preliminary planning and quote-request</b> tool. Rack Master Studio is <b>not</b> an engineering-certification or code-compliance product. Nothing it produces asserts structural approval, manufacturer approval, PE approval, fire-protection approval, code compliance, or AHJ approval. Where a question requires an authority the product does not hold, the product's job is to <b>name the gap and stop</b>, not to answer.</p>
+  </div>
+</header>
+
+<section id="s1">
+  <h2 class="sh"><span class="num">01</span>Executive overview and the business problem</h2>
+
+  <h3>What is happening today</h3>
+  <p>A client asks for preliminary rack-layout options. A building with three units and two schemes per unit is six layouts. Each one is drawn by hand by an internal designer: bay sizing, beam elevations, aisle widths, flue and column resolution, a plan, an elevation, a pallet-position count. That is days of skilled drafting work, performed <em>before</em> anyone has committed to buying anything.</p>
+  <p>Two things then go wrong, and both cost real money:</p>
+  <ul>
+    <li><b>The work is unpriced.</b> Six preliminary options is a design engagement billed at zero. It is absorbed as a cost of quoting.</li>
+    <li><b>The work is portable.</b> A drawing produced to win the job travels. A client can and does take our plan, our bay sizing and our pallet count to another vendor and ask them to price it. We paid to design the job and someone else quotes it.</li>
+  </ul>
+
+  <h3>The shift</h3>
+  <p>Rack Master Studio moves the <em>early configuration</em> work to the client, and keeps the <em>valuable</em> work inside. The client explores options in a tool that will not let them produce nonsense; we receive a structured package that is far more useful to estimating than an email; and the thing the client can walk away with is deliberately less transferable than a finished drawing.</p>
+
+  <div class="cards">
+    <div class="card"><h5>Client gets</h5><p>Fast, self-service option exploration; a preliminary plan and elevation; a pallet-position count; a clear list of what is still unknown; a real submission channel.</p></div>
+    <div class="card"><h5>We stop giving away</h5><p>Manufacturer part numbers, catalog source detail, capacity tables, BOM quantities, procurement-ready exports, pricing, margin, internal notes.</p></div>
+    <div class="card"><h5>We gain</h5><p>Structured intake instead of a phone call; an internal BOM/takeoff derived on arrival; assumptions and review flags written down; a revision history that survives the argument six months later.</p></div>
+    <div class="card"><h5>We keep</h5><p>The design authority. Every client-facing output is stamped preliminary and is explicitly not an installation drawing, an engineered design, or an approval.</p></div>
+  </div>
+
+  <h3>The value-protection argument, stated plainly</h3>
+  <p>The protection is not achieved by watermarking a drawing. It is achieved by <b>what the client is never given</b>, and that is an architecture decision, not a UI decision:</p>
+  <ul>
+    <li>The client sees <b>geometry and counts</b>. They do not see the parts that realise that geometry.</li>
+    <li>A preliminary plan without a bill of materials, without part numbers, and without capacities is meaningfully harder to hand to a competitor as a quote package than a drawing with a schedule on it.</li>
+    <li>Client-visible output is <b>generated from a different projection of the same revision</b> than the internal package — see <a href="#s9">§9</a> and <a href="#fig6">Figure&nbsp;6</a>. Internal fields are not filtered out late; they live in tables a client-facing query cannot reach.</li>
+  </ul>
+  <div class="note">
+    <div class="t">Honest framing</div>
+    <p>This raises the cost of shopping our work; it does not make it impossible. A determined client can retype dimensions into another vendor's form. What the product buys is that they must re-do the configuration work themselves, rather than forwarding a PDF we paid to produce. That is the realistic goal, and the roadmap should not promise more.</p>
+  </div>
+
+  <h3>Why a model-first product, and not a drawing tool</h3>
+  <p>The four prior projects (<a href="#s17">§17</a>) collectively demonstrate one thing: the moment the screen and the calculation disagree, everything downstream is untrustworthy. <code>rack-takeoff</code> keeps its state in DOM input values and triplicates its math across three HTML files. <code>rack-studio</code> has a typed package tree <em>and</em> an independent single-file prototype that implements the same domain differently. In both cases a change in one place silently fails to reach the other.</p>
+  <p>Rack Master Studio therefore has <b>one canonical, revision-pinned project model</b>. The plan preview, the elevation, the validation results, the assumptions, the BOM/takeoff, the client package, the internal package, the documents and the audit history are all <b>derived</b> from the same revision. There is no screen-only state. A configuration change updates every derived output or it updates none of them.</p>
+
+  <h3>The governing principle, carried forward</h3>
+  <p>From <code>rack-engine/CLAUDE.md</code>, worth keeping verbatim as product policy:</p>
+  <div class="note ok">
+    <div class="t">Product constitution</div>
+    <p><b>Never guess. Preserve provenance. Surface uncertainty.</b> For an engineering system an explicit <code>UNKNOWN</code>, <code>OFF_GRID</code>, <code>MISSING INPUT</code> or <code>BLOCKED</code> is substantially better than a plausible but unsupported number.</p>
+  </div>
+  <p>In a client-facing product this principle gets <em>harder</em>, not easier. A blank in an internal tool is an estimator's cue to go find the number. A blank in a client-facing tool is a support ticket. The design answer is not to fill the blank — it is to <b>name what is missing, say who can supply it, and let the client submit anyway with the gap recorded</b>. See <a href="#s11">§11</a>.</p>
+
+  <h3>What success looks like at the end of MVP-1</h3>
+  <ol>
+    <li>An internal user invites a named client contact at a named organization. No public signup exists.</li>
+    <li>That client enters a building, one or more units, and their operational requirements.</li>
+    <li>They build two controlled selective-pallet-rack options, see a preliminary plan and elevation, and see exactly what is missing or assumed.</li>
+    <li>They select one and submit it for quote.</li>
+    <li>The submitted revision is frozen, hashed, and cannot be edited by anyone — client or internal.</li>
+    <li>An internal user opens it, sees an internal-only BOM/takeoff with every quantity traced back to a rule and a catalog release, and creates a derived working revision without touching the client's record.</li>
+  </ol>
+  <p class="sub">Everything else — automated pricing, DWG/DXF export to the client, engineering calculations, multi-vendor catalogs, CAD editing, public self-signup — is explicitly out of MVP-1. See <a href="#s15">§15</a> and <a href="#s19">§19</a>.</p>
+</section>

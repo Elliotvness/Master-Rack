@@ -1,0 +1,190 @@
+<section id="s6">
+  <h2 class="sh"><span class="num">06</span>Recommended web architecture and rationale</h2>
+
+  <h3>6.1 The shape</h3>
+  <p>A conventional server-rendered/SPA web application on a managed Postgres, with one unconventional and load-bearing decision: <b>the derivation kernel is a single pure module, compiled once, that runs unchanged in the browser and on the server.</b> The browser runs it for the live preview; the server runs the identical module when a submission is frozen and when the internal BOM is produced. There is no second implementation to drift.</p>
+  <p>This is the direct lesson of the four reference projects. <code>rack-takeoff</code> has the same 126 lines of takeoff math byte-identically triplicated across three HTML files. <code>rack-studio</code> has a typed <code>packages/</code> tree with roughly five checks and a single-file prototype with eleven, neither a superset of the other. <code>rack-app</code> and <code>rack-engine</code> are divergent siblings of one <code>rack_core</code>. Every one of those splits happened because deriving on the screen and deriving for the output were different code paths.</p>
+
+  <figure id="fig3">
+    <div class="fig-scroll">
+    <svg viewBox="0 0 1160 620" role="img" aria-label="System architecture: browser client and internal console call an API and BFF through an edge layer; configuration, derivation, document and notification services sit behind it over PostgreSQL with row-level security and a WORM object store; a single pure TypeScript derivation kernel is loaded unchanged by both the browser and the derivation worker, and consumes pinned catalog releases and rule packs.">
+      <defs>
+        <marker id="cr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a"/></marker>
+        <marker id="cr-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a-a"/></marker>
+      </defs>
+
+      <text x="30" y="26" class="s-hd">REQUEST PATH</text>
+      <text x="506" y="26" class="s-hd">SHARED DERIVATION KERNEL</text>
+      <text x="826" y="26" class="s-hd">PINNED INPUTS</text>
+
+      <rect x="24" y="40" width="452" height="100" rx="9" class="s-zone"/>
+      <text x="34" y="58" class="s-tt">BROWSER</text>
+      <rect x="36" y="68" width="210" height="60" rx="7" class="s-box"/>
+      <text x="141" y="90" class="s-t" text-anchor="middle">Client web app</text>
+      <text x="141" y="107" class="s-t2" text-anchor="middle">one organization · no internal fields</text>
+      <text x="141" y="120" class="s-t2" text-anchor="middle">ever reach this bundle</text>
+      <rect x="256" y="68" width="210" height="60" rx="7" class="s-box"/>
+      <text x="361" y="90" class="s-t" text-anchor="middle">Internal console</text>
+      <text x="361" y="107" class="s-t2" text-anchor="middle">all organizations · BOM,</text>
+      <text x="361" y="120" class="s-t2" text-anchor="middle">catalog, notes, disposition</text>
+
+      <rect x="36" y="170" width="430" height="42" rx="7" class="s-box"/>
+      <text x="251" y="196" class="s-t" text-anchor="middle">Edge — TLS 1.3 · HSTS · WAF · rate limits</text>
+
+      <rect x="36" y="240" width="430" height="76" rx="7" class="s-box-a"/>
+      <text x="251" y="262" class="s-t-a" text-anchor="middle">API / BFF</text>
+      <text x="251" y="280" class="s-t2" text-anchor="middle">opaque session auth · deny-by-default authorization middleware</text>
+      <text x="251" y="295" class="s-t2" text-anchor="middle">one DTO per (entity × audience) · outbound schema validation</text>
+      <text x="251" y="309" class="s-t2" text-anchor="middle">withTenant() transaction wrapper sets the RLS context</text>
+
+      <rect x="36" y="346" width="100" height="56" rx="7" class="s-box"/>
+      <text x="86" y="370" class="s-t" text-anchor="middle">Config</text><text x="86" y="386" class="s-t2" text-anchor="middle">service</text>
+      <rect x="146" y="346" width="100" height="56" rx="7" class="s-box-a"/>
+      <text x="196" y="370" class="s-t-a" text-anchor="middle">Derivation</text><text x="196" y="386" class="s-t2" text-anchor="middle">worker</text>
+      <rect x="256" y="346" width="100" height="56" rx="7" class="s-box"/>
+      <text x="306" y="370" class="s-t" text-anchor="middle">Document</text><text x="306" y="386" class="s-t2" text-anchor="middle">worker</text>
+      <rect x="366" y="346" width="100" height="56" rx="7" class="s-box"/>
+      <text x="416" y="370" class="s-t" text-anchor="middle">Notifier</text><text x="416" y="386" class="s-t2" text-anchor="middle">outbox</text>
+
+      <rect x="36" y="432" width="210" height="68" rx="7" class="s-box"/>
+      <text x="141" y="454" class="s-t" text-anchor="middle">PostgreSQL</text>
+      <text x="141" y="471" class="s-t2" text-anchor="middle">RLS on every tenant table</text>
+      <text x="141" y="485" class="s-t2" text-anchor="middle">client-safe ▏internal-only split</text>
+      <rect x="256" y="432" width="210" height="68" rx="7" class="s-box"/>
+      <text x="361" y="454" class="s-t" text-anchor="middle">Object store</text>
+      <text x="361" y="471" class="s-t2" text-anchor="middle">submission manifests · PDFs</text>
+      <text x="361" y="485" class="s-t2" text-anchor="middle">Object Lock · WORM retention</text>
+
+      <line x1="100" y1="140" x2="100" y2="164" class="s-ln" marker-end="url(#cr)"/>
+      <line x1="100" y1="212" x2="100" y2="234" class="s-ln" marker-end="url(#cr)"/>
+      <line x1="100" y1="316" x2="100" y2="340" class="s-ln" marker-end="url(#cr)"/>
+      <line x1="100" y1="402" x2="100" y2="426" class="s-ln" marker-end="url(#cr)"/>
+
+      <rect x="506" y="40" width="290" height="362" rx="9" class="s-box-a"/>
+      <text x="651" y="64" class="s-t-a" text-anchor="middle">Derivation kernel</text>
+      <text x="651" y="80" class="s-t2" text-anchor="middle">pure TypeScript · zero I/O · no clock · no RNG</text>
+      <rect x="522" y="92" width="258" height="34" rx="5" class="s-box"/>
+      <text x="534" y="113" class="s-t2">units — fixed-point µm + origin</text>
+      <rect x="522" y="134" width="258" height="34" rx="5" class="s-box"/>
+      <text x="534" y="155" class="s-t2">model — canonical graph, stable ids</text>
+      <rect x="522" y="176" width="258" height="34" rx="5" class="s-box"/>
+      <text x="534" y="197" class="s-t2">geom — obstruction faces + index</text>
+      <rect x="522" y="218" width="258" height="34" rx="5" class="s-box"/>
+      <text x="534" y="239" class="s-t2">derive — bay pitch, run length, counts</text>
+      <rect x="522" y="260" width="258" height="34" rx="5" class="s-box"/>
+      <text x="534" y="281" class="s-t2">checks — findings with citation + tier</text>
+      <rect x="522" y="302" width="258" height="34" rx="5" class="s-box"/>
+      <text x="534" y="323" class="s-t2">bom — lines with rule + confirmed</text>
+      <rect x="522" y="344" width="258" height="34" rx="5" class="s-box"/>
+      <text x="534" y="365" class="s-t2">hash — canonical JSON + SHA-256</text>
+
+      <polyline points="506,108 490,108 490,92 482,92" class="s-ln-a" marker-end="url(#cr-a)"/>
+      <polyline points="506,200 486,200 486,339 196,339 196,340" class="s-ln-a" marker-end="url(#cr-a)"/>
+      <text x="300" y="333" class="s-t-a" text-anchor="middle">the same module, at the same pinned version, in both places</text>
+
+      <rect x="826" y="40" width="300" height="66" rx="7" class="s-box-i"/>
+      <text x="976" y="62" class="s-t" text-anchor="middle">Catalog releases</text>
+      <text x="976" y="79" class="s-t2" text-anchor="middle">JSON + schema · source doc · page ref</text>
+      <text x="976" y="93" class="s-t2" text-anchor="middle">digitised-by ≠ approved-by · sha256</text>
+      <rect x="826" y="122" width="300" height="66" rx="7" class="s-box-i"/>
+      <text x="976" y="144" class="s-t" text-anchor="middle">Rule packs</text>
+      <text x="976" y="161" class="s-t2" text-anchor="middle">standard · edition · section · value</text>
+      <text x="976" y="175" class="s-t2" text-anchor="middle">verification tier caps the return</text>
+      <line x1="820" y1="73" x2="802" y2="73" class="s-ln" marker-end="url(#cr)"/>
+      <line x1="820" y1="155" x2="802" y2="155" class="s-ln" marker-end="url(#cr)"/>
+      <text x="976" y="216" class="s-t2" text-anchor="middle">A revision pins one release of each.</text>
+      <text x="976" y="232" class="s-t2" text-anchor="middle">The pins are inside the hashed content,</text>
+      <text x="976" y="248" class="s-t2" text-anchor="middle">so a catalog change cannot alter</text>
+      <text x="976" y="264" class="s-t2" text-anchor="middle">a submitted revision.</text>
+
+      <rect x="826" y="300" width="300" height="102" rx="7" class="s-box"/>
+      <text x="976" y="322" class="s-t" text-anchor="middle">Determinism contract</text>
+      <text x="976" y="341" class="s-t2" text-anchor="middle">every input is explicit and recorded:</text>
+      <text x="976" y="357" class="s-t2" text-anchor="middle">engine version · catalog release · rule pack</text>
+      <text x="976" y="373" class="s-t2" text-anchor="middle">rounding mode · unit system</text>
+      <text x="976" y="389" class="s-t2" text-anchor="middle">no now() · no live prices · no unordered iteration</text>
+
+      <text x="30" y="530" class="s-hd">EXTERNAL DEPENDENCIES — CONSUMED BY THE API AND WORKERS</text>
+      <rect x="36" y="544" width="256" height="46" rx="7" class="s-box"/>
+      <text x="164" y="566" class="s-t" text-anchor="middle">Identity provider</text><text x="164" y="581" class="s-t2" text-anchor="middle">OIDC · SCIM · passkeys</text>
+      <rect x="308" y="544" width="250" height="46" rx="7" class="s-box"/>
+      <text x="433" y="566" class="s-t" text-anchor="middle">Transactional email</text><text x="433" y="581" class="s-t2" text-anchor="middle">invitations · status only</text>
+      <rect x="574" y="544" width="268" height="46" rx="7" class="s-box"/>
+      <text x="708" y="566" class="s-t" text-anchor="middle">RFC 3161 timestamp authority</text><text x="708" y="581" class="s-t2" text-anchor="middle">daily audit head anchor</text>
+      <rect x="858" y="544" width="268" height="46" rx="7" class="s-box"/>
+      <text x="992" y="566" class="s-t" text-anchor="middle">Metrics · logs · alerting</text><text x="992" y="581" class="s-t2" text-anchor="middle">separate from the audit pipeline</text>
+    </svg>
+    </div>
+    <figcaption><b>Figure 3 · System architecture.</b> The two blue arrows out of the kernel are the point of the drawing: the browser preview and the server-side submission derivation load the <em>same compiled module at the same pinned version</em>, so a client can never see a number the internal package disagrees with. Remove those arrows and you get the four reference projects — a screen model and an output model that drift. On the right, the pinned catalog release and rule pack sit inside the hashed revision content, which is what makes a two-year-old submission re-renderable.</figcaption>
+  </figure>
+
+  <h3>6.2 Stack recommendation</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Layer</th><th>Recommendation</th><th>Why this, here</th></tr></thead>
+    <tbody>
+      <tr><td>Units</td><td>Integer <b>micrometres</b> for length, integer <b>millipounds</b> for load. US Customary displayed primary, metric in parentheses, derived one-way and never re-parsed as input.</td><td>Exact for every published inch value <em>and</em> every whole millimetre, so the no-interpolation lookup survives the dual-unit requirement (<a href="#s7">§7.3</a>).</td></tr>
+      <tr><td>Language</td><td>TypeScript end to end, <code>strict</code> plus <code>noUncheckedIndexedAccess</code> and <code>exactOptionalPropertyTypes</code></td><td>The kernel must run in the browser. One language removes the second implementation. The strict flags are already proven in <code>rack-studio</code>.</td></tr>
+      <tr><td>Frontend</td><td>React with a file-based router (Next.js or Remix/React Router), <b>two separate applications</b> — client and internal — built from a shared component library</td><td>Two bundles is the cheapest structural guarantee that internal DTO types and field <em>names</em> are never present in a client bundle — a single app with conditional rendering ships them in the JavaScript. It does not by itself stop an internal <em>value</em> in an API response; that is what the seven layers in <a href="#s14">§14.6</a> are for.</td></tr>
+      <tr><td>API</td><td>REST/RPC with a generated OpenAPI schema; <b>not GraphQL</b></td><td>GraphQL's value is client-driven field selection, which is exactly the property we are trying to eliminate. If GraphQL is ever adopted, it must be two schemas behind two endpoints.</td></tr>
+      <tr><td>Database</td><td>PostgreSQL 16+, managed. Migrations owned by a <code>migrator</code> role; the app runs as a non-owning <code>app_user</code> with no <code>BYPASSRLS</code>.</td><td>RLS is the backstop; ownership separation is what makes RLS real.</td></tr>
+      <tr><td>Query layer</td><td>A thin query builder (Kysely / Drizzle) over hand-written SQL, not a heavyweight ORM</td><td>Every query must be reviewable for its tenant predicate. Lazy-loading ORMs generate queries nobody reviewed — that is where over-fetch leaks come from.</td></tr>
+      <tr><td>Jobs</td><td>Transactional outbox in Postgres + a worker pool</td><td>An audit event and its business change must commit together; an email must not be sent for a transaction that rolled back.</td></tr>
+      <tr><td>Object storage</td><td>S3-compatible with versioning and Object Lock in Compliance mode</td><td>Submission manifests must survive an insider with database access. Compliance mode cannot be overridden by the account root.</td></tr>
+      <tr><td>Documents</td><td>Server-side PDF from the same display list the canvas draws</td><td>One display list, three renderers (canvas, SVG, PDF). A drawing that prints differently from the screen is a support burden and a liability.</td></tr>
+      <tr><td>Rendering</td><td>Canvas 2D with batched <code>Path2D</code> for the plan; inline SVG for elevations</td><td>Measured in <code>rack-studio/spikes/canvas-throughput</code>: batching took whole-building draw from 6.80 ms to 3.30 ms p95. Elevations are small and benefit from SVG's text and accessibility.</td></tr>
+      <tr><td>Python</td><td><b>Deferred.</b> Not in MVP-1 and not in phase 2.</td><td>The only genuine case for it is DXF via <code>ezdxf</code> and a stamped calc package via ReportLab/WeasyPrint. Both are out of scope. Introducing a second runtime before it is needed buys a deployment problem and no capability.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>6.3 Decisions this architecture makes, and what it rejects</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Decision</th><th>Chosen</th><th>Rejected, and why</th></tr></thead>
+    <tbody>
+      <tr><td>Deployment shape</td><td>Multi-tenant web application</td><td><b>Desktop application</b> — <code>rack-studio</code> ADR-012 item 1 chose this. It is incompatible with a client-facing self-service product and is explicitly reversed here (<a href="#s17">§17.5</a>).</td></tr>
+      <tr><td>Identity</td><td>Person-level identity with organization membership</td><td><b>Workstation identity</b> (<code>rack-studio</code> ADR-013 item 1) and <b>network-layer-only access</b> via Tailscale (<code>rack-engine</code> ADR-014). Neither can name a person or scope an organization.</td></tr>
+      <tr><td>Tenant isolation</td><td>Shared database + RLS + explicit predicates</td><td><b>Database per tenant</b> — internal staff need cross-organization views, which would become an N-database fan-out. Kept as a config-level escape hatch for a single enterprise client who demands it.</td></tr>
+      <tr><td>Internal data protection</td><td>Physically separate <code>*_internal</code> tables with their own policy</td><td><b>Field filtering in the serializer</b> — that converts a visible query bug into an invisible serialization bug. A client-facing query cannot leak what it cannot join to.</td></tr>
+      <tr><td>Configuration engine</td><td>Constraint layer for choices + pure parametric functions for quantities</td><td><b>One big rule engine</b> — ordering-dependent production rules are why configurators become unexplainable. Separating "what" from "how many" is what makes the greying-out explainable and the arithmetic auditable.</td></tr>
+      <tr><td>Authorization</td><td>One exhaustively tested <code>authorize(actor, action, resource)</code> function, table-driven, behind one middleware</td><td><b>An external policy engine</b> (OPA/Cedar/OpenFGA) — for five roles and one relationship chain it adds a network hop and a tuple-consistency problem for a policy set that fits in one file. Revisit at ~50 rules or when clients demand custom roles.</td></tr>
+      <tr><td>Session</td><td>Opaque server-side sessions in cookies</td><td><b>Stateless JWT</b> — server-side revocation is mandatory, which means server state exists anyway. JWTs are for machine-to-machine.</td></tr>
+      <tr><td>Catalog format</td><td>Declarative JSON/TOML validated against a schema</td><td><b>Executable Python loaded with <code>runpy.run_path</code></b> (<code>rack-engine/catalog/loader.py</code>) — acceptable for one vendored file in an internal tool, unacceptable the moment a catalog file could be uploaded.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>6.4 Repository layout</h3>
+<pre><code>rack-master-studio/
+  apps/
+    client-web/          React app for CLIENT_USER / CLIENT_ADMIN — cannot import internal DTOs
+    internal-web/        React app for INTERNAL_SALES / INTERNAL_ADMIN
+    api/                 HTTP layer, authz middleware, DTOs, route policy registry
+    worker/              derivation, document and notification jobs
+  packages/
+    kernel-units/        fixed-point + provenance          (pure)
+    kernel-model/        canonical project graph, hashing  (pure)
+    kernel-geom/         faces, clearance index            (pure)
+    kernel-derive/       geometry and counts               (pure)
+    kernel-checks/       validation findings               (pure)
+    kernel-bom/          takeoff lines                     (pure)
+    kernel-catalog/      release + rule-pack types         (pure)
+    display-list/        renderer-neutral drawing model    (pure)
+    render-canvas/  render-svg/  render-pdf/
+    contracts/           OpenAPI schema + shared DTO types
+    db/                  migrations, RLS policies, policy CI assertions
+  data/
+    catalog/&lt;mfr&gt;-&lt;rev&gt;/ manifest.json + parts + capacity tables
+    rules/&lt;pack&gt;-&lt;rev&gt;/   manifest.json + rules
+  fixtures/
+    golden/              derivation fixtures with expected values and tolerances
+    submissions/         historical manifests for the determinism harness
+  tools/
+    check-boundaries     no kernel package may import I/O, a framework, or an app
+    check-rls            every tenant table has RLS enabled, forced, and a policy
+    check-routes         every route declares an authorization policy
+    check-leakage        no client-reachable route emits a forbidden field
+    check-determinism    re-render historical manifests, assert byte-identical</code></pre>
+  <p class="sub">The five <code>tools/</code> checks are not nice-to-haves. Each one guards an invariant that a human reviewer will eventually miss, and each is cheap to write now and impossible to retrofit meaningfully once there are two hundred routes. <code>rack-studio</code> already ships working versions of the boundary checker and a provenance linter, including self-tests that write a violation and assert it is caught — port that pattern.</p>
+</section>

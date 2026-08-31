@@ -1,0 +1,196 @@
+<section id="s11">
+  <h2 class="sh"><span class="num">11</span>Validation model</h2>
+
+  <h3>11.1 Severity vocabulary</h3>
+  <p>Seven states. The vocabulary is exact and the words are part of the product — a status that means something slightly different on two screens is worse than no status.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Severity</th><th>Meaning</th><th>Blocks submission?</th><th>Client sees</th></tr></thead>
+    <tbody>
+      <tr><td><span class="chip c-ok">PASS</span></td><td>Checked against a primary source and satisfied.</td><td>No</td><td>Yes</td></tr>
+      <tr><td><span class="chip c-stop">BLOCKER</span></td><td>The configuration is internally inconsistent or physically impossible. Beams that do not fit the frame; a rack taller than the stated clear height; a tunnel wider than the run.</td><td><b>Yes</b></td><td>Yes, with what would clear it</td></tr>
+      <tr><td><span class="chip c-warn">WARNING</span></td><td>Allowed but likely to change under review. Aisle at the published minimum with no tolerance; a beam within 10% of its rated capacity.</td><td>No</td><td>Yes</td></tr>
+      <tr><td><span class="chip c-warn">MISSING INPUT</span></td><td>A value the check needs was never supplied, and the client can supply it. Names the field and who can answer.</td><td>No</td><td>Yes, prominently</td></tr>
+      <tr><td><span class="chip c-info">ASSUMPTION</span></td><td>The tool used a stated planning value in place of a missing one. Always names the value and the reason.</td><td>No — but must be acknowledged at submit</td><td>Yes, in the pre-submit confirmation</td></tr>
+      <tr><td><span class="chip c-info">ENGINEERING REVIEW REQUIRED</span></td><td>The rule exists but its verification tier does not permit this tool to conclude. A person with authority must look.</td><td>No</td><td>Yes, as "our team will review"</td></tr>
+      <tr><td><span class="chip c-neutral">NOT EVALUATED</span></td><td>The check exists but was not run, or its source is not established. <b>Never rendered as a pass.</b></td><td>No</td><td>Yes, named — not omitted</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note stop">
+    <div class="t">Two failure modes this vocabulary exists to prevent</div>
+    <p><b>Silence is not a pass.</b> A check that did not run must say so on the screen, not be absent from it. <code>rack-engine</code> renders <code>STABILITY / SEISMIC / PRELIM — NOT RUN</code> chips unconditionally for exactly this reason.<br>
+    <b>Missing input is not the same as engineering review.</b> One the client can fix in thirty seconds; the other needs a person with authority. Collapsing them — which the <code>rack-studio</code> prototype does with its five-state vocabulary — makes the client's actionable list unfindable inside a wall of things they cannot act on.</p>
+  </div>
+
+  <h3>11.2 A finding's outcome is derived from its provenance, never authored</h3>
+  <p>This is the rule that keeps the tool honest, and it was learned the expensive way. An adversarial review of the <em>Rack Screening Register</em> Rev A — prior screening-rule research by the product owner, separate from the four reference trees — found the prose scrupulously honest and the <em>returns</em> dishonest: <b>14 checks asserted a hard FAIL while the same check's own notes conceded the source had never been read.</b> Five survived as genuinely FAIL-capable.</p>
+  <p>So the outcome is computed, not typed:</p>
+<pre><code>outcome = min( check_result , ceiling_for( rule.verification_tier ) )
+
+# every outcome below is one of the seven states in 11.1 — no check may
+# invent an eighth, and the ceiling is applied by the framework, not the check
+
+PRIMARY            -&gt; PASS | BLOCKER
+REPRODUCED         -&gt; BLOCKER (carrying a cite-check stamp) | ENGINEERING REVIEW REQUIRED
+AHJ_INTERPRETATION -&gt; ENGINEERING REVIEW REQUIRED  (flagged: AHJ confirmation)
+SECONDARY          -&gt; ENGINEERING REVIEW REQUIRED
+NOT_FOUND          -&gt; NOT EVALUATED</code></pre>
+  <p>A developer cannot write a check that returns PASS against a secondary-sourced rule, because the ceiling is applied by the framework, not by the check.</p>
+
+  <h3>11.3 Finding shape</h3>
+<pre><code>Finding {
+  code                  stable enum, e.g. AISLE_CLEAR_SHORTFALL
+  severity              from §11.1, derived per §11.2
+  subject_object_ids[]  which run / bay / level / aisle it is about
+  parameters[]          { name, value, unit, established: bool }
+  closed_by             plain-English statement of what would resolve it
+  rule_id + rule_pack_release_id      internal only
+  citation              standard · edition · section · tier · source note — internal only
+  waived_by / waived_at / waiver_reason           internal only, and only for waivable codes
+}</code></pre>
+  <p>Two details matter disproportionately:</p>
+  <ul>
+    <li><b><code>established</code> on every parameter.</b> An unestablished parameter renders as <code>VERIFY</code>, never as a numeral. A number on a screen is a claim; if the model does not know it, the screen must not print it.</li>
+    <li><b><code>closed_by</code> is mandatory.</b> Every finding must be able to say what would close it. A finding with no path to resolution is a dead end, and clients will call about it.</li>
+  </ul>
+
+  <h3>11.4 MVP-1 check set</h3>
+  <p>Deliberately small, and deliberately drawn only from things this product can establish without an authority it does not hold. Checks 1, 2 and 7 apply only to catalog parts; check 12 is what fires in their place on uncatalogued material, and on half of all jobs it will.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>#</th><th>Check</th><th>Class</th><th>Source of truth</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Beam length compatible with the selected frame connector and depth</td><td>Blocker</td><td>Catalog release (both-ways compatibility)</td></tr>
+      <tr><td>2</td><td>Beam pair capacity vs level load, exact span only — never interpolated</td><td>Blocker; <b>Not evaluated</b> when the span is off-grid</td><td>Published capacity table</td></tr>
+      <tr><td>3</td><td>Level elevations distinct, monotonic, and within the frame height</td><td>Blocker</td><td>Geometry</td></tr>
+      <tr><td>4</td><td>Top of load within the stated clear height</td><td>Blocker</td><td>Client input + geometry</td></tr>
+      <tr><td>5</td><td>Aisle clear width vs the stated handling-equipment requirement, measured <b>between load faces</b>, never frame to frame</td><td>Blocker / Warning</td><td>Client input + rule pack</td></tr>
+      <tr><td>6</td><td>Pallet fits the bay: overhang front and rear allocated, not halved into a rounding error</td><td>Warning</td><td>Geometry</td></tr>
+      <tr><td>7</td><td>Selected part is published and not discontinued</td><td>Warning</td><td>Catalog release</td></tr>
+      <tr><td>8</td><td>Every value used in a derived output is established</td><td>Missing input</td><td>Provenance walker</td></tr>
+      <tr><td>9</td><td>Clear height not surveyed / column grid not resolved / commodity class not established</td><td>Missing input</td><td>Client input</td></tr>
+      <tr><td>10</td><td>Any citation used is below <code>PRIMARY</code> tier</td><td>Engineering review required</td><td>Rule pack tier</td></tr>
+      <tr><td>11</td><td>Sprinkler / flue geometry reported as a measured dimension with <b>no verdict attached</b></td><td>Not evaluated (informational)</td><td>Geometry only</td></tr>
+      <tr><td>12</td><td>Any uncatalogued part in the option — names the components and states that capacity cannot be established from geometry</td><td>Engineering review required</td><td>Part reference kind</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note warn">
+    <div class="t">Check 11, and why it is shaped this way</div>
+    <p>The product reports the dimension and refuses to judge it. Sprinkler clearance, flue width and commodity class are fire-protection questions with an authority behind them that this tool does not hold. Reporting "the transverse flue as configured is 6 inches" is a fact. Saying "compliant" is a claim we are not entitled to make, and one that a client would reasonably rely on.</p>
+  </div>
+
+  <h3>11.5 Overrides and waivers</h3>
+  <ul>
+    <li>A <b>client</b> can never waive anything. A blocker is a blocker.</li>
+    <li>An <b>internal</b> user can waive only finding codes explicitly marked waivable in the rule pack — never a capacity-table refusal, never an <code>OFF_GRID</code>, never a fire-protection informational.</li>
+    <li>A waiver requires a <b>named acceptor</b> and a reason, becomes an audit event, is stamped on every internal output, and is <b>never applied to a client-visible output</b>.</li>
+    <li>A waiver is scoped to one finding on one revision. It does not travel to a derived revision automatically — the derived revision re-derives and must be waived again if the finding recurs.</li>
+    <li>The authority question — <em>who may waive what</em> — is genuinely undecided (<a href="#s18">OD-09</a>). Until it is decided, the waiver function should <b>throw an error naming the open decision</b> rather than defaulting to permissive. <code>rack-studio</code> ships exactly this: <code>mayWaive()</code> raises <code>UndecidedAuthorityError</code> naming the ADR item. That is the correct behaviour and it should be copied, not resolved by guessing.</li>
+  </ul>
+
+  <h3>11.6 Assumptions register</h3>
+  <p>An assumption is a stated planning value used in place of a missing input. It is a first-class record, not a footnote:</p>
+<pre><code>Assumption {
+  key                 e.g. "pallet.overhang.front"
+  assumed_value       { value, unit }
+  why                 "no pallet overhang supplied; planning default used"
+  scope               which objects it affected
+  acknowledged_by     the client user who confirmed it at submit
+  acknowledged_at
+}</code></pre>
+  <p>Assumptions appear in the pre-submit confirmation, in the client PDF, and at the top of the internal review package. The client's acknowledgement is an audit event and is what makes the internal conversation "you accepted a 4-inch overhang assumption" a fact rather than a recollection.</p>
+</section>
+
+<section id="s12">
+  <h2 class="sh"><span class="num">12</span>BOM and takeoff strategy</h2>
+
+  <h3>12.1 What the BOM is, and is not</h3>
+  <p>In MVP-1 the BOM is an <b>internal takeoff</b>: quantities of frames, beams, decks, spacers, footplates and anchors derived from the submitted configuration, with each quantity traceable to the rule that produced it and the catalog part revision it resolved to. It is not a quote, it is not priced, and it is never shown to a client.</p>
+  <p>Terminology note: use <b>Sales BOM</b> or <b>Quote BOM</b>, never "SBOM" — as of 2026 that acronym means Software Bill of Materials essentially everywhere and using it here will confuse every technical reader.</p>
+  <p>The BOM chain, adopting standard PLM view names:</p>
+<pre><code>as-configured (client, preliminary, P-revision)
+    → as-quoted (internal, released, C-revision, contractual baseline)
+        → as-engineered
+            → as-installed</code></pre>
+  <p><b>MVP-1 builds only the first node</b> — <em>as-configured</em>, plus the internal takeoff derived from it. The <em>as-quoted</em> arrow is phase 3. When it is built, the <code>quote_bom</code> will record <code>derived_from_preliminary_bom_id</code> plus a line-level diff, so an estimator can see exactly what internal review changed from what the client configured — which is both an internal quality signal and the answer to "why is your quote different from what I laid out?"</p>
+
+  <h3>12.2 Line shape and the one schema decision that cannot be reversed</h3>
+<pre><code>BomLine {
+  bom_run_id
+  category            FRAME | BEAM | DECK | SPACER | FOOTPLATE | ANCHOR | ACCESSORY
+
+  -- exactly one of these two is non-null, enforced by a CHECK constraint --
+  part_revision_id      ← a REVISION, never a part id.  Non-negotiable.
+  uncatalogued_part_id  ← measured geometry, no SKU, no capacity.  half of all jobs.
+
+  qty                 integer  |  UNRESOLVED
+  uom                 UN/CEFACT code
+  rule_text           the quantity rule in words, e.g.
+                      "frames = (bays + 1) x rows; back-to-back rows do not share frames"
+  rule_id             + rule_pack_release_id
+  confirmed           bool — is this rule established, or a one-job observation?
+  item_snapshot       the catalog record, canonicalised and frozen at selection
+  source_object_ids[] which runs / bays / levels produced this line
+  unresolved_reason   non-null iff qty is UNRESOLVED
+}</code></pre>
+  <div class="note ok">
+    <div class="t">Two decisions that are cheap now and brutal later</div>
+    <p><b>(1) A part reference is a revision, or it is explicitly not a catalog part at all.</b> <code>part_revision_id</code> rather than <code>part_id</code> is how every PLM system versions a line back to a part revision, and it is what makes "we are obsoleting beam SKU 4412 — which open requests break?" a query instead of an archaeology project. The second branch matters just as much here: the job audit found that <b>two of four structural jobs involve material with no published capacity</b>, so a schema where every BOM line must resolve to a catalog part cannot represent half the work. Making that a nullable second reference now is a migration; retrofitting it later is a rewrite of every query that touches a BOM.<br>
+    <b>(2) Determinism.</b> No <code>now()</code>, no live prices, no unordered iteration, no locale-dependent formatting at calculation time. Every implicit input must become an explicit, recorded one. Both of these are far more expensive to retrofit than to build; everything else in this document can be added later with effort.</p>
+  </div>
+
+  <h3>12.3 Unresolved lines are a feature</h3>
+  <p>A quantity the rules cannot establish is emitted as an unresolved line carrying its reason. It is <b>never</b> a plausible number.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Line</th><th>MVP-1 state</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Upright frames</td><td><span class="chip c-ok">Confirmed</span> <code>(bays + 1) × rows</code></td><td>Geometric. Back-to-back rows do <b>not</b> share frames — the <code>+1</code> is where estimates go wrong, per <code>rack-takeoff/HANDOFF.md</code>.</td></tr>
+      <tr><td>Load beams</td><td><span class="chip c-ok">Confirmed</span> <code>bays × levels × 2 × rows</code></td><td>A pair per level.</td></tr>
+      <tr><td>Wedge anchors</td><td><span class="chip c-ok">Confirmed</span> <code>frames × 4</code></td><td>Verified against a delivered job: 3,812 / 953 = 4.000 exactly.</td></tr>
+      <tr><td>Wire decks</td><td><span class="chip c-stop">UNRESOLVED</span></td><td>Deck count per level depends on deck width and a support rule the catalog does not publish. The reference projects have three conflicting formulas (<code>len ≥ 132 ? 3 : 2</code>, <code>max(2, ceil(len/60))</code>, and a one-job observation of ≈1.14/bay). None is confirmable.</td></tr>
+      <tr><td>Row spacers</td><td><span class="chip c-stop">UNRESOLVED</span></td><td>Count depends on the fire/storage profile and flue width, which are not pinned. The reference implementation hardcodes a <code>12"</code> spec string while ignoring the editable flue field — a live defect.</td></tr>
+      <tr><td>Column protectors, pallet stops, end-of-aisle protectors</td><td><span class="chip c-stop">UNRESOLVED</span></td><td>Scope decisions, not derivations. An estimator supplies them.</td></tr>
+      <tr><td>Footplates / shims</td><td><span class="chip c-stop">UNRESOLVED</span></td><td>Depends on slab condition, which is not surveyed at this stage.</td></tr>
+      <tr><td>Any line on an <b>uncatalogued part</b></td><td><span class="chip c-ok">Quantity confirmed</span> · <span class="chip c-stop">capacity absent</span></td><td>The <em>count</em> is geometry and is as reliable as for a catalog part. The <em>capacity</em> does not exist and cannot be derived — the line carries the measured geometry and no number. This is a normal output, not a degraded one.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The governing sentence, from <code>rack-engine/CLAUDE.md</code> rule 9, is worth keeping on the wall:</p>
+  <div class="note">
+    <div class="t">Rule</div>
+    <p><b>A quantity nobody can defend is worse than a blank an estimator fills in.</b> Do not harden unresolved observations into rules.</p>
+  </div>
+  <p>Every unresolved line is an explicit, tracked opportunity: it names what the estimator had to supply by hand, which tells us exactly which rule to go source next. That register is the roadmap for BOM completeness.</p>
+
+  <h3>12.4 Traceability — from a BOM line back to everything</h3>
+  <p>For any BOM line the system must answer four questions <b>from stored data alone, with no recomputation</b>:</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Question</th><th>Answered by</th></tr></thead>
+    <tbody>
+      <tr><td>(a) Which configuration inputs produced this?</td><td><code>source_object_ids[]</code> → the option/run/bay/level entities in the revision, and the calc step's <code>used[]</code> input bindings in the manifest.</td></tr>
+      <tr><td>(b) Which catalog part, at which revision?</td><td><code>part_revision_id</code> → the frozen <code>item_snapshot</code> and the pinned <code>catalog_release_id</code>, with its source document and page reference.</td></tr>
+      <tr><td>(c) Which rule version produced the quantity?</td><td><code>rule_id</code> + <code>rule_pack_release_id</code> — PROV's <code>hadPlan</code>.</td></tr>
+      <tr><td>(d) What was the formula, with what numbers?</td><td>The evaluated expression tree: every operand, its unit, its origin, and the rounding applied at each step.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p><b>Ship "show your work" as a real internal feature.</b> Clicking any quantity opens the formula in symbols, then the same formula with substituted values and units, the rule that selected the part, and the catalog revision with its effective date. This is the strongest differentiator against spreadsheet-based estimating, and — just as valuably — estimators will find engine bugs with it. The five-section trace panel in <code>rack-engine/rack_app/panels.py</code> is a working reference implementation of exactly this; rebuild it as structured data plus components rather than string-concatenated HTML, and keep every branch, including the branch that shows <b>no table basis at all</b> for used material.</p>
+
+  <h3>12.5 Regeneration guarantee</h3>
+  <p>The BOM for a submitted revision must be <b>byte-identically regenerable</b> from the revision alone. This is not a nicety; it is the verification technique that makes the record defensible, borrowed directly from reproducible-builds practice:</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Reproducible builds</th><th>Rack Master Studio</th></tr></thead>
+    <tbody>
+      <tr><td>Recorded build environment</td><td><code>engine_version</code>, <code>catalog_release_id</code>, <code>rule_pack_release_id</code>, rounding mode, unit system</td></tr>
+      <tr><td>Deterministic build system</td><td>No <code>now()</code>, no RNG, no map-iteration-order dependence, no floating point in quantities, no network reads at calculation time</td></tr>
+      <tr><td>Verification by hash comparison</td><td><code>bom_hash</code> recomputed on demand and compared</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>A nightly CI job re-renders a sample of historical submissions and asserts byte-identical output. When it fails you have found either an unintended engine change or a leaked implicit input — and that job is itself the documented process evidence that the system "produces an accurate result", which is the standard evidentiary theory for authenticating a computer-generated record.</p>
+</section>

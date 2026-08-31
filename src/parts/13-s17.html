@@ -1,0 +1,293 @@
+<section id="s17">
+  <h2 class="sh"><span class="num">17</span>Reference-project inventory, reuse matrix and migration</h2>
+
+  <div class="note stop">
+    <div class="t">Change-control rule — absolute</div>
+    <p>The four projects under <code>C:\Rack Master\Resourse (do not delete or overwrite files)\</code> are <b>read-only research sources</b>. Nothing in them is edited, deleted, moved, renamed or written to, ever. Nothing found in them is assumed correct or final. This blueprint is the governing direction; where it contradicts a prior decision, the contradiction is recorded explicitly (<a href="#s17">§17.5</a>) rather than routed around.</p>
+  </div>
+
+  <h3>17.1 What each project is</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Project</th><th>Size</th><th>What it actually is</th><th>Its single most valuable asset</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>rack-engine</code></td>
+        <td>6,583 LOC Python, 33 files, 179 tests, 3 commits</td>
+        <td>A small, unusually disciplined, single-tenant, in-memory engineering calculator with an exceptional provenance story and no persistence, no auth, no users and no revisions.</td>
+        <td>Its <b>governing doctrine</b> — the twelve engineering rules, the priority order, and the mandated status vocabulary — plus the five-section provenance trace.</td>
+      </tr>
+      <tr>
+        <td><code>rack-app</code></td>
+        <td>16,289 LOC Python (core 9,273 / app 2,319 / tests 4,499), 367 test functions, 456 pass / 8 skip, 48 commits</td>
+        <td>A genuinely well-built headless engineering engine with a single-tenant internal editor. The deepest and most complete of the four.</td>
+        <td>The <b>verified catalog data</b> (378 beam rows and three frame tables reconciled 435/435 across two independent extractions) and its <code>model/{quantity,layout,revision,edit}</code> — an append-only, content-hashed, tamper-detecting revision store that already exists.</td>
+      </tr>
+      <tr>
+        <td><code>rack-studio</code></td>
+        <td>145 files; ~5,250 LOC TypeScript, ~7,400 lines of Markdown; 96 test cases; 14 ADRs; 116 backlog ids</td>
+        <td>A heavily documented, lightly implemented TypeScript monorepo — and its own audit says so. Five of its eleven declared packages have zero source files, and three more have zero tests.</td>
+        <td><code>packages/model/revision.ts</code>: the canonical revision-pinned lifecycle with deterministic hashing, deep-freeze on publish, refusals that list every reason, and <b>a refused transition that is itself an audit event</b>. This is the thing this product needs.</td>
+      </tr>
+      <tr>
+        <td><code>rack-takeoff</code></td>
+        <td>7 files, 4,839 lines, 282 KB; 400 + 878 assertions across two harnesses</td>
+        <td>Three generations of a single-file internal takeoff and budgetary estimator. No canvas, no SVG, no persistence, no server — state lives in DOM input values.</td>
+        <td>The <b>quantity rules and the institutional reasoning behind them</b>, recorded in <code>HANDOFF.md</code>: back-to-back rows do not share frames; tunnels change frame spec, not frame count; install runs off the new-material basis even for used rack.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <figure id="fig7">
+    <div class="fig-scroll">
+    <svg viewBox="0 0 1160 600" role="img" aria-label="Reuse and migration flow: the four reference projects pass through a per-asset triage gate that asks whether an asset is correct, sourced and survivable under multi-tenancy; assets are classified port, adapt, reference or reject, and flow into new kernel packages and data packs, into design decisions restated in this blueprint, or nowhere at all.">
+      <defs>
+        <marker id="mr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a"/></marker>
+        <marker id="mr-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a-a"/></marker>
+      </defs>
+
+      <text x="24" y="24" class="s-hd">READ-ONLY SOURCES</text>
+      <rect x="24" y="36" width="212" height="88" rx="7" class="s-box"/>
+      <text x="34" y="58" class="s-t">rack-engine</text>
+      <text x="34" y="76" class="s-t2">6,583 LOC · 179 tests</text>
+      <text x="34" y="90" class="s-t2">doctrine · provenance trace</text>
+      <text x="34" y="104" class="s-t2">378-row verified beam catalog</text>
+      <text x="34" y="118" class="s-t2">no auth · no persistence</text>
+
+      <rect x="24" y="146" width="212" height="88" rx="7" class="s-box"/>
+      <text x="34" y="168" class="s-t">rack-app</text>
+      <text x="34" y="186" class="s-t2">16,289 LOC · 456 tests pass</text>
+      <text x="34" y="200" class="s-t2">content-hashed revisions</text>
+      <text x="34" y="214" class="s-t2">4 VERIFIED capacity tables</text>
+      <text x="34" y="228" class="s-t2">7 QUARANTINED · NiceGUI UI</text>
+
+      <rect x="24" y="256" width="212" height="88" rx="7" class="s-box"/>
+      <text x="34" y="278" class="s-t">rack-studio</text>
+      <text x="34" y="296" class="s-t2">~5,250 LOC TS · 14 ADRs</text>
+      <text x="34" y="310" class="s-t2">revision lifecycle · units</text>
+      <text x="34" y="324" class="s-t2">5 of 11 packages empty</text>
+      <text x="34" y="338" class="s-t2">prototype duplicates packages</text>
+
+      <rect x="24" y="366" width="212" height="88" rx="7" class="s-box"/>
+      <text x="34" y="388" class="s-t">rack-takeoff</text>
+      <text x="34" y="406" class="s-t2">4,839 lines · 3 generations</text>
+      <text x="34" y="420" class="s-t2">quantity rules + reasoning</text>
+      <text x="34" y="434" class="s-t2">math triplicated verbatim</text>
+      <text x="34" y="448" class="s-t2">capacities + rates invented</text>
+
+      <rect x="284" y="170" width="180" height="150" rx="9" class="s-box-a"/>
+      <text x="374" y="196" class="s-t-a" text-anchor="middle">Triage, per asset</text>
+      <text x="374" y="220" class="s-t2" text-anchor="middle">Is it correct?</text>
+      <text x="374" y="238" class="s-t2" text-anchor="middle">Is it sourced, by a</text>
+      <text x="374" y="252" class="s-t2" text-anchor="middle">named second person?</text>
+      <text x="374" y="272" class="s-t2" text-anchor="middle">Does it survive multi-</text>
+      <text x="374" y="286" class="s-t2" text-anchor="middle">tenancy and a client</text>
+      <text x="374" y="300" class="s-t2" text-anchor="middle">audience?</text>
+
+      <polyline points="236,80 260,80 260,236 278,236" class="s-ln" marker-end="url(#mr)"/>
+      <polyline points="236,190 260,190 260,236 278,236" class="s-ln" marker-end="url(#mr)"/>
+      <polyline points="236,300 260,300 260,250 278,250" class="s-ln" marker-end="url(#mr)"/>
+      <polyline points="236,410 260,410 260,256 278,256" class="s-ln" marker-end="url(#mr)"/>
+
+      <rect x="516" y="40" width="160" height="70" rx="7" class="s-box-o"/>
+      <text x="596" y="66" class="s-t-o" text-anchor="middle">PORT</text>
+      <text x="596" y="84" class="s-t2" text-anchor="middle">take largely as-is</text>
+      <text x="596" y="99" class="s-t2" text-anchor="middle">retest, do not rewrite</text>
+
+      <rect x="516" y="132" width="160" height="70" rx="7" class="s-box-w"/>
+      <text x="596" y="158" class="s-t" text-anchor="middle">ADAPT</text>
+      <text x="596" y="176" class="s-t2" text-anchor="middle">shape is right,</text>
+      <text x="596" y="191" class="s-t2" text-anchor="middle">rework for tenancy</text>
+
+      <rect x="516" y="224" width="160" height="70" rx="7" class="s-box-i"/>
+      <text x="596" y="250" class="s-t" text-anchor="middle">REFERENCE</text>
+      <text x="596" y="268" class="s-t2" text-anchor="middle">read for the idea,</text>
+      <text x="596" y="283" class="s-t2" text-anchor="middle">write it fresh</text>
+
+      <rect x="516" y="316" width="160" height="70" rx="7" class="s-box-s"/>
+      <text x="596" y="342" class="s-t-s" text-anchor="middle">REJECT</text>
+      <text x="596" y="360" class="s-t2" text-anchor="middle">carry nothing —</text>
+      <text x="596" y="375" class="s-t2" text-anchor="middle">including the idea</text>
+
+      <polyline points="464,214 490,214 490,75 510,75" class="s-ln" marker-end="url(#mr)"/>
+      <polyline points="464,232 490,232 490,167 510,167" class="s-ln" marker-end="url(#mr)"/>
+      <polyline points="464,258 490,258 490,259 510,259" class="s-ln" marker-end="url(#mr)"/>
+      <polyline points="464,276 490,276 490,351 510,351" class="s-ln" marker-end="url(#mr)"/>
+
+      <rect x="726" y="40" width="410" height="162" rx="9" class="s-box-o"/>
+      <text x="742" y="64" class="s-t-o">New kernel packages, data packs and harnesses</text>
+      <text x="742" y="84" class="s-t2">kernel-units ← rack-studio/packages/units</text>
+      <text x="742" y="100" class="s-t2">kernel-model ← rack-studio revision.ts + rack-app model/</text>
+      <text x="742" y="116" class="s-t2">kernel-geom ← rack-studio spikes/clearance-query</text>
+      <text x="742" y="132" class="s-t2">kernel-checks / kernel-bom ← rack-engine + rack-takeoff rules</text>
+      <text x="742" y="148" class="s-t2">data/catalog ← 378 verified beam rows + 3 frame tables</text>
+      <text x="742" y="164" class="s-t2">fixtures/golden ← rack-studio expected values + Carson case</text>
+      <text x="742" y="180" class="s-t2">tools/ ← boundary check · provenance lint · a11y audit</text>
+      <text x="742" y="196" class="s-tt">no asset arrives without its test</text>
+
+      <rect x="726" y="224" width="410" height="70" rx="9" class="s-box-i"/>
+      <text x="742" y="248" class="s-t">Decisions restated in this blueprint</text>
+      <text x="742" y="266" class="s-t2">14 ADRs, the twelve engineering rules, the status vocabulary,</text>
+      <text x="742" y="282" class="s-t2">the takeoff reasoning, the code-research register and its conflicts</text>
+
+      <rect x="726" y="316" width="410" height="70" rx="9" class="s-box-s"/>
+      <text x="742" y="340" class="s-t-s">Nothing carried</text>
+      <text x="742" y="358" class="s-t2">NiceGUI / Pyodide UI · DOM-as-model · invented capacities and rates ·</text>
+      <text x="742" y="374" class="s-t2">desktop + workstation-identity decisions · quarantined tables</text>
+
+      <line x1="682" y1="75" x2="720" y2="90" class="s-ln-o" marker-end="url(#mr)"/>
+      <line x1="682" y1="167" x2="720" y2="140" class="s-ln" marker-end="url(#mr)"/>
+      <line x1="682" y1="259" x2="720" y2="259" class="s-ln" marker-end="url(#mr)"/>
+      <line x1="682" y1="351" x2="720" y2="351" class="s-ln-s" marker-end="url(#mr)"/>
+
+      <rect x="284" y="420" width="852" height="150" rx="9" class="s-box"/>
+      <text x="300" y="444" class="s-t">Migration rules</text>
+      <text x="300" y="466" class="s-t2">1 · The source trees are never modified. Ported code is copied into the new repository and re-tested there.</text>
+      <text x="300" y="484" class="s-t2">2 · No asset is ported without its test. An assertion that is not carried over is a claim that quietly stops being checked.</text>
+      <text x="300" y="502" class="s-t2">3 · Data is ported with every provenance field intact, and re-enters the QUARANTINED / PENDING state until a named second person approves it here.</text>
+      <text x="300" y="520" class="s-t2">4 · Nothing invented is ported. Every capacity, rate and multiplier without a cited source is dropped, and its absence becomes a tracked open item.</text>
+      <text x="300" y="538" class="s-t2">5 · Where two projects disagree, both readings are recorded as a conflict and neither is silently chosen.</text>
+      <text x="300" y="556" class="s-t2">6 · A reversed prior decision is written down as a reversal, with its reason — not deleted.</text>
+    </svg>
+    </div>
+    <figcaption><b>Figure 7 · Reuse and migration flow.</b> Triage runs per asset, not per project — all four projects contribute to PORT and all four contribute to REJECT. The three questions in the gate are the ones that actually discriminate: correctness, sourcing by a named second person, and survivability under multi-tenancy. The sixth migration rule is the one most likely to be skipped and most likely to be needed later: a reversed decision is written down, not deleted.</figcaption>
+  </figure>
+
+  <h3>17.2 Reuse matrix</h3>
+  <details open>
+    <summary><b>PORT</b> — take largely as-is, re-test in the new repository</summary>
+    <div class="body">
+    <div class="tw"><table class="compact">
+      <thead><tr><th>Asset</th><th>From</th><th>Goes to</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td><code>packages/units/src/*</code> (450 LOC, 100% branch)</td><td>rack-studio</td><td><code>kernel-units</code></td><td>Branded fixed-point integers, mandatory origin, allocate-never-divide, fail-closed provenance walkers bounded at depth 32. A solved problem that should not be re-solved — port the mechanics and re-base the unit from <code>mil</code> to <code>µm</code> per <a href="#s7">§7.3</a>.</td></tr>
+        <tr><td><code>packages/model/revision.ts</code> (444 LOC)</td><td>rack-studio</td><td><code>kernel-model</code></td><td>Deterministic canonical JSON with a depth bound that fails loudly, lifecycle state machine, refusals that list every reason, refusal-as-audit-event, deep freeze on publish, exported claim strings.</td></tr>
+        <tr><td><code>packages/model/document.ts</code>, <code>persist.ts</code></td><td>rack-studio</td><td><code>kernel-model</code></td><td>Branded ids, lookups returning <code>undefined</code> rather than throwing, schema-version refusal on load, hash mismatch refusal.</td></tr>
+        <tr><td><code>packages/catalog/src/types.ts</code> (168 LOC)</td><td>rack-studio</td><td><code>kernel-catalog</code></td><td>Pinned-release schema with status, approver, source document, bidirectional compatibility checking, and discontinued-but-still-renderable semantics.</td></tr>
+        <tr><td><code>packages/bom/src/index.ts</code></td><td>rack-studio</td><td><code>kernel-bom</code></td><td>Frozen item snapshots, quantity calculation in words, an unresolved register, propagated disclaimer.</td></tr>
+        <tr><td><code>spikes/clearance-query/bench.mjs</code></td><td>rack-studio</td><td><code>kernel-geom</code></td><td>The only existing implementation of the span-bucketed obstruction index — 1.34 ms p95 against 63.79 ms brute force, with agreement verified on all 901 sampled faces before speed was measured.</td></tr>
+        <tr><td><code>e2e/mvp.walkthrough.test.ts</code> (402 lines, 9 cases, 66 expects)</td><td>rack-studio</td><td><code>e2e/</code></td><td>The whole flow as an asserted transcript, ending in byte-identical BOM regeneration and a deep-frozen record.</td></tr>
+        <tr><td><code>fixtures/projects/*</code> + <code>build-reference.mjs</code></td><td>rack-studio</td><td><code>fixtures/golden</code></td><td>Eleven expected derived values with <code>mil</code>, inches, formula and a <code>deltaMil</code> against a 10-mil tolerance. <b>Wire them into the test run</b> — nothing consumes them today.</td></tr>
+        <tr><td><code>cap_beams_published</code> — 378 rows, 189 unique capacity points, 21 spans, 9 base family/series pairs</td><td>rack-engine / rack-app</td><td><code>data/catalog/</code></td><td>The most expensive asset in all four trees. Port every row and every provenance field verbatim; change only the container.</td></tr>
+        <tr><td><code>frame_capacity_published_2025/</code> — 3 tables, 435/435 cells reconciled across two extraction paths, human-signed</td><td>rack-app</td><td><code>data/catalog/</code></td><td>The best-provenanced asset anywhere in the four projects, and the model for how any future table is ingested.</td></tr>
+        <tr><td><code>checks/result.py</code> + <code>checks/beam.py</code> refusal ordering</td><td>rack-engine</td><td><code>kernel-checks</code></td><td>Six-status vocabulary, mandatory provenance block, and "basis before number" as the refusal order.</td></tr>
+        <tr><td><code>checks/affected.py</code></td><td>rack-engine</td><td><code>kernel-checks</code></td><td>One-hop, deliberately non-transitive propagation — exactly what a staleness view needs before it becomes noise nobody reads.</td></tr>
+        <tr><td><code>model/quantity.py</code> — especially <code>BASIS_BOUND</code></td><td>rack-engine</td><td><code>kernel-units</code></td><td>Per-pair capacities that refuse conversion to per-beam. The trap this closes is silent and expensive.</td></tr>
+        <tr><td><code>emit/bom.py</code> row shape: <code>qty + rule + confirmed</code></td><td>rack-engine</td><td><code>kernel-bom</code></td><td>Every quantity carries the rule that produced it and whether that rule is established.</td></tr>
+        <tr><td><code>test_architecture.py</code> AST purity scan</td><td>rack-app</td><td><code>tools/check-boundaries</code></td><td>Parametrised over every core file, plus a guard against vacuous globbing — so a new file is covered automatically.</td></tr>
+        <tr><td><code>lint-provenance.mjs</code>, <code>audit-ui.mjs</code></td><td>rack-studio</td><td><code>tools/</code></td><td>Both mutation-tested or self-tested; both catch a defect class assertions cannot.</td></tr>
+        <tr><td><code>CLAUDE.md</code> — 12 rules, priority order, status vocabulary, source hierarchy</td><td>rack-engine</td><td>Product policy</td><td>Carry verbatim, minus the anti-commercialisation clause (see §17.5).</td></tr>
+        <tr><td>The three exported claim strings (trail / published / external approval)</td><td>rack-studio</td><td>UI copy</td><td>A client-facing product needs these <em>more</em>, not less.</td></tr>
+        <tr><td><code>docs/CALC_PACKAGE.md</code> verbatim disclaimer + "the unit of the package is the configuration"</td><td>rack-app</td><td>Product policy</td><td>Already articulates the preliminary-vs-final boundary this product needs.</td></tr>
+      </tbody>
+    </table></div>
+    </div>
+  </details>
+
+  <details>
+    <summary><b>ADAPT</b> — the shape is right; rework for tenancy, audience and scale</summary>
+    <div class="body">
+    <div class="tw"><table class="compact">
+      <thead><tr><th>Asset</th><th>From</th><th>What must change</th></tr></thead>
+      <tbody>
+        <tr><td><code>rack_core/model/layout.py</code> (573 LOC) and <code>rack-engine/model/layout.py</code> (552 LOC)</td><td>rack-app + rack-engine</td><td>Entity shapes, construction-time validators and derived counts are right. Must add: owning organization, revision envelope, audience, and real plan geometry. Adopt <code>rack-engine</code>'s <code>BayType</code> grouping (a configuration, not a bay) and its <code>lost_positions</code> / picking-level distinction — <code>rack-app</code> re-derives configurations in its calc emitter because its model lost that grouping.</td></tr>
+        <tr><td><code>model/edit.py</code> 13-op delta protocol with optimistic <code>base</code></td><td>rack-app</td><td>The protocol is sound (<code>stale_base</code> is rejected, never merged). Needs an actor with an organization, and a decision on concurrent client editing.</td></tr>
+        <tr><td><code>rack_app/store/repo.py</code> append-only SQLite schema + <code>head_log</code></td><td>rack-app</td><td>Concepts port cleanly to Postgres with RLS. SQLite does not. The <code>head_log</code> — an append-only record of states a project passed <em>through</em> — is subtle and correct; keep it.</td></tr>
+        <tr><td><code>rack_app/service.py</code> (542 LOC) framework-free facade</td><td>rack-app</td><td>The shape survives if <code>project_id</code> becomes <code>(organization_id, project_id)</code>. The process-global service instance does not.</td></tr>
+        <tr><td><code>packages/derive</code> (280 LOC)</td><td>rack-studio</td><td>Arithmetic is sound — pitch, closing upright, allocated overhang, aisle as a max of published/safety/site with the governing term named. But it is purely one-dimensional; it needs the geometry layer before it can serve the obstruction model.</td></tr>
+        <tr><td><code>packages/checks</code> (495 LOC, 14 finding codes)</td><td>rack-studio</td><td>Excellent finding shape; roughly five of the needed checks and <b>zero unit tests</b>. The prototype's other checks must be re-implemented in TypeScript against a real rule pack.</td></tr>
+        <tr><td><code>compute()</code> + <code>configCost()</code> quantity rules</td><td>rack-takeoff</td><td>Already written as a pure function of <code>(config, project, rates)</code> — that part is genuinely good. Every constant inside it must be re-sourced or dropped, and the cost half is not built in MVP-1.</td></tr>
+        <tr><td><code>test_all.js</code> <code>ref()</code> reimplementation, 400 assertions</td><td>rack-takeoff</td><td>Reusable as a golden-value fixture. Note honestly what it is: a transcription of the same assumptions, so it proves the wiring, not the engineering.</td></tr>
+        <tr><td><code>webdemo.py</code> form and validation logic</td><td>rack-engine</td><td>"Collect every error, apply nothing partially, never re-implement a rule the model already enforces, never show a traceback" is exactly right for client self-service. The Pyodide transport is not.</td></tr>
+        <tr><td><code>emit/calc.py</code> configuration grouping and <code>ui_kit.elevation_svg</code></td><td>rack-app / rack-engine</td><td>Genuinely good elevation drawing with witnessed dimensions and one scale on both axes. Rebuild as a display-list renderer.</td></tr>
+        <tr><td><code>docs/CANVAS_PROTOCOL.md</code> §3 delta protocol and §5 staleness model</td><td>rack-app</td><td>Transfers directly. §1's single-tenant assumptions must be inverted.</td></tr>
+        <tr><td><code>tasks/backlog.md</code> — 116 ids</td><td>rack-studio</td><td>A real asset. Groups assuming a desktop single-tenant app do not survive.</td></tr>
+      </tbody>
+    </table></div>
+    </div>
+  </details>
+
+  <details>
+    <summary><b>REFERENCE</b> — read for the idea, then write it fresh</summary>
+    <div class="body">
+    <div class="tw"><table class="compact">
+      <thead><tr><th>Asset</th><th>From</th><th>What to take from it</th></tr></thead>
+      <tbody>
+        <tr><td><code>prototype/kernel.js</code> — 15 cited rules (4 PRIMARY, 11 SECONDARY), 11 checks</td><td>rack-studio</td><td>Harvest the rules and the checks the typed packages lack. Do not import the code — it is a second, untyped implementation of the same domain.</td></tr>
+        <tr><td><code>research/RESEARCH-us-codes.md</code> — 117 VERIFIED / 32 UNVERIFIED tags</td><td>rack-studio</td><td>The seed for the rule packs, tags intact. Note the honest definition of "verified" there: <em>read on the cited source</em>, not <em>read in the primary standard</em>.</td></tr>
+        <tr><td>14 ADRs (11 accepted, 3 proposed)</td><td>rack-studio</td><td>ADR-002 (screening not design), 003 (display list + the <code>{text, established}</code> amendment), 005 (fixed point), 006 (one aisle datum), 007 (obstruction faces), 008 (entity model), 009 (status vocabulary), 010 (propose never apply), 014 (revision lifecycle) all inform this blueprint. ADR-012's nine deployment questions and ADR-013's eight identity questions are a good questionnaire — the <em>questions</em>, not the answers.</td></tr>
+        <tr><td><code>panels.py</code> refusal copy, NOT-RUN chips, gate wording</td><td>rack-engine</td><td>The content decisions — what each screen refuses to show — are the reusable asset. The f-string markup is not.</td></tr>
+        <tr><td><code>docs/OUTPUT_FORMAT.md</code> §9 (the BOM <em>is</em> a quote) and §10 (used vs new material)</td><td>rack-app</td><td>§9 is the closest thing in any project to a quote-intake spec. §10 is an unanswered live product question: what share of jobs use used or generic material with no published capacity?</td></tr>
+        <tr><td><code>rack-review.html</code> — the red-team strategy review</td><td>rack-app</td><td>Read before finalising scope. Its central warning is directly about this product: <b>the fast-follower risk is CPQ, not another rack startup.</b></td></tr>
+        <tr><td><code>HANDOFF.md</code> decision rationale</td><td>rack-takeoff</td><td>Institutional knowledge that exists nowhere else — install on the new-material basis; frames not shared back-to-back. It also records an <b>unsourced claim to verify, not to adopt</b>: that a 24 ft frame plus a 10" column implies roughly 21.5" of flue against a 12" standard. Carry it forward as a question for the rule pack with a <code>NOT_FOUND</code> tier, never as a conformance verdict — see <a href="#s11">§11.4</a> check 11.</td></tr>
+        <tr><td><code>spikes/canvas-throughput</code></td><td>rack-studio</td><td>The harness is reusable; the numbers were taken under software rasterization and need re-running on target hardware.</td></tr>
+        <tr><td><code>docs/FRAMES.md</code> dead-load trap and the do-not-merge-sources rule</td><td>rack-app</td><td>Permanently true, regardless of what else changes.</td></tr>
+        <tr><td><code>web/preflight.html</code></td><td>rack-engine</td><td>The pattern — a standalone diagnostic that names exactly which address is blocked and renders even when everything else is broken — is worth keeping.</td></tr>
+      </tbody>
+    </table></div>
+    </div>
+  </details>
+
+  <details>
+    <summary><b>REJECT</b> — carry nothing forward, including the idea</summary>
+    <div class="body">
+    <div class="tw"><table class="compact">
+      <thead><tr><th>Asset</th><th>From</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Every value in <code>BEAM_CAP</code></td><td>rack-takeoff</td><td>The file's own banner says it: "plausible ballpark figures, NOT any manufacturer's published capacities." It is the sole input to every capacity verdict in that tool. Verified data for exactly this exists in the other two projects.</td></tr>
+        <tr><td>All twelve component rates, <code>DEPTH_FACTOR</code>, <code>FACE_FACTOR</code>, the 1.20 / 1.35 / 0.70 multipliers, the "$0.50–0.80 pos/SF" density band, <code>FRAME_W = 3</code></td><td>rack-takeoff</td><td>Uncited. Never back-tested against a live vendor quote despite that being an open item in its own handoff. <code>FRAME_W = 3</code> is hardcoded for every frame, depth and steel type.</td></tr>
+        <tr><td>The seven <code>QUARANTINED</code> capacity tables and three <code>TEMPLATE</code> files</td><td>rack-app</td><td>Proven wrong: one overstates capacity by up to 72% at HbL 120" because it was indexed on overall frame height under an HbL label.</td></tr>
+        <tr><td>DOM-as-model architecture</td><td>rack-takeoff</td><td>Structurally incompatible with a canonical revision-pinned model. State cannot be revisioned when it lives in input values.</td></tr>
+        <tr><td>NiceGUI adapter, Konva server binding, Pyodide browser build, <code>web/index.html</code></td><td>rack-app / rack-engine</td><td>A process-global service on one SQLite file with path-only routes is not a retrofit to multi-tenancy; it is a rewrite. Nothing here survives.</td></tr>
+        <tr><td><code>prototype/rack-studio.html</code></td><td>rack-studio</td><td>Five-state vocabulary, no persistence, no undo, no pan/zoom, scalar overhang — and its own documentation says it is not a preview of the product.</td></tr>
+        <tr><td><code>docs/06-STATUS.md</code>, <code>tasks/plan.md</code>, <code>_archive/*</code></td><td>rack-studio / rack-app</td><td>Contradicted by their own trees; superseded; or dead weight from a monorepo that no longer exists.</td></tr>
+        <tr><td>ADR-012 item 1 (desktop application) and ADR-013 item 1 (workstation identity)</td><td>rack-studio</td><td>Both incompatible with a client-facing self-service product. See §17.5.</td></tr>
+        <tr><td><code>catalog/loader.py</code>'s <code>runpy.run_path</code></td><td>rack-engine</td><td>Arbitrary code execution from a data file. Acceptable for one vendored file in an internal tool; not in a client-facing application.</td></tr>
+        <tr><td><code>demo_data.py</code> as seed data</td><td>rack-engine</td><td>Keep the Carson acceptance case as a test fixture; the demo jobs must not become product seed data. Its picking-level elevations are explicitly labelled demo values.</td></tr>
+      </tbody>
+    </table></div>
+    </div>
+  </details>
+
+  <h3>17.3 Conflicts between the reference projects</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Conflict</th><th>Resolution for Rack Master Studio</th></tr></thead>
+    <tbody>
+      <tr><td><b>Two live, incompatible domain models</b>: <code>rack-app</code> (frozen dataclasses, hand-audited units, geometry-first, Python 3.11) vs <code>rack-engine</code> (pydantic, pint, type-first, Python 3.13).</td><td>Neither. A new TypeScript model that takes <code>rack-app</code>'s revision and edit machinery and <code>rack-engine</code>'s <code>BayType</code> grouping, <code>connector_series</code>, picking-level distinction and pallet tabulation.</td></tr>
+      <tr><td><b>Prototype vs packages in <code>rack-studio</code></b>: a complete second implementation in untyped JS. The prototype is ahead on rules (15 vs 0) and checks (11 vs ~5); the packages are ahead on types, lifecycle, BOM and persistence. Neither is a superset. The provenance walkers even have inverted polarity.</td><td>Take the typed packages as the base and harvest the prototype's rules and checks as data and specification. Do not carry two implementations forward — that is the defect this product is designed to avoid.</td></tr>
+      <tr><td><b>Status vocabularies</b>: 5 states (prototype), 6 (<code>rack-engine</code>), 7 (ADR-009), 4 (<code>rack-app</code> check status).</td><td>The seven-state vocabulary in <a href="#s11">§11.1</a>, once, everywhere. The prototype's conflation of missing-input with engineering-review is a specific defect to avoid.</td></tr>
+      <tr><td><b>Three conflicting wire-deck formulas</b> and two conflicting <code>suggestPallets</code> rules across <code>rack-takeoff</code> generations.</td><td>All three are unsourced. Emit <code>UNRESOLVED</code> until a rule is sourced.</td></tr>
+      <tr><td><b>Overhang handling</b>: scalar <code>trunc((palletD − frameDepth)/2)</code> in the prototype vs an allocated pair in <code>packages/derive</code>.</td><td>Allocate. The odd mil goes to a named side; a rounding error must not silently appear at one face.</td></tr>
+      <tr><td><b>59E face height</b>: 5.92" in the catalog data (all 42 rows) vs 5.928" in a docs table.</td><td>Unresolved, and it stays unresolved. A person must read the source chart. Do not carry either figure forward as settled.</td></tr>
+      <tr><td><b>Dead load</b>: beams use their own weight, frames use 2% of product load; two published sources disagree.</td><td>Never share a constant between them. Carry the ambiguity flag in the data, as <code>rack-app</code> does.</td></tr>
+      <tr><td><b><code>rows</code> stated vs runs entered</b> (37 vs 3 on the Carson job) — and the BOM's headline quantity depends on the hand-typed integer.</td><td>Surface the disagreement as a finding, as <code>rack-app</code> does. Do not reconcile silently.</td></tr>
+      <tr><td><b>Assertion counts disagree across documents</b> in nearly every project (59 / 68 / 69; 454 / 456 / 461; 322).</td><td>Derive every count from the code and fail the build on drift. <code>rack-studio/tools/check-claims.mjs</code> already does this and it is a genuinely good idea.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>17.4 Migration approach</h3>
+  <ol>
+    <li><b>Copy, never move.</b> The four trees stay exactly as they are. Ported code is copied into the new repository and re-tested there under the new boundary rules.</li>
+    <li><b>Port the data first.</b> The verified catalog is the most expensive asset and everything else depends on it. It arrives as declarative files with every provenance field intact, and it re-enters <code>DRAFT</code> status until a named second person approves it <em>in the new system</em> — machine reconciliation is evidence, not a signature.</li>
+    <li><b>Port assertions before implementations.</b> Write the test first, from the reference project's assertion, then port the code until it passes. An assertion that is not carried over is a claim that quietly stops being checked.</li>
+    <li><b>Port the doctrine before either.</b> The twelve rules, the status vocabulary and the source hierarchy are policy documents, and they cost nothing to adopt on day one.</li>
+    <li><b>Track every drop.</b> Anything rejected for lack of a source becomes a tracked open item with a named owner, not a silent omission. That register — wire decks, row spacers, footplates, rates — is the roadmap for BOM completeness.</li>
+    <li><b>Keep the Carson acceptance case.</b> 916 bays, 6,980 gross, 156 lost, <b>6,824 net</b>, 324 picking levels, reproduced from a delivered drawing. It is the only end-to-end validation against a real job anywhere in the four projects, and it must go red if the new engine gets counts wrong.</li>
+  </ol>
+
+  <h3>17.5 Reversed decisions, recorded</h3>
+  <p>Three prior decisions are deliberately overturned by this product. Each was correct for what it was decided about, and each is written down here rather than quietly abandoned.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Prior decision</th><th>Where</th><th>Reversal</th></tr></thead>
+    <tbody>
+      <tr><td>"Build internal tooling first, commercialise later. Do not introduce multi-catalog abstraction, multi-tenancy, SaaS architecture or customer account isolation unless explicitly told to."</td><td><code>rack-engine/CLAUDE.md</code>; <code>rack-app/docs/DECISIONS.md</code> C4, marked "provisional default — Elliott to confirm"</td><td><b>Reversed.</b> Rack Master Studio is exactly that product. Multi-tenancy and account isolation are day-one requirements. Multi-catalog abstraction stays deferred to phase 4.</td></tr>
+      <tr><td>Deployment shape is a desktop application; identity is workstation identity; access is at the network layer via Tailscale or Cloudflare Access.</td><td><code>rack-studio</code> ADR-012 item 1, ADR-013 item 1; <code>rack-engine</code> ADR-014 / PHASE-2 §8</td><td><b>Reversed.</b> A client-facing web application with person-level identity, organization scoping and application-layer authorization. The fifteen questions those two ADRs leave unanswered — eight of nine on deployment, seven of eight on identity — stay open and are answered in <a href="#s14">§14</a> and <a href="#s18">§18</a>.</td></tr>
+      <tr><td>Scope fence: "explicitly NOT building … multi-tenancy, roles, SSO."</td><td><code>rack-engine/CLAUDE.md</code></td><td><b>Reversed for those three items only.</b> Every other item on that fence — FEA, Direct Strength Method, seismic from first principles, 3D geometry, an AutoCAD plugin, anything other than selective pallet rack — <b>stands</b>, and is restated in <a href="#s19">§19</a>.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>

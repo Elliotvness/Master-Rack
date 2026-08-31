@@ -1,0 +1,206 @@
+<section id="s3">
+  <h2 class="sh"><span class="num">03</span>Client workflow, internal workflow, and lifecycle</h2>
+
+  <h3>3.1 The client workflow</h3>
+  <ol>
+    <li><b>Invitation.</b> An internal user creates the client organization, creates the project, and invites a named contact by email. The invitation carries the organization, the role and the project assignment on the server side. There is no signup form to find.</li>
+    <li><b>Facility and units.</b> The client describes the building: address, clear height, column grid if known, dock locations if known, and then one or more <em>units</em> (a tenancy, a room, a zone). Every field they cannot answer is recorded as <span class="chip c-warn">Missing input</span> rather than defaulted.</li>
+    <li><b>Operational requirements.</b> Pallet dimensions and weight, storage type, handling equipment and its aisle requirement, target pallet positions, sprinkler condition, commodity class if known.</li>
+    <li><b>Options.</b> Within each unit the client builds one or more configuration options — in MVP-1, selective pallet rack only, with the option template constrained to a small set of controlled parameters. The tool refuses geometry it cannot support rather than silently approximating it.</li>
+    <li><b>Live preview.</b> Every change re-derives the plan, the elevation, the pallet-position count, the assumptions list and the findings list. Nothing is cached that the model has not produced.</li>
+    <li><b>Compare.</b> Options are compared side by side on positions, footprint used, aisle width, levels, and the count of open findings. Never on cost.</li>
+    <li><b>Submit.</b> The client selects one or more options and submits a request for quote. The submitted revision is frozen at that instant.</li>
+    <li><b>Track.</b> The client sees status, any request for information, and the eventual disposition. They can clone their submission to a new draft at any time; the frozen record never changes.</li>
+  </ol>
+
+  <h3>3.2 The internal workflow</h3>
+  <ol>
+    <li><b>Intake.</b> The submission arrives as a structured package: facility and unit inputs, the selected option(s), the derived plan and elevation, the full assumption register, the findings register, the pinned catalog and rule releases, and an internal BOM/takeoff derived from that exact revision.</li>
+    <li><b>Triage.</b> An internal user reviews the findings first — blockers, missing inputs, assumptions the client accepted, and anything flagged as requiring external review.</li>
+    <li><b>Disposition.</b> One of four: <span class="chip c-ok">Quote</span> · <span class="chip c-warn">Request information</span> · <span class="chip c-info">Refine internally</span> · <span class="chip c-stop">Decline</span>.</li>
+    <li><b>Derived internal revision.</b> Refining means cloning the frozen submission into an internal revision. The internal revision is a different lineage: the client cannot see it exists, and changes there never propagate back to the client's record.</li>
+    <li><b>Quote.</b> Out of MVP-1. When built, a released internal revision is the only thing that can produce a contractual document.</li>
+  </ol>
+
+  <figure id="fig1">
+    <div class="fig-scroll">
+    <svg viewBox="0 0 1140 470" role="img" aria-label="Client-to-internal quote intake workflow: the client configures and submits on the left of a submission boundary; internal review, disposition and the four outcomes sit on the right; a request for information loops back and creates a new client revision rather than editing the frozen one.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a"/></marker>
+        <marker id="ar-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a-a"/></marker>
+        <marker id="ar-s" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a-s"/></marker>
+      </defs>
+
+      <line x1="620" y1="34" x2="620" y2="440" class="s-zone"/>
+      <text x="24" y="24" class="s-hd">CLIENT — SELF-SERVICE, ONE ORGANIZATION</text>
+      <text x="650" y="24" class="s-hd">INTERNAL — McMURRAY STERN, ALL ORGANIZATIONS</text>
+      <text x="620" y="458" class="s-tt" text-anchor="middle">SUBMISSION BOUNDARY</text>
+
+      <rect x="24" y="60" width="170" height="50" rx="7" class="s-box"/>
+      <text x="109" y="80" class="s-t" text-anchor="middle">1 · Invitation</text>
+      <text x="109" y="96" class="s-t2" text-anchor="middle">org + role fixed server-side</text>
+
+      <rect x="218" y="60" width="170" height="50" rx="7" class="s-box"/>
+      <text x="303" y="80" class="s-t" text-anchor="middle">2 · Facility &amp; units</text>
+      <text x="303" y="96" class="s-t2" text-anchor="middle">unknowns recorded, not filled</text>
+
+      <rect x="412" y="60" width="170" height="50" rx="7" class="s-box"/>
+      <text x="497" y="80" class="s-t" text-anchor="middle">3 · Build options</text>
+      <text x="497" y="96" class="s-t2" text-anchor="middle">controlled parameters only</text>
+
+      <rect x="218" y="160" width="170" height="50" rx="7" class="s-box"/>
+      <text x="303" y="180" class="s-t" text-anchor="middle">4 · Compare</text>
+      <text x="303" y="196" class="s-t2" text-anchor="middle">positions · aisle · findings</text>
+
+      <rect x="412" y="160" width="170" height="50" rx="7" class="s-box-a"/>
+      <text x="497" y="180" class="s-t-a" text-anchor="middle">5 · Select &amp; submit</text>
+      <text x="497" y="196" class="s-t2" text-anchor="middle">freezes the revision</text>
+
+      <line x1="194" y1="85" x2="212" y2="85" class="s-ln" marker-end="url(#ar)"/>
+      <line x1="388" y1="85" x2="406" y2="85" class="s-ln" marker-end="url(#ar)"/>
+      <polyline points="497,110 497,134 303,134 303,154" class="s-ln" marker-end="url(#ar)"/>
+      <line x1="388" y1="185" x2="406" y2="185" class="s-ln" marker-end="url(#ar)"/>
+      <line x1="582" y1="185" x2="644" y2="185" class="s-ln-a" marker-end="url(#ar-a)"/>
+      <text x="613" y="176" class="s-lbl" text-anchor="middle">submit</text>
+
+      <rect x="650" y="60" width="200" height="50" rx="7" class="s-box-o"/>
+      <text x="750" y="80" class="s-t-o" text-anchor="middle">6 · Frozen submission</text>
+      <text x="750" y="96" class="s-t2" text-anchor="middle">canonical JSON · SHA-256 · WORM</text>
+
+      <rect x="650" y="150" width="200" height="72" rx="7" class="s-box"/>
+      <text x="750" y="170" class="s-t" text-anchor="middle">7 · Internal review package</text>
+      <text x="750" y="186" class="s-t2" text-anchor="middle">plan · elevation · inputs</text>
+      <text x="750" y="200" class="s-t2" text-anchor="middle">assumptions · findings</text>
+      <text x="750" y="214" class="s-t2" text-anchor="middle">internal BOM / takeoff</text>
+
+      <rect x="650" y="262" width="200" height="46" rx="7" class="s-box"/>
+      <text x="750" y="290" class="s-t" text-anchor="middle">8 · Disposition</text>
+
+      <polyline points="750,110 750,144" class="s-ln" marker-end="url(#ar)"/>
+      <polyline points="750,222 750,256" class="s-ln" marker-end="url(#ar)"/>
+
+      <rect x="900" y="132" width="216" height="40" rx="7" class="s-box-o"/>
+      <text x="1008" y="157" class="s-t-o" text-anchor="middle">Quote</text>
+      <rect x="900" y="184" width="216" height="40" rx="7" class="s-box-w"/>
+      <text x="1008" y="209" class="s-t" text-anchor="middle">Request information</text>
+      <rect x="900" y="236" width="216" height="40" rx="7" class="s-box-i"/>
+      <text x="1008" y="255" class="s-t" text-anchor="middle">Refine internally</text>
+      <text x="1008" y="269" class="s-t2" text-anchor="middle">derived internal revision</text>
+      <rect x="900" y="288" width="216" height="40" rx="7" class="s-box-s"/>
+      <text x="1008" y="307" class="s-t-s" text-anchor="middle">Decline</text>
+      <text x="1008" y="321" class="s-t2" text-anchor="middle">structured reason recorded</text>
+
+      <polyline points="850,285 874,285 874,152 894,152" class="s-ln" marker-end="url(#ar)"/>
+      <polyline points="850,285 874,285 874,204 894,204" class="s-ln" marker-end="url(#ar)"/>
+      <polyline points="850,285 874,285 874,256 894,256" class="s-ln" marker-end="url(#ar)"/>
+      <polyline points="850,285 874,285 874,308 894,308" class="s-ln" marker-end="url(#ar)"/>
+
+      <polyline points="900,204 886,204 886,398 303,398 303,216" class="s-ln-s" marker-end="url(#ar-s)"/>
+      <text x="340" y="390" class="s-t-s">RFI answer creates a NEW client revision — it never edits the frozen one</text>
+    </svg>
+    </div>
+    <figcaption><b>Figure 1 · Client-to-internal quote intake.</b> The vertical rule is the only place client-entered data crosses into internal workflow, and it crosses exactly once, at submit. Everything to its right — the internal BOM, the disposition, the derived revision — is invisible to the client. The red return path is the one loop in the system, and it is drawn deliberately: answering a request for information produces a <em>new</em> client revision chained to the frozen original, so the record of what was originally submitted survives the correction.</figcaption>
+  </figure>
+
+  <h3>3.3 Revision lifecycle and status vocabulary</h3>
+  <p>Two vocabularies are borrowed rather than invented, because both are already understood by the people who will read our output.</p>
+  <ul>
+    <li><b>Revision and iteration</b> from PDM practice (PTC Windchill's definition): a <em>version</em> is <code>REVISION.ITERATION</code>; the iteration increments on every save, the revision is a deliberate identity change. <code>P01.04</code> is revision <code>P01</code>, fourth save.</li>
+    <li><b>P / C prefixes</b> from BS EN ISO 19650-2 (UK National Annex): <code>P</code> = <b>Preliminary, non-contractual</b>; <code>C</code> = <b>Contractual</b>. Client-facing revisions are always <code>P</code>. Internal released revisions are <code>C</code>. Two industries — AEC document control and PLM — converged on the same structure, which is a good sign it is the right one.</li>
+  </ul>
+
+  <figure id="fig2">
+    <div class="fig-scroll">
+    <svg viewBox="0 0 1180 460" role="img" aria-label="Project revision lifecycle: a client draft is submitted and frozen as a preliminary revision, which can be cloned to a new draft, withdrawn or superseded; internally the frozen submission is derived into a separate contractual revision lineage that moves through in-review, released and superseded, or is declined.">
+      <defs>
+        <marker id="br" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a"/></marker>
+        <marker id="br-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="s-a-a"/></marker>
+      </defs>
+
+      <text x="24" y="22" class="s-hd">CLIENT LINEAGE — PRELIMINARY, NON-CONTRACTUAL</text>
+
+      <rect x="40" y="88" width="180" height="56" rx="7" class="s-box"/>
+      <text x="130" y="110" class="s-t" text-anchor="middle">DRAFT</text>
+      <text x="130" y="128" class="s-tt" text-anchor="middle">P0n.01 … P0n.nn</text>
+
+      <rect x="280" y="88" width="190" height="56" rx="7" class="s-box-o"/>
+      <text x="375" y="110" class="s-t-o" text-anchor="middle">SUBMITTED</text>
+      <text x="375" y="128" class="s-tt" text-anchor="middle">P0n · FROZEN</text>
+
+      <line x1="220" y1="116" x2="274" y2="116" class="s-ln" marker-end="url(#br)"/>
+      <text x="247" y="107" class="s-lbl" text-anchor="middle">submit</text>
+
+      <polyline points="375,88 375,58 130,58 130,82" class="s-ln-a" marker-end="url(#br-a)"/>
+      <text x="252" y="50" class="s-t-a" text-anchor="middle">clone to draft P0n+1 — the frozen record is not touched</text>
+
+      <rect x="540" y="66" width="170" height="44" rx="7" class="s-box-w"/>
+      <text x="625" y="93" class="s-t" text-anchor="middle">WITHDRAWN</text>
+      <rect x="540" y="126" width="170" height="44" rx="7" class="s-box"/>
+      <text x="625" y="147" class="s-t" text-anchor="middle">SUPERSEDED</text>
+      <text x="625" y="161" class="s-t2" text-anchor="middle">by a later P revision</text>
+
+      <polyline points="470,110 505,110 505,88 534,88" class="s-ln" marker-end="url(#br)"/>
+      <polyline points="470,122 505,122 505,148 534,148" class="s-ln" marker-end="url(#br)"/>
+
+      <line x1="24" y1="212" x2="1156" y2="212" class="s-zone"/>
+      <text x="430" y="204" class="s-tt">INTERNAL WORK NEVER WRITES BACK ACROSS THIS LINE</text>
+
+      <text x="24" y="248" class="s-hd">INTERNAL LINEAGE — DERIVED, INVISIBLE TO THE CLIENT</text>
+
+      <polyline points="375,144 375,288" class="s-ln" marker-end="url(#br)"/>
+      <text x="384" y="176" class="s-lbl">derive</text>
+
+      <rect x="280" y="292" width="190" height="56" rx="7" class="s-box-i"/>
+      <text x="375" y="314" class="s-t" text-anchor="middle">INTERNAL DRAFT</text>
+      <text x="375" y="332" class="s-tt" text-anchor="middle">C01.01 … C01.nn</text>
+
+      <rect x="510" y="292" width="150" height="56" rx="7" class="s-box-w"/>
+      <text x="585" y="320" class="s-t" text-anchor="middle">IN REVIEW</text>
+
+      <rect x="700" y="292" width="170" height="56" rx="7" class="s-box-o"/>
+      <text x="785" y="314" class="s-t-o" text-anchor="middle">RELEASED</text>
+      <text x="785" y="332" class="s-tt" text-anchor="middle">C01 · FROZEN</text>
+
+      <rect x="910" y="292" width="170" height="56" rx="7" class="s-box"/>
+      <text x="995" y="314" class="s-t" text-anchor="middle">SUPERSEDED</text>
+      <text x="995" y="332" class="s-t2" text-anchor="middle">or OBSOLETE</text>
+
+      <line x1="470" y1="320" x2="504" y2="320" class="s-ln" marker-end="url(#br)"/>
+      <line x1="660" y1="320" x2="694" y2="320" class="s-ln" marker-end="url(#br)"/>
+      <line x1="870" y1="320" x2="904" y2="320" class="s-ln" marker-end="url(#br)"/>
+      <polyline points="785,292 785,266 375,266 375,286" class="s-ln" marker-end="url(#br)"/>
+      <text x="580" y="260" class="s-lbl" text-anchor="middle">revise → C02.01</text>
+
+      <rect x="510" y="404" width="150" height="42" rx="7" class="s-box-s"/>
+      <text x="585" y="430" class="s-t-s" text-anchor="middle">DECLINED</text>
+      <polyline points="585,348 585,398" class="s-ln" marker-end="url(#br)"/>
+    </svg>
+    </div>
+    <figcaption><b>Figure 2 · Revision lifecycle.</b> Two lineages, one record. A submission is frozen at <code>P0n</code> and is never edited by anyone; a client who wants changes gets a clone at <code>P0n+1</code>. Internal work forks downward into a separate <code>C</code> lineage that the client cannot see and that cannot write back. The horizontal rule is the invariant that makes the whole product defensible: <b>internal refinement never alters what the client submitted.</b></figcaption>
+  </figure>
+
+  <h3>3.4 Request status lifecycle</h3>
+  <p>The <em>request</em> (the commercial conversation) has a status of its own, separate from the <em>revision</em> (the record). Mixing them is a common design error — a withdrawn request does not un-freeze a revision.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Status</th><th>Set by</th><th>Meaning</th><th>Clock</th></tr></thead>
+    <tbody>
+      <tr><td><span class="chip c-neutral">DRAFT</span></td><td>Client</td><td>Being configured. Not visible in internal queues.</td><td>—</td></tr>
+      <tr><td><span class="chip c-accent">SUBMITTED</span></td><td>Client</td><td>Received. Revision frozen. Appears in the internal queue.</td><td>Acknowledgement clock starts — target <b>1 business day</b></td></tr>
+      <tr><td><span class="chip c-accent">TRIAGE</span></td><td>Internal</td><td>An internal user has opened it and is assessing.</td><td>Acknowledgement met; quote clock starts — target <b>5 business days</b></td></tr>
+      <tr><td><span class="chip c-warn">NEEDS INFO</span></td><td>Internal</td><td>An RFI is outstanding. Names the specific fields required.</td><td><b>Quote clock paused</b></td></tr>
+      <tr><td><span class="chip c-info">IN PROGRESS</span></td><td>Internal</td><td>Being worked. May have derived internal revisions.</td><td>Quote clock running</td></tr>
+      <tr><td><span class="chip c-ok">QUOTED</span></td><td>Internal</td><td>A quote has been issued against a released internal revision.</td><td>Quote clock stopped</td></tr>
+      <tr><td><span class="chip c-stop">DECLINED</span></td><td>Internal</td><td>We are not quoting. A structured reason is mandatory.</td><td>Stopped</td></tr>
+      <tr><td><span class="chip c-warn">WITHDRAWN</span></td><td>Client</td><td>Client no longer wants a quote. The frozen revision remains.</td><td>Stopped</td></tr>
+      <tr><td><span class="chip c-neutral">EXPIRED</span></td><td>System</td><td>No activity past the configured window.</td><td>Stopped</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>Structured decline reasons</h4>
+  <p>Free text alongside, never instead. This enum is the only route to answering "what are clients trying to configure that we cannot serve?" — which is the product-gap signal that justifies the next release.</p>
+  <div class="pill-row">
+    <span class="chip c-neutral">Out of geography</span><span class="chip c-neutral">Below minimum order</span><span class="chip c-neutral">Non-standard engineering required</span><span class="chip c-neutral">Capacity / schedule</span><span class="chip c-neutral">Credit</span><span class="chip c-neutral">Competitor-specified product</span><span class="chip c-neutral">Incomplete after N RFIs</span><span class="chip c-neutral">Client withdrew during triage</span><span class="chip c-neutral">Other (free text required)</span>
+  </div>
+</section>

@@ -1,0 +1,211 @@
+<section id="s13">
+  <h2 class="sh"><span class="num">13</span>Submission, immutability, derived revisions and audit</h2>
+
+  <h3>13.1 What happens on submit</h3>
+  <p>One transaction, in this order. If any step fails, nothing happened.</p>
+  <ol>
+    <li>Re-derive from scratch. The submission is never built from cached derived rows — it re-runs the kernel so that what is frozen is what the model produces, not what a stale cache remembered.</li>
+    <li>Refuse if any <code>BLOCKER</code> finding is open, listing <b>every</b> reason rather than the first.</li>
+    <li>Record the client's acknowledgement of the assumption register.</li>
+    <li>Serialise the <b>submission manifest</b> (below) as canonical JSON and hash it.</li>
+    <li>Set the revision to frozen; write <code>frozen_at</code> and <code>content_hash</code>.</li>
+    <li>Persist the derived layout, findings, assumptions and internal BOM keyed to that hash.</li>
+    <li>Create the <code>submission</code> row with <code>this_hash = SHA-256(prev_hash ‖ manifest_hash ‖ metadata)</code>.</li>
+    <li>Write the audit events.</li>
+    <li>Enqueue, via the transactional outbox: manifest upload to WORM storage, client PDF generation, notifications.</li>
+  </ol>
+
+  <h3>13.2 The submission manifest</h3>
+  <p>The record of truth is a content-addressed snapshot, not a set of database rows. Rows can be migrated, re-typed and accidentally updated; a canonical document in Object Lock cannot.</p>
+<pre><code>submission_manifest {
+  schema_version
+  project        { id, number, name, organization }
+  revision       { id, code, iteration, content_hash, parent, derived_from }
+  pins           { catalog_release_id + hash, rule_pack_release_id + hash,
+                   engine_version, rounding_mode, unit_system }
+  inputs         facility_input, unit_input[], option[], option_parameter[]  (as entered)
+  selected       option ids submitted for quote
+  derived        layout display list, counts, findings[], assumptions[]
+  bom            internal takeoff lines with rule text and part revisions
+  acknowledgement{ assumptions_acknowledged_by, at, disclaimer_version_id }
+  actor          { user_id, organization_id, at }
+}</code></pre>
+  <p>Serialised with sorted keys, fixed number formatting, explicit units, and a bounded recursion depth that fails loudly. <code>SHA-256</code> over that text is <code>manifest_hash</code>. The manifest is written to object storage with Object Lock in Compliance mode — where no user, including the account root, can overwrite or delete it before its retention expires.</p>
+
+  <h3>13.3 Immutability, enforced where it cannot be argued with</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Layer</th><th>Mechanism</th><th>What it stops</th></tr></thead>
+    <tbody>
+      <tr><td>Type system</td><td>Frozen objects; the kernel returns new values and never mutates</td><td>Accidental in-process mutation</td></tr>
+      <tr><td>Application</td><td>State machine refuses every transition out of <code>FROZEN</code> except supersede/withdraw, and a refusal is itself an audit event listing all reasons</td><td>Wrong-intent API calls</td></tr>
+      <tr><td><b>Database</b></td><td><code>UPDATE</code> and <code>DELETE</code> revoked from the application role on frozen rows, plus a trigger that raises</td><td>Any code path anyone writes, ever, including a migration script or an ad-hoc fix</td></tr>
+      <tr><td>Object storage</td><td>Object Lock, Compliance mode, plus MFA Delete on the bucket</td><td>An insider with database credentials</td></tr>
+      <tr><td>Hash chain</td><td><code>this_hash = SHA-256(prev_hash ‖ manifest_hash ‖ metadata)</code></td><td>Undetected modification or deletion of an interior record</td></tr>
+      <tr><td>External anchor</td><td>Daily head hash timestamped by an RFC 3161 authority</td><td>An operator rewriting the whole chain, including its own head</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>The layers are ordered by how hard they are to talk your way past. The database layer is the one that matters most in practice, because it is the only one that survives a developer under deadline pressure writing a "quick fix" script.</p>
+
+  <h3>13.4 Tamper-evident, and saying so accurately</h3>
+  <div class="note stop">
+    <div class="t">Language discipline — this belongs in every customer-facing claim</div>
+    <p>Say: <b>"tamper-evident, externally timestamped, and independently re-verifiable."</b><br>
+    Never say: <b>"tamper-proof."</b></p>
+    <p>A hash chain detects modification <em>to anyone holding a trusted copy of a later head hash</em>. It does not prevent a database superuser from rewriting the chain, and without an external anchor nobody would notice. This is exactly the distinction the Sigstore project states about its own transparency log, and it is the honest framing. Object Lock in Compliance mode is what upgrades one specific artifact — the manifest — from evident to genuinely resistant.</p>
+  </div>
+  <p>Design the digest exactly the way AWS CloudTrail does rather than inventing a scheme: per-batch SHA-256 hashes, periodic digest files that reference the previous digest, and the head published somewhere the application cannot rewrite. It is a well-tested, auditor-legible design and copying it costs a day.</p>
+
+  <h3>13.5 Derived revisions</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th></th><th>Client clone</th><th>Internal derived revision</th></tr></thead>
+    <tbody>
+      <tr><td>Trigger</td><td>Client wants to change something after submitting</td><td>Internal user wants to refine before quoting</td></tr>
+      <tr><td>New revision code</td><td><code>P0n+1</code>, iteration <code>.01</code></td><td><code>C01</code>, iteration <code>.01</code></td></tr>
+      <tr><td><code>audience</code></td><td><code>client</code></td><td><code>internal</code></td></tr>
+      <tr><td>Visible to client</td><td>Yes</td><td><b>No</b> — absent from every client response, not shown as locked</td></tr>
+      <tr><td>Pins</td><td>Inherited from the source revision</td><td>Inherited; may be re-pinned only by an explicit "revalidate against current releases" action that produces a diff report</td></tr>
+      <tr><td>Effect on the source</td><td><b>None.</b> <code>derived_from_revision_id</code> recorded on the child.</td><td><b>None.</b> Same.</td></tr>
+      <tr><td>Waivers</td><td>Not applicable</td><td>Do not carry over; the derived revision re-derives and must be waived again</td></tr>
+      <tr><td>Can be submitted</td><td>Yes — creates a new submission that supersedes the old one</td><td>No — internal revisions are released, not submitted</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>13.6 Audit events</h3>
+  <p>An audit log is not an application log. The distinction is what an auditor probes and what most teams get wrong.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th></th><th>Application log</th><th>Audit log</th></tr></thead>
+    <tbody>
+      <tr><td>Purpose</td><td>Debugging</td><td>Accountability and evidence</td></tr>
+      <tr><td>Schema</td><td>Free text, evolving</td><td>Fixed and versioned</td></tr>
+      <tr><td>Mutability</td><td>Rotate and delete freely</td><td>Append-only, retained</td></tr>
+      <tr><td>Sampling</td><td>Acceptable</td><td><b>Never</b></td></tr>
+      <tr><td>Loss</td><td>Tolerable</td><td>A dropped event is a control failure</td></tr>
+      <tr><td>Write path</td><td>Fire and forget</td><td><b>Same transaction as the change</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h4>Event schema</h4>
+<pre><code>audit_event {
+  event_id            uuid, server-generated
+  sequence            bigint, monotonic — THE ORDERING AUTHORITY, not the timestamp
+  occurred_at         timestamptz UTC, application
+  recorded_at         timestamptz UTC, database now() — a large gap is itself alertable
+  actor_user_id · actor_type · actor_organization_id
+  impersonated_by     nullable — mandatory for any staff-acting-as-client session
+  subject_organization_id
+  action              closed enum, e.g. revision.submitted, bom.viewed, invitation.revoked
+  resource_type · resource_id
+  before / after      jsonb, changed fields only, redacted per classification
+  outcome             success | denied | error
+  reason              policy id or refusal reason
+  request_id · session_id_hash (salted) · source_ip · user_agent
+  prev_hash · hash
+}</code></pre>
+
+  <h4>Events that must exist on day one</h4>
+  <div class="cards">
+    <div class="card"><h5>Identity</h5><p>Invitation issued, accepted (with IP), revoked, expired. Every authentication attempt, success and failure. Role granted or changed. Session terminated.</p></div>
+    <div class="card"><h5>Configuration</h5><p>Every edit to a draft revision, naming what changed. Every refused transition, with all reasons.</p></div>
+    <div class="card"><h5>Submission</h5><p>Assumption acknowledgement, submit, freeze, manifest write, supersede, withdraw.</p></div>
+    <div class="card"><h5>Internal</h5><p>Submission opened, BOM viewed, internal revision derived, note added, RFI raised, status changed, decline with reason.</p></div>
+    <div class="card"><h5>Governance</h5><p>Catalog or rule release approved, superseded, retired. Waiver applied with named acceptor.</p></div>
+    <div class="card"><h5>Alarming</h5><p>Any authorization denial. Any internal-only field reaching a client-facing path — should be zero; treat any occurrence as an incident, not a log line.</p></div>
+  </div>
+
+  <div class="note">
+    <div class="t">What the audit trail proves, stated on the screen</div>
+    <p>Borrow the pattern of an explicit, exported claim string that is rendered wherever the trail appears — the reference projects call it <code>TRAIL_CLAIM</code>. For this product it should say what the trail actually establishes: <b>which authenticated account performed an action, from which address, at what recorded time — not that a particular person was at the keyboard.</b> Writing that sentence down once, and showing it, is what stops the trail being over-claimed in a dispute.</p>
+  </div>
+</section>
+
+<section id="s14">
+  <h2 class="sh"><span class="num">14</span>Security and tenancy design</h2>
+
+  <h3>14.1 The threat that actually matters</h3>
+  <p>Not an anonymous attacker. The dominant risk in this product is an <b>authenticated, legitimate client user seeing a row or a field they should not</b> — a cost, a margin, a manufacturer part number, a BOM line, another organization's project. Design for "the caller is authenticated and hostile", not "the caller is anonymous". Broken access control remains the top category in the current OWASP Top 10 and was found in every application tested in its dataset.</p>
+
+  <h3>14.2 Tenant isolation</h3>
+  <p><b>Shared database, <code>organization_id</code> on every tenant row, Postgres RLS everywhere, and the tenant predicate written explicitly in application queries as well.</b> Database-per-tenant is rejected because internal staff need cross-organization views and that would become an N-database fan-out; schema-per-tenant is rejected as the worst of both — silo's migration cost with pool's shared failure domain. Database-per-tenant remains a config-level escape hatch for a single enterprise client whose procurement demands it, and the tenant-context plumbing is designed now so that would be a configuration change rather than a rewrite.</p>
+  <p>The two controls are not redundant. They fail differently: RLS fails <b>silently</b> (a <code>SELECT</code> returns empty rather than erroring), application predicates fail <b>loudly</b> in tests. Together you get a quiet net and a loud one.</p>
+
+  <h4>RLS correctness checklist</h4>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>#</th><th>Rule</th><th>Why it bites</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Every tenant table has <code>ENABLE</code> <b>and</b> <code>FORCE ROW LEVEL SECURITY</code>, with a policy covering <code>SELECT</code>, <code>INSERT</code> (<code>WITH CHECK</code>), <code>UPDATE</code> and <code>DELETE</code>.</td><td>Enabling RLS is default-deny — but a table where you forgot the <code>ALTER TABLE</code> is wide open. A <code>USING</code>-only policy lets a client <em>write</em> a row into another tenant it cannot read.</td></tr>
+      <tr><td>2</td><td>CI asserts <code>relrowsecurity</code> and at least one policy for every table in the application schema.</td><td>The forgotten table is the realistic failure, not the wrong policy.</td></tr>
+      <tr><td>3</td><td>The application role is not a superuser, does not have <code>BYPASSRLS</code>, and does not own the tables. Migrations run as a separate <code>migrator</code> role.</td><td>All three of those classes bypass RLS entirely.</td></tr>
+      <tr><td>4</td><td>Tenant context set with <code>set_config('app.organization_id', $1, true)</code> <b>inside an explicit transaction</b> — never a session-scoped <code>SET</code>.</td><td>Under a transaction pooler, a session <code>SET</code> survives the connection being handed to another client. <code>SET LOCAL</code> is reverted at COMMIT or ROLLBACK, so it is safe — but only in that shape. Enforce it with one <code>withTenant()</code> wrapper and ban raw pool checkout by lint.</td></tr>
+      <tr><td>5</td><td>Every uniqueness constraint is composite with <code>organization_id</code>.</td><td>Foreign-key and unique checks bypass RLS. A global unique index leaks another tenant's row existence through a constraint-violation error message.</td></tr>
+      <tr><td>6</td><td>Index every column an RLS policy filters on; keep policies to simple comparisons against a setting.</td><td>Policies evaluate per candidate row. Sub-selects into a memberships table both cost and can race under concurrent updates — denormalise <code>organization_id</code> onto the row instead.</td></tr>
+      <tr><td>7</td><td>Audit every <code>SECURITY DEFINER</code> function and view.</td><td>They run as their owner and silently re-open everything.</td></tr>
+      <tr><td>8</td><td>Dump and ETL jobs use <code>SET row_security = off</code>.</td><td>That setting <em>errors</em> rather than silently filtering, so a truncated backup becomes impossible instead of undetectable.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>14.3 Invitations</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Property</th><th>Decision</th></tr></thead>
+    <tbody>
+      <tr><td>Entropy</td><td>256 bits from a CSPRNG, base64url. Not UUIDv4 — 122 bits, and many libraries use a non-cryptographic RNG.</td></tr>
+      <tr><td>At rest</td><td>Store <code>sha256(token)</code> only. A database dump then yields no working invitations. A fast hash is correct here precisely <em>because</em> the token is high-entropy; a slow hash is for low-entropy secrets.</td></tr>
+      <tr><td>Expiry</td><td><b>72 hours</b> for invitations, with self-service resend that revokes the prior token. <b>15 minutes</b> for anything that acts as a login. Note that 72 hours is a deliberate, documented deviation from the 10-minute rule for out-of-band codes, with the 256-bit single-use token as the compensating control.</td></tr>
+      <tr><td>Single use</td><td>Redeemed with <code>UPDATE … WHERE accepted_at IS NULL</code> in the same transaction as account creation, checking the affected-row count. Read-then-write lets two concurrent redemptions both succeed.</td></tr>
+      <tr><td>Binding</td><td>Email, organization and role live in the invitation row, never in the token or the URL. The acceptance form must not accept any of them from the client — that is textbook mass assignment.</td></tr>
+      <tr><td>Transport</td><td>Land on the acceptance page, immediately POST the token, exchange it for a short-lived server-side session, and 303 to a clean URL. Keeps the token out of browser history, access logs and analytics. <code>Referrer-Policy: no-referrer</code>; no third-party scripts on that page.</td></tr>
+      <tr><td>No auto-login</td><td>Require an explicit first sign-in with the new credential. It proves the credential works and produces a cleanly audited session-establishment event.</td></tr>
+      <tr><td>Enumeration</td><td>Expired, revoked, already-used and nonexistent tokens all render the <b>same</b> page with the same status and comparable timing. Inviting an address that already has an account in <em>another</em> organization must reveal nothing — our customer list is confidential.</td></tr>
+      <tr><td>Notification</td><td>On acceptance, notify the inviter and the organization owners with IP and time. That is the detection control for a forwarded or stolen invitation.</td></tr>
+      <tr><td>Rate limits</td><td>On creation (per inviter, per organization — stops invite-spam using our domain reputation) and on redemption (per token, per IP).</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>14.4 Authentication ladder</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Who</th><th>Method</th><th>Rationale</th></tr></thead>
+    <tbody>
+      <tr><td>Internal staff</td><td>Mandatory SSO via <b>Microsoft Entra ID</b> (OIDC) with phishing-resistant MFA (passkeys / FIDO2). <b>No local passwords, and no self-service email reset.</b></td><td>These accounts see cost, margin and every client's data. Email-based reset on a staff account is a data breach with extra steps; recovery goes through the IdP plus a verified out-of-band human check.</td></tr>
+      <tr><td>Enterprise clients</td><td>SSO via their own IdP, plus SCIM provisioning</td><td>Deprovisioning is the real prize: when a client fires someone, that access disappears without a support ticket.</td></tr>
+      <tr><td>Smaller clients</td><td>NIST-compliant password <b>plus</b> passkey or TOTP — mandatory, not optional</td><td>Email OTP is a break-glass recovery path only, never the standing second factor.</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note warn">
+    <div class="t">Magic links</div>
+    <p>An emailed magic link is not a second factor. NIST's own guidance states that methods which do not prove possession of a specific device — email included — SHALL NOT be used as out-of-band authenticators. For a product holding our BOM and (later) our margin, that means whoever compromises a client's mailbox owns their access. Magic links are acceptable for recovery; they are not acceptable as primary authentication for anyone who can reach internal data, and MVP-1 should not ship them as the default even for clients.</p>
+  </div>
+
+  <h3>14.5 Authorization</h3>
+  <p>A small hybrid, kept deliberately small:</p>
+<pre><code>Relationship layer  (which rows?)   user --member_of{role}--> organization --owns--> project --has--> revision
+Role layer          (which verbs?)  5 roles, no more, until a customer demands custom ones
+Attribute layer     (which fields?) actor_type ∈ {client, staff, service}
+                                     sensitivity ∈ {shared, internal}</code></pre>
+  <p><b>Do not adopt an external policy engine yet.</b> With five roles and one relationship chain, OPA / Cedar / OpenFGA add a network hop, a tuple-consistency problem against the database, and an operational surface, for a policy set that fits in one file. Build a single pure <code>authorize(actor, action, resource)</code> function with a table-driven policy, exhaustively unit-tested, enforced by one middleware, structured so the internals could be swapped for Cedar later. Revisit when the policy table exceeds roughly fifty rules or customers demand custom roles.</p>
+
+  <h3>14.6 Preventing field leakage</h3>
+  <p>Seven layers, ordered by leverage. The goal is to make leakage a <b>test or build failure</b>, never a code-review catch.</p>
+  <ol>
+    <li><b>Physical separation</b> — internal data in its own tables with an <code>actor_type='staff'</code> policy. Defeats the entire class: accidental <code>SELECT *</code>, a new eager-load, a <code>to_json</code> on a model that grew a column.</li>
+    <li><b>Deny-by-default serialization</b> — one DTO per (entity × audience), constructed field by field. Never spread from an entity; never <code>exclude([...])</code>, which is allow-by-default and leaks the next column someone adds.</li>
+    <li><b>Outbound schema validation</b> — client response types declared <code>additionalProperties: false</code>; fail in non-production, alert in production.</li>
+    <li><b>Input DTOs</b> — the same problem inbound. <code>organization_id</code>, <code>role</code>, <code>audience</code>, <code>lifecycle_state</code> are structurally unreachable from a request body.</li>
+    <li><b>Separate bundles</b> — the client application never imports the internal DTO module, so internal field names are not even present in the JavaScript a client downloads.</li>
+    <li><b>Contract tests asserting absence</b> — enumerate every client-reachable route automatically, call it as a client principal, and recursively assert no forbidden key appears at any depth. The forbidden list is a single shared constant used by the test, the log redactor and the response validator. Add the positive companion test (staff <em>do</em> see these fields) so an over-eager redaction does not silently break internal tooling.</li>
+    <li><b>The impersonation trap</b> — when built, impersonation must <em>replace</em> the principal (<code>actor_type</code> becomes <code>client</code>), with <code>impersonated_by</code> carried for audit only and never influencing an authorization decision. Read-only by default, 30-minute cap, banner-marked, re-auth to start, tenant admin notified.</li>
+  </ol>
+
+  <h3>14.7 SOC 2 posture</h3>
+  <p>Not a v1 requirement, but everything above maps onto the logical-access and monitoring criteria, so building it now makes a later SOC 2 a documentation exercise rather than a re-architecture. Realistic scope when the time comes: <b>Security plus Confidentiality</b>; add Availability only if we sign SLAs; skip Processing Integrity and Privacy for a first report. The items that will not already exist are the written policy set, quarterly access reviews with signed artifacts, a tested restore, an annual penetration test, a vendor/subprocessor list, and one incident-response tabletop with minutes.</p>
+</section>

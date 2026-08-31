@@ -1,0 +1,230 @@
+<section id="s15">
+  <h2 class="sh"><span class="num">15</span>Phased roadmap and a tightly scoped MVP</h2>
+
+  <h3>15.1 Phase overview</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Phase</th><th>Goal</th><th>Ships</th><th>Explicitly not in it</th></tr></thead>
+    <tbody>
+      <tr><td><b>Phase 0</b><br>Foundations</td><td>Make the invariants structural before there is anything to leak</td><td>Repo, kernel packages, tenant plumbing, RLS + CI assertions, authz middleware with boot-time route coverage, DTO layer + leakage contract test, audit table with append-only trigger and hash chain</td><td>Any UI beyond a smoke page</td></tr>
+      <tr><td><b>MVP-1</b><br>The narrow loop</td><td>Prove the whole loop end to end for one option template</td><td>The eight steps in §15.2</td><td>Everything in §15.4</td></tr>
+      <tr><td><b>Phase 2</b><br>Make it usable at real scale</td><td>Handle the "three units, six options" case a real client brings</td><td>Column and tunnel resolution, undo/redo, RFI loop, revision diff, cross-unit comparison, document issue register, internal takeoff export, where-used, catalog supersede impact view</td><td>Pricing, DXF, client exports beyond PDF</td></tr>
+      <tr><td><b>Phase 3</b><br>Commercial depth</td><td>Close the loop into quoting</td><td><code>C</code>-revision release workflow, quote BOM with the as-configured → as-quoted diff, cost and margin behind a narrower role, contractual document generation</td><td>Automatic pricing without a human</td></tr>
+      <tr><td><b>Phase 4</b><br>Breadth</td><td>Beyond selective rack and beyond one manufacturer</td><td>Additional option templates, multi-manufacturer catalog abstraction, internal DXF, engineering calculation package</td><td>Anything claiming approval or compliance</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="sub">Phase 0 is not overhead. Tenant plumbing, the DTO layer and the audit chain get exponentially more expensive to retrofit — they touch every route and every table. The leakage contract test in particular is worth ten times more written against six routes than against two hundred.</p>
+
+  <h3>15.2 MVP-1 — the eight steps, and nothing else</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>#</th><th>Step</th><th>Requirements</th><th>Done when</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>An internal user creates a client organization and project and sends an invitation</td><td><code>FR-AD-01</code>, <code>FR-CT-*</code></td><td>The invited address receives a link; the invitation row holds the org, role and a hash of the token.</td></tr>
+      <tr><td>2</td><td>The client accepts, sets a credential, enrolls a second factor, and signs in</td><td><code>NFR-SEC-02..05</code></td><td>The token is single-use; a second redemption renders the same page as an expired one.</td></tr>
+      <tr><td>3</td><td>The client enters basic facility and unit information</td><td><code>FR-CP-01..03</code></td><td>Unknown fields are recorded as unknown and produce findings, not zeros.</td></tr>
+      <tr><td>4</td><td>The client creates <b>two</b> controlled selective-pallet-rack options</td><td><code>FR-CP-04..07</code></td><td>Choices come only from the pinned catalog release; an unavailable choice states why.</td></tr>
+      <tr><td>5</td><td>The client sees a preliminary plan and elevation, the assumptions, and the missing-input warnings</td><td><code>FR-CP-08..09</code>, <code>FR-OC-01</code></td><td>Every dimension on the drawing is a model value; nothing unestablished is printed as a numeral.</td></tr>
+      <tr><td>6</td><td>The client selects one option and submits a request for quote</td><td><code>FR-QS-01..04</code></td><td>Blockers refuse with all reasons; assumptions are acknowledged; a watermarked PDF is produced.</td></tr>
+      <tr><td>7</td><td>The submitted revision becomes immutable</td><td><code>FR-RV-01..03</code></td><td>A direct <code>UPDATE</code> against the row fails at the database. The manifest is in WORM storage with its hash.</td></tr>
+      <tr><td>8</td><td>An internal user reviews the submission and opens the internal-only BOM/takeoff, then derives a working revision</td><td><code>FR-IR-01..04</code>, <code>FR-BM-01..04</code></td><td>The BOM regenerates byte-identically; the derived revision does not alter the submission; the client cannot see it exists.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>15.3 MVP-1 backlog</h3>
+  <details open>
+    <summary>Group A — Foundations (Phase 0, must land before any feature)</summary>
+    <div class="body">
+    <div class="tw"><table class="compact">
+      <thead><tr><th>ID</th><th>Task</th><th>Depends on</th></tr></thead>
+      <tbody>
+        <tr><td>A-01</td><td>Monorepo, TypeScript strict config, three-way path-alias consistency (tsconfig / test runner / bundler), CI</td><td>—</td></tr>
+        <tr><td>A-02</td><td><code>kernel-units</code>: fixed-point µm and millipounds, unit + origin, allocate-never-divide, fail-closed provenance walkers with a bounded depth, one-way metric display formatter. Port the mechanics from <code>rack-studio/packages/units</code> and re-base from mil to µm.</td><td>A-01</td></tr>
+        <tr><td>A-03</td><td>Boundary checker (AST) + its self-test: no kernel package imports I/O, a framework or an app</td><td>A-01</td></tr>
+        <tr><td>A-04</td><td>Postgres schema v1, <code>migrator</code>/<code>app_user</code> role split, RLS policies on every tenant table</td><td>A-01</td></tr>
+        <tr><td>A-05</td><td><code>withTenant()</code> transaction wrapper; lint rule banning raw pool checkout</td><td>A-04</td></tr>
+        <tr><td>A-06</td><td>CI assertion: every application-schema table has RLS enabled, forced, and ≥1 policy per operation</td><td>A-04</td></tr>
+        <tr><td>A-07</td><td>Session management, cookie hardening, OIDC for staff, password+TOTP for clients</td><td>A-04</td></tr>
+        <tr><td>A-08</td><td><code>authorize()</code> + middleware + boot-time route-coverage assertion</td><td>A-07</td></tr>
+        <tr><td>A-09</td><td>DTO layer per (entity × audience); forbidden-field constant; leakage contract test over enumerated routes</td><td>A-08</td></tr>
+        <tr><td>A-10</td><td><code>audit_event</code> table, append-only trigger, hash chain, transactional write helper</td><td>A-04</td></tr>
+        <tr><td>A-11</td><td>Transactional outbox + worker</td><td>A-04</td></tr>
+      </tbody>
+    </table></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Group B — Catalog and rules</summary>
+    <div class="body">
+    <div class="tw"><table class="compact">
+      <thead><tr><th>ID</th><th>Task</th><th>Depends on</th></tr></thead>
+      <tbody>
+        <tr><td>B-01</td><td>Catalog release schema + manifest format + JSON schema validation</td><td>A-02</td></tr>
+        <tr><td>B-02</td><td>Migrate the 378 verified Interlake beam rows out of executable Python into declarative data, provenance fields intact</td><td>B-01</td></tr>
+        <tr><td>B-03</td><td>Migrate the three verified published frame capacity tables (435 reconciled cells) with their full source blocks</td><td>B-01</td></tr>
+        <tr><td>B-04</td><td>Release lifecycle + two-person approval gate; null <code>approved_by</code> fails the build</td><td>B-01</td></tr>
+        <tr><td>B-05</td><td>Rule pack schema with verification tiers; seed with the rules that are genuinely needed by the MVP check set</td><td>B-01</td></tr>
+        <tr><td>B-06</td><td>Lookup semantics: exact-grid only, both brackets on off-grid, no nearest match, no capacity for used/generic</td><td>B-02</td></tr>
+      </tbody>
+    </table></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Group C — Kernel</summary>
+    <div class="body">
+    <div class="tw"><table class="compact">
+      <thead><tr><th>ID</th><th>Task</th><th>Depends on</th></tr></thead>
+      <tbody>
+        <tr><td>C-01</td><td><code>kernel-model</code>: entity graph with stable ids, validators that raise at construction, canonical serialisation, content hash. <b>Write the hash-stability test first.</b></td><td>A-02</td></tr>
+        <tr><td>C-02</td><td><code>kernel-derive</code>: bay pitch, run length, overhang allocation, aisle clear width, gross/lost/net positions</td><td>C-01, B-06</td></tr>
+        <tr><td>C-03</td><td><code>kernel-geom</code>: obstruction faces + span-bucketed clearance index (port the working implementation from <code>rack-studio/spikes/clearance-query</code>)</td><td>C-01</td></tr>
+        <tr><td>C-04</td><td><code>kernel-checks</code>: the eleven MVP checks, with the tier ceiling applied by the framework</td><td>C-02, B-05</td></tr>
+        <tr><td>C-05</td><td><code>kernel-bom</code>: confirmed lines + unresolved register with reasons</td><td>C-02, B-02</td></tr>
+        <tr><td>C-06</td><td><code>display-list</code> + canvas and SVG renderers; text entries carry <code>{text, established}</code>, never a bare string</td><td>C-02</td></tr>
+        <tr><td>C-07</td><td>Provenance lint: any formatter applied to a raw value rather than a provenanced quantity fails the build</td><td>C-06</td></tr>
+        <tr><td>C-08</td><td>Golden fixtures + tolerance-checked expected values</td><td>C-02</td></tr>
+      </tbody>
+    </table></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Group D — Client application</summary>
+    <div class="body">
+    <div class="tw"><table class="compact">
+      <thead><tr><th>ID</th><th>Task</th></tr></thead>
+      <tbody>
+        <tr><td>D-01</td><td>Invitation acceptance and first sign-in</td></tr>
+        <tr><td>D-02</td><td>Facility and unit entry, with explicit "not known" on every field</td></tr>
+        <tr><td>D-03</td><td>Option builder over the controlled vocabulary, with cascade filtering and stated reasons for unavailable choices</td></tr>
+        <tr><td>D-04</td><td>Live plan and elevation preview</td></tr>
+        <tr><td>D-05</td><td>Findings and assumptions panel, client projection</td></tr>
+        <tr><td>D-06</td><td>Option comparison</td></tr>
+        <tr><td>D-07</td><td>Pre-submit confirmation and submit</td></tr>
+        <tr><td>D-08</td><td>Status view and clone-to-draft</td></tr>
+      </tbody>
+    </table></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>Group E — Internal application, submission and documents</summary>
+    <div class="body">
+    <div class="tw"><table class="compact">
+      <thead><tr><th>ID</th><th>Task</th></tr></thead>
+      <tbody>
+        <tr><td>E-01</td><td>Organization / project / invitation administration</td></tr>
+        <tr><td>E-02</td><td>Submission queue and detail view</td></tr>
+        <tr><td>E-03</td><td>Internal BOM view with the "show your work" trace</td></tr>
+        <tr><td>E-04</td><td>Derive internal revision</td></tr>
+        <tr><td>E-05</td><td>Internal notes</td></tr>
+        <tr><td>E-06</td><td>Submit transaction: re-derive, freeze, manifest, hash, chain, persist derived, audit</td></tr>
+        <tr><td>E-07</td><td>WORM upload of the manifest; daily head anchoring</td></tr>
+        <tr><td>E-08</td><td>Watermarked client PDF from the display list, with versioned disclaimer</td></tr>
+        <tr><td>E-09</td><td>Determinism harness in CI</td></tr>
+      </tbody>
+    </table></div>
+    </div>
+  </details>
+
+  <h3>15.4 What MVP-1 explicitly does not contain</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Excluded</th><th>Why</th><th>Earliest</th></tr></thead>
+    <tbody>
+      <tr><td>Advanced CAD editing on the canvas</td><td>The value is in the model and the workflow, not in reimplementing a drafting tool.</td><td>Phase 3 (<code>FR-CP-13</code>)</td></tr>
+      <tr><td>AutoCAD / DXF integration</td><td>Unverified: no DXF writer has been validated against a real AutoCAD seat, and no drafter has confirmed the output is usable without rework. Internal-only whenever it lands.</td><td>Phase 4</td></tr>
+      <tr><td>Public self-signup</td><td>The invitation model <em>is</em> the access-control model. Public signup would require a completely different abuse and verification posture.</td><td>Not planned</td></tr>
+      <tr><td>Automatic pricing</td><td>Every rate in the reference projects is an uncited "SoCal 2026 ballpark" and has never been back-tested against a live vendor quote. Automating an unvalidated rate is worse than no pricing.</td><td>Phase 3</td></tr>
+      <tr><td>Broad multi-vendor catalogs</td><td>One manufacturer's data has already taken three passes to reach a trustworthy state. Multi-vendor multiplies the verification burden, not the code.</td><td>Phase 4</td></tr>
+      <tr><td>Engineering calculations</td><td>Out of scope by product definition. No FEA, no Direct Strength Method, no seismic from first principles, in any phase.</td><td>Not planned</td></tr>
+      <tr><td>Detailed customer BOM / DWG exports</td><td>This is the value we are protecting. Giving it away defeats the product's purpose.</td><td>Not planned</td></tr>
+      <tr><td>Cost, margin and discount data</td><td>Not needed to prove the loop, and every day it does not exist is a day it cannot leak.</td><td>Phase 3</td></tr>
+      <tr><td>Impersonation</td><td>The highest-risk feature in the product. It should not be built until the audit and authorization layers have been exercised in production.</td><td>Phase 2</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="s16">
+  <h2 class="sh"><span class="num">16</span>Test strategy, acceptance criteria and demo scenario</h2>
+
+  <h3>16.1 Test layers</h3>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Layer</th><th>What it proves</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Kernel unit tests</td><td>Arithmetic, refusals, provenance walking, canonical hashing</td><td>100% branch coverage enforced on <code>kernel-units</code>, <code>kernel-derive</code> and <code>kernel-checks</code>. These are cheap, pure, and where correctness actually lives.</td></tr>
+      <tr><td>Property tests</td><td>Invariants that examples miss</td><td>e.g. hashing is order-independent; <code>allocate()</code> always sums to the original; adding a level never decreases position count.</td></tr>
+      <tr><td>Golden fixtures</td><td>Known inputs produce known derived values within a stated tolerance</td><td>Modelled on <code>rack-studio/fixtures</code>, which stores <code>mil</code>, inches, a formula and a <code>deltaMil</code> against a 10-mil tolerance for each expected value. <b>Wire them into the test run</b> — in the reference project they are produced by a script that no test consumes.</td></tr>
+      <tr><td>Contract tests</td><td>No forbidden field on any client-reachable route; the positive companion for staff</td><td>Route enumeration is automatic, key inspection is recursive, the forbidden list is one shared constant.</td></tr>
+      <tr><td>Authorization tests</td><td>Every route rejects unauthenticated and wrong-tenant callers with 401/404</td><td>Also enumerated automatically.</td></tr>
+      <tr><td>RLS tests</td><td>Set a tenant context, attempt a cross-tenant read and a cross-tenant write, assert empty and refused</td><td>Run against a real Postgres, not a mock.</td></tr>
+      <tr><td>Determinism harness</td><td>Historical submissions re-render byte-identically</td><td>Nightly. Failure means an unintended engine change or a leaked implicit input.</td></tr>
+      <tr><td>End-to-end walkthrough</td><td>The eight MVP steps as one executable transcript</td><td>The single most valuable test in the suite. <code>rack-studio/e2e/mvp.walkthrough.test.ts</code> is a working model.</td></tr>
+      <tr><td>Accessibility audit</td><td>Contrast measured over rendered text nodes in both themes; keyboard traversal</td><td>Self-tests against known ratios before reporting, so a broken audit cannot pass silently.</td></tr>
+      <tr><td>Visual and markup checks</td><td>Every rendered drawing is well-formed; no literal colour appears in drawing code; both themes define the same tokens</td><td>Cheap, and catches a class of defect assertions cannot.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>16.2 Acceptance criteria for MVP-1</h3>
+  <p class="sub">Each is a named test that must be green to call MVP-1 done.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>ID</th><th>Acceptance criterion</th></tr></thead>
+    <tbody>
+      <tr><td><code>AC-01</code></td><td>An invitation token is redeemable exactly once. A second redemption, an expired token, a revoked token and a nonexistent token all produce the same page, the same status code and comparable timing.</td></tr>
+      <tr><td><code>AC-02</code></td><td>A client principal calling every enumerated client route receives no response containing any key on the shared forbidden-field constant, at <b>any</b> nesting depth. That constant covers every row marked <span class="chip c-stop">Hidden</span> in <a href="#s9">§9.2</a>: <code>cost</code>, <code>unit_cost</code>, <code>landed_cost</code>, <code>buy_price</code>, <code>price</code>, <code>margin</code>, <code>margin_pct</code>, <code>discount</code>, <code>supplier</code>, <code>supplier_id</code>, <code>mpn</code>, <code>manufacturer_part_number</code>, <code>bom</code>, <code>bom_line</code>, <code>item_snapshot</code>, <code>capacity</code>, <code>capacity_case</code>, <code>catalog_release</code>, <code>source_document</code>, <code>page_ref</code>, <code>catalog_page_ref</code>, <code>digitised_by</code>, <code>approved_by</code>, <code>citation</code>, <code>verification_tier</code>, <code>rule_id</code>, <code>internal_note</code>. One constant, used by the test, the log redactor and the response validator.</td></tr>
+      <tr><td><code>AC-03</code></td><td>A client principal requesting another organization's project, revision or submission receives <code>404</code>, not <code>403</code>, on every route.</td></tr>
+      <tr><td><code>AC-04</code></td><td>With the tenant context set to organization A, a raw <code>SELECT</code> against every tenant-scoped table returns zero rows belonging to organization B, and a cross-tenant <code>INSERT</code> is refused by <code>WITH CHECK</code>.</td></tr>
+      <tr><td><code>AC-05</code></td><td>Every table in the application schema has row-level security enabled and forced, with at least one policy per operation. Adding a table without one fails CI.</td></tr>
+      <tr><td><code>AC-06</code></td><td>Adding a route without an authorization policy declaration prevents the application from starting.</td></tr>
+      <tr><td><code>AC-07</code></td><td>An unestablished value is never rendered as a numeral — in the UI, in the display list, or in a generated PDF. A refusal in the engine that leaks a number into the interface is not a refusal.</td></tr>
+      <tr><td><code>AC-08</code></td><td>An off-grid span returns both brackets and no capacity value, and the trace states that the engine does not interpolate and why.</td></tr>
+      <tr><td><code>AC-09</code></td><td>Used or generic material yields no capacity, and its trace carries <b>no table basis at all</b> — because no table was read.</td></tr>
+      <tr><td><code>AC-10</code></td><td>Submitting with an open blocker is refused, and the refusal lists <b>every</b> reason, not the first.</td></tr>
+      <tr><td><code>AC-11</code></td><td>After submission, <code>UPDATE</code> against the revision row fails at the database layer, and the application-level edit path throws.</td></tr>
+      <tr><td><code>AC-12</code></td><td>The BOM for a submitted revision regenerates byte-identically from the revision alone, twice, on two machines.</td></tr>
+      <tr><td><code>AC-13</code></td><td>Every BOM line carries a non-null <code>part_revision_id</code>, a rule text, a <code>confirmed</code> flag, and source object ids — or is an unresolved line with a non-null reason. There is no third state.</td></tr>
+      <tr><td><code>AC-14</code></td><td>Deriving an internal revision leaves the source submission's <code>content_hash</code> unchanged, and the derived revision is absent from every client-facing response.</td></tr>
+      <tr><td><code>AC-15</code></td><td>Every state change and every refused transition writes an audit event in the same transaction; the hash chain verifies from genesis.</td></tr>
+      <tr><td><code>AC-16</code></td><td>A generated client PDF contains the watermark, the full disclaimer text, the <code>P</code> revision code and the short-form manifest hash on every page.</td></tr>
+      <tr><td><code>AC-17</code></td><td>Deactivating a user terminates their sessions immediately and revokes their pending invitations.</td></tr>
+      <tr><td><code>AC-18</code></td><td>A catalog release cannot be pinned, and fails the build, if any of these hold: <code>approved_by</code> is null; <code>approved_by == digitised_by</code>; or the release carries neither a recorded full cross-check nor a two-path reconciliation <b>and</b> has only one human signature. A machine digitiser identity does not by itself satisfy the second-party requirement.</td></tr>
+      <tr><td><code>AC-19</code></td><td>Every check whose governing rule is below <code>PRIMARY</code> tier returns at most the ceiling for that tier. A check cannot be written that returns PASS against a secondary-sourced rule.</td></tr>
+      <tr><td><code>AC-20</code></td><td>All eight MVP steps run as one automated walkthrough, ending with a byte-identical BOM regeneration and a frozen, deep-immutable submission.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>16.3 Demo scenario</h3>
+  <p class="sub">One narrative, roughly twelve minutes, that exercises every claim in this document. Build the seed data for it in Phase 0 so it is runnable from the first week.</p>
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>#</th><th>Beat</th><th>What it demonstrates</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Internal user creates "Harbor Logistics" and project <code>26-0142 — Harbor Logistics, Units A/B/C</code>, invites <code>ops@…</code></td><td>No public signup; org, role and project fixed server-side</td></tr>
+      <tr><td>2</td><td>Client accepts the invitation in a fresh browser, sets a passkey, signs in</td><td>Single-use token, no auto-login, MFA mandatory</td></tr>
+      <tr><td>3</td><td>Client enters the building: 96,000 sq ft, three units. Clear height known for A and B; <b>for unit C they tick "not known"</b></td><td>Missing input is a first-class state, not a zero</td></tr>
+      <tr><td>4</td><td>Client configures Unit A Option 1: 96" beams, 4 levels, 42" frames, 144" aisle, back-to-back</td><td>Controlled vocabulary from the pinned catalog release</td></tr>
+      <tr><td>5</td><td>Client tries a 110" beam. <b>The tool refuses</b>, states the published grid brackets it at 108" and 114", and explains that it does not interpolate</td><td>The single most important behaviour in the engine, visible to the client</td></tr>
+      <tr><td>6</td><td>Client creates Option 2: 120" beams, 5 levels. The elevation updates; top of load now exceeds unit A's clear height and a <b>blocker</b> appears naming the overage</td><td>Live derivation; blockers are actionable and specific</td></tr>
+      <tr><td>7</td><td>Client drops to 4 levels; the blocker clears; comparison shows Option 1 at 1,248 positions and Option 2 at 1,040 in less footprint</td><td>Option comparison on counts and geometry — no cost anywhere</td></tr>
+      <tr><td>8</td><td>Client opens Unit C and sees "clear height not surveyed" carried through as a missing input with who can answer it</td><td>The gap travels with the submission rather than blocking it</td></tr>
+      <tr><td>9</td><td>Client selects Option 1, sees the assumption register (pallet overhang, floor position), acknowledges it, submits</td><td>Acknowledgement is an audit event and settles later arguments</td></tr>
+      <tr><td>10</td><td>Client downloads the preliminary PDF: watermark, disclaimer, <code>P01</code>, hash in the title block — <b>and no part numbers or quantities anywhere</b></td><td>The value-protection argument, made visible</td></tr>
+      <tr><td>11</td><td>Client tries to edit the submitted option. Refused, with the reason and the offer to clone to <code>P02</code></td><td>Immutability, and a usable path forward</td></tr>
+      <tr><td>12</td><td>Switch to the internal console. The submission is in the queue with its finding counts and both SLA clocks</td><td>Structured intake instead of an email</td></tr>
+      <tr><td>13</td><td>Internal user opens the internal BOM: frames, beams and anchors with quantities; wire decks and row spacers shown as <b>UNRESOLVED with their reasons</b></td><td>A quantity nobody can defend is worse than a blank</td></tr>
+      <tr><td>14</td><td>Internal user clicks the frame quantity: formula in symbols, then with values and units, then the rule, then the catalog release with its page reference</td><td>"Show your work" — the differentiator against spreadsheets</td></tr>
+      <tr><td>15</td><td>Internal user derives <code>C01.01</code>, changes the aisle to 132", re-derives. The client's <code>P01</code> hash is unchanged and the client's view shows nothing new</td><td>Internal refinement never alters what the client submitted</td></tr>
+      <tr><td>16</td><td>Open the audit trail for the revision: every edit, the refused edit, the acknowledgement, the submission, the BOM view, the derivation — with the chain verifying</td><td>Defensibility, end to end</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>

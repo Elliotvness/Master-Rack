@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rack Master Studio — Product &amp; Technical Blueprint</title>
+<meta name="description" content="Research and planning blueprint for Rack Master Studio: a client self-service pallet-rack configuration and quote-intake web application.">
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --panel-2:#f0f2f5; --ink:#12181f; --ink-2:#3d4a58;
+  --ink-3:#68788a; --line:#d5dbe2; --line-2:#e6eaef; --accent:#0b5cab; --accent-soft:#e6f0fa;
+  --ok:#1c7a4a; --ok-soft:#e3f4ea; --warn:#9a6500; --warn-soft:#fdf2dc; --stop:#a8302a; --stop-soft:#fbe9e8;
+  --info:#5a4b9c; --info-soft:#eeeaf8; --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --shadow:0 1px 2px rgba(16,24,40,.05),0 1px 3px rgba(16,24,40,.06);
+  --nav-w:286px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1218; --panel:#141b23; --panel-2:#1a232d; --ink:#e6edf4; --ink-2:#b3c1d0;
+    --ink-3:#7d8fa1; --line:#27333f; --line-2:#1f2a34; --accent:#63a8ee; --accent-soft:#132436;
+    --ok:#5fd39a; --ok-soft:#11291f; --warn:#e8b45c; --warn-soft:#2b2312; --stop:#f08a83; --stop-soft:#2e1817;
+    --info:#a99cf0; --info-soft:#1e1a30; --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1218; --panel:#141b23; --panel-2:#1a232d; --ink:#e6edf4; --ink-2:#b3c1d0;
+  --ink-3:#7d8fa1; --line:#27333f; --line-2:#1f2a34; --accent:#63a8ee; --accent-soft:#132436;
+  --ok:#5fd39a; --ok-soft:#11291f; --warn:#e8b45c; --warn-soft:#2b2312; --stop:#f08a83; --stop-soft:#2e1817;
+  --info:#a99cf0; --info-soft:#1e1a30; --shadow:0 1px 2px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth; scroll-padding-top:16px}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.62 var(--sans);-webkit-font-smoothing:antialiased}
+img{max-width:100%}
+a{color:var(--accent)}
+code,kbd{font-family:var(--mono);font-size:.88em;background:var(--panel-2);border:1px solid var(--line-2);border-radius:4px;padding:.08em .35em}
+pre{font-family:var(--mono);font-size:12.5px;line-height:1.55;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto}
+pre code{background:none;border:0;padding:0;font-size:inherit}
+
+/* ---------- shell ---------- */
+.shell{display:grid;grid-template-columns:var(--nav-w) minmax(0,1fr);gap:0;max-width:1620px;margin:0 auto}
+.nav{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;border-right:1px solid var(--line);background:var(--panel);padding:22px 16px 60px}
+.nav h2{font:600 10.5px/1 var(--sans);letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin:22px 0 9px}
+.nav a{display:block;padding:5px 9px;border-radius:6px;color:var(--ink-2);text-decoration:none;font-size:13.2px;line-height:1.4}
+.nav a:hover{background:var(--panel-2);color:var(--ink)}
+.nav a.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.nav a .n{display:inline-block;min-width:1.55em;color:var(--ink-3);font-family:var(--mono);font-size:11.5px}
+.nav a.on .n{color:var(--accent)}
+.brandmark{display:flex;gap:10px;align-items:center;margin-bottom:4px}
+.brandmark svg{flex:0 0 auto}
+.brandmark b{font:700 15px/1.2 var(--sans);letter-spacing:-.01em}
+.brandmark span{display:block;font-size:11px;color:var(--ink-3);letter-spacing:.04em}
+.main{min-width:0;padding:0 clamp(18px,3.4vw,56px) 120px}
+
+/* ---------- masthead ---------- */
+.masthead{padding:52px 0 30px;border-bottom:1px solid var(--line)}
+.eyebrow{font:600 11px/1 var(--sans);letter-spacing:.17em;text-transform:uppercase;color:var(--accent);margin-bottom:14px}
+h1{font:700 clamp(30px,4.1vw,46px)/1.08 var(--sans);letter-spacing:-.025em;margin:0 0 14px}
+.lede{font-size:17.5px;line-height:1.58;color:var(--ink-2);max-width:74ch;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:26px;font-size:12.6px;color:var(--ink-3)}
+.meta b{color:var(--ink-2);font-weight:600}
+
+/* ---------- sections ---------- */
+section{padding:44px 0 8px;border-bottom:1px solid var(--line-2);scroll-margin-top:12px}
+section:last-of-type{border-bottom:0}
+h2.sh{display:flex;align-items:baseline;gap:14px;font:700 clamp(21px,2.5vw,28px)/1.2 var(--sans);letter-spacing:-.02em;margin:0 0 8px}
+h2.sh .num{font:700 13px/1 var(--mono);color:var(--accent);background:var(--accent-soft);border-radius:5px;padding:6px 8px;flex:0 0 auto;position:relative;top:-2px}
+h3{font:650 17.5px/1.3 var(--sans);letter-spacing:-.01em;margin:30px 0 8px}
+h4{font:650 14px/1.35 var(--sans);margin:22px 0 6px;color:var(--ink-2)}
+p{margin:0 0 12px;max-width:82ch}
+ul,ol{margin:0 0 12px;padding-left:22px;max-width:82ch}
+li{margin:0 0 5px}
+li>ul,li>ol{margin-top:5px}
+.sub{color:var(--ink-3);font-size:13.4px;max-width:82ch}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto;margin:14px 0 20px;border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:13.3px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line-2);vertical-align:top}
+thead th{background:var(--panel-2);font:650 11.4px/1.3 var(--sans);letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);border-bottom:1px solid var(--line);position:sticky;top:0}
+tbody tr:last-child td{border-bottom:0}
+td code{white-space:nowrap}
+table.matrix td:not(:first-child){text-align:center;width:1%;white-space:nowrap}
+table.compact{font-size:12.8px}
+table.compact th,table.compact td{padding:7px 10px}
+
+/* ---------- chips ---------- */
+.chip{display:inline-block;font:650 10.8px/1.5 var(--sans);letter-spacing:.045em;text-transform:uppercase;padding:1px 7px;border-radius:4px;border:1px solid transparent;white-space:nowrap}
+.c-ok{background:var(--ok-soft);color:var(--ok);border-color:var(--ok)}
+.c-warn{background:var(--warn-soft);color:var(--warn);border-color:var(--warn)}
+.c-stop{background:var(--stop-soft);color:var(--stop);border-color:var(--stop)}
+.c-info{background:var(--info-soft);color:var(--info);border-color:var(--info)}
+.c-neutral{background:var(--panel-2);color:var(--ink-3);border-color:var(--line)}
+.c-accent{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.y{color:var(--ok);font-weight:700}
+.n{color:var(--ink-3)}
+.p{color:var(--warn);font-weight:700}
+
+/* ---------- callouts ---------- */
+.note{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--panel);border-radius:0 9px 9px 0;padding:13px 16px;margin:16px 0;box-shadow:var(--shadow)}
+.note.stop{border-left-color:var(--stop)}
+.note.warn{border-left-color:var(--warn)}
+.note.ok{border-left-color:var(--ok)}
+.note .t{font:650 11px/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin-bottom:7px}
+.note .t{color:var(--accent)}
+.note.stop .t{color:var(--stop)}
+.note.warn .t{color:var(--warn)}
+.note.ok .t{color:var(--ok)}
+.note p:last-child{margin-bottom:0}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:12px;margin:16px 0 20px}
+.card{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:14px 15px;box-shadow:var(--shadow)}
+.card h5{font:650 13.4px/1.3 var(--sans);margin:0 0 6px}
+.card p{font-size:13px;color:var(--ink-2);margin:0;max-width:none}
+.card .k{font:700 25px/1.1 var(--sans);letter-spacing:-.02em;display:block;margin-bottom:2px}
+
+/* ---------- figures ---------- */
+figure{margin:22px 0 26px;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:18px 18px 12px;box-shadow:var(--shadow);overflow:hidden}
+figure svg{display:block;max-width:100%;height:auto;margin:0 auto;color:var(--ink)}
+figcaption{margin-top:12px;padding-top:11px;border-top:1px solid var(--line-2);font-size:12.6px;line-height:1.5;color:var(--ink-3)}
+figcaption b{color:var(--ink-2);font-weight:650}
+.fig-scroll{overflow-x:auto}
+
+/* SVG token classes */
+.s-box{fill:var(--panel-2);stroke:currentColor;stroke-width:1.2}
+.s-box-a{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.4}
+.s-box-i{fill:var(--info-soft);stroke:var(--info);stroke-width:1.4}
+.s-box-w{fill:var(--warn-soft);stroke:var(--warn);stroke-width:1.4}
+.s-box-s{fill:var(--stop-soft);stroke:var(--stop);stroke-width:1.4}
+.s-box-o{fill:var(--ok-soft);stroke:var(--ok);stroke-width:1.4}
+.s-zone{fill:none;stroke:currentColor;stroke-width:1;stroke-dasharray:5 4;opacity:.5}
+.s-t{fill:currentColor;font:600 12px var(--sans)}
+.s-t2{fill:currentColor;font:400 10.6px var(--sans);opacity:.72}
+.s-tt{fill:currentColor;font:600 10px var(--mono);letter-spacing:.06em}
+.s-lbl{fill:currentColor;font:500 10px var(--sans);opacity:.85}
+.s-hd{fill:currentColor;font:700 10.5px var(--sans);letter-spacing:.11em;opacity:.6}
+.s-ln{stroke:currentColor;stroke-width:1.3;fill:none}
+.s-ln-d{stroke:currentColor;stroke-width:1.3;fill:none;stroke-dasharray:5 4}
+.s-ln-a{stroke:var(--accent);stroke-width:1.7;fill:none}
+.s-ln-s{stroke:var(--stop);stroke-width:1.6;fill:none}
+.s-ln-o{stroke:var(--ok);stroke-width:1.6;fill:none}
+.s-a{fill:currentColor} .s-a-a{fill:var(--accent)} .s-a-s{fill:var(--stop)} .s-a-o{fill:var(--ok)}
+.s-t-a{fill:var(--accent);font:600 12px var(--sans)}
+.s-t-s{fill:var(--stop);font:600 12px var(--sans)}
+.s-t-o{fill:var(--ok);font:600 12px var(--sans)}
+
+/* ---------- misc ---------- */
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:13.3px;margin:12px 0 18px;max-width:82ch}
+.kv dt{font-weight:650;color:var(--ink-2)}
+.kv dd{margin:0;color:var(--ink-2)}
+.pill-row{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 16px}
+.disclaimer{border:2px solid var(--stop);background:var(--stop-soft);border-radius:10px;padding:16px 18px;margin:18px 0;position:relative;overflow:hidden}
+.disclaimer .wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;font:800 clamp(26px,6.5vw,64px)/1 var(--sans);letter-spacing:.12em;color:var(--stop);opacity:.09;transform:rotate(-14deg);white-space:nowrap}
+.disclaimer .t{font:700 11px/1 var(--sans);letter-spacing:.13em;text-transform:uppercase;color:var(--stop);margin-bottom:9px;position:relative}
+.disclaimer p{position:relative;margin:0;font-size:13.4px;color:var(--ink)}
+details{border:1px solid var(--line);border-radius:9px;background:var(--panel);padding:0;margin:12px 0}
+details>summary{cursor:pointer;padding:11px 14px;font:650 13.4px/1.35 var(--sans);list-style:none}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"▸";display:inline-block;width:1.1em;color:var(--ink-3);transition:transform .15s}
+details[open]>summary::before{transform:rotate(90deg)}
+details .body{padding:0 14px 12px;border-top:1px solid var(--line-2);margin-top:0;padding-top:12px}
+.toolbar{display:flex;gap:8px;align-items:center;margin:18px 0 0}
+.btn{font:600 12.2px var(--sans);padding:6px 11px;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--ink-2);cursor:pointer}
+.btn:hover{background:var(--panel-2);color:var(--ink)}
+.navtoggle{display:none}
+.foot{padding:34px 0 0;color:var(--ink-3);font-size:12.6px;border-top:1px solid var(--line);margin-top:40px}
+
+/* ---------- responsive ---------- */
+@media (max-width:1000px){
+  .shell{grid-template-columns:1fr}
+  .nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:14px 18px 18px;display:none}
+  .nav.open{display:block}
+  .navtoggle{display:inline-flex;position:sticky;top:0;z-index:20;width:100%;justify-content:space-between;align-items:center;padding:11px 18px;background:var(--panel);border-bottom:1px solid var(--line);font:650 13px var(--sans);color:var(--ink);cursor:pointer;border-width:0 0 1px}
+  .main{padding:0 18px 80px}
+  .masthead{padding:30px 0 22px}
+}
+
+/* ---------- print ---------- */
+@media print{
+  :root{--bg:#fff;--panel:#fff;--panel-2:#fff;--ink:#000;--ink-2:#222;--ink-3:#555;--line:#999;--line-2:#ccc;--shadow:none}
+  body{background:#fff;font-size:10.2pt;line-height:1.44}
+  .nav,.navtoggle,.toolbar{display:none!important}
+  .shell{display:block;max-width:none}
+  .main{padding:0}
+  section{break-inside:auto;page-break-inside:auto;padding:16pt 0 4pt;border-bottom:1px solid #ccc}
+  h2.sh{break-after:avoid;page-break-after:avoid;font-size:15pt}
+  h3,h4{break-after:avoid;page-break-after:avoid}
+  figure,.tw,.note,.disclaimer,.card,details{break-inside:avoid;page-break-inside:avoid;box-shadow:none}
+  figure svg{max-height:200mm}
+  table{font-size:8.4pt}
+  th,td{padding:3pt 5pt}
+  thead th{position:static}
+  details{border:1px solid #ccc}
+  details>summary{font-size:10pt}
+  details .body{display:block!important}
+  a{color:#000;text-decoration:none}
+  .masthead{page-break-after:always}
+  @page{margin:14mm 12mm}
+}
+</style>
+</head>
+<body>
+<button class="navtoggle btn" id="navtoggle" aria-expanded="false" aria-controls="nav">
+  <span>Rack Master Studio — Blueprint</span><span>☰ Contents</span>
+</button>
+<div class="shell">
+<nav class="nav" id="nav" aria-label="Blueprint contents">
+  <div class="brandmark">
+    <svg width="26" height="26" viewBox="0 0 26 26" role="img" aria-label="Rack Master Studio mark">
+      <rect x="1" y="1" width="24" height="24" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <line x1="5" y1="8.5" x2="21" y2="8.5" stroke="currentColor" stroke-width="1.8"/>
+      <line x1="5" y1="14" x2="21" y2="14" stroke="currentColor" stroke-width="1.8"/>
+      <line x1="5" y1="19.5" x2="21" y2="19.5" stroke="currentColor" stroke-width="1.8"/>
+      <line x1="6.5" y1="5" x2="6.5" y2="21" stroke="currentColor" stroke-width="1.8"/>
+      <line x1="19.5" y1="5" x2="19.5" y2="21" stroke="currentColor" stroke-width="1.8"/>
+    </svg>
+    <span><b>Rack Master Studio</b><span>Blueprint · Rev C · 2026-08-31</span></span>
+  </div>
+  <div class="toolbar"><button class="btn" id="themebtn" type="button">◐ Theme</button><button class="btn" id="expandbtn" type="button">⊞ Expand all</button></div>
+
+  <h2>Orientation</h2>
+  <a href="#s1"><span class="n">1</span>Overview &amp; business problem</a>
+  <a href="#s2"><span class="n">2</span>Roles &amp; permission matrix</a>
+  <a href="#s3"><span class="n">3</span>Workflows &amp; lifecycle</a>
+
+  <h2>Requirements</h2>
+  <a href="#s4"><span class="n">4</span>Functional requirements</a>
+  <a href="#s5"><span class="n">5</span>Non-functional requirements</a>
+
+  <h2>Architecture</h2>
+  <a href="#s6"><span class="n">6</span>Web architecture &amp; rationale</a>
+  <a href="#s7"><span class="n">7</span>Canonical data model</a>
+  <a href="#s8"><span class="n">8</span>API &amp; service boundaries</a>
+  <a href="#s9"><span class="n">9</span>Client-visible vs internal-only</a>
+
+  <h2>Engine &amp; integrity</h2>
+  <a href="#s10"><span class="n">10</span>Catalog, rules &amp; provenance</a>
+  <a href="#s11"><span class="n">11</span>Validation model</a>
+  <a href="#s12"><span class="n">12</span>BOM / takeoff strategy</a>
+  <a href="#s13"><span class="n">13</span>Submission, immutability, audit</a>
+  <a href="#s14"><span class="n">14</span>Security &amp; tenancy design</a>
+
+  <h2>Delivery</h2>
+  <a href="#s15"><span class="n">15</span>Roadmap &amp; MVP-1</a>
+  <a href="#s16"><span class="n">16</span>Tests, acceptance, demo</a>
+  <a href="#s17"><span class="n">17</span>Reference projects &amp; reuse</a>
+  <a href="#s18"><span class="n">18</span>Open decisions</a>
+  <a href="#s19"><span class="n">19</span>Risks &amp; do-not-build-yet</a>
+
+  <h2>Figures</h2>
+  <a href="#fig1"><span class="n">F1</span>Quote-intake workflow</a>
+  <a href="#fig2"><span class="n">F2</span>Revision lifecycle</a>
+  <a href="#fig3"><span class="n">F3</span>System architecture</a>
+  <a href="#fig4"><span class="n">F4</span>Entity relationships</a>
+  <a href="#fig5"><span class="n">F5</span>Derivation data flow</a>
+  <a href="#fig6"><span class="n">F6</span>Access boundary</a>
+  <a href="#fig7"><span class="n">F7</span>Reuse &amp; migration</a>
+</nav>
+<main class="main">
