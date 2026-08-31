@@ -21,7 +21,7 @@ and `C-03` (`kernel-geom`). **`B-05` then `C-04` is next.**
 | Blueprint revision | **Rev C**, 2026-08-31 |
 | Decisions | **21 of 21 settled.** One item deliberately open — see §7 |
 | Code written | Nine pure packages, the database layer, the API layer, **seven** mechanical gates |
-| Tests | **884 passing** across 38 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
+| Tests | **885 passing** across 38 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
 | Verification | `pnpm verify` green, exit 0; results recorded in `docs/CURRENT_STATE.md` §4 |
 | Next | `E-07` (WORM anchoring) and `E-08` (watermarked client PDF). Both need infrastructure decisions rather than more logic |
 

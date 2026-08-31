@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **884**, all passing across 38 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
+| Product tests | **885**, all passing across 38 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified beam rows **and 435 verified frame-capacity cells**, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **9**: kernel-boundary self-test + scan, **app-boundary self-test + scan**, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 38 commits**, working tree clean |
+| Version control | **git, 39 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,50 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `P0-009`: face heights stored exactly, displayed to one decimal**
+
+| Check | Command | Result |
+|---|---|---|
+| Catalog suite | `pnpm test` | **PASS.** 11 PSG-authority tests |
+| **59E stored at one decimal (5.9)** | deliberate break | **PROVEN RED**, 2 tests |
+| **65E/65Q stored at one decimal (6.5)** | deliberate break | **PROVEN RED**, 2 tests |
+| **59E reverted to 5.92** | deliberate break | **PROVEN RED**, 3 tests |
+| **65E reverted to 6.54** | deliberate break | **PROVEN RED**, 3 tests |
+| **59E set to the printed 5.93** | deliberate break | **PROVEN RED**, 3 tests |
+| **27E truncated to 2.7** | deliberate break | **PROVEN RED**, 2 tests |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **885/885** tests |
+
+**The decision, and the pushback behind it.** The owner asked for one decimal everywhere, on the
+reasonable grounds that a second decimal complicates things and does not matter. It does not matter
+*while face height is descriptive* — but the same message named **elevations**, which is the one use
+that makes it matter. Face height enters an elevation stack **once per level**, and rounding errs
+the same direction every time, so it **accumulates rather than cancelling**:
+
+| Family | Published | 6 levels | 12 levels | 20 levels |
+|---|---|---|---|---|
+| 65E | `6 9/16"` = 6.5625 | 0.38" | 0.75" | **1.25"** |
+| 36E | `3 21/32"` = 3.65625 | 0.34" | 0.68" | **1.13"** |
+
+1.25" is past the ~1/4" a pallet opening is specified to, and a smaller stored face reports **more**
+clear height than exists — the unsafe direction. `27E` is sharper still: it is published `2 3/4"`,
+**exactly 2.75**, so a one-decimal store would discard a digit the manufacturer actually printed.
+
+**Resolution: store the exact fraction, display one decimal.** The owner gets the simplicity asked
+for on screen, and the engine keeps the precision an elevation needs. `FACE_HEIGHT_PRECISION = 1`
+records the display convention in one named place.
+
+**Both disputes are now closed, not settled.** `59E` (5.92 / 5.928 / 5.93 / 5.9375) and `65E`
+(6.54 / 6.56) were every one of them approximations of a fraction the guide states exactly. Storing
+the fraction removes the rounding choice that caused the argument. All six superseded figures are
+pinned as failures.
+
+**A refusal in `kernel-units` was hit and respected rather than worked around.** `5.9375"` is
+150,812.5 µm, and the fixed-point domain refuses a value that is not a whole micrometre instead of
+rounding it silently. So face height stays a catalog scalar and cannot be passed through
+`formatLength`. The constant's doc comment says so plainly rather than implying a formatter
+integration that does not exist — if face height is ever used dimensionally, the conversion must be
+a deliberate, stated rounding at that call site.
 
 **2026-08-31 — `P0-005` CLOSED: the 59E face height resolved to the published figure**
 

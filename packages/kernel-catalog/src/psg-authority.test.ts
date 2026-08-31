@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { FACE_HEIGHT_PRECISION } from '@rms/kernel-units';
+
 import { loadBeamRows } from './load.js';
 import type { BeamRow } from './lookup.js';
 
@@ -202,63 +204,107 @@ describe('PSG 2025 is the sole authority for beam capacity', () => {
   });
 });
 
-describe('P0-005 is closed: the 59E face height is resolved to the published figure', () => {
+describe('P0-005 and P0-009: face heights are stored exactly, displayed rounded', () => {
   /**
-   * Page 84 prints the 59E profile as 5 15/16", which the guide itself renders
-   * as (5.93"). That is the page reference the parking decision was waiting
-   * for, so the value is now established rather than contested.
+   * P0-009 (owner, 2026-08-31): store the exact published fraction, display one
+   * decimal. This closed two long-running disputes at once by removing the
+   * rounding choice that caused them:
    *
-   * 5.92 is superseded: it appears nowhere in the source document. 5.928 is
-   * superseded too - it rounds to 5.93 and was always the weaker corroboration.
-   * The two-decimal 5.93 is adopted rather than the exact 5.9375, because the
-   * catalog records what the source PRINTS.
+   *   59E was argued between 5.92, 5.928 and 5.93. Page 84 prints 5 15/16.
+   *   65E/65Q carried 6.54 against a printed 6 9/16.
+   *
+   * Every one of those figures was an approximation of a fraction the guide
+   * states exactly, so storing the fraction ends the argument rather than
+   * settling it.
+   *
+   * The reason the engine does not simply store one decimal: face height enters
+   * an elevation stack once per beam level, and rounding errs the same direction
+   * every time, so it accumulates instead of cancelling. A one-decimal store
+   * drifts ~1.25" over a 20-level 65E stack -- past the ~1/4" a pallet opening
+   * is specified to, and towards reporting MORE clear height than exists.
    */
 
-  it('all 42 rows of 59E/59ER carry the published 5.93', () => {
+  /** The fractions printed on p.84, exact. */
+  const PUBLISHED_FACE: Readonly<Record<string, number>> = Object.freeze({
+    '27E': 2.75, // 2 3/4  -- printed exact; a one-decimal store would lose a published digit
+    '36E': 3.65625, // 3 21/32
+    '40E': 4, // 4
+    '45E': 4.5, // 4 1/2
+    '50E': 5, // 5
+    '59E': 5.9375, // 5 15/16
+    '65E': 6.5625, // 6 9/16
+    '65Q': 6.5625, // 6 9/16
+  });
+
+  it('every row carries the exact published fraction for its family', () => {
     const rows = loadCatalog();
-    const faces = rows.filter((r) => r.family.startsWith('59E'));
-    expect(faces).toHaveLength(42);
-    for (const r of faces) {
-      expect(r.faceHeightIn).toBe(5.93);
+    const wrong = rows
+      .filter((r) => {
+        const base = r.family.endsWith('R') && r.family !== '65Q' ? r.family.slice(0, -1) : r.family;
+        return r.faceHeightIn !== PUBLISHED_FACE[base];
+      })
+      .map((r) => `${r.family} ${r.spanIn}in: ${r.faceHeightIn}`);
+    expect(wrong).toEqual([]);
+  });
+
+  it('the stored values are the fractions, not their decimal renderings', () => {
+    // Stated as arithmetic so the intent survives a reader who does not have
+    // the guide open: these are exact sixteenths and thirty-seconds.
+    expect(PUBLISHED_FACE['59E']).toBe(5 + 15 / 16);
+    expect(PUBLISHED_FACE['65E']).toBe(6 + 9 / 16);
+    expect(PUBLISHED_FACE['36E']).toBe(3 + 21 / 32);
+    // And none of the superseded approximations survives anywhere.
+    const stored = new Set(loadCatalog().map((r) => r.faceHeightIn));
+    for (const gone of [5.92, 5.928, 5.93, 5.94, 6.54, 6.56]) {
+      expect(stored.has(gone)).toBe(false);
     }
   });
 
-  it('5.93 is what the page PRINTS, and is not a rounding of the fraction', () => {
-    // Worth stating precisely, because the obvious assumption is wrong:
-    // 5 15/16 = 5.9375, which rounds to 5.94, NOT 5.93. The guide prints
-    // 5 15/16" and (5.93") side by side, so the parenthesised figure is a
-    // TRUNCATION the manufacturer chose, not a rounding anyone can re-derive.
-    // The catalog records the printed 5.93 because that is what the source
-    // says; a future reader who "corrects" it to 5.94 by rounding the fraction
-    // would be substituting their arithmetic for the manufacturer's statement.
-    expect(5 + 15 / 16).toBe(5.9375);
-    expect(Number((5 + 15 / 16).toFixed(2))).toBe(5.94); // what rounding gives
-    // and what the page actually prints:
+  it('one decimal is a DISPLAY convention, applied to the exact stored value', () => {
     const rows = loadCatalog();
-    expect(rows.find((r) => r.family === '59E')?.faceHeightIn).toBe(5.93);
+    const face = (family: string): number => {
+      const r = rows.find((x) => x.family === family);
+      if (r === undefined) throw new Error(`no ${family}`);
+      return r.faceHeightIn;
+    };
+
+    // NOTE: face height is a catalog scalar, not a kernel Quantity, and it
+    // cannot become one. 5.9375" is 150,812.5 um, and kernel-units refuses a
+    // value that is not a whole micrometre rather than rounding it silently.
+    // That refusal is correct and is asserted in its own suite. It also means
+    // the display convention has to be expressed as plain rounding here, which
+    // is honest: the number is descriptive catalog data, and the moment it is
+    // ever used dimensionally it must be converted deliberately, with a stated
+    // rounding, rather than smuggled into the fixed-point domain.
+    const oneDecimal = (n: number): string => `${n.toFixed(FACE_HEIGHT_PRECISION)}"`;
+
+    expect(oneDecimal(face('59E'))).toBe('5.9"');
+    expect(oneDecimal(face('65E'))).toBe('6.6"');
+    expect(oneDecimal(face('27E'))).toBe('2.8"');
+
+    // The screen shows 5.9 while the catalog holds 5.9375: rounding happens on
+    // the way out, never in the data.
+    expect(face('59E')).toBe(5.9375);
+    expect(FACE_HEIGHT_PRECISION).toBe(1);
   });
 
-  it('records the 65E/65Q face heights as an OPEN discrepancy, not a resolved one', () => {
+  it('rounding at STORE time would drift an elevation stack; rounding at display does not', () => {
     /**
-     * The same page-84 cross-check that resolved 59E found a second
-     * disagreement: 65E/65ER/65Q/65QR carry 6.54, but page 84 prints those
-     * profiles as 6 9/16", rendered (6.56").
-     *
-     * This test asserts the value is STILL 6.54. That is deliberate. The owner
-     * ruled on 59E specifically; applying that ruling to a different family
-     * would be inventing a decision nobody made. Pinning the unresolved value
-     * means the discrepancy cannot be silently closed by a later edit - it has
-     * to be ruled on, and this test updated with it.
+     * The arithmetic behind P0-009, asserted rather than asserted-in-a-comment.
+     * A 20-level 65E stack subtracts the beam face once per level. Storing 6.5
+     * loses 0.0625" each time, and every loss points the same way.
      */
-    const rows = loadCatalog();
-    const wide = rows.filter((r) => r.family.startsWith('65'));
-    // 65E, 65ER, 65Q, 65QR at 21 spans each.
-    expect(wide).toHaveLength(84);
-    for (const r of wide) {
-      expect(r.faceHeightIn).toBe(6.54);
-    }
-    // 6 9/16 = 6.5625, printed by the guide as (6.56"). Our 6.54 matches
-    // neither, which is exactly why it is open rather than merely imprecise.
-    expect(6 + 9 / 16).toBe(6.5625);
+    const exact = 6.5625;
+    const ifStoredAtOneDecimal = 6.5;
+    const perLevel = exact - ifStoredAtOneDecimal;
+    expect(perLevel).toBeCloseTo(0.0625, 10);
+
+    const levels = 20;
+    const drift = perLevel * levels;
+    expect(drift).toBeCloseTo(1.25, 10);
+
+    // Larger than the tolerance a pallet opening is specified to, and in the
+    // unsafe direction: a smaller stored face reports more clear height.
+    expect(drift).toBeGreaterThan(0.25);
   });
 });

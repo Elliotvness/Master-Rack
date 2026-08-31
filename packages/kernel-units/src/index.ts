@@ -71,6 +71,7 @@ export {
 } from './provenance.js';
 
 export {
+  FACE_HEIGHT_PRECISION,
   VERIFY,
   displayText,
   format,

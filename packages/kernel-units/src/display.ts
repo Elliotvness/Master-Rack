@@ -19,6 +19,30 @@ import { dimensionOf } from './units.js';
 /** What is printed in place of a number the model cannot establish. */
 export const VERIFY = 'VERIFY';
 
+/**
+ * Decimal places for a beam face height on screen (P0-009).
+ *
+ * The catalog STORES the exact published fraction — 5 15/16 is 5.9375, not
+ * 5.93 — because face height enters an elevation stack once per level and any
+ * rounding errs the same direction every time, so it accumulates instead of
+ * cancelling. A one-decimal stored value drifts about 1.25" over a 20-level
+ * 65E stack, past the ~1/4" a pallet opening is specified to, and drifts
+ * towards reporting MORE clear height than exists.
+ *
+ * One decimal is therefore a display convention and nothing more: round late,
+ * on the way to the screen, never in the data.
+ *
+ * Note what this constant is NOT. A face height is a catalog scalar, not a
+ * `Quantity`: 5.9375" is 150,812.5 µm, and this package deliberately refuses a
+ * value that is not a whole micrometre rather than rounding it silently. So a
+ * face height cannot be passed through `formatLength` today, and this constant
+ * is the agreed precision for whoever renders it — currently the catalog view
+ * only. If face height is ever used dimensionally, the conversion into the
+ * fixed-point domain must be a deliberate, stated rounding at that call site,
+ * not an implicit one here.
+ */
+export const FACE_HEIGHT_PRECISION = 1;
+
 export interface FormatOptions {
   /** Decimal places for the primary (US Customary) figure. */
   readonly precision?: number;
