@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Unit tests
+        run: pnpm test
+
+      # The self-test runs BEFORE the checker. A checker that silently stopped
+      # working would otherwise report a clean pass forever.
+      - name: Boundary checker self-test
+        run: pnpm check:boundaries:selftest
+
+      - name: Boundary check
+        run: pnpm check:boundaries
+
+      - name: Kernel coverage gate
+        run: pnpm coverage
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      # Rebuilds the blueprint from src/parts and runs its 11 structural checks.
+      # A drifted build artifact fails here rather than in someone's inbox.
+      - name: Build and verify the blueprint
+        run: python src/build.py
+
+      - name: Fail if the built blueprint is not up to date with its source
+        run: git diff --exit-code -- rack-master-studio-blueprint.html
