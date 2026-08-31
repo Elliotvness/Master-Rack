@@ -15,6 +15,7 @@ const alias = {
     new URL('./packages/kernel-model/src/index.ts', import.meta.url),
   ),
   '@rms/db': fileURLToPath(new URL('./packages/db/src/index.ts', import.meta.url)),
+  '@rms/api': fileURLToPath(new URL('./apps/api/src/index.ts', import.meta.url)),
 };
 
 export default defineConfig({
@@ -22,6 +23,11 @@ export default defineConfig({
   test: {
     include: ['packages/**/*.test.ts', 'apps/**/*.test.ts', 'tools/**/*.test.ts'],
     environment: 'node',
+    // Integration suites share ONE Postgres and each truncates the tables it
+    // seeds. Running files in parallel would let one suite wipe another's
+    // fixture mid-run. Serial files keep the shared database deterministic;
+    // the pure suites are fast enough that this costs nothing noticeable.
+    fileParallelism: false,
     coverage: {
       provider: 'v8',
       include: ['packages/*/src/**/*.ts'],

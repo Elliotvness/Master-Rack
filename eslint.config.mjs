@@ -48,7 +48,12 @@ export default tseslint.config(
     // every RLS policy compares against an unset GUC and the query sees
     // nothing — or, worse, the previous tenant's context under a pooler.
     files: ['apps/**/*.ts', 'packages/**/*.ts'],
-    ignores: ['packages/db/src/with-tenant.ts', 'packages/db/src/*.test.ts'],
+    ignores: [
+      'packages/db/src/with-tenant.ts',
+      'packages/db/src/*.test.ts',
+      // The auth DB tests seed and assert directly against Postgres.
+      'apps/**/*.db.test.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -98,8 +103,8 @@ export default tseslint.config(
     },
   },
   {
-    // The database package legitimately touches pg and Node globals.
-    files: ['packages/db/**/*.ts'],
+    // The database package and the api app legitimately touch Node globals.
+    files: ['packages/db/**/*.ts', 'apps/**/*.ts'],
     languageOptions: {
       globals: { ...globals.node },
     },

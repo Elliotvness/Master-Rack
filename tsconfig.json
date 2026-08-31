@@ -3,6 +3,7 @@
   "references": [
     { "path": "./packages/kernel-units" },
     { "path": "./packages/kernel-model" },
-    { "path": "./packages/db" }
+    { "path": "./packages/db" },
+    { "path": "./apps/api" }
   ]
 }
