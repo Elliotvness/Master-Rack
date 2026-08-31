@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@rms/display-list": "workspace:*",
-    "@rms/kernel-units": "workspace:*"
+    "@rms/kernel-units": "workspace:*",
+    "@rms/kernel-catalog": "workspace:*"
   }
 }

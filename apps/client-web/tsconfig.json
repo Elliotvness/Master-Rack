@@ -5,7 +5,7 @@
     "outDir": "./dist",
     "lib": ["ES2022", "DOM"]
   },
-  "references": [{ "path": "../../packages/kernel-units" }, { "path": "../../packages/display-list" }],
+  "references": [{ "path": "../../packages/kernel-units" }, { "path": "../../packages/display-list" }, { "path": "../../packages/kernel-catalog" }],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
 }

@@ -21,9 +21,9 @@ and `C-03` (`kernel-geom`). **`B-05` then `C-04` is next.**
 | Blueprint revision | **Rev C**, 2026-08-31 |
 | Decisions | **21 of 21 settled.** One item deliberately open — see §7 |
 | Code written | Nine pure packages, the database layer, the API layer, **seven** mechanical gates |
-| Tests | **712 passing** across 29 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
+| Tests | **737 passing** across 30 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
 | Verification | `pnpm verify` green, exit 0; results recorded in `docs/CURRENT_STATE.md` §4 |
-| Next | `D-03` the option builder. `D-01`/`D-02` are built; the pilot client should be named first |
+| Next | `D-04`/`D-05` preview and findings panel. `D-01`..`D-03` are built and verified |
 
 **Start with `README.md` for how to run the checks, `TODO.md` for what is next, and
 `docs/CURRENT_STATE.md` for what has actually been run rather than what is planned.**

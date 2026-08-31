@@ -20,7 +20,8 @@ backlog id, that id is named.
 > `check-rls` 19 tables, exit 0. Coverage measures `apps/` too, with ratcheted floors.
 >
 > **P1 is complete, and Group D has begun.** `D-01` (invitation acceptance) and `D-02` (facility
-> entry) are built and verified in `apps/client-web`. `D-03`, the option builder, is next.
+> entry) and `D-03` (the option builder, carrying demo beat 5) are built and verified in
+> `apps/client-web`. **`D-04`/`D-05` — the preview and findings panel — are next.**
 > Everything else is `Planned only` unless its own row says otherwise. Nothing here may be marked
 > `Complete` without recording the verification command and its actual result.
 

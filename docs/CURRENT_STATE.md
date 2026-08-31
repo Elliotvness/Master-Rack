@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **712**, all passing across 29 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
+| Product tests | **737**, all passing across 30 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified beam rows **and 435 verified frame-capacity cells**, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **7**: boundary self-test + scan, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 28 commits**, working tree clean |
+| Version control | **git, 29 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,51 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `D-03` the option builder: demo beat 5, implemented**
+
+| Check | Command | Result |
+|---|---|---|
+| Option builder tests | `pnpm test` | **PASS.** 25 tests against the **real pinned catalog**, not a fixture |
+| **Demo beat 5** | `pnpm test` | **PASS.** A 110" beam is refused, the brackets 108" and 114" are named, and the explanation states the engine does not interpolate |
+| **Nearest-match fires** | deliberate break | **PROVEN.** Snapping an off-grid span to the nearest published value turned **6 tests red** |
+| **Clamping fires** | deliberate break | **PROVEN.** Clamping 12 beam levels to 6 instead of refusing turned **2 tests red** |
+| **A generic refusal fires** | deliberate break | **PROVEN** — *after a test was added*. See below |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **737/737** tests across 30 files |
+| Coverage | `pnpm coverage` | **PASS.** `options.ts` at **100%** |
+
+**The screen where the product's thesis becomes visible.** A client asks for a 110" beam; the tool
+refuses, names both brackets, and explains why. 110 is *closer to 108 than to 114*, so a
+nearest-match would look helpful and would hand the client a different beam with a capacity that
+belongs to that other beam. The test asserts the refusal explicitly against that temptation.
+
+**Three refusals, each structural rather than advisory.** Choices come only from the pinned catalog
+release; there is **no free-text dimensional entry and no min/max/step anywhere in the module**,
+because a stepped control implies every value in the range is orderable and most are not; and an
+out-of-scope level count is **refused rather than clamped**, since a clamp accepts "12" and quietly
+configures 6 — a different rack from the one the client asked for, with no indication anything
+changed.
+
+**A gap the probes found, in the tests rather than the code.** The third probe replaced the
+explanation's opening with a generic *"Not available."* and **all 24 tests still passed**: they
+asserted the bracket text and the interpolation sentence, both of which live in the second half of
+the message. A generic refusal would have shipped. Two assertions were added — that the explanation
+repeats the requested value, checked across four different off-grid requests rather than for 110
+alone — and the probe now turns 2 tests red. **This is the value of probing a gate rather than
+observing it pass: the gate was real but partial, and only breaking it revealed which half was
+untested.**
+
+**An empty picker is refused outright**, because an empty dropdown is exactly what invites someone
+to add a text box "temporarily".
+
+**A refused span blocks the preview.** This is the one place the product refuses to proceed rather
+than proceeding with a finding, and the reason is that the alternative is a drawing with no number
+behind it.
+
+**Operational note:** the Docker daemon had stopped during this session, and 53 integration tests
+skipped. `pnpm verify` **correctly exited 1** — `check-rls` fails closed on `ECONNREFUSED` rather
+than passing a run that proved nothing. Verified deliberately by stopping the container and
+re-running. The database was restarted and the full 737 re-run green.
 
 **2026-08-31 — `D-01`/`D-02`: the client application begins**
 

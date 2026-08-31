@@ -45,3 +45,20 @@ export {
   type FacilityFinding,
   type FieldValue,
 } from './lib/facility.js';
+
+export {
+  MAX_BEAM_LEVELS,
+  MIN_BEAM_LEVELS,
+  OptionBuilderError,
+  blockingReasons,
+  emptyOption,
+  offGridExplanation,
+  readyToPreview,
+  selectBeamLevels,
+  selectSpan,
+  spanChoices,
+  type LevelSelection,
+  type OptionDraft,
+  type SpanChoice,
+  type SpanSelection,
+} from './lib/options.js';
