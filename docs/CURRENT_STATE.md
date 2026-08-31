@@ -78,6 +78,22 @@ C:\Rack Master\rack-master-studio\
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
 
+**2026-08-31 — `C-02` `kernel-derive` (first slice of P1-014)**
+
+| Check | Command | Result |
+|---|---|---|
+| `kernel-derive` unit + property tests | `pnpm test` | **PASS.** 39 new tests: bay pitch, run length (n+1-upright property for n ∈ {1,2,5,20,82}), overhang allocation (sum-exact, odd-µm-to-front), aisle clear width (order-independent, never negative), gross positions (floor counted only when it stores), position accounting (breakdown sums to lost; net + lost = gross) |
+| Whole pipeline | `pnpm verify` | **PASS.** 329/329 tests (was 290); typecheck, lint, boundary self-test + scan, RLS all green |
+| Kernel coverage | `pnpm coverage` | **PASS.** `kernel-derive/src` at **100%** statements / branches / functions / lines; threshold added to `vitest.config.ts` |
+| Purity | `node tools/check-boundaries.mjs` | **PASS.** now 16 files across **4** pure packages; `kernel-derive` imports only `@rms/kernel-units` |
+
+**The discipline the slice keeps.** No catalog or rule number appears in `kernel-derive`: the clear
+span, upright face, overhang and face positions are all supplied by the caller from pinned data or
+client input. `UNKNOWN` inputs propagate to `UNKNOWN` results rather than being laundered, and every
+returned value carries a `ProvenanceNode` tree written in the words a sheet prints. The n+1-upright
+rule — the off-by-one that looks correct — is asserted as a property from both ends, not just by
+example. `C-03`..`C-08` (geom, checks, BOM, display list, provenance lint, golden fixtures) remain.
+
 **2026-08-31 — review pass**
 
 | Check | Command | Result |

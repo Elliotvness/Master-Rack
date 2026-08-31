@@ -4,6 +4,7 @@
     { "path": "./packages/kernel-units" },
     { "path": "./packages/kernel-model" },
     { "path": "./packages/kernel-catalog" },
+    { "path": "./packages/kernel-derive" },
     { "path": "./packages/db" },
     { "path": "./apps/api" }
   ]

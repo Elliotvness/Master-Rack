@@ -251,7 +251,27 @@ carry `{text, established}`, never a bare string; an unestablished value never r
 (`AC-07`). **Golden fixtures are wired into the test run** — the reference project's are not, and
 that defect must not be inherited.
 **Verification.** `pnpm test`; fixture deltas within stated tolerance; `node tools/lint-provenance.mjs` fails on a formatter applied to a raw value.
-**Status.** `Not started`. **Evidence:** `Planned only`.
+**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `C-02`; the rest `Planned only`.
+
+**`C-02` (`kernel-derive`) — Complete and verified 2026-08-31.** Pure geometry and pallet-position
+counts over provenanced quantities, no catalog or rule number invented in application code:
+- `bayPitch` = beam clear span + one upright face.
+- `runLength` = n × bay pitch + one closing upright face — the n+1-upright rule, asserted from both
+  ends by a property test (`length − n × clearSpan == (n+1) × uprightFace` for n ∈ {1,2,5,20,82}).
+- `allocateOverhang` splits front/rear via `allocateNamed`, never halved; the odd µm lands on the
+  front (aisle) side and the two shares sum to the original exactly.
+- `aisleClearWidth` measures face to face (ADR-006 datum), order-independent, never negative.
+- `grossPositions` = positions/bay × bays × storage levels, floor counted only when it stores.
+- `positionAccounting` reports gross, lost and net together with a per-reason breakdown; two
+  invariants are asserted — the breakdown sums to lost, and net + lost = gross — and it refuses to
+  lose more than exist, a negative or non-integer loss, a reason with no text, or a loss in a
+  non-count unit.
+- Every result carries a `ProvenanceNode` tree; an `UNKNOWN` input propagates to an `UNKNOWN`
+  result rather than being laundered into an established one.
+**Verification.** `pnpm verify` **PASS** — 329/329 tests (was 290; +39 in `kernel-derive`),
+`kernel-derive/src` at **100%** statements/branches/functions/lines, boundary self-test + scan
+(now 16 files across 4 pure packages) and RLS all green. Wired into the three-way alias table
+(`tsconfig.base.json`, `vitest.config.ts`, project references) with the alias agreement intact.
 
 ---
 

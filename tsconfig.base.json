@@ -32,6 +32,7 @@
       "@rms/kernel-units": ["packages/kernel-units/src/index.ts"],
       "@rms/kernel-model": ["packages/kernel-model/src/index.ts"],
       "@rms/kernel-catalog": ["packages/kernel-catalog/src/index.ts"],
+      "@rms/kernel-derive": ["packages/kernel-derive/src/index.ts"],
       "@rms/db": ["packages/db/src/index.ts"],
       "@rms/api": ["apps/api/src/index.ts"]
     }
