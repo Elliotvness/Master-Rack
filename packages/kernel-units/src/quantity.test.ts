@@ -50,35 +50,29 @@ describe('storage base', () => {
    * The regression that justifies micrometres over millimetres.
    *
    * The blueprint states that 18 of the 21 published spans miss their own
-   * lookup key under integer-millimetre storage. That exact count belongs to
-   * the real published span list, which is not in this repository yet (it
-   * arrives with the catalog at B-02). This span list is a plausible
-   * reconstruction, so the count is NOT asserted here — asserting a borrowed
-   * number against invented data is precisely the failure this product exists
-   * to prevent.
-   *
-   * What is asserted is the property that does not depend on the list:
-   * micrometres preserve every span exactly, and integer millimetres lose most
-   * of them. Replace this fixture with the real spans at B-02 and the exact
-   * 18/21 count becomes assertable.
+   * lookup key under integer-millimetre storage. That exact figure is now
+   * PROVEN against the real published span list in
+   * packages/kernel-catalog/src/lookup.test.ts, which loads the actual
+   * extracted catalog. This test keeps the list-independent property that lives
+   * naturally in the units package: micrometres preserve every span exactly.
    */
   it('preserves every published span as an exact lookup key', () => {
+    // The REAL Interlake published spans (see data/catalog/interlake-2026-08).
     const spans = [
-      36, 42, 48, 54, 60, 66, 72, 78, 84, 90, 96, 102, 108, 114, 120, 126, 132,
-      138, 144, 150, 156,
+      48, 54, 60, 66, 72, 78, 84, 92, 96, 102, 108, 114, 120, 126, 132, 138, 144, 150, 156,
+      162, 168,
     ];
 
     // Micrometres: every span round-trips exactly. This is the guarantee.
     const exactUnderMicrometres = spans.filter((span) => convert(inches(span), 'in') === span);
     expect(exactUnderMicrometres).toHaveLength(spans.length);
 
-    // Integer millimetres: most spans no longer match their own key. The exact
-    // proportion depends on the real span list; that it is a large majority
-    // does not.
+    // Integer millimetres lose exactly 18 of the 21. Asserted exactly here now
+    // that the real span list is known.
     const lostUnderMillimetres = spans.filter(
       (span) => Math.round(span * 25.4) / 25.4 !== span,
     );
-    expect(lostUnderMillimetres.length).toBeGreaterThan(spans.length / 2);
+    expect(lostUnderMillimetres).toHaveLength(18);
   });
 
   it('refuses a value that is not a whole storage unit', () => {

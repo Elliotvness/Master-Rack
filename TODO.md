@@ -83,8 +83,8 @@ wide mechanical one. Leaving it implicitly open past that point is the risk.
 **Files.** Future `packages/kernel-units/`; `open-decisions.md` decision log.
 **Dependencies.** None — proceed on µm unless vetoed.
 **Acceptance.** One line in the decision log: vetoed, or stands. Dated.
-**Verification.** Manual: log entry exists before `B-02` starts.
-**Status.** `Not started`. **Evidence:** `Blocked by decision` (non-blocking default: proceed).
+**Verification.** Manual: log entry exists before `B-02` starts. **Closed 2026-08-31: µm STANDS.** The blueprint's claim was proven against the real extracted span grid — exactly 18 of the 21 published spans miss their lookup key under integer millimetres, all 21 preserved under micrometres (`packages/kernel-catalog/src/lookup.test.ts`). The catalog is now migrated, so the re-base window is closed and the base is confirmed correct.
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ---
 
@@ -417,19 +417,21 @@ Each carries the condition that would change the answer. "Not yet" is not "never
 
 ## The five most important next actions
 
-Complete and verified (2026-08-31): all of Group A except `A-11` — `A-01` through `A-10` — plus
-`C-01`. 248 tests, 100% kernel coverage, RLS proven, auth and audit chain proven against real
-Postgres. The next five are:
+Complete and verified (2026-08-31): all of Group A (`A-01` through `A-11`), `C-01`, and Group B's
+catalog migration and lookup (`B-01`/`B-02`/`B-04`/`B-06`). `OD-06` veto window closed. 290 tests,
+100% coverage on all three kernel packages, RLS/auth/audit/outbox proven against real Postgres, the
+catalog proven against real published data. The next five are:
 
-1. **P1-011** (`A-11`) — the transactional outbox and worker. The last Group A task; an email must
-   never be sent for a transaction that rolled back.
-2. **P0-004 / RH-02** — reconcile the three conflicting Carson counts. Human work, and it gates the
-   golden fixture that gates the engine.
-3. **P1-012** (`B-01`/`B-02`) — migrate the verified Interlake catalog into declarative data with
-   provenance intact. Closes the `OD-06` veto window (`P0-006`) and makes the 18-of-21 span
-   assertion real.
-4. **P1-014** (`C-02`..`C-08`) — the derivation kernel, checks, BOM and golden fixtures. This is the
-   trustworthy model the brief demands before any UI.
+1. **P1-014** (`C-02`..`C-08`) — the derivation kernel: geometry and counts (bay pitch, run length,
+   overhang allocation, aisle clear width, gross/lost/net positions), the twelve checks with the
+   tier ceiling applied by the framework, the BOM with its unresolved register, the display list,
+   and the golden fixtures. This is the trustworthy model the brief demands before any UI.
+2. **P0-004 / RH-02** — reconcile the three conflicting Carson counts, which gates the end-to-end
+   acceptance fixture inside `C-08`.
+3. **B-03** — migrate the three verified frame-capacity tables (435 reconciled cells) from
+   `rack-app`, the same way the beam data was extracted.
+4. **B-05** — the rule-pack schema with verification tiers, seeded with the rules the MVP check set
+   genuinely needs.
 5. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
    proven rather than one.
 

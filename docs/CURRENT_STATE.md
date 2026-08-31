@@ -14,19 +14,21 @@ Status vocabulary used here, carried from `rack-engine/CLAUDE.md`:
 tasks are implemented, verified and committed: `A-01` scaffold, `A-02` `kernel-units`, `A-03`
 boundary checker, `A-04` schema + RLS, `A-05` `withTenant()`, `A-06` RLS assertion, `A-07` sessions
 and authentication, `A-08` `authorize()`, `A-09` the DTO leakage layer, `A-10` the audit hash chain,
-plus `C-01` `kernel-model`. Only `A-11` (the transactional outbox) remains in Group A. Group B
-(catalog data) and the rest of Group C (derivation, checks, BOM) are the next real work.
+`A-11` the transactional outbox, plus `C-01` `kernel-model`. Group A is done. Group B has begun:
+the verified Interlake catalog is migrated (`B-01`/`B-02`/`B-04`/`B-06`) with a no-interpolation
+lookup. The derivation kernel (`C-02`..`C-08`) is the next real work.
 
 | | |
 |---|---|
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
-| Production source files | **30+** across `packages/kernel-units`, `kernel-model`, `db`, `apps/api`, `tools/` |
-| Product tests | **248**, all passing (pure + real-Postgres integration) |
-| Kernel coverage | **100%** statements, branches, functions, lines on both kernel packages |
-| Database | Postgres 16, 18 tables, RLS enabled + forced on every one |
+| Production source files | **40+** across `packages/kernel-units`, `kernel-model`, `kernel-catalog`, `db`, `apps/api`, `tools/` |
+| Product tests | **290**, all passing (pure + real-Postgres integration + real catalog data) |
+| Kernel coverage | **100%** statements, branches, functions, lines on all three kernel packages |
+| Catalog data | 378 verified Interlake beam rows, extracted verbatim, status `DRAFT` (awaiting human approval) |
+| Database | Postgres 16, 19 tables, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
-| Version control | **git, 9 commits**, working tree clean |
+| Version control | **git, 12 commits**, working tree clean |
 
 ## 2. Naming
 
@@ -160,13 +162,25 @@ chain head, but that requires UPDATE privilege, which the append-only applicatio
 lacks — `permission denied for table audit_event`. Replaced with a transaction-scoped advisory lock,
 which needs no table privilege and still serializes appends so two writers cannot fork the chain.
 
-**Phase 0 Group A is complete.** All eleven foundation tasks `A-01` through `A-11`… — with the
-exception of `A-11` (the transactional outbox), which remains the one Group A task not yet built.
-Everything else in Group A is done: scaffold, `kernel-units`, boundary checker, schema + RLS,
-`withTenant()`, the RLS assertion, sessions and auth, `authorize()`, the DTO layer, and the audit
-chain. Plus `C-01` from Group C.
+**2026-08-31 — Group A complete + Group B started (`A-11`, `B-01`/`B-02`/`B-04`/`B-06`)**
 
-Still not verified: `verify-visual.py` (`P0-003`), CI on a real runner, and `A-11` (outbox).
+| Check | Command | Result |
+|---|---|---|
+| A-11 outbox | `pnpm test` | **PASS.** 8 tests against real Postgres; a rolled-back transaction dispatches nothing, claim is exactly-once via `FOR UPDATE SKIP LOCKED`, retry backs off, exhausted attempts dead-letter |
+| B-02 catalog extract | `python tools/extract-catalog.py` | **PASS.** 378 rows, 16 families, 21 spans, 7 anomalies, all verbatim; parsed via `ast`, source never executed |
+| B-06 lookup | `pnpm test` | **PASS.** 29 tests against **real published data**: on-grid capacities, `AC-08` off-grid brackets, no nearest-match, per-pair basis; `AC-18` approval gate |
+| **18-of-21 span claim** | `pnpm test` | **PROVEN** against the actual span grid: exactly 18 of the 21 published spans miss their key under integer mm; all 21 preserved under µm |
+| Whole pipeline | `pnpm verify` | **PASS.** 290/290 tests; 100% coverage on all three kernel packages; lint, boundaries, self-test, RLS all green |
+
+**`OD-06` veto window closed.** The blueprint's headline claim — that integer millimetres cannot
+represent the published lookup grid — is now proven against the real extracted catalog rather than a
+reconstruction. Micrometres stand; the one-file re-base window is closed and the base is correct.
+
+**Group A is complete** — `A-01` through `A-11`, plus `C-01`. Group B has begun with the catalog
+migration and the no-interpolation lookup. The next real work is the derivation kernel
+(`C-02`..`C-08`): geometry and counts, the twelve checks, the BOM, and the golden fixtures.
+
+Still not verified: `verify-visual.py` (`P0-003`), and CI on a real runner.
 
 **2026-08-31 — earlier the same day (`A-07`)**
 
