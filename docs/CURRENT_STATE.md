@@ -331,9 +331,11 @@ to 72%); `runpy.run_path` catalog loading; the DOM-as-model architecture.
 
 From `HANDOFF.md` §6, and all still open:
 
-1. **Carson fixture headline is contested.** Drawing says 916 bays / 6,824 net; quote `Q-38857-1`
-   says 916 / 7,196; `Q-38857-8` says 551 / 4,268. Three artifacts, three counts. Must be
-   reconciled before 6,824 is trusted as a golden value.
+1. ~~**Carson fixture headline is contested.**~~ **Resolved 2026-08-31 by owner decision.** The two
+   quotes are reference material, not acceptance sources, and are disregarded. As-built drawing
+   0005-01 R-1 governs: 916 bays / 6,980 gross / 156 lost / **6,824 net** — the only one of the
+   three artifacts whose own breakdown reconciles. `P0-004` closed; the `C-08` fixture will assert
+   the breakdown as well as the headline.
 2. **59E beam face height:** 5.92″ in the catalog data (42 rows) vs 5.928″ in a docs table.
    A person must read the source chart. Neither figure carries forward as settled.
 3. **Seven quarantined capacity tables** in `rack-app` are proven wrong. Do not port.

@@ -29,7 +29,7 @@ Every notable asset from the four reference projects, classified for Rack Master
 | `frame_capacity_published_2025/` — 3 tables, 435/435 cells reconciled across two independent extraction paths, human-signed | `rack-app` | `data/catalog/interlake-<rev>/` | The best-provenanced asset anywhere in the four trees, and the model for how any future table is ingested. |
 | `CONSTRAINTS` — published footnotes as data (bracing over 126", crossbar over 90" when decked) | `rack-engine` | catalog manifest | Reported, never enforced, until a real check with a real test exists. |
 | `SOURCE_ANOMALIES` — 7 manufacturer errors transcribed as published | `rack-engine` | catalog manifest | Silently "fixing" them destroys the ability to reconcile against the source. |
-| Verified constants: 6,824 net positions (916 bays / 6,980 gross / 156 lost / 324 picking levels); 4 anchors per upright frame | `rack-engine` | `fixtures/golden` | The Carson case is the only end-to-end validation against a delivered job anywhere. It must go red if the new engine gets counts wrong. |
+| Verified constants: 6,824 net positions (916 bays / 6,980 gross / 156 lost / 324 picking levels); 4 anchors per upright frame | `rack-engine` | `fixtures/golden` | The Carson case is the only end-to-end validation against a delivered job anywhere. It must go red if the new engine gets counts wrong. **Established 2026-08-31 (EL, `P0-004`):** as-built drawing 0005-01 R-1 is the sole authority; quotes `Q-38857-1` and `Q-38857-8` are reference material and are disregarded. The fixture asserts the breakdown (gross − lost = net), not only the headline. |
 
 ### Kernel code
 

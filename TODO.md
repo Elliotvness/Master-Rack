@@ -60,16 +60,30 @@ behaviour that keeps the document usable inside a preview pane.
 **Status.** `Not started`. **Evidence:** `Implemented but unverified`.
 
 ### P0-004 · Reconcile the Carson acceptance numbers before they become a golden fixture
-**Why it matters.** Three artifacts give three pallet-position counts for one job: 916 bays / 6,824
-net (drawing 0005-01 R-1), 916 / 7,196 (`Q-38857-1`), 551 / 4,268 (`Q-38857-8`). The reuse register
-wants 6,824 as the end-to-end acceptance value. Baking a contested number into the fixture that
-gates every future engine change would encode the error permanently.
+**Why it mattered.** Three artifacts gave three pallet-position counts for one job: 916 bays / 6,824
+net (drawing 0005-01 R-1), 916 / 7,196 (`Q-38857-1`), 551 / 4,268 (`Q-38857-8`). Baking a contested
+number into the fixture that gates every future engine change would encode the error permanently.
+**Resolution, 2026-08-31 (EL).** **The two quotes are reference material, not acceptance sources,
+and are disregarded.** `Q-38857-1` and `Q-38857-8` are priced commercial documents produced at
+different points in the job's life; neither is a statement of what was installed. The as-built
+drawing **0005-01 R-1 is the single authority** for the acceptance fixture.
+**The established value** is therefore the drawing's, and it is the only one of the three that is
+internally consistent — its own breakdown reconciles exactly:
+
+```
+6,980 gross − 156 lost = 6,824 net        916 bays · 324 picking levels
+```
+
 **Files.** Future `fixtures/golden/`; sources are read-only in `rack-app` / `rack-engine`.
-**Dependencies.** Human reading of the three source artifacts. Cannot be resolved from code.
-**Acceptance.** Either one count is established with a written reason for the other two, or all
-three are recorded as an open conflict and the fixture asserts something else.
-**Verification.** Manual: a written reconciliation note naming each artifact and the disposition.
-**Status.** `Blocked` — human/source input. **Evidence:** `Blocked by source`.
+**Acceptance.** One count established, with a written reason for the disposition of the other two. **Met.**
+**Verification.** The fixture asserts `6,824` net, and asserts the breakdown reconciles (gross −
+lost = net) rather than only the headline, so a future engine that reaches the right total by the
+wrong route still goes red. Written at `C-08`.
+**Note carried forward.** That three artifacts for one job disagreed at all remains the clearest
+single piece of evidence for why this product should exist. Keep it in the narrative; it is no
+longer a blocker.
+**Status.** `Complete` — resolved by owner decision. **Evidence:** `Confirmed implemented` (the
+decision; the fixture itself lands with `C-08`).
 
 ### P0-005 · Resolve or formally park the 59E beam face height
 **Why it matters.** 5.92″ across all 42 catalog rows vs 5.928″ in a documentation table. It feeds a
@@ -430,7 +444,7 @@ None of these can be resolved by writing code. Each needs a person, a document o
 | ID | Item | Blocks | Owner |
 |---|---|---|---|
 | RH-01 | **Name the external pilot client** (`OD-20b`). Criteria settled; one audited account fits. Blocks no development, but `R-01` — *will a client actually do this work* — stays open until an outside organization submits unaided. Must be a new-material job, or the pilot tests the off-ramp rather than the configurator. | Nothing technical; should be named before P2-002 | EL |
-| RH-02 | Reconcile the three Carson counts (P0-004) | The end-to-end acceptance fixture | EL + source artifacts |
+| ~~RH-02~~ | ~~Reconcile the three Carson counts (P0-004)~~ **Closed 2026-08-31.** EL: the two quotes are reference only and are disregarded; as-built drawing 0005-01 R-1 governs. 6,824 net is established. | — | EL |
 | RH-03 | Read the source chart for 59E face height (P0-005) | Catalog ingestion confidence | EL |
 | RH-04 | Confirm the Entra licence tier. OIDC works on any tier; SCIM needs P1+. Without it, offboarding is a quarterly-review checklist item, not an automated one. | Nothing in MVP-1 | IT |
 | RH-05 | Confirm the nominated fallback catalog approver is positioned to catch a **capacity-table** error specifically — a different competence from design or sales review (`OD-07`). | `B-04` release gate | EL |
@@ -475,12 +489,13 @@ Postgres, and the catalog proven against real published data. The next five are:
    overhang allocation, aisle clear width, gross/lost/net positions), the twelve checks with the
    tier ceiling applied by the framework, the BOM with its unresolved register, the display list,
    and the golden fixtures. This is the trustworthy model the brief demands before any UI.
-2. **P0-004 / RH-02** — reconcile the three conflicting Carson counts, which gates the end-to-end
-   acceptance fixture inside `C-08`.
+2. **B-05** — the rule-pack schema with verification tiers, seeded with the rules the MVP check set
+   genuinely needs. It comes before `C-04` because the tier ceiling is applied by the framework from
+   the rule's own tier, so the tier must exist as data before a check can be written.
 3. **B-03** — migrate the three verified frame-capacity tables (435 reconciled cells) from
    `rack-app`, the same way the beam data was extracted.
-4. **B-05** — the rule-pack schema with verification tiers, seeded with the rules the MVP check set
-   genuinely needs.
+4. **P0-005 / RH-03** — the 59E face height. Now the **only** source blocker left on the critical
+   path, and it needs a person to read one chart.
 5. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
    proven rather than one.
 

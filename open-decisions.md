@@ -426,6 +426,7 @@ Record each answer here as it is made — date, decision, who decided, and the r
 | OD-20a | 2026-08-31 | **Internal dogfood pilot** — McMurray Stern, closed single-environment trial, first three submissions treated as user research | EL | Right framing, and it should happen. |
 | OD-20b | 2026-08-31 (criteria) | **Selection criteria settled**: outside McMurray Stern · new-material job · small enough to finish in one sitting · a live opportunity · a relationship that survives a rough release. **The account name remains yours to pick.** | EL (criteria adopted) | One of the four audited accounts fits all five. `R-01` is only retired when an outside client submits unaided. |
 | OD-21 | 2026-08-31 | **(c) catalog-only with an explicit off-ramp** — declaring existing material keeps all entered inputs and submits as an off-ramp request | EL | Instrument off-ramp rate and drop-off point; that is the Phase 2 scoping input. |
+| P0-004 | 2026-08-31 | **The Carson acceptance count is the as-built drawing's.** Drawing 0005-01 R-1 governs: 916 bays / 6,980 gross / 156 lost / **6,824 net**. Quotes `Q-38857-1` (916 / 7,196) and `Q-38857-8` (551 / 4,268) are **reference material, not acceptance sources**, and are disregarded | EL | Not an OD, logged here because it is an owner decision that unblocks `C-08`. See the note below. |
 
 ---
 
@@ -484,6 +485,35 @@ The same applies to *"prelim turnaround"* on the 1-day clock. In this product th
 | **Quote delivery** | 5 business days | Submission to a returned quote. Pauses while an RFI is open. |
 
 Neither is called *prelim turnaround* or *engineering review* anywhere — not in the schema, not in a UI string, not in an email template. Stamped engineering belongs to the existing permitting workflow, which is priced separately per job and sits outside this product in every phase. Both targets stay hidden from external users until a baseline exists across ten live submissions.
+
+### P0-004 — the Carson acceptance count, settled 2026-08-31 ✅
+
+**The question.** Three artifacts gave three pallet-position counts for one job, and the reuse
+register wants one of them as the golden value that gates every future engine change.
+
+**The answer.** The two quotes are reference material and are disregarded. They are priced
+commercial documents produced at different points in the job's life, and neither is a statement of
+what was installed — `Q-38857-8`'s 551 bays against the drawing's 916 is a scope difference, not a
+counting difference. The as-built drawing **0005-01 R-1 is the sole authority**.
+
+**Why this is the right artifact and not merely the chosen one.** It is the only one of the three
+whose own numbers reconcile:
+
+```
+6,980 gross − 156 lost = 6,824 net
+```
+
+A count that agrees with its own breakdown is evidence; a headline with nothing behind it is an
+assertion. That distinction is the product's entire thesis, so the fixture is written to match it.
+
+**What the fixture asserts.** The breakdown, not only the headline. An engine that reaches 6,824 by
+the wrong route — right total, wrong lost-position accounting — must still go red. `C-02`'s
+`positionAccounting` already returns gross, lost and net together with a per-reason breakdown, so
+the fixture has something real to assert against rather than a single number.
+
+**What stays in the narrative.** That three artifacts for one delivered job disagreed at all is the
+clearest single piece of evidence for why this product should exist. It is no longer a blocker; it
+is a case study. Do not delete it from the record now that it is resolved.
 
 ### OD-20 — splits in two. One is answered; the one that matters is not. ⚠️
 
