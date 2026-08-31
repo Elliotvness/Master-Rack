@@ -18,19 +18,20 @@ assertion, `A-07` sessions and authentication, `A-08` `authorize()`, `A-09` the 
 has begun: the verified Interlake catalog is migrated (`B-01`/`B-02`/`B-04`/`B-06`) with a
 no-interpolation lookup. The derivation kernel has two slices landed — `C-02` `kernel-derive`
 (geometry and pallet-position counts) and `C-03` `kernel-geom` (obstruction faces and the clearance
-index). **`C-04`..`C-08` and `B-03`/`B-05` are the next real work.**
+index). Group B's rule pack (`B-05`) has landed with the verification-tier ceiling that `AC-19`
+requires. **`C-04` (the twelve checks) and `B-03` (frame capacity) are the next real work.**
 
 | | |
 |---|---|
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
-| Production source files | **50+** across five pure kernel packages, `db`, `apps/api`, `tools/` |
-| Product tests | **354**, all passing across 17 files (pure + real-Postgres + real catalog data) |
-| Kernel coverage | **100%** statements, branches, functions, lines on all **five** kernel packages |
+| Production source files | **55+** across six pure kernel packages, `db`, `apps/api`, `tools/` |
+| Product tests | **400**, all passing across 19 files (pure + real-Postgres + real catalog and rule data) |
+| Kernel coverage | **100%** statements, branches, functions, lines on all **six** kernel packages |
 | Catalog data | 378 verified Interlake beam rows, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
-| Version control | **git, 18 commits**, working tree clean |
+| Version control | **git, 19 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -80,6 +81,55 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `B-05` `kernel-rules`: rule packs and the verification-tier ceiling**
+
+| Check | Command | Result |
+|---|---|---|
+| `kernel-rules` unit tests | `pnpm test` | **PASS.** 46 new tests: the five-tier ladder, the §11.2 ceiling table asserted verbatim, rule/citation loading, the rule-pack approval gate, and the real seed pack |
+| **`AC-19` proven, not asserted** | `pnpm test` | **PASS.** `applyCeiling` is exhaustive over all 5 tiers × 7 severities: PASS survives only at `PRIMARY`, a bare BLOCKER only at `PRIMARY`/`REPRODUCED`, and `NOT_FOUND` collapses **every** severity to NOT EVALUATED |
+| **The gate fires** | deliberate break | **PROVEN.** Adding `PASS` to the `SECONDARY` permitted list turned **3 tests red across both files** — the AC-19 test, the subset-monotonicity property, and a seed-data test asserting the aisle rule caps at engineering review. Reverted and re-run green |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. 400/400 tests (was 354); boundaries now **21 files across 6 pure packages**; typecheck, lint, self-test, RLS all green |
+| Kernel coverage | `pnpm coverage` | **PASS.** `kernel-rules/src` at **100%** statements / branches / functions / lines; threshold added to `vitest.config.ts` |
+
+**Why this lands before `C-04`.** The twelve checks cannot be written first. `AC-19` requires the
+tier ceiling to be applied *by the framework* from the rule's own tier, so the tier has to exist as
+data before a check can be subject to it. Building the checks first would mean each check carrying
+its own ceiling — which is exactly the design the *Rack Screening Register* Rev A review found
+failing, where **14 checks asserted a hard FAIL while their own notes conceded the source had never
+been read**. The fix is mechanical, not editorial: `applyCeiling` makes the overstatement
+unrepresentable rather than merely discouraged.
+
+**The seed pack is honest about what it does not know.** Twelve rules for the twelve MVP checks,
+each carrying the tier its source actually supports rather than the tier that would be convenient:
+
+- **Nine at `PRIMARY`** — and every one of them is either arithmetic over the client's own stated
+  geometry, or a fact about the pinned catalog. None claims an external standard. The loader
+  *enforces* that a `PRIMARY` rule cites an edition **and** a section: if the standard was read, the
+  reader can say where.
+- **`AISLE-CLEAR-WIDTH` at `SECONDARY`**, so it can produce at most ENGINEERING REVIEW REQUIRED. The
+  requirement comes from the client's equipment sheet and the load-face measurement convention has
+  no located code basis (ADR-006 fixes the datum for internal consistency, which is not a compliance
+  claim).
+- **`FLUE-SPRINKLER-GEOMETRY` at `NOT_FOUND`.** The NFPA section for the 18-inch rule has not been
+  located, so check 11 reports a measured dimension and the ceiling forces NOT EVALUATED — no
+  fire-protection verdict is reachable even if a check tried. `rack-takeoff`'s 21.5-inch flue claim
+  is carried as a **question**, not adopted.
+- No rule cites MH16.1 or NFPA at `PRIMARY`, and a test asserts that property over the data rather
+  than trusting review. All **six** open source conflicts (§10.8) are recorded on the manifest.
+
+**Two integrity rules are enforced by the loader rather than left to review:** a `NOT_FOUND` rule
+may not carry a value at all (no source located means no established number, and a number in the
+data will eventually be read by something regardless of its tier), and a rule with a value must name
+its unit. The pack arrives as `DRAFT` — authored here, but approval is an act, not an inheritance,
+and the gate refuses the author approving their own pack or approval with no recorded verification
+path.
+
+**A defect the boundary checker caught during this build:** `RulePack.require()` — an ordinary
+lookup-or-throw method — tripped the kernel purity scan's `require(` ban, which exists to stop
+dynamic module loading defeating the scan. The checker was blunt but correct, and weakening the
+pattern to allow a method call would have put a real hole in it. Renamed to `mustGet()`; the ban
+stands unmodified.
 
 **2026-08-31 — `P0-005` closed: the 59E face height, parked and pinned**
 

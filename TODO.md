@@ -11,10 +11,11 @@ backlog id, that id is named.
 > **Complete and verified:** `P0-001`, `P0-002`, `P0-006`, `P1-001` (`A-01`), `P1-002` (`A-02`),
 > `P1-003` (`A-03`), `P1-004` (`A-04`), `P1-005` (`A-05`), `P1-006` (`A-06`), `P1-007` (`A-07`),
 > `P1-008` (`A-08`), `P1-009` (`A-09`), `P1-010` (`A-10`), `P1-011` (`A-11`), `P1-013` (`C-01`).
-> **Partial:** `P1-012` (`B-01`/`B-02`/`B-04`/`B-06` done; `B-03`/`B-05` outstanding) and
+> **Partial:** `P1-012` (`B-01`/`B-02`/`B-04`/`B-05`/`B-06` done; **`B-03` outstanding**) and
 > `P1-014` (`C-02`/`C-03` done; `C-04`..`C-08` outstanding).
-> **Last full run, 2026-08-31: `pnpm verify` PASS** — 352/352 tests across 17 files, boundary
-> self-test + scan (18 files, 5 pure packages), `check-rls` 19 tables, exit 0.
+> **Also closed:** `P0-004` (Carson count established) and `P0-005` (59E face height parked).
+> **Last full run, 2026-08-31: `pnpm verify` PASS** — **400/400** tests across 19 files, boundary
+> self-test + scan (21 files, **6** pure packages), `check-rls` 19 tables, exit 0.
 > Everything else is `Planned only` unless its own row says otherwise. Nothing here may be marked
 > `Complete` without recording the verification command and its actual result.
 
@@ -265,11 +266,11 @@ or when there is one human signature with no recorded cross-check or two-path re
 (`AC-18`). Lookup is exact-grid only: off-grid returns both brackets and no value (`AC-08`); no
 nearest-match; used or generic material carries no table basis at all (`AC-09`).
 **Verification.** Schema validation in CI; a release with a null approver fails the build; an off-grid lookup test asserts both brackets and no value. **Run 2026-08-31: PASS** — `python tools/extract-catalog.py` produced 378 verbatim beam rows, 16 families, 21 spans and 7 anomalies, parsed via `ast` with the source never executed; 34 tests in `kernel-catalog` cover on-grid capacity, `AC-08` off-grid brackets with no value, the absence of nearest-match, the per-pair basis, and the `AC-18` approval gate. The blueprint's 18-of-21 span claim is now **proven** against the real published grid rather than a reconstruction.
-**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `B-01`, `B-02`, `B-04`, `B-06`; `B-03` and `B-05` `Planned only`.
+**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `B-01`, `B-02`, `B-04`, `B-05`, `B-06`; **`B-03` `Planned only`**.
 
 **Outstanding within P1-012:**
 - **`B-03`** — migrate the three verified frame-capacity tables from `rack-app\frame_capacity_published_2025\` (435/435 reconciled cells) the same way the beam data was extracted. The seven `QUARANTINED` tables are **not** ported; one overstates capacity by up to 72%.
-- **`B-05`** — the rule-pack schema carrying a verification tier on every rule, seeded only with the rules the twelve MVP checks genuinely need. This gates `C-04`: the tier ceiling is applied by the framework from the rule's tier, so the tier must exist as data before a check can be written.
+- ~~**`B-05`**~~ **Complete and verified 2026-08-31.** `packages/kernel-rules` + `data/rules/mvp-2026-08/`: the five-tier ladder, the §11.2 ceiling asserted verbatim, the rule/citation loader, the pack approval gate, and twelve seed rules. **`AC-19` is proven exhaustively** over all 5 tiers × 7 severities, and the gate was **proven to fire** — adding `PASS` to the `SECONDARY` list turned 3 tests red across both files. 46 tests, 100% coverage. `pnpm verify` **PASS**, 400/400.
 
 ### P1-013 · `C-01` `kernel-model` — write the hash-stability test first
 **Why it matters.** The blueprint and two reference projects independently give this advice. A
@@ -512,54 +513,49 @@ Postgres, and the catalog proven against real published data. The next five are:
    overhang allocation, aisle clear width, gross/lost/net positions), the twelve checks with the
    tier ceiling applied by the framework, the BOM with its unresolved register, the display list,
    and the golden fixtures. This is the trustworthy model the brief demands before any UI.
-2. **B-05** — the rule-pack schema with verification tiers, seeded with the rules the MVP check set
-   genuinely needs. It comes before `C-04` because the tier ceiling is applied by the framework from
-   the rule's own tier, so the tier must exist as data before a check can be written.
-3. **B-03** — migrate the three verified frame-capacity tables (435 reconciled cells) from
-   `rack-app`, the same way the beam data was extracted.
-4. **`C-04`** — the twelve MVP checks, once `B-05` gives them tiers to be ceilinged by. With
-   `P0-004` and `P0-005` both closed, **no source blocker remains on the critical path.**
-5. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
+2. **B-03** — migrate the three verified frame-capacity tables (435 reconciled cells) from
+   `rack-app`, the same way the beam data was extracted. `C-04`'s beam/frame compatibility check
+   wants it.
+3. **C-05..C-08** — the BOM with its unresolved register, the display list, the provenance lint,
+   and the golden fixtures (now unblocked: `P0-004` established 6,824 net from the as-built drawing).
+4. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
    proven rather than one.
+5. **The catalog and rule-pack approvers.** Both packs sit in `DRAFT` and both gates refuse
+   self-approval. Needs a name, not code.
 
 ---
 
 ## File-impact plan for the next unblocked task (P1-014 · `C-04`)
 
-`C-04` is the twelve MVP checks. It is the next slice in dependency order, but it depends on `B-05`
-(the rule-pack schema), because `AC-19` requires the tier ceiling to be applied **by the framework**
-from the rule's own verification tier. A check cannot carry its own ceiling, or a PASS against a
-secondary-sourced rule becomes writable. So `B-05` lands first, in the same slice.
+`B-05` has landed, so the twelve checks are unblocked: every check now has a rule with a tier, and
+`applyCeiling` is proven exhaustive. `C-04` is the framework plus the checks themselves.
 
 **New files**
 
 ```
-data/rules/mvp-2026-08/rules.json          rule pack: id, text, tier, source, effective date
-data/rules/mvp-2026-08/manifest.json       release metadata, digitiser, approver, verification path
-packages/kernel-rules/src/pack.ts          B-05. Schema validation + release gate, mirroring catalog
-packages/kernel-rules/src/pack.test.ts     a null approver, approver == digitiser, and no recorded
-                                           cross-check must each refuse the release (AC-18 shape)
-packages/kernel-checks/src/framework.ts    C-04. runChecks(): the ceiling applied here, once
-packages/kernel-checks/src/framework.test.ts  AC-19: a PASS above a SECONDARY rule's ceiling is
-                                           unrepresentable, asserted at the type and runtime layer
-packages/kernel-checks/src/checks/*.ts     the twelve checks, each pure and rule-driven
-packages/kernel-checks/src/checks.test.ts  per-check cases incl. UNKNOWN propagation
+packages/kernel-checks/src/framework.ts       runChecks(): the ONE place the ceiling is applied
+packages/kernel-checks/src/framework.test.ts  a check returning PASS against a SECONDARY rule must
+                                              come back ENGINEERING REVIEW REQUIRED; a check naming
+                                              an absent rule must throw, not silently skip
+packages/kernel-checks/src/finding.ts         the §11.3 shape: parameters carry {value, established},
+                                              closed_by is mandatory, citation is internal-only
+packages/kernel-checks/src/checks/*.ts        the twelve checks, each pure and rule-driven
+packages/kernel-checks/src/checks.test.ts     per-check cases incl. UNKNOWN propagation
 ```
 
 **Modified files**
 
 ```
-tsconfig.base.json · vitest.config.ts · tsconfig.json   the @rms/kernel-rules and @rms/kernel-checks
-                                                        aliases, three-way agreement + coverage
-                                                        thresholds at 100% for both new packages
+tsconfig.base.json · vitest.config.ts · tsconfig.json   the @rms/kernel-checks alias, three-way
+                                                        agreement + a 100% coverage threshold
 docs/CURRENT_STATE.md · TODO.md                         results, only after the commands pass
 ```
 
 **Untouched, explicitly**
 
 ```
-packages/kernel-units/** · kernel-model/** · kernel-derive/** · kernel-geom/**
-                                    no existing kernel package learns about rules or checks
+packages/kernel-rules/**            the ceiling is consumed, never re-implemented or bypassed
+packages/kernel-units/** · kernel-model/** · kernel-derive/** · kernel-geom/** · kernel-catalog/**
 rack-master-studio-blueprint.html   rebuild only via src/build.py
 C:\Rack Master\Resourse (do not delete or overwrite files)\**   read-only, always
 ```
@@ -569,12 +565,12 @@ C:\Rack Master\Resourse (do not delete or overwrite files)\**   read-only, alway
 ```
 pnpm db:up && pnpm migrate
 pnpm verify          # typecheck, lint, tests, boundaries, self-test, RLS
-pnpm coverage        # 100% on kernel-rules and kernel-checks, threshold enforced
+pnpm coverage        # 100% on kernel-checks, threshold enforced
 ```
 
-Then prove the gate fires rather than merely observing it pass: write a check that returns `PASS`
-against a `SECONDARY`-tier rule and confirm the framework refuses it, and demote a rule's tier in
-the pack and confirm the affected results drop to the ceiling without the check being edited.
+Then prove the gate fires rather than observing it pass: write a check that returns `PASS` against a
+`SECONDARY`-tier rule and confirm the framework downgrades it, and demote a rule's tier in the seed
+pack and confirm the affected findings drop to the ceiling **without any check being edited**.
 
 Record the actual output in `docs/CURRENT_STATE.md` §4. A task is not complete because it looks
 done; it is complete when the command has been run and its result written down.

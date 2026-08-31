@@ -1,0 +1,12 @@
+{
+  "name": "@rms/kernel-rules",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Rule packs, citations, and the verification-tier ceiling. Pure.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

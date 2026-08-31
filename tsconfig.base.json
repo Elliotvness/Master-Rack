@@ -34,6 +34,7 @@
       "@rms/kernel-catalog": ["packages/kernel-catalog/src/index.ts"],
       "@rms/kernel-derive": ["packages/kernel-derive/src/index.ts"],
       "@rms/kernel-geom": ["packages/kernel-geom/src/index.ts"],
+      "@rms/kernel-rules": ["packages/kernel-rules/src/index.ts"],
       "@rms/db": ["packages/db/src/index.ts"],
       "@rms/api": ["apps/api/src/index.ts"]
     }

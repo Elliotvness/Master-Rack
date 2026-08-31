@@ -20,10 +20,10 @@ and `C-03` (`kernel-geom`). **`B-05` then `C-04` is next.**
 |---|---|
 | Blueprint revision | **Rev C**, 2026-08-31 |
 | Decisions | **21 of 21 settled.** One item deliberately open — see §7 |
-| Code written | Five pure kernel packages, the database layer, the API layer, five mechanical checks |
-| Tests | **354 passing** across 17 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
+| Code written | Six pure kernel packages, the database layer, the API layer, five mechanical checks |
+| Tests | **400 passing** across 19 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
 | Verification | `pnpm verify` green, exit 0; results recorded in `docs/CURRENT_STATE.md` §4 |
-| Next | `B-05` (rule packs with tiers), then `C-04` (the twelve checks). Full order in §5 |
+| Next | `C-04` (the twelve checks), now unblocked by `B-05`. Full order in §5 |
 
 **Start with `README.md` for how to run the checks, `TODO.md` for what is next, and
 `docs/CURRENT_STATE.md` for what has actually been run rather than what is planned.**
@@ -108,10 +108,11 @@ Phase 0 in dependency order. None of it is client-specific, so it does not wait 
 
 **Write the hash-stability test before the hashing code.** That advice is in the reference projects and it is right.
 
-**Every Group A task above is now complete and verified.** `C-01`, `C-02`, `C-03` and the catalog
-slice of Group B are also done. The live front is `B-05` (the rule-pack schema with verification
-tiers) followed by `C-04` (the twelve checks), because `AC-19` requires the tier ceiling to be
-applied by the framework from the rule's own tier — so the tier must exist as data first.
+**Every Group A task above is now complete and verified.** `C-01`, `C-02`, `C-03`, the catalog
+slice of Group B, and `B-05` (the rule pack with its verification-tier ceiling) are also done. The
+live front is **`C-04`, the twelve checks** — now unblocked, because `AC-19` requires the ceiling to
+be applied by the framework from the rule's own tier, and that tier now exists as data with
+`applyCeiling` proven exhaustive over all 5 tiers × 7 severities.
 
 Then the rest of Group B and C, D (client app), E (internal app). Full backlog in blueprint §15.3.
 

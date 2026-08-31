@@ -82,6 +82,8 @@ importers:
         specifier: workspace:*
         version: link:../kernel-units
 
+  packages/kernel-rules: {}
+
   packages/kernel-units: {}
 
 packages:

@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "pack": "mvp",
+  "rev": "2026-08",
+  "manifest": {
+    "pack": "mvp",
+    "rev": "2026-08",
+    "status": "DRAFT",
+    "authored_by": "automated draft (Claude)",
+    "authored_at": "2026-08-31",
+    "approved_by": "",
+    "approved_at": "",
+    "open_conflicts": [
+      "Which edition of ANSI MH16.1 applies has not been established. No rule in this pack cites MH16.1 at PRIMARY tier as a result.",
+      "The NFPA section for the 18-inch sprinkler clearance rule is not established; the rule is carried at NOT_FOUND and reports measured geometry with no verdict attached.",
+      "The load-face aisle measurement convention has no located code basis. ADR-006 fixes the datum for internal consistency; it is not a compliance claim.",
+      "Maximum row length before a fire break: no source located.",
+      "Dock setback convention: no source located.",
+      "Dead-load basis for the capacity tables is stated by the manufacturer but the governing standard's treatment has not been read."
+    ]
+  },
+  "rules": [
+    {
+      "id": "GEOM-LEVEL-DISTINCT",
+      "text": "Beam level elevations must be distinct and strictly increasing from the floor, and every level must fall within the upright frame height.",
+      "tier": "PRIMARY",
+      "value": null,
+      "unit": null,
+      "citation": {
+        "standard": "Internal geometric consistency",
+        "edition": "2026-08",
+        "section": "Blueprint §11.4 check 3",
+        "source_note": "Not a code rule. This is arithmetic on the client's own stated geometry: two levels at the same elevation, or a level above the frame, is internally inconsistent regardless of any standard. PRIMARY because the source of truth is the configuration itself, which is fully established, and no external authority is claimed."
+      }
+    },
+    {
+      "id": "GEOM-TOP-OF-LOAD",
+      "text": "The top of the highest load must fall within the stated clear height of the building.",
+      "tier": "PRIMARY",
+      "value": null,
+      "unit": null,
+      "citation": {
+        "standard": "Internal geometric consistency",
+        "edition": "2026-08",
+        "section": "Blueprint §11.4 check 4",
+        "source_note": "Compares two client-supplied numbers. Establishes nothing about fire, seismic or structural adequacy; it only refuses a configuration taller than the room the client stated. PRIMARY on the same basis as GEOM-LEVEL-DISTINCT."
+      }
+    },
+    {
+      "id": "GEOM-BEAM-FRAME-FIT",
+      "text": "The selected beam must be published as compatible with the selected frame connector and frame depth, in both directions.",
+      "tier": "PRIMARY",
+      "value": null,
+      "unit": null,
+      "citation": {
+        "standard": "Interlake Mecalux published catalog",
+        "edition": "2026-08",
+        "section": "Beam Load Capacities Chart",
+        "source_note": "Compatibility is read from the manufacturer's own published catalog, which is the primary source for its own product. Applies to catalog parts only; uncatalogued material is handled by PART-UNCATALOGUED."
+      }
+    },
+    {
+      "id": "CAP-BEAM-PAIR",
+      "text": "The published beam-pair capacity at the exact span must equal or exceed the stated level load. The span must be a published span; capacity is never interpolated between spans.",
+      "tier": "PRIMARY",
+      "value": null,
+      "unit": null,
+      "citation": {
+        "standard": "Interlake Mecalux published capacity table",
+        "edition": "2026-08",
+        "section": "Beam Load Capacities Chart, L/180, per pair",
+        "source_note": "The manufacturer's published table is the primary source for its own product's rated capacity. The no-interpolation behaviour is the product's own rule and is enforced in kernel-catalog, which returns both brackets and no value off-grid."
+      }
+    },
+    {
+      "id": "PART-PUBLISHED",
+      "text": "A selected part must be present in the pinned catalog release and not marked discontinued.",
+      "tier": "PRIMARY",
+      "value": null,
+      "unit": null,
+      "citation": {
+        "standard": "Interlake Mecalux published catalog",
+        "edition": "2026-08",
+        "section": "Beam Load Capacities Chart",
+        "source_note": "Presence in the pinned release is a fact about the pinned data, verifiable without any external authority."
+      }
+    },
+    {
+      "id": "PART-UNCATALOGUED",
+      "text": "Any uncatalogued part in the option must be named, and its capacity cannot be established from geometry. Dimensional similarity to a published part is not evidence of capacity.",
+      "tier": "PRIMARY",
+      "value": null,
+      "unit": null,
+      "citation": {
+        "standard": "Product scope constraint",
+        "edition": "2026-08",
+        "section": "Blueprint §11.4 check 12; OD-17",
+        "source_note": "PRIMARY because the rule asserts the ABSENCE of an established capacity, which needs no external source. Fires on roughly half of all jobs. Deliberately carries no derate: a used-material derate has no published basis."
+      }
+    },
+    {
+      "id": "PROV-ESTABLISHED",
+      "text": "Every value used in a derived output must be established. An unestablished value is named, and never rendered as a numeral.",
+      "tier": "PRIMARY",
+      "value": null,
+      "unit": null,
+      "citation": {
+        "standard": "Product constitution",
+        "edition": "2026-08",
+        "section": "Blueprint §11.4 check 8; AC-07",
+        "source_note": "Enforced by the provenance walkers in kernel-units, which fail closed. A property of the model, not of any external standard."
+      }
+    },
+    {
+      "id": "INPUT-SITE-UNKNOWNS",
+      "text": "Clear height not surveyed, column grid not resolved, or commodity class not established are each reported as a missing input naming the field and who can answer it.",
+      "tier": "PRIMARY",
+      "value": null,
+      "unit": null,
+      "citation": {
+        "standard": "Product scope constraint",
+        "edition": "2026-08",
+        "section": "Blueprint §11.4 check 9",
+        "source_note": "Asserts only that a field is absent, which is directly observable. Deliberately distinct from ENGINEERING REVIEW REQUIRED: the client can fix a missing input in thirty seconds."
+      }
+    },
+    {
+      "id": "GEOM-PALLET-OVERHANG",
+      "text": "The pallet must fit the bay with overhang allocated to the front and rear faces. The allocation is exact and is never produced by halving into a rounding error.",
+      "tier": "PRIMARY",
+      "value": null,
+      "unit": null,
+      "citation": {
+        "standard": "Internal geometric consistency",
+        "edition": "2026-08",
+        "section": "Blueprint §11.4 check 6; ADR-006",
+        "source_note": "Arithmetic over established dimensions, implemented by allocateOverhang in kernel-derive, which sums to the original exactly. Reports a warning, not a blocker: an overhang outside a preferred range is a design observation, not a physical impossibility."
+      }
+    },
+    {
+      "id": "AISLE-CLEAR-WIDTH",
+      "text": "The aisle clear width between load faces must equal or exceed the handling equipment's stated requirement.",
+      "tier": "SECONDARY",
+      "value": null,
+      "unit": null,
+      "citation": {
+        "standard": "Handling equipment manufacturer specification",
+        "edition": "",
+        "section": "",
+        "source_note": "The REQUIREMENT is supplied by the client from their equipment specification and is not read by this product from any standard. The measurement convention (between load faces, never frame to frame) is fixed by ADR-006 for internal consistency and has no located code basis — see open conflict 3. SECONDARY, so this check can produce at most ENGINEERING REVIEW REQUIRED. Promotable to PRIMARY per-project only when the equipment data sheet is read and cited."
+      }
+    },
+    {
+      "id": "CITE-BELOW-PRIMARY",
+      "text": "Any finding whose governing rule is below PRIMARY tier is itself reported, so the client can see which conclusions the tool was not entitled to draw.",
+      "tier": "PRIMARY",
+      "value": null,
+      "unit": null,
+      "citation": {
+        "standard": "Product constitution",
+        "edition": "2026-08",
+        "section": "Blueprint §11.4 check 10; §11.2",
+        "source_note": "A rule ABOUT the rule pack, established by inspecting the pack itself. This is the check that makes the tier system visible rather than merely internal."
+      }
+    },
+    {
+      "id": "FLUE-SPRINKLER-GEOMETRY",
+      "text": "Transverse and longitudinal flue dimensions are reported as measured geometry with no verdict attached. No conclusion is drawn about sprinkler adequacy or fire-protection compliance.",
+      "tier": "NOT_FOUND",
+      "value": null,
+      "unit": null,
+      "citation": {
+        "standard": "NFPA 13",
+        "edition": "",
+        "section": "",
+        "source_note": "The section governing the 18-inch clearance rule has not been located and no edition has been established — see open conflicts 2 and 4. Carried at NOT_FOUND deliberately: the check reports the measured dimension and the ceiling forces NOT EVALUATED, so no fire-protection verdict can be produced. The rack-takeoff project's claim that a 24 ft frame plus a 10-inch column implies roughly 21.5 inches of flue against a 12-inch standard is recorded as a QUESTION, not adopted. This rule carries no value, which the loader enforces for NOT_FOUND."
+      }
+    }
+  ]
+}
