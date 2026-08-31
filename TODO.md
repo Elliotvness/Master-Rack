@@ -516,7 +516,7 @@ revoked, used and nonexistent tokens render the same page with the same status a
 timing (`AC-01`). Every facility field is individually markable **not known**, producing a finding
 rather than a zero.
 **Verification.** `AC-01` test; concurrent-redemption test asserts exactly one succeeds.
-**Dependencies.** P1-007, P1-009. **Status.** `Not started`. **Evidence:** `Planned only`.
+**Dependencies.** P1-007, P1-009. **Status.** `Logic complete, no UI`. **Evidence:** `apps/client-web/src/lib/invitation.ts` and `facility.ts`, 28 tests (commit `cffd1ed`). The AC-01 identical-refusal collapse and the explicit not-known field state are both covered. React components are not built.
 
 ### P2-002 · `D-03` Option builder over the controlled vocabulary
 **Why it matters.** The first screen a client sees, and the first task where a named pilot client
@@ -525,14 +525,14 @@ would change what gets built (`OD-20b` should be named before this starts).
 offered; an unavailable choice **states why**; no silent nearest-match substitution. Scope is
 `OD-03`: back-to-back and single row, floor level plus 2–6 beam levels, uniform bays within a run.
 **Verification.** Demo beat 5 as a test: a 110″ beam is refused, the published grid brackets are shown at 108″ and 114″, and the refusal states that the engine does not interpolate.
-**Dependencies.** P1-012, P1-014. **Status.** `Not started`. **Evidence:** `Planned only`.
+**Dependencies.** P1-012, P1-014. **Status.** `Logic complete, no UI`. **Evidence:** `apps/client-web/src/lib/options.ts`, 25 tests (commit `bb77aff`). Cascade filtering with stated reasons; no interpolation and no clamping on an off-grid span.
 
 ### P2-003 · `D-04`/`D-05`/`D-06` Preview, findings panel, comparison
 **Acceptance.** Every parameter change re-derives plan, elevation, counts, assumptions and findings
 within one interaction; nothing displays from a stale computation. Comparison never shows cost,
 price, part count or any BOM quantity. Missing input is visually distinct from engineering review.
 **Verification.** p95 < 120 ms preview update on a 300-bay fixture in CI; leakage contract test covers the comparison route.
-**Dependencies.** P2-002. **Status.** `Not started`. **Evidence:** `Planned only`.
+**Dependencies.** P2-002. **Status.** `Logic complete, no UI`. **Evidence:** `preview.ts` and `comparison.ts`, 38 tests (commits `d973e4c`, `cb3fe34`). Includes the preview staleness guard and the closed comparison metric set. The canvas/SVG renderers themselves are not built.
 
 ### P2-004 · `D-07`/`E-06` Pre-submit confirmation and the submit transaction
 **Why it matters.** The one place client data crosses into internal workflow, and it crosses once.
@@ -542,7 +542,7 @@ serialise and hash the manifest → freeze → persist derived rows keyed to the
 submission with `this_hash` → write audit events → enqueue outbox work. After submit, a direct
 `UPDATE` against the revision row fails **at the database** (`AC-11`).
 **Verification.** `AC-10`, `AC-11`; a failure injected at any step leaves no partial state.
-**Dependencies.** P1-010, P1-014. **Status.** `Not started`. **Evidence:** `Planned only`.
+**Dependencies.** P1-010, P1-014. **Status.** `Logic complete, not wired to Postgres`. **Evidence:** `apps/client-web/src/lib/submit.ts`, 22 tests (commit `77d5ed9`). The nine-step order is proven by deliberate breakage. The transaction is modelled, not yet executed against the real database.
 
 ### P2-005 · `E-08` Watermarked client PDF with versioned disclaimer
 **Acceptance.** Rendered from the same display list as the canvas. Diagonal watermark on every page,
@@ -568,7 +568,7 @@ independently re-verifiable* — **never** *tamper-proof*.
 the frozen original never changes. SLA targets stay hidden externally until a baseline exists over
 ten live submissions (`OD-11`), and neither clock is ever labelled *engineering review*.
 **Verification.** Clone leaves the source `content_hash` byte-identical.
-**Dependencies.** P2-004. **Status.** `Not started`. **Evidence:** `Planned only`.
+**Dependencies.** P2-004. **Status.** `Logic complete, no UI`. **Evidence:** `apps/client-web/src/lib/status.ts`, 22 tests (commit `99cfef1`). Three-state coarse status, SLA targets hidden until a ten-submission baseline, and neither clock labelled *engineering review*.
 
 ---
 
