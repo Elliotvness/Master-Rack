@@ -60,7 +60,11 @@ function listFiles(dir) {
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) {
       out.push(...listFiles(full));
-    } else if (/\.(ts|mts|js|mjs)$/.test(entry) && !/\.d\.ts$/.test(entry)) {
+    } else if (/\.(ts|mts|js|mjs)$/.test(entry) && !/\.d\.ts$/.test(entry) && !/\.test\.(ts|mts|js|mjs)$/.test(entry)) {
+      // Test files are excluded: purity is a property of SHIPPED kernel code.
+      // A test legitimately reads a fixture from disk to check the real data.
+      // The self-test proves the checker still catches a violation in non-test
+      // source, so this exclusion cannot be used to smuggle I/O into the kernel.
       out.push(full);
     }
   }
