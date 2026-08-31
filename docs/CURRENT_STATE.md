@@ -144,6 +144,29 @@ restored and re-verified immediately.
 
 Still not verified: `verify-visual.py` (`P0-003`), and CI on a real runner.
 
+**2026-08-31 — Phase 0 continued (`A-07`)**
+
+| Check | Command | Result |
+|---|---|---|
+| Fresh-database migrate | `pnpm migrate` from an empty schema | **PASS.** `0001`, `0002`, `0003` applied clean; 18 tables |
+| A-07 crypto | `pnpm test` | **PASS.** 13 tests: token entropy, SHA-256, scrypt round-trip, malformed-hash safety, constant-time compare |
+| A-07 sessions + invitations | `pnpm test` | **PASS.** 11 tests against real Postgres, incl. `AC-01` and `AC-17` |
+| Whole pipeline | `pnpm verify` | **PASS.** 200/200 tests; lint, boundaries, self-test, RLS all green |
+
+**A defect the gate caught during this build:** migration `0003` created the `session` and
+`credential` tables but the `GRANT ... ON ALL TABLES` in `0002` only covers tables that existed when
+it ran. The application role got `permission denied for table session` — caught by the first session
+test, fixed by an explicit grant in `0003`, and proven by resetting the schema and re-migrating from
+scratch.
+
+**A second-order issue the run surfaced:** the two integration suites share one Postgres and each
+truncates the tables it seeds, so running test files in parallel let one wipe the other's fixture
+mid-run. Fixed with `fileParallelism: false`; the pure suites are fast enough that serial files cost
+nothing noticeable.
+
+Still not verified: `verify-visual.py` (`P0-003`), and CI on a real runner.
+
+
 
 
 ## 5. Canonical flow — is it confirmed?
