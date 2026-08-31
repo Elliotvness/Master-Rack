@@ -1,0 +1,53 @@
+{
+ "approved_at": "2026-08-31",
+ "approved_by": "Elliott Villacorta",
+ "authority": "SOLE for beam capacity. Established by owner decision 2026-08-31 (P0-008).",
+ "catalog_rev": "Interlake Mecalux Product Support Guide 2025 (SEL-PSG-12/2025), 98-page PDF",
+ "changes_from_2026_08": [
+  "264 capacity values corrected to the published chart. The 2026-08 extract carried values that were consistently off by 5-25 lbs, none of which appear anywhere in the source document.",
+  "42 rows REMOVED: 40E and 40ER under an F3M (6\", 3-tab) end plate. Page 84 publishes F3M for 27E and 36E only, and page 88 groups the 40E column under F4M. Character 13 of those rows' own codes reads 'C' (F3M) on a 40E beam, which the code format does not allow. They were a phantom variant: not published, and reading 3.8-12.2% BELOW the real 40E capacity, so the engine would have quoted a beam that does not exist while appearing conservative.",
+  "No part number, code_18, face height or deflection value was altered. Only capacity was re-sourced, and only unpublished rows were removed."
+ ],
+ "code_basis": "RMI guidelines and ANSI MH16.1-2012 (p.88 footnote); FY = 55 KSI",
+ "constraints": {
+  "brace_required_over_in": 126,
+  "crossbar_required_over_in_when_decked": 90
+ },
+ "content_sha256": "45cd2907b69baa53e2f16edc6da6118d013dce174ddb0306167f7a47497e0b9b",
+ "deflection_limit": "L/180 (p.88: 'lesser of strength in bending, or L/180 deflection criteria')",
+ "digitised_at": "2026-08-31",
+ "digitised_by": "automated extract (Claude)",
+ "disregarded": [
+  "Mecalux Material Catalog (Mecalux_Material_Catalog.xlsx) - DISREGARDED FOR CAPACITY VALUES. It describes a different product line (25E, 31E, 35E, 39E, 43E, 47E, 55E, 65Q-DX) and carries no capacity data for twelve of the sixteen families this catalog covers (27E/27ER, 36E/36ER, 40E/40ER, 45E/45ER, 50ER, 59ER, 65ER, 65QR). Where both sources do overlap they disagree on every span - e.g. 65E at 48\" reads 17,115 lbs in PSG 2025 and 15,000 lbs in the Material Catalog. A prior reconciliation recommended using the Material Catalog for capacity lookups; that recommendation is superseded as IMPOSSIBLE TO SATISFY, not merely rejected - the data it points to does not exist for most of our families. Recorded here so a future reader does not 'restore' it under the impression it was dropped by accident."
+ ],
+ "face_height_59e_status": {
+  "catalog_rows_as_published": 5.92,
+  "disposition": "UNRESOLVED_NON_BLOCKING",
+  "documentation_table": 5.928,
+  "page_ref": "",
+  "read_at": "2026-08-31",
+  "read_by": "Elliott Villacorta",
+  "read_from_source_chart": 5.93,
+  "reason": "Three readings, none carrying a page reference. Not blocking: face height is not a lookup key and no capacity, span or clearance result depends on it. Blocking the moment face height is used dimensionally - e.g. bay pitch from beam face, or an elevation drawn to scale."
+ },
+ "load_basis": "Uniformly distributed product load plus dead load, PER PAIR of beams (dead load = weight of beams). Static load only. Value is the lesser of strength in bending and L/180 deflection.",
+ "manufacturer": "Interlake Mecalux",
+ "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M",
+ "rev": "2026-09",
+ "row_count": 336,
+ "source_anomalies": [
+  "code_18 IB65QT16200RRA4000 (65QR, 162\") carries end-plate letter 'R' where the F5M series specifies 'S'. Its 65Q sibling at the same span reads IB65QT16200RSA2000 and every other 65QR row reads ...RSA4000. Transcribed verbatim as published; pinned as a named exemption in psg-authority.test.ts so a NEW wrong letter still fails the build.",
+  "Five 65QR code_18 values are 17 characters where the format specifies 18: IB65QT05400RSA400 (54\"), IB65QT06600RSA400 (66\"), IB65QT07800RSA400 (78\"), IB65QT12600RSA400 (126\"), IB65QT15000RSA400 (150\"). Published that way; the exact set is pinned by test so a sixth would fail.",
+  "part_number UM005516 appears on 2 rows (65QR 54\" and 60\"); UM005517 appears on 2 rows (65QR 66\" and 72\"). Carried forward from the 2026-08 extract, unchanged.",
+  "face_height_in 5.92 is transcribed verbatim on all 42 rows of families 59E/59ER; a documentation table for the same beam gives 5.928, and the source chart was read by Elliott Villacorta on 2026-08-31 as 5.93. The rows are NOT altered: the published value stays as printed so the extract remains reconcilable against its source. 5.93 corroborates 5.928 (which rounds to 5.93 at two decimals) over 5.92. face_height_in is carried as descriptive data only and is not part of any lookup key (key = family + series + span), so the discrepancy affects no capacity result. Resolve to a single figure with a page reference before face height is ever used dimensionally."
+ ],
+ "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
+ "source_url": "https://www.interlakemecalux.com/",
+ "status": "APPROVED",
+ "units": "lbs",
+ "verification_path": {
+  "cells": 336,
+  "kind": "full_cross_check",
+  "note": "All 336 capacity cells re-derived from PDF page 88 and compared against the shipped rows by packages/kernel-catalog/src/psg-authority.test.ts, which is wired into the test run. The chart was also parsed directly from the PDF independently of the supplied spreadsheet, and the two agree on every row. End-plate assignment cross-checked against page 84 and character 13 of each 18-digit code."
+ }
+}

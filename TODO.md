@@ -118,6 +118,28 @@ longer a blocker.
 **Status.** `Complete` — resolved by owner decision. **Evidence:** `Confirmed implemented` (the
 decision; the fixture itself lands with `C-08`).
 
+### P0-008 · Beam capacity authority: PSG 2025 vs the Material Catalog
+**Why it mattered.** Two sources gave different capacities for the same beam and could not both be
+right. 65E at 48" reads 17,115 lbs in PSG 2025 and 15,000 lbs in the Material Catalog.
+**Decision (owner, 2026-08-31).** The Interlake Mecalux **Product Support Guide 2025
+(`SEL-PSG-12/2025`) is SOLE authority for beam capacity.** The Material Catalog is **disregarded for
+capacity values** — it covers a different product line and carries no capacity data for twelve of
+our sixteen families, so the earlier "use the Material Catalog for capacity lookups" recommendation
+is superseded as impossible to satisfy rather than merely rejected.
+**Approved by.** Elliott Villacorta, 2026-08-31. Digitiser is `automated extract (Claude)`, so the
+`AC-18` second-party requirement is met by a recorded `full_cross_check` over all 336 cells.
+**Page anchors.** p.88 capacity chart; p.84 `BEAM PROFILES`; p.83 end-plate models.
+**Verification.** Page count, both page anchors and all 378 chart cells were checked against the
+original `Selective PSG_2025.pdf` — not the intermediate spreadsheet. The shipped catalog was
+**rebuilt from the chart**, then cross-checked against the supplied file: 0 disagreements.
+**What changed.** Release `interlake-2026-09`: 264 capacities corrected, and **42 phantom
+40E/40ER F3M rows deleted** (an end plate the guide publishes only for 27E/36E; those rows read
+3.8–12.2% below the real 40E capacity). `interlake-2026-08` is retained so existing submissions
+still resolve against the release they were built on.
+**Status.** `Complete`. **Evidence:** `packages/kernel-catalog/src/psg-authority.test.ts`, 7 tests,
+written RED against the old data (306 mismatches + 42 phantoms) and green against the new. Five
+deliberate breaks each proven to fire. `pnpm verify` PASS, 881/881.
+
 ### P0-005 · Resolve or formally park the 59E beam face height
 **Why it mattered.** 5.92″ across all 42 catalog rows vs 5.928″ in a documentation table.
 

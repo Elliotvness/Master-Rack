@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **874**, all passing across 37 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
+| Product tests | **881**, all passing across 38 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified beam rows **and 435 verified frame-capacity cells**, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **9**: kernel-boundary self-test + scan, **app-boundary self-test + scan**, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 35 commits**, working tree clean |
+| Version control | **git, 37 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,53 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `P0-008`: PSG 2025 established as sole authority for beam capacity**
+
+| Check | Command | Result |
+|---|---|---|
+| PSG authority suite | `pnpm test` | **PASS.** 7 tests over all 336 rows |
+| **RED FIRST** | run against the 2026-08 data | **306 capacity mismatches + 42 phantom end-plate rows.** The test was written before the data changed and failed for the right reasons |
+| **A capacity off by 5 lbs** | deliberate break | **PROVEN RED** |
+| **A 40E/F3M phantom row reintroduced** | deliberate break | **PROVEN RED**, 3 tests |
+| **A sixth short `code_18`** | deliberate break | **PROVEN RED** |
+| **A whole family dropped** | deliberate break | **PROVEN RED** |
+| **A new wrong end-plate letter** | deliberate break | **PROVEN RED** (the one published typo stays exempt) |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **881/881** tests |
+
+**The decision.** The Interlake Mecalux Product Support Guide 2025 (`SEL-PSG-12/2025`) is **SOLE
+authority** for beam capacity. The Mecalux Material Catalog is **disregarded for capacity values**,
+and the reason is recorded rather than implied: it describes a different product line (25E, 31E,
+35E, 39E, 43E, 47E, 55E, 65Q-DX) and carries **no capacity data for twelve of our sixteen
+families**. Where the two overlap they disagree on every span — 65E at 48" reads 17,115 lbs in PSG
+and 15,000 in the Material Catalog. A prior reconciliation recommended the Material Catalog for
+capacity lookups; that is superseded as **impossible to satisfy**, not merely outvoted. Same shape
+as `P0-004`: one source governs, the loser is named with its reason so nobody "restores" it later.
+
+**Everything was verified against the original PDF, not the intermediate spreadsheet.** `98 pages`
+confirmed. Page 88 confirmed as the capacity chart; page 84 confirmed as `BEAM PROFILES`. The chart
+was then parsed straight out of the PDF and compared to the supplied file: **378/378 agreement, 0
+mismatches**. The shipped catalog was **rebuilt from the chart** rather than copied from the
+supplied file — which happened to be correct, but had no provenance, and adopting it would have
+replaced one unverified number with another.
+
+**A real defect was found and removed: 42 phantom rows.** The 2026-08 extract carried 40E/40ER
+beams under an **F3M** (6", 3-tab) end plate. Page 84 publishes F3M for **27E and 36E only**, page
+88 groups the 40E column under **F4M**, and character 13 of those rows' own codes reads `C` — an
+end plate the 18-digit format does not allow on a 40E beam. They also read **3.8–12.2% below** the
+real 40E capacity, so the engine looked conservative while quoting a beam that does not exist.
+Deleted, not corrected: an unpublished variant has no right value.
+
+**264 capacities were off by 5–25 lbs**, none of which appear anywhere in the source. Corrected to
+the published cell.
+
+**Six manufacturer anomalies were preserved verbatim, not silently fixed.** One 65QR code carries
+the wrong end-plate letter and five are 17 characters where the format says 18. They are pinned as
+**named literals**, so the published oddities stay quiet while a *new* one fails the build — the
+catalog has to remain reconcilable against the document it came from.
+
+**`2026-08` is retained and still referenced by existing tests.** A submission resolves against the
+release it was built on; superseding a release must not silently re-rate a frozen job.
 
 **2026-08-31 — `E-09`: the determinism harness**
 
