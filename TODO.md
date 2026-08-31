@@ -257,7 +257,8 @@ everything downstream depends on it. It must arrive as declarative data, never e
 **Files.** `data/catalog/interlake-<rev>/`, `data/rules/<pack>-<rev>/`, `packages/kernel-catalog/`.
 Sources are read-only: `rack-engine\catalog\interlake-2026-08\` (378 beam rows),
 `rack-app\frame_capacity_published_2025\` (3 tables, 435/435 reconciled).
-**Dependencies.** P1-002; P0-005 for the 59E figure.
+**Dependencies.** P1-002. (`P0-005` was listed here as a blocker; it is closed — the 59E figure is
+parked as a recorded anomaly and is not a lookup key, so it never blocked this item.)
 **Acceptance.** JSON/TOML validated against a published schema. Every provenance field carried
 verbatim: `load_basis`, `deflection_limit`, `code_basis`, `source_anomalies[]` (all seven),
 `constraints` (reported, never enforced). Data re-enters `DRAFT` and requires approval **in the new
@@ -266,11 +267,16 @@ or when there is one human signature with no recorded cross-check or two-path re
 (`AC-18`). Lookup is exact-grid only: off-grid returns both brackets and no value (`AC-08`); no
 nearest-match; used or generic material carries no table basis at all (`AC-09`).
 **Verification.** Schema validation in CI; a release with a null approver fails the build; an off-grid lookup test asserts both brackets and no value. **Run 2026-08-31: PASS** — `python tools/extract-catalog.py` produced 378 verbatim beam rows, 16 families, 21 spans and 7 anomalies, parsed via `ast` with the source never executed; 34 tests in `kernel-catalog` cover on-grid capacity, `AC-08` off-grid brackets with no value, the absence of nearest-match, the per-pair basis, and the `AC-18` approval gate. The blueprint's 18-of-21 span claim is now **proven** against the real published grid rather than a reconstruction.
+**Rule-pack half, added 2026-08-31.** The acceptance text above was written for the catalog. `B-05`
+adds the second pinned artifact: a rule pack on its own clock, every rule carrying a verification
+tier that caps what it may conclude, its own approval gate refusing the author approving their own
+pack, and all six open source conflicts recorded rather than resolved. Verified separately — see
+the `B-05` entry below.
 **Status.** `In progress`. **Evidence:** `Confirmed implemented` for `B-01`, `B-02`, `B-04`, `B-05`, `B-06`; **`B-03` `Planned only`**.
 
 **Outstanding within P1-012:**
 - **`B-03`** — migrate the three verified frame-capacity tables from `rack-app\frame_capacity_published_2025\` (435/435 reconciled cells) the same way the beam data was extracted. The seven `QUARANTINED` tables are **not** ported; one overstates capacity by up to 72%.
-- ~~**`B-05`**~~ **Complete and verified 2026-08-31.** `packages/kernel-rules` + `data/rules/mvp-2026-08/`: the five-tier ladder, the §11.2 ceiling asserted verbatim, the rule/citation loader, the pack approval gate, and twelve seed rules. **`AC-19` is proven exhaustively** over all 5 tiers × 7 severities, and the gate was **proven to fire** — adding `PASS` to the `SECONDARY` list turned 3 tests red across both files. 46 tests, 100% coverage. `pnpm verify` **PASS**, 400/400.
+- ~~**`B-05`**~~ **Complete and verified 2026-08-31.** `packages/kernel-rules` + `data/rules/mvp-2026-08/`: the five-tier ladder, the §11.2 ceiling asserted verbatim, the rule/citation loader, the pack approval gate, and twelve seed rules. **`AC-19` is proven exhaustively** over all 5 tiers × 7 severities, and the gate was **proven to fire** — adding `PASS` to the `SECONDARY` list turned 3 tests red across both files. 46 tests, 100% coverage.
 
 ### P1-013 · `C-01` `kernel-model` — write the hash-stability test first
 **Why it matters.** The blueprint and two reference projects independently give this advice. A
@@ -433,7 +439,9 @@ position count, aisle clear widths, assumptions, findings — **no schedule, no 
 capacities, no quantities**. Per `OD-16`: company and contact name only; never a licence number,
 seal, stamp or engineer's name, in any phase.
 **Verification.** `AC-16`; a test asserts no forbidden field appears anywhere in the generated PDF text.
-**Dependencies.** P2-004. **Status.** `Not started`. **Evidence:** `Planned only`.
+**Dependencies.** P2-004, and `C-06` for the display list it renders from — the PDF and the canvas
+must not be two renderers that can disagree about a number.
+**Status.** `Not started`. **Evidence:** `Planned only`.
 
 ### P2-006 · `E-07` WORM manifest upload and daily head anchoring
 **Acceptance.** Object Lock in Compliance mode plus MFA Delete; daily head hash timestamped by an
@@ -466,7 +474,11 @@ units, then the rule that selected the part, then the catalog release with its e
 page reference. Every branch is kept, **including the branch that shows no table basis at all** for
 used material. Structured data plus components — not string-concatenated HTML.
 **Verification.** The four traceability questions in §12.4 are answerable from stored data alone, with no recomputation.
-**Dependencies.** P2-004. **Status.** `Not started`. **Evidence:** `Planned only`.
+**Dependencies.** P2-004. **Upstream is now in place:** `C-05` gives every BOM line its `ruleText`,
+`ruleId`, `confirmed` flag and `sourceObjectIds`, and `C-04` records `ceilingApplied` on every
+finding — so "why is this not a pass?" and "which rule produced this quantity?" are already
+answerable from stored data without recomputation. This item is the *view*, not the data.
+**Status.** `Not started`. **Evidence:** `Planned only`.
 
 ### P3-003 · `E-04`/`E-05` Derive internal revision and internal notes
 **Acceptance.** Deriving leaves the source submission's `content_hash` unchanged, and the derived
@@ -516,7 +528,7 @@ None of these can be resolved by writing code. Each needs a person, a document o
 | ~~RH-02~~ | ~~Reconcile the three Carson counts (P0-004)~~ **Closed 2026-08-31.** EL: the two quotes are reference only and are disregarded; as-built drawing 0005-01 R-1 governs. 6,824 net is established. | — | EL |
 | ~~RH-03~~ | ~~Read the source chart for 59E face height (P0-005)~~ **Closed 2026-08-31.** EL read the chart as **5.93**, corroborating the 5.928 documentation table over the transcribed 5.92. Parked rather than settled: no page reference yet, rows left as published, and face height is not a lookup key so nothing depends on it. Reopens if face height is ever used dimensionally. | — | EL |
 | RH-04 | Confirm the Entra licence tier. OIDC works on any tier; SCIM needs P1+. Without it, offboarding is a quarterly-review checklist item, not an automated one. | Nothing in MVP-1 | IT |
-| RH-05 | Confirm the nominated fallback catalog approver is positioned to catch a **capacity-table** error specifically — a different competence from design or sales review (`OD-07`). | `B-04` release gate | EL |
+| RH-05 | **Name an approver for each pinned artifact — now the most actionable open item.** Two packs sit in `DRAFT` and neither can be pinned by a new revision until approved: the Interlake catalog (378 rows) and the MVP rule pack (12 rules). Both gates refuse self-approval and both require a recorded verification path, so a name alone is not enough. For the catalog, confirm the approver is positioned to catch a **capacity-table** error specifically — a different competence from design or sales review (`OD-07`). | `B-04` catalog release + `B-05` rule-pack release | EL |
 | RH-06 | Legal review of the standing disclaimer before any client sees it, and confirmation against PE board rules in the states sold into (`OD-16`, `R-03`). | P2-005 | Counsel |
 | RH-07 | Six open source conflicts (§10.8): MH16.1 edition, NFPA section for the 18-inch rule, aisle measurement convention, max row length, dock setback, dead-load basis. Santa Fe Springs' rack handout must be obtained by phone. | No compliance claim may be made until resolved; MVP-1 makes none | EL |
 | RH-08 | Re-run the performance spikes on target hardware. Existing figures were taken under software rasterization in a cloud container — a floor, not a measurement. | Confidence in the §5.4 budgets | Dev |
@@ -554,19 +566,20 @@ catalog migration and lookup (`B-01`/`B-02`/`B-04`/`B-06`), and the first two ke
 coverage on all five pure kernel packages, RLS/auth/authz/DTO/audit/outbox proven against real
 Postgres, and the catalog proven against real published data. The next five are:
 
-1. **P1-014** (`C-06`..`C-08`) — the rest of the derivation kernel: the display list (text entries
-   carrying `{text, established}`, never a bare string), the provenance lint, and the golden
-   fixtures wired into the test run. Geometry, counts, the twelve checks and the BOM are done.
-2. **B-03** — migrate the three verified frame-capacity tables (435 reconciled cells) from
+1. **`C-06`** — the display list: text entries carrying `{text, established}`, never a bare string,
+   so the canvas and the PDF render from one source and cannot disagree about a number.
+2. **`B-03`** — migrate the three verified frame-capacity tables (435 reconciled cells) from
    `rack-app`, the same way the beam data was extracted. `C-04`'s beam/frame compatibility check
-   wants it.
-3. **C-08** — the golden fixtures wired into the test run, which the reference project's are not.
-   Unblocked: `P0-004` established 6,824 net from the as-built drawing, and the fixture asserts the
-   breakdown rather than only the headline.
+   currently takes compatibility as an input because this data is not here yet.
+3. **`C-07`/`C-08`** — the provenance lint, and the golden fixtures **wired into the test run**,
+   which the reference project's are not. Unblocked: `P0-004` established 6,824 net from the
+   as-built drawing, and the fixture asserts the breakdown rather than only the headline.
 4. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
    proven rather than one.
-5. **The catalog and rule-pack approvers.** Both packs sit in `DRAFT` and both gates refuse
-   self-approval. Needs a name, not code.
+5. **The catalog and rule-pack approvers** (`RH-05`). Both packs sit in `DRAFT`, both gates refuse
+   self-approval, and neither can be pinned by a new revision until approved. Needs a name and a
+   recorded verification act, not code. **This is the only item on this list that development
+   cannot clear by itself.**
 
 ---
 
