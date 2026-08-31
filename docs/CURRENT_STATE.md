@@ -78,7 +78,26 @@ C:\Rack Master\rack-master-studio\
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
 
-**2026-08-31 — `C-02` `kernel-derive` (first slice of P1-014)**
+**2026-08-31 — `C-03` `kernel-geom` (second slice of P1-014)**
+
+| Check | Command | Result |
+|---|---|---|
+| `kernel-geom` unit + agreement tests | `pnpm test` | **PASS.** 23 new tests: face validation (empty/inverted span, non-integer µm, missing id), clearance semantics (opposing normal, span overlap, facing direction, nearest-of-many), and the span-bucketed `ClearanceIndex` |
+| **Index agrees with the oracle** | (in `pnpm test`) | **PASS.** On a full synthetic scene (>300 irregular faces: back-to-back rows, column guards, dock jambs, closed perimeter, a no-rack zone) the index returns byte-identical clearance to `minClearanceBrute` for **every** face — 0 mismatches |
+| Whole pipeline | `pnpm verify` | **PASS.** 352/352 tests (was 329); typecheck, lint, boundary self-test + scan, RLS all green |
+| Kernel coverage | `pnpm coverage` | **PASS.** `kernel-geom/src` at **100%** statements / branches / functions / lines; threshold added to `vitest.config.ts` |
+| Purity | `node tools/check-boundaries.mjs` | **PASS.** now 18 files across **5** pure packages; `kernel-geom` imports only `@rms/kernel-units` |
+
+**ADR-007's implementation is honoured, not reinterpreted.** The benchmark fixed the strategy — a
+brute-force sweep is 63.79 ms p95, four times a frame budget, so the span-bucketed index is required
+rather than optional. `kernel-geom` ports it faithfully: faces bucketed by (axis, normal, span
+bucket) at the benchmark's 120 in width, each bucket sorted by coordinate, a query walking only the
+touched buckets and scanning forward from its own coordinate. Everything is integer µm, so a
+clearance is exact. The brute-force method is kept in the shipped module as the correctness oracle,
+and the index is asserted to agree with it across a whole scene — a faster wrong answer is not a
+result. `C-04`..`C-08` (checks, BOM, display list, provenance lint, golden fixtures) remain.
+
+
 
 | Check | Command | Result |
 |---|---|---|

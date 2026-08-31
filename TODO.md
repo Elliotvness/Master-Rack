@@ -251,7 +251,7 @@ carry `{text, established}`, never a bare string; an unestablished value never r
 (`AC-07`). **Golden fixtures are wired into the test run** — the reference project's are not, and
 that defect must not be inherited.
 **Verification.** `pnpm test`; fixture deltas within stated tolerance; `node tools/lint-provenance.mjs` fails on a formatter applied to a raw value.
-**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `C-02`; the rest `Planned only`.
+**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `C-02` and `C-03`; the rest `Planned only`.
 
 **`C-02` (`kernel-derive`) — Complete and verified 2026-08-31.** Pure geometry and pallet-position
 counts over provenanced quantities, no catalog or rule number invented in application code:
@@ -272,6 +272,25 @@ counts over provenanced quantities, no catalog or rule number invented in applic
 `kernel-derive/src` at **100%** statements/branches/functions/lines, boundary self-test + scan
 (now 16 files across 4 pure packages) and RLS all green. Wired into the three-way alias table
 (`tsconfig.base.json`, `vitest.config.ts`, project references) with the alias agreement intact.
+
+**`C-03` (`kernel-geom`) — Complete and verified 2026-08-31.** Obstruction faces and the
+span-bucketed clearance index (ADR-006/007), pure integer-µm geometry, no invented number:
+- `face()` validates an axis-aligned face (axis, coord, span lo/hi, normal), refusing an empty or
+  inverted span, a non-integer µm, or a missing id. `kind` is free-form data, not a hard-coded enum,
+  so a new obstructing object type does not mean editing this module (ADR-007's note).
+- `minClearanceBrute` is the obviously-correct nearest-opposing-face oracle: two faces bound each
+  other only if they share an axis, oppose in normal, overlap in span, and one sits ahead of the
+  other in its facing direction.
+- `ClearanceIndex` is ADR-007's *required* implementation, ported from the Task 0.4 spike: faces
+  bucketed by (axis, normal, span bucket) at 120 in, each bucket sorted by coordinate, a query
+  binary-searching to its own coordinate and scanning only the touched buckets. `minClearance`
+  returns a raw µm integer; `minClearanceQuantity` wraps it as a length with a caller-stated origin.
+- **The load-bearing test** builds a full irregular scene (>300 faces: back-to-back rows, column
+  guards, dock jambs, closed perimeter, no-rack zone) and asserts the index returns identical
+  clearance to the oracle for **every** face. A faster wrong answer is not a result.
+**Verification.** `pnpm verify` **PASS** — 352/352 tests (+23 in `kernel-geom`), `kernel-geom/src`
+at **100%** coverage, boundary scan now 18 files across 5 pure packages, RLS green. Wired into the
+three-way alias table and project references.
 
 ---
 

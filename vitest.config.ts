@@ -17,6 +17,12 @@ const alias = {
   '@rms/kernel-catalog': fileURLToPath(
     new URL('./packages/kernel-catalog/src/index.ts', import.meta.url),
   ),
+  '@rms/kernel-derive': fileURLToPath(
+    new URL('./packages/kernel-derive/src/index.ts', import.meta.url),
+  ),
+  '@rms/kernel-geom': fileURLToPath(
+    new URL('./packages/kernel-geom/src/index.ts', import.meta.url),
+  ),
   '@rms/db': fileURLToPath(new URL('./packages/db/src/index.ts', import.meta.url)),
   '@rms/api': fileURLToPath(new URL('./apps/api/src/index.ts', import.meta.url)),
 };
@@ -62,6 +68,12 @@ export default defineConfig({
           statements: 100,
         },
         'packages/kernel-derive/src/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
+        'packages/kernel-geom/src/**': {
           branches: 100,
           functions: 100,
           lines: 100,
