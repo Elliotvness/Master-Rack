@@ -26,3 +26,18 @@ export {
 } from './lookup.js';
 
 export { CatalogDataError, loadBeamRows } from './load.js';
+
+export {
+  FRAME_HEIGHT_BAND_BOUNDARY_IN,
+  FrameCatalog,
+  FrameCatalogError,
+  bandFor,
+  governingHbl,
+  type FrameHeightBand,
+  type FrameKey,
+  type FrameLookupResult,
+  type FrameTable,
+  type FrameVariant,
+} from './frames.js';
+
+export { loadFrameTables } from './load-frames.js';

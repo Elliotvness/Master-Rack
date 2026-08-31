@@ -11,13 +11,16 @@ backlog id, that id is named.
 > **Complete and verified:** `P0-001`, `P0-002`, `P0-006`, `P1-001` (`A-01`), `P1-002` (`A-02`),
 > `P1-003` (`A-03`), `P1-004` (`A-04`), `P1-005` (`A-05`), `P1-006` (`A-06`), `P1-007` (`A-07`),
 > `P1-008` (`A-08`), `P1-009` (`A-09`), `P1-010` (`A-10`), `P1-011` (`A-11`), `P1-013` (`C-01`).
-> **Partial:** `P1-012` (`B-01`/`B-02`/`B-04`/`B-05`/`B-06` done; **`B-03` outstanding**) and
+> **`P1-012` is COMPLETE** (`B-01`..`B-06`). Beams, frames and rule packs all migrated. And
 > **`P1-014` is COMPLETE** (`C-02`..`C-08`). The whole derivation kernel, with every gate proven
 > to fire by deliberate breakage.
 > **Also closed:** `P0-004` (Carson count established) and `P0-005` (59E face height parked).
-> **Last full run, 2026-08-31: `pnpm verify` PASS** — **657/657** tests across 27 files, boundary
-> self-test + scan (31 files, **9** pure packages), provenance self-test + lint (61 files),
+> **Last full run, 2026-08-31: `pnpm verify` PASS** — **684/684** tests across 28 files, boundary
+> self-test + scan (33 files, **9** pure packages), provenance self-test + lint (64 files),
 > `check-rls` 19 tables, exit 0. Coverage measures `apps/` too, with ratcheted floors.
+>
+> **P1 is complete. The trustworthy model the brief demanded before any UI is built and proven.
+> Group D — the client application — is the next work.**
 > Everything else is `Planned only` unless its own row says otherwise. Nothing here may be marked
 > `Complete` without recording the verification command and its actual result.
 
@@ -297,10 +300,25 @@ adds the second pinned artifact: a rule pack on its own clock, every rule carryi
 tier that caps what it may conclude, its own approval gate refusing the author approving their own
 pack, and all six open source conflicts recorded rather than resolved. Verified separately — see
 the `B-05` entry below.
-**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `B-01`, `B-02`, `B-04`, `B-05`, `B-06`; **`B-03` `Planned only`**.
+**Status.** **`Complete`.** **Evidence:** `Confirmed implemented` for `B-01` through `B-06`.
 
-**Outstanding within P1-012:**
-- **`B-03`** — migrate the three verified frame-capacity tables from `rack-app\frame_capacity_published_2025\` (435/435 reconciled cells) the same way the beam data was extracted. The seven `QUARANTINED` tables are **not** ported; one overstates capacity by up to 72%.
+**`B-03` — Complete and verified 2026-08-31.** Three frame-capacity tables, **435 cells**, extracted
+verbatim and matching the source's own double-extraction reconciliation exactly.
+- **Frame capacity keys on TWO independent variables**, not one: `(HbL, frame-height band)`. Models
+  2.314 / 2.313 / 2.312 carry two strut patterns, so a lookup keyed on HbL alone **cannot reproduce
+  the published table**. A test asserts the two bands differ (24,571 vs 25,847 lb at HbL 36), so a
+  future simplification fails loudly.
+- The 21 ft boundary is **inclusive at the lower band**, per the ≤ 21′ column header. Asserted at 251,
+  252 and 253 in, because an off-by-one selects the more generous column.
+- **The quarantined tables are refused BY NAME in the extractor**, not left to memory, and three
+  tests assert the published values are returned rather than the proven-wrong ones — 7,597 not
+  10,400 at HbL 96; 4,989 not 8,600 at HbL 120 (the +72.4% overstatement).
+- **Governing HbL includes the floor-to-first-beam gap.** All three charts define it that way, so
+  this is published basis rather than the interpretation decision `rack-app`'s review filed it as.
+**Verification.** `pnpm verify` **PASS**, 684/684, `frames.ts` and `load-frames.ts` at 100%.
+**Three gates proven to fire:** the extractor refused a quarantined table by name; restoring the
+10,400 value turned a test red; dropping one column from a row was refused at load with
+`HbL 36 has 9 values but 10 columns` — the silent left-shift that would otherwise look plausible.
 - ~~**`B-05`**~~ **Complete and verified 2026-08-31.** `packages/kernel-rules` + `data/rules/mvp-2026-08/`: the five-tier ladder, the §11.2 ceiling asserted verbatim, the rule/citation loader, the pack approval gate, and twelve seed rules. **`AC-19` is proven exhaustively** over all 5 tiers × 7 severities, and the gate was **proven to fire** — adding `PASS` to the `SECONDARY` list turned 3 tests red across both files. 46 tests, 100% coverage.
 
 ### P1-013 · `C-01` `kernel-model` — write the hash-stability test first
@@ -657,15 +675,15 @@ catalog migration and lookup (`B-01`/`B-02`/`B-04`/`B-06`), and the first two ke
 coverage on all five pure kernel packages, RLS/auth/authz/DTO/audit/outbox proven against real
 Postgres, and the catalog proven against real published data. The next five are:
 
-1. **`B-03`** — migrate the three verified frame-capacity tables (435/435 reconciled cells) from
-   `rack-app`, the same way the beam data was extracted. This is the last piece of Group B, and
-   `C-04`'s beam/frame compatibility check currently takes compatibility as an input because the
-   data is not here yet.
+1. **`D-01`/`D-02` — begin the client web application.** Invitation acceptance and facility/unit
+   entry. Every kernel it needs is built, tested and proven: catalog, rules, checks, BOM, display
+   list, and an authorization layer with an exhaustive action × role matrix.
 2. **`B-03`** — migrate the three verified frame-capacity tables (435 reconciled cells) from
    `rack-app`, the same way the beam data was extracted. `C-04`'s beam/frame compatibility check
    currently takes compatibility as an input because this data is not here yet.
-3. **Group D (`D-01`/`D-02`)** — the client application can now begin. The trustworthy model the
-   brief demanded before any UI is built and proven: `P1-014` is complete.
+3. **`D-03`** — the option builder over the controlled vocabulary. Choices come only from the
+   pinned catalog release; an unavailable choice **states why**; no silent nearest-match. The
+   pilot client (`OD-20b`) should be named before this starts.
 4. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
    proven rather than one.
 5. **The catalog and rule-pack approvers** (`RH-05`). Both packs sit in `DRAFT`, both gates refuse
@@ -675,47 +693,57 @@ Postgres, and the catalog proven against real published data. The next five are:
 
 ---
 
-## File-impact plan for the next unblocked task (P1-012 · `B-03`)
+## File-impact plan for the next unblocked task (P2-001 · `D-01`/`D-02`)
 
-`B-03` migrates the three verified frame-capacity tables — 435/435 cells reconciled across two
-independent extraction paths, the best-provenanced asset in any of the four reference trees.
+**P1 is complete.** The client application can begin, and every kernel it consumes is built and
+proven. `D-01` is invitation acceptance; `D-02` is facility and unit entry.
 
 **New files**
 
 ```
-data/catalog/interlake-2026-08/frames.json    3 tables, extracted verbatim, DRAFT
-tools/extract-frames.py                       parse via ast; the source is NEVER executed, the same
-                                              decision the beam extract made
-packages/kernel-catalog/src/frames.ts         frame capacity lookup, exact-grid only
-packages/kernel-catalog/src/frames.test.ts    against the real extracted data
+apps/client/                          the client-facing application (the FIRST front end)
+apps/client/src/routes/invite.tsx     invitation acceptance; AC-01 already enforced server-side
+apps/client/src/routes/facility.tsx   facility entry, every field individually markable NOT KNOWN
+apps/client/src/lib/api.ts            typed client for /api/client/v1 ONLY
 ```
 
 **Modified files**
 
 ```
-packages/kernel-catalog/src/index.ts          export the frame lookup
-docs/CURRENT_STATE.md · TODO.md               results, only after the commands pass
+pnpm-workspace.yaml                   add apps/client
+tsconfig.base.json · vitest.config.ts the @rms/client alias, three-way agreement
+.github/workflows/ci.yml              build the client app
+docs/CURRENT_STATE.md · TODO.md       results, only after the commands pass
 ```
 
-**What must NOT be ported.** The **seven `QUARANTINED` capacity tables** in `rack-app`. One
-overstates capacity by up to **72%** at HbL 120" because it was indexed on overall frame height under
-an HbL label. They stay where they are. The extractor should refuse them by name rather than relying
-on someone remembering.
+**Untouched, explicitly**
 
-**The open question to carry, not resolve.** The 59E face-height reading (`P0-005`) is parked at
-three values with no page reference. Frame data may make face height load-bearing for the first time
-— if a frame lookup keys on it, `P0-005` reopens and needs a page reference before the number is
-used.
+```
+packages/kernel-*/**                  no kernel package learns about HTTP or rendering
+apps/api/src/authz/**                 the client app authorizes through the existing layer
+C:\Rack Master\Resourse (do not delete or overwrite files)\**   read-only, always
+```
+
+**The decisions already made that the app must not re-litigate.**
+- **Two front ends and two API namespaces**, never one with role flags. A shared route that hides
+  fields makes leakage a serialization bug — invisible in review. Two namespaces make it a routing
+  bug: loud and greppable.
+- **Every facility field is individually markable *not known***, producing a finding rather than a
+  zero. A zero is a claim; "not known" is the truth.
+- **The client never sees a BOM**, at any nesting depth. The forbidden-field constant and
+  `findForbiddenFields` already enforce it; the app must consume the client DTOs, never the entities.
+- An unestablished value renders `VERIFY`, never a numeral — the display list already guarantees it
+  and the provenance lint fails the build if a renderer formats a raw number.
 
 **Verification before marking complete**
 
 ```
-python tools/extract-frames.py     # verbatim, 435 cells
 pnpm verify
 pnpm coverage
 ```
 
-Then prove the gate fires: alter one extracted cell and confirm the reconciliation test goes red.
+Then prove the gate fires: attempt to render a forbidden field on a client page and confirm the
+leakage test goes red.
 
 Record the actual output in `docs/CURRENT_STATE.md` §4. A task is not complete because it looks
 done; it is complete when the command has been run and its result written down.

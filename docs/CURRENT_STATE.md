@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **657**, all passing across 27 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
+| Product tests | **684**, all passing across 28 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
-| Catalog data | 378 verified Interlake beam rows, extracted verbatim, status `DRAFT` (awaiting human approval) |
+| Catalog data | 378 verified beam rows **and 435 verified frame-capacity cells**, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **7**: boundary self-test + scan, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 26 commits**, working tree clean |
+| Version control | **git, 27 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,46 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `B-03` frame capacity: Group B complete**
+
+| Check | Command | Result |
+|---|---|---|
+| Extraction | `python tools/extract-frames.py` | **PASS.** 3 tables, **435 cells**, verbatim — matching the source's own 435/435 double-extraction reconciliation exactly |
+| Frame lookup | `pnpm test` | **PASS.** 27 tests against the real published data |
+| **Quarantine refused BY NAME** | deliberate break | **PROVEN.** Asking the extractor for a quarantined table refused it by name and exited 1, quoting the 72.4% overstatement |
+| **A restored bad value fails** | deliberate break | **PROVEN.** Putting the quarantined 10,400 back into the data turned the test red: `expected 10400 to be 7597` |
+| **The silent left-shift fails** | deliberate break | **PROVEN.** Dropping one column from a row refused at load: `HbL 36 has 9 values but 10 columns` |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **684/684** tests across 28 files |
+| Coverage | `pnpm coverage` | **PASS.** `frames.ts` and `load-frames.ts` at **100%** |
+
+**Frame capacity keys on TWO independent variables, and this is the whole substance of `B-03`.**
+Models 2.314 / 2.313 / 2.312 carry two strut patterns — one for frames under 21 ft, one for over —
+and therefore two published capacity columns. **A lookup keyed on HbL alone cannot reproduce the
+published table.** That is not a modelling preference; it is what the chart says, and a test asserts
+the two bands return genuinely different values (24,571 vs 25,847 lb at HbL 36) so a future
+simplification to one variable fails loudly.
+
+**The 21 ft boundary is inclusive at the lower band**, because the column header reads ≤ 21′. An
+off-by-one there silently selects the more generous column, which is the direction that hurts, so it
+is asserted at 251, 252 and 253 inches.
+
+**The seven quarantined tables are refused by name in the extractor**, not left to a maintainer's
+memory. The refusal message carries the reason: one table overstates published capacity by up to
+**72.4%** at HbL 120 in because it was indexed on overall frame height under an HbL label. Three
+tests assert the published values are what the catalog returns and the quarantined ones are not —
+7,597 rather than 10,400 at HbL 96, and 4,989 rather than 8,600 at HbL 120.
+
+**One documentation item closed by the source, recorded here because it was previously filed as a
+judgement call.** The governing HbL includes the floor-to-first-beam distance. All three charts
+define it as *"the maximum beam spacing **or** the distance between the floor and the top of the
+first beam, whichever is greater"*. That is published basis, not an interpretation — `rack-app`'s
+`REVIEW.md` B3 listed it as a modelling choice that might be flipped, and flipping it would
+contradict the source.
+
+**Still `DRAFT`, and still needs a person.** The 435/435 reconciliation is *evidence*, not a
+signature. The source's own verification note is explicit: *"My double-extraction reconciliation is
+evidence, not a signature."* The release gate refuses approval by the digitiser.
 
 **2026-08-31 — `C-08` golden fixtures: `P1-014` closed, the derivation kernel complete**
 
