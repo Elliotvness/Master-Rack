@@ -8,14 +8,21 @@ This is state, not plan. The plan is `rack-master-studio-blueprint.html`.
 
 ## 1. Where the project stands
 
-Planning is complete and the decision set is closed. **No production code has been written.** Nothing has been scaffolded, no repository has been created, no schema has been applied. The next action is a deliberate go-ahead from EL to begin Phase 0.
+Planning is complete, the decision set is closed, and **Phase 0 has started**. Three foundation
+tasks are built, verified and committed: `A-01` (monorepo scaffold), `A-02` (`kernel-units`) and
+`A-03` (boundary checker with its self-test). `A-04` — Postgres schema and row-level security — is
+the next task.
 
 | | |
 |---|---|
 | Blueprint revision | **Rev C**, 2026-08-31 |
 | Decisions | **21 of 21 settled.** One item deliberately open — see §7 |
-| Code written | **None** |
-| Phase 0 status | Fully unblocked, awaiting go-ahead |
+| Code written | **`kernel-units` + the boundary checker.** 68 tests, 100% kernel coverage |
+| Verification | `pnpm verify` green; results recorded in `docs/CURRENT_STATE.md` §4 |
+| Next | `A-04`, then `A-05`/`A-06`. Full order in §5 |
+
+**Start with `README.md` for how to run the checks, `TODO.md` for what is next, and
+`docs/CURRENT_STATE.md` for what has actually been run rather than what is planned.**
 
 ## 2. Where everything is
 

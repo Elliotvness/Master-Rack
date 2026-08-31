@@ -7,9 +7,11 @@ backlog id, that id is named.
 **Status values:** `Not started` · `In progress` · `Blocked` · `Needs review` · `Complete`
 **Evidence values:** `Confirmed implemented` · `Implemented but unverified` · `Planned only` · `Blocked by decision/source/input`
 
-> **Baseline, stated once so no item below has to repeat it:** there is **no production code**.
-> Every P1–P3 item is `Planned only` unless its own row says otherwise. Nothing here may be marked
-> `Complete` without recording the verification command and its actual result.
+> **Baseline, stated once so no item below has to repeat it:** Phase 0 has started.
+> `P0-001`, `P0-002`, `P1-001` (`A-01`), `P1-002` (`A-02`) and `P1-003` (`A-03`) are **Complete**,
+> each with its verification command and result recorded. Everything else is `Planned only` unless
+> its own row says otherwise. Nothing here may be marked `Complete` without recording the
+> verification command and its actual result.
 
 **Standing constraints on every item:**
 - The four trees under `Resourse (do not delete or overwrite files)\` are **read-only**. Copy out; never write in.
@@ -23,25 +25,24 @@ backlog id, that id is named.
 ## P0 — Blocking decisions and defects
 
 ### P0-001 · Resolve the active-folder name mismatch
-**Why it matters.** `READFIRST.md` names `C:\Rack Master\Master Rack Studio` as the writable
-project. That folder does not exist; the deliverables are in `C:\Rack Master\rack-master-studio`.
-Two names for one project is how a second, divergent copy gets created — the exact defect the
-blueprint exists to prevent.
-**Files.** `C:\Rack Master\READFIRST.md`; the folder name itself.
-**Dependencies.** None. Needs one decision from EL: rename the folder, or correct the brief.
-**Acceptance.** One canonical path exists, and every document that references it agrees.
-**Verification.** `dir "C:\Rack Master"` shows exactly one project folder; `findstr /s /i "Master Rack Studio" *.md` returns only intentional hits.
-**Status.** `Blocked` — owner decision. **Evidence:** `Blocked by decision`.
+**Why it mattered.** `READFIRST.md` named `C:\Rack Master\Master Rack Studio` as the writable
+project; that folder never existed. Two names for one project is how a second, divergent copy gets
+created — the exact defect the blueprint exists to prevent.
+**Resolution.** EL instructed that `READFIRST.md` be disregarded and deleted. The canonical, and
+only, project path is `C:\Rack Master\rack-master-studio`.
+**Verification.** `dir "C:\Rack Master"` → `rack-master-studio` and the read-only `Resourse` folder. **Run 2026-08-31: PASS.**
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ### P0-002 · Put the deliverables under version control
 **Why it matters.** The product's whole argument is traceability, and the documents that carry it
 have no history. `git status` in the active folder returns *not a repository*. A bad edit to the
 blueprint is currently unrecoverable, and the built HTML cannot be proven to match its source.
-**Files.** New `.gitignore` (exclude `src/__pycache__`, `*.pyc`); initial commit of all existing files.
-**Dependencies.** P0-001 if the folder is renamed first (cheaper before than after).
-**Acceptance.** Repository initialised, one commit containing the current tree, `__pycache__` untracked, `open-decisions.md` flagged internal-only in the README.
-**Verification.** `git status --short` is clean; `git log --oneline` shows the initial commit.
-**Status.** `Not started`. **Evidence:** `Confirmed implemented` (absence confirmed this pass).
+**Files.** `.gitignore`, `.gitattributes`, initial commits.
+**Dependencies.** P0-001.
+**Acceptance.** Repository initialised, `__pycache__` and `node_modules` untracked, line endings
+normalised to LF so a Windows checkout cannot break the byte-identical rebuild guarantee.
+**Verification.** `git status --short` clean; `git log --oneline` shows the history. **Run 2026-08-31: PASS** — 3 commits, tree clean.
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ### P0-003 · Run the visual verification gate once and record the result
 **Why it matters.** `src/README.md` documents two pre-handoff gates. Only one has ever run. The
@@ -100,8 +101,8 @@ Blueprint Group A and Group B. None of it is client-specific, so none waits on t
 **Acceptance.** `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` all on; an empty
 workspace type-checks, lints and tests green in CI; the same import alias resolves identically in
 all three tools.
-**Verification.** `pnpm install && pnpm typecheck && pnpm test && pnpm lint`, and the same on CI.
-**Status.** `Not started`. **Evidence:** `Planned only`. **First unblocked task.**
+**Verification.** `pnpm install && pnpm typecheck && pnpm test && pnpm lint`. **Run 2026-08-31: PASS** — install 193 packages, `tsc --build` exit 0, eslint exit 0, 68/68 tests. CI workflow written but not yet exercised on a real runner.
+**Status.** `Complete` (CI unproven until a remote exists). **Evidence:** `Confirmed implemented`.
 
 ### P1-002 · `A-02` `kernel-units`
 **Why it matters.** Every other package depends on it. Fixed-point µm and millipounds, unit + origin
@@ -110,8 +111,11 @@ metric display formatter.
 **Files.** `packages/kernel-units/`. Port mechanics from `rack-studio/packages/units` (read-only), re-base `mil` → µm. Carry `BASIS_BOUND` from `rack-engine/model/quantity.py`.
 **Dependencies.** P1-001, P0-006.
 **Acceptance.** 100% branch coverage; `lb/pr` refuses conversion to `lb`; adding two different-but-compatible units raises; `allocate()` sums to the original for every split; 48″ round-trips exactly.
-**Verification.** `pnpm test --filter kernel-units --coverage`, coverage gate at 100% branches.
-**Status.** `Not started`. **Evidence:** `Planned only`.
+**Verification.** `pnpm coverage`. **Run 2026-08-31: PASS** — 68 tests; 100% statements, branches, functions and lines on `kernel-units`, threshold enforced in `vitest.config.ts`.
+**Note.** The blueprint's "18 of 21 spans" figure is **not** asserted, because the real published
+span list is not in this repository yet. The test asserts the property that does not depend on it
+and records why. The exact count becomes assertable at `B-02`.
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ### P1-003 · `A-03` Boundary checker + self-test
 **Why it matters.** Cheap now; it is what stops a second implementation of the domain appearing.
@@ -120,8 +124,8 @@ Three of the four reference projects have exactly that defect.
 **Dependencies.** P1-001.
 **Acceptance.** No kernel package may import I/O, a framework, an app, `Date.now()` or an RNG. The
 self-test writes a violation and asserts it is caught. A guard rejects vacuous globbing.
-**Verification.** `node tools/selftest-boundaries.mjs` exits 0; deliberately adding an import to a kernel file fails CI.
-**Status.** `Not started`. **Evidence:** `Planned only`.
+**Verification.** `node tools/selftest-boundaries.mjs` then `node tools/check-boundaries.mjs`. **Run 2026-08-31: PASS** — all 10 violation types caught (Node builtin, bare builtin, framework, database driver, side-effect import, `Date.now()`, `new Date()`, `Math.random()`, `process.env`, `fetch()`); checker scanned 9 files across 1 pure package, clean.
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ### P1-004 · `A-04` Postgres schema v1 + RLS
 **Why it matters.** Tenant plumbing is exponentially more expensive to retrofit; it touches every
@@ -411,60 +415,73 @@ Each carries the condition that would change the answer. "Not yet" is not "never
 
 ## The five most important next actions
 
-1. **P0-001** — settle the folder name. One canonical path, before anything is built on the wrong one.
-2. **P0-002** — `git init` and commit. Cheapest, most urgent; everything else is currently unrecoverable.
-3. **P1-001** (`A-01`) — the monorepo scaffold. The first unblocked build task and the gate on all of P1.
-4. **P1-002** (`A-02`) — `kernel-units` in µm. Everything depends on it; close the `OD-06` veto window as it lands.
-5. **P0-004 / RH-02** — reconcile the Carson counts, in parallel. It is human work and it gates the fixture that gates the engine.
+`P0-001`, `P0-002`, `P1-001`, `P1-002` and `P1-003` are **Complete** and verified (2026-08-31).
+The next five are:
+
+1. **P1-004** (`A-04`) — Postgres schema v1 with RLS on every tenant table. The largest remaining
+   retrofit risk; it touches every table.
+2. **P1-013** (`C-01`) — `kernel-model` canonical hashing. **Write the hash-stability test first.**
+   Independent of the database, so it can run in parallel with `A-04`.
+3. **P0-004 / RH-02** — reconcile the three conflicting Carson counts. Human work, and it gates the
+   fixture that gates the engine.
+4. **P1-012** (`B-01`/`B-02`) — migrate the verified Interlake catalog into declarative data with
+   provenance intact. Also closes the `OD-06` veto window (`P0-006`) and makes the 18-of-21 span
+   assertion real.
+5. **P0-003** — install Playwright and run `verify-visual.py` once, so both documented documentation
+   gates are proven rather than one.
 
 ---
 
-## File-impact plan for the first unblocked task (P1-001 · `A-01`)
+## File-impact plan for the next unblocked task (P1-004 · `A-04`)
 
-Nothing below touches the blueprint, the reference trees, or any existing document.
+`A-01`, `A-02` and `A-03` are done; the file-impact plan that stood here has been executed. The
+next plan covers the database foundation.
 
 **New files**
 
 ```
-package.json                      workspace root, pnpm
-pnpm-workspace.yaml               apps/*, packages/*, tools/*
-tsconfig.base.json                strict + noUncheckedIndexedAccess + exactOptionalPropertyTypes
-tsconfig.json                     project references
-vitest.config.ts                  test runner, alias table #1
-.eslintrc.cjs                     incl. the raw-pool-checkout ban placeholder for P1-005
-.gitignore                        node_modules, dist, coverage, __pycache__, *.pyc
-.github/workflows/ci.yml          install → typecheck → lint → test → tools/check-*
-packages/kernel-units/            placeholder package.json + tsconfig only; source lands in P1-002
-tools/README.md                   what each check guards, mirroring src/README.md's table
+packages/db/package.json · tsconfig.json
+packages/db/migrations/0001_init.sql          organizations, users, memberships, projects,
+                                              revisions, and the audience split
+packages/db/policies/0001_rls.sql             ENABLE + FORCE + a policy per operation, per table
+packages/db/src/with-tenant.ts                A-05: the only database entry point
+tools/check-rls.mjs                           A-06: reads pg_class.relrowsecurity and pg_policy
+tools/check-rls.test.ts                       asserts a bare table is caught
+docker-compose.yml                            a real Postgres 16 for the RLS tests
 ```
 
 **Modified files**
 
 ```
-README.md                         add a "Repository" section: how to install, test and run the checks
-docs/CURRENT_STATE.md             record the A-01 verification result and its date
-TODO.md                           set P1-001 to Complete only after the verification command passes
+package.json           add db scripts: migrate, check:rls
+vitest.config.ts       add the @rms/db alias; keep the three-way alias agreement
+tsconfig.base.json     add the @rms/db path
+tsconfig.json          add the project reference
+eslint.config.mjs      add the raw-pool-checkout ban once there is a pool to ban
+.github/workflows/ci.yml   add a Postgres service and the RLS assertions
+docs/CURRENT_STATE.md  append the verification results
+TODO.md                statuses, only after the commands pass
 ```
 
 **Untouched, explicitly**
 
 ```
 rack-master-studio-blueprint.html   rebuild only via src/build.py, never edited directly
-src/**                              the documentation toolchain is independent of the product build
-HANDOFF.md · open-decisions.md · reuse-register.md · reference-project-inventory.md
+src/**                              the documentation toolchain is independent
+packages/kernel-units/**            no kernel package may learn about the database
 C:\Rack Master\Resourse (do not delete or overwrite files)\**   read-only, always
 ```
 
-**Verification to run before marking it complete**
+**Verification before marking complete**
 
 ```
-pnpm install
-pnpm typecheck
-pnpm lint
-pnpm test
-node tools/selftest-boundaries.mjs      # once P1-003 lands
-python src\build.py                     # confirm the docs toolchain still passes
+docker compose up -d db
+pnpm migrate
+node tools/check-rls.mjs        # every table: RLS enabled, forced, a policy per operation
+pnpm test                       # incl. cross-tenant read returns empty, cross-tenant insert refused
+pnpm verify
 ```
 
 Record the actual output in `docs/CURRENT_STATE.md` §4. A task is not complete because it looks
 done; it is complete when the command has been run and its result written down.
+
