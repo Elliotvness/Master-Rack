@@ -10,25 +10,28 @@ Status vocabulary used here, carried from `rack-engine/CLAUDE.md`:
 
 ## 1. Headline
 
-**Phase 0 Group A is essentially complete.** The planning package is complete and ten foundation
-tasks are implemented, verified and committed: `A-01` scaffold, `A-02` `kernel-units`, `A-03`
-boundary checker, `A-04` schema + RLS, `A-05` `withTenant()`, `A-06` RLS assertion, `A-07` sessions
-and authentication, `A-08` `authorize()`, `A-09` the DTO leakage layer, `A-10` the audit hash chain,
-`A-11` the transactional outbox, plus `C-01` `kernel-model`. Group A is done. Group B has begun:
-the verified Interlake catalog is migrated (`B-01`/`B-02`/`B-04`/`B-06`) with a no-interpolation
-lookup. The derivation kernel (`C-02`..`C-08`) is the next real work.
+**Phase 0 Group A is complete and the kernel is under way.** The planning package is complete and
+twelve foundation tasks are implemented, verified and committed: `A-01` scaffold, `A-02`
+`kernel-units`, `A-03` boundary checker, `A-04` schema + RLS, `A-05` `withTenant()`, `A-06` RLS
+assertion, `A-07` sessions and authentication, `A-08` `authorize()`, `A-09` the DTO leakage layer,
+`A-10` the audit hash chain, `A-11` the transactional outbox, plus `C-01` `kernel-model`. Group B
+has begun: the verified Interlake catalog is migrated (`B-01`/`B-02`/`B-04`/`B-06`) with a
+no-interpolation lookup. The derivation kernel has two slices landed — `C-02` `kernel-derive`
+(geometry and pallet-position counts) and `C-03` `kernel-geom` (obstruction faces and the clearance
+index). **`C-04`..`C-08` and `B-03`/`B-05` are the next real work.**
 
 | | |
 |---|---|
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
-| Production source files | **40+** across `packages/kernel-units`, `kernel-model`, `kernel-catalog`, `db`, `apps/api`, `tools/` |
-| Product tests | **290**, all passing (pure + real-Postgres integration + real catalog data) |
-| Kernel coverage | **100%** statements, branches, functions, lines on all three kernel packages |
+| Production source files | **50+** across five pure kernel packages, `db`, `apps/api`, `tools/` |
+| Product tests | **352**, all passing across 17 files (pure + real-Postgres + real catalog data) |
+| Kernel coverage | **100%** statements, branches, functions, lines on all **five** kernel packages |
 | Catalog data | 378 verified Interlake beam rows, extracted verbatim, status `DRAFT` (awaiting human approval) |
-| Database | Postgres 16, 19 tables, RLS enabled + forced on every one |
+| Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
-| Version control | **git, 12 commits**, working tree clean |
+| Version control | **git, 17 commits**, working tree clean |
+| Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
 
@@ -77,6 +80,21 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — state review (re-run of the whole gate, no code change)**
+
+| Check | Command | Result |
+|---|---|---|
+| Whole pipeline, from a clean tree | `pnpm verify` | **PASS**, exit 0 in 16.7 s. 352/352 tests across 17 files; `tsc --build` and `eslint .` clean |
+| Boundary self-test | (in `pnpm verify`) | **PASS.** All 10 violation types caught |
+| Boundary scan | (in `pnpm verify`) | **PASS.** 18 files across 5 pure packages |
+| RLS assertion | (in `pnpm verify`) | **PASS.** 19 tables in schema `app`, all enabled and forced |
+
+This run confirms the committed state reproduces on a cold checkout. `TODO.md` was found stale — it
+still listed `A-07`..`A-11` and the catalog work as `Not started` after they had been built and
+committed, and it carried a file-impact plan for `A-07`, long since done. Corrected in the same
+pass; the stale plan was replaced with one for `C-04`. Recorded because a status document that
+lags the repository is the same defect class the product exists to prevent.
 
 **2026-08-31 — `C-03` `kernel-geom` (second slice of P1-014)**
 

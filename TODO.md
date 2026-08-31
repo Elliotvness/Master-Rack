@@ -8,8 +8,13 @@ backlog id, that id is named.
 **Evidence values:** `Confirmed implemented` · `Implemented but unverified` · `Planned only` · `Blocked by decision/source/input`
 
 > **Baseline, stated once so no item below has to repeat it:** Phase 0 is substantially built.
-> **Complete and verified:** `P0-001`, `P0-002`, `P1-001` (`A-01`), `P1-002` (`A-02`),
-> `P1-003` (`A-03`), `P1-004` (`A-04`), `P1-005` (`A-05`), `P1-006` (`A-06`), `P1-013` (`C-01`).
+> **Complete and verified:** `P0-001`, `P0-002`, `P0-006`, `P1-001` (`A-01`), `P1-002` (`A-02`),
+> `P1-003` (`A-03`), `P1-004` (`A-04`), `P1-005` (`A-05`), `P1-006` (`A-06`), `P1-007` (`A-07`),
+> `P1-008` (`A-08`), `P1-009` (`A-09`), `P1-010` (`A-10`), `P1-011` (`A-11`), `P1-013` (`C-01`).
+> **Partial:** `P1-012` (`B-01`/`B-02`/`B-04`/`B-06` done; `B-03`/`B-05` outstanding) and
+> `P1-014` (`C-02`/`C-03` done; `C-04`..`C-08` outstanding).
+> **Last full run, 2026-08-31: `pnpm verify` PASS** — 352/352 tests across 17 files, boundary
+> self-test + scan (18 files, 5 pure packages), `check-rls` 19 tables, exit 0.
 > Everything else is `Planned only` unless its own row says otherwise. Nothing here may be marked
 > `Complete` without recording the verification command and its actual result.
 
@@ -205,8 +210,8 @@ a monotonic sequence, not a timestamp; both `occurred_at` and `recorded_at` stor
 **Files.** `apps/worker/`, outbox migration.
 **Dependencies.** P1-004.
 **Acceptance.** No mailer import exists outside the notifier worker; enqueue and business change commit together.
-**Verification.** Integration test: roll back a transaction, assert nothing is dispatched.
-**Status.** `Not started`. **Evidence:** `Planned only`.
+**Verification.** Integration test: roll back a transaction, assert nothing is dispatched. **Run 2026-08-31: PASS** — 8 tests against real Postgres: a rolled-back transaction dispatches nothing, a claim is exactly-once via `FOR UPDATE SKIP LOCKED`, a retry backs off, and exhausted attempts dead-letter.
+**Status.** `Complete`. **Evidence:** `Confirmed implemented`.
 
 ### P1-012 · `B-01`..`B-06` Catalog and rule packs
 **Why it matters.** The verified catalog is the most expensive asset in all four trees and
@@ -222,8 +227,12 @@ system**. The release gate refuses when `approved_by` is null, when `approved_by
 or when there is one human signature with no recorded cross-check or two-path reconciliation
 (`AC-18`). Lookup is exact-grid only: off-grid returns both brackets and no value (`AC-08`); no
 nearest-match; used or generic material carries no table basis at all (`AC-09`).
-**Verification.** Schema validation in CI; a release with a null approver fails the build; an off-grid lookup test asserts both brackets and no value.
-**Status.** `Not started`. **Evidence:** `Planned only`. Data itself: `Confirmed implemented` in the read-only sources.
+**Verification.** Schema validation in CI; a release with a null approver fails the build; an off-grid lookup test asserts both brackets and no value. **Run 2026-08-31: PASS** — `python tools/extract-catalog.py` produced 378 verbatim beam rows, 16 families, 21 spans and 7 anomalies, parsed via `ast` with the source never executed; 34 tests in `kernel-catalog` cover on-grid capacity, `AC-08` off-grid brackets with no value, the absence of nearest-match, the per-pair basis, and the `AC-18` approval gate. The blueprint's 18-of-21 span claim is now **proven** against the real published grid rather than a reconstruction.
+**Status.** `In progress`. **Evidence:** `Confirmed implemented` for `B-01`, `B-02`, `B-04`, `B-06`; `B-03` and `B-05` `Planned only`.
+
+**Outstanding within P1-012:**
+- **`B-03`** — migrate the three verified frame-capacity tables from `rack-app\frame_capacity_published_2025\` (435/435 reconciled cells) the same way the beam data was extracted. The seven `QUARANTINED` tables are **not** ported; one overstates capacity by up to 72%.
+- **`B-05`** — the rule-pack schema carrying a verification tier on every rule, seeded only with the rules the twelve MVP checks genuinely need. This gates `C-04`: the tier ceiling is applied by the framework from the rule's tier, so the tier must exist as data before a check can be written.
 
 ### P1-013 · `C-01` `kernel-model` — write the hash-stability test first
 **Why it matters.** The blueprint and two reference projects independently give this advice. A
@@ -456,12 +465,13 @@ Each carries the condition that would change the answer. "Not yet" is not "never
 
 ## The five most important next actions
 
-Complete and verified (2026-08-31): all of Group A (`A-01` through `A-11`), `C-01`, and Group B's
-catalog migration and lookup (`B-01`/`B-02`/`B-04`/`B-06`). `OD-06` veto window closed. 290 tests,
-100% coverage on all three kernel packages, RLS/auth/audit/outbox proven against real Postgres, the
-catalog proven against real published data. The next five are:
+Complete and verified (2026-08-31): all of Group A (`A-01` through `A-11`), `C-01`, Group B's
+catalog migration and lookup (`B-01`/`B-02`/`B-04`/`B-06`), and the first two kernel slices `C-02`
+(`kernel-derive`) and `C-03` (`kernel-geom`). `OD-06` veto window closed. **352 tests**, 100%
+coverage on all five pure kernel packages, RLS/auth/authz/DTO/audit/outbox proven against real
+Postgres, and the catalog proven against real published data. The next five are:
 
-1. **P1-014** (`C-02`..`C-08`) — the derivation kernel: geometry and counts (bay pitch, run length,
+1. **P1-014** (`C-04`..`C-08`) — the derivation kernel: geometry and counts (bay pitch, run length,
    overhang allocation, aisle clear width, gross/lost/net positions), the twelve checks with the
    tier ceiling applied by the framework, the BOM with its unresolved register, the display list,
    and the golden fixtures. This is the trustworthy model the brief demands before any UI.
@@ -476,32 +486,42 @@ catalog proven against real published data. The next five are:
 
 ---
 
-## File-impact plan for the next unblocked task (P1-007 · `A-07`)
+## File-impact plan for the next unblocked task (P1-014 · `C-04`)
+
+`C-04` is the twelve MVP checks. It is the next slice in dependency order, but it depends on `B-05`
+(the rule-pack schema), because `AC-19` requires the tier ceiling to be applied **by the framework**
+from the rule's own verification tier. A check cannot carry its own ceiling, or a PASS against a
+secondary-sourced rule becomes writable. So `B-05` lands first, in the same slice.
 
 **New files**
 
 ```
-packages/db/migrations/0003_sessions.sql   session table, cookie-token hash, expiry, revocation
-apps/api/package.json · tsconfig.json      the first application package
-apps/api/src/auth/session.ts               create, read, regenerate, revoke; opaque tokens only
-apps/api/src/auth/session.test.ts          incl. AC-17: deactivation kills sessions and invitations
-apps/api/src/auth/invitation.ts            256-bit CSPRNG token, sha256 at rest, single-use redeem
-apps/api/src/auth/invitation.test.ts       AC-01: identical response for expired/revoked/used/absent
+data/rules/mvp-2026-08/rules.json          rule pack: id, text, tier, source, effective date
+data/rules/mvp-2026-08/manifest.json       release metadata, digitiser, approver, verification path
+packages/kernel-rules/src/pack.ts          B-05. Schema validation + release gate, mirroring catalog
+packages/kernel-rules/src/pack.test.ts     a null approver, approver == digitiser, and no recorded
+                                           cross-check must each refuse the release (AC-18 shape)
+packages/kernel-checks/src/framework.ts    C-04. runChecks(): the ceiling applied here, once
+packages/kernel-checks/src/framework.test.ts  AC-19: a PASS above a SECONDARY rule's ceiling is
+                                           unrepresentable, asserted at the type and runtime layer
+packages/kernel-checks/src/checks/*.ts     the twelve checks, each pure and rule-driven
+packages/kernel-checks/src/checks.test.ts  per-check cases incl. UNKNOWN propagation
 ```
 
 **Modified files**
 
 ```
-tsconfig.base.json · tsconfig.json · vitest.config.ts   the @rms/api alias, three-way agreement
-package.json                                            add the apps/* workspace scripts
-.github/workflows/ci.yml                                no change expected; Postgres already present
+tsconfig.base.json · vitest.config.ts · tsconfig.json   the @rms/kernel-rules and @rms/kernel-checks
+                                                        aliases, three-way agreement + coverage
+                                                        thresholds at 100% for both new packages
 docs/CURRENT_STATE.md · TODO.md                         results, only after the commands pass
 ```
 
 **Untouched, explicitly**
 
 ```
-packages/kernel-*/**                no kernel package may learn about sessions or HTTP
+packages/kernel-units/** · kernel-model/** · kernel-derive/** · kernel-geom/**
+                                    no existing kernel package learns about rules or checks
 rack-master-studio-blueprint.html   rebuild only via src/build.py
 C:\Rack Master\Resourse (do not delete or overwrite files)\**   read-only, always
 ```
@@ -511,13 +531,12 @@ C:\Rack Master\Resourse (do not delete or overwrite files)\**   read-only, alway
 ```
 pnpm db:up && pnpm migrate
 pnpm verify          # typecheck, lint, tests, boundaries, self-test, RLS
-pnpm coverage
+pnpm coverage        # 100% on kernel-rules and kernel-checks, threshold enforced
 ```
 
-Then prove the gate fires: redeem an invitation twice and assert the second attempt is
-indistinguishable from an expired one, in status, body and timing.
+Then prove the gate fires rather than merely observing it pass: write a check that returns `PASS`
+against a `SECONDARY`-tier rule and confirm the framework refuses it, and demote a rule's tier in
+the pack and confirm the affected results drop to the ceiling without the check being edited.
 
 Record the actual output in `docs/CURRENT_STATE.md` §4. A task is not complete because it looks
 done; it is complete when the command has been run and its result written down.
-
-

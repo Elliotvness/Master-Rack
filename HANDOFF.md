@@ -8,19 +8,22 @@ This is state, not plan. The plan is `rack-master-studio-blueprint.html`.
 
 ## 1. Where the project stands
 
-Planning is complete, the decision set is closed, and **Phase 0 is substantially built**. Seven
-foundation tasks are implemented, verified and committed: `A-01` (scaffold), `A-02`
-(`kernel-units`), `A-03` (boundary checker), `C-01` (`kernel-model`), `A-04` (schema + RLS), `A-05`
-(`withTenant()`) and `A-06` (the RLS assertion). `A-07` — sessions and authentication — is next.
+Planning is complete, the decision set is closed, and **Phase 0 Group A is finished**. All eleven
+Group A foundation tasks are implemented, verified and committed — `A-01` (scaffold), `A-02`
+(`kernel-units`), `A-03` (boundary checker), `A-04` (schema + RLS), `A-05` (`withTenant()`), `A-06`
+(the RLS assertion), `A-07` (sessions), `A-08` (`authorize()`), `A-09` (the DTO leakage layer),
+`A-10` (the audit hash chain) and `A-11` (the outbox) — plus `C-01` (`kernel-model`), the catalog
+migration and lookup (`B-01`/`B-02`/`B-04`/`B-06`), and two kernel slices, `C-02` (`kernel-derive`)
+and `C-03` (`kernel-geom`). **`B-05` then `C-04` is next.**
 
 | | |
 |---|---|
 | Blueprint revision | **Rev C**, 2026-08-31 |
 | Decisions | **21 of 21 settled.** One item deliberately open — see §7 |
-| Code written | Two kernel packages, the database layer, four mechanical checks |
-| Tests | **176 passing** — 149 pure, 27 against a real Postgres. 100% kernel coverage |
-| Verification | `pnpm verify` green; results recorded in `docs/CURRENT_STATE.md` §4 |
-| Next | `A-07`, then `A-08`/`A-09`. Full order in §5 |
+| Code written | Five pure kernel packages, the database layer, the API layer, five mechanical checks |
+| Tests | **352 passing** across 17 files — pure, real-Postgres, and against the real published catalog. 100% coverage on all five kernel packages |
+| Verification | `pnpm verify` green, exit 0; results recorded in `docs/CURRENT_STATE.md` §4 |
+| Next | `B-05` (rule packs with tiers), then `C-04` (the twelve checks). Full order in §5 |
 
 **Start with `README.md` for how to run the checks, `TODO.md` for what is next, and
 `docs/CURRENT_STATE.md` for what has actually been run rather than what is planned.**
@@ -105,7 +108,12 @@ Phase 0 in dependency order. None of it is client-specific, so it does not wait 
 
 **Write the hash-stability test before the hashing code.** That advice is in the reference projects and it is right.
 
-Then Group B (catalog and rules), Group C (kernel), D (client app), E (internal app). Full backlog in blueprint §15.3.
+**Every Group A task above is now complete and verified.** `C-01`, `C-02`, `C-03` and the catalog
+slice of Group B are also done. The live front is `B-05` (the rule-pack schema with verification
+tiers) followed by `C-04` (the twelve checks), because `AC-19` requires the tier ceiling to be
+applied by the framework from the rule's own tier — so the tier must exist as data first.
+
+Then the rest of Group B and C, D (client app), E (internal app). Full backlog in blueprint §15.3.
 
 ## 6. Things known to be wrong or unverified
 
