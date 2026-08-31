@@ -15,15 +15,16 @@ backlog id, that id is named.
 > **`P1-014` is COMPLETE** (`C-02`..`C-08`). The whole derivation kernel, with every gate proven
 > to fire by deliberate breakage.
 > **Also closed:** `P0-004` (Carson count established) and `P0-005` (59E face height parked).
-> **Last full run, 2026-08-31: `pnpm verify` PASS** — **684/684** tests across 28 files, boundary
-> self-test + scan (33 files, **9** pure packages), provenance self-test + lint (64 files),
-> `check-rls` 19 tables, exit 0. Coverage measures `apps/` too, with ratcheted floors.
+> **Last full run, 2026-08-31: `pnpm verify` PASS** — **819/819** tests across 34 files, kernel
+> self-test + scan (33 files, **9** pure packages), **app-boundary self-test + scan (15 client
+> files)**, provenance self-test + lint, `check-rls` 19 tables, exit 0. Coverage measures `apps/`
+> too, with ratcheted floors.
 >
-> **P1 is complete, and Group D has begun.** `D-01` (invitation acceptance) and `D-02` (facility
-> entry) and `D-03` (the option builder, carrying demo beat 5) are built and verified in
-> `apps/client-web`, along with `D-04`/`D-05` (the preview and the findings panel), `D-06`
-> (comparison) and `D-07`/`E-06` (the submit transaction). A new **app-boundary gate** enforces that
-> the client bundle cannot import internal code. **`D-08` — status and clone-to-draft — is next.**
+> **P1 is complete, and GROUP D IS COMPLETE.** `D-01` through `D-08` are built and verified in
+> `apps/client-web`: invitation acceptance, facility entry, the option builder (carrying demo beat
+> 5), preview, the findings panel, comparison, the submit transaction and status/clone-to-draft. A
+> new **app-boundary gate** enforces that the client bundle cannot import internal code.
+> **Group E — the internal application — is the next work.**
 > Everything else is `Planned only` unless its own row says otherwise. Nothing here may be marked
 > `Complete` without recording the verification command and its actual result.
 

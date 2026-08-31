@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **797**, all passing across 33 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
+| Product tests | **819**, all passing across 34 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified beam rows **and 435 verified frame-capacity cells**, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **9**: kernel-boundary self-test + scan, **app-boundary self-test + scan**, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 32 commits**, working tree clean |
+| Version control | **git, 33 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,46 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `D-08` status and clone-to-draft: Group D complete**
+
+| Check | Command | Result |
+|---|---|---|
+| Status and clone tests | `pnpm test` | **PASS.** 22 tests: the coarse vocabulary, the clocks, SLA visibility, clone lineage |
+| **Internal states stay internal** | deliberate break | **PROVEN.** Surfacing the lifecycle to the client turned **3 tests red** |
+| **Unmapped states fail closed** | deliberate break | **PROVEN.** Letting an unmapped state fall through under its own name turned **1 test red** |
+| **Clone leaves the source untouched** | deliberate break | **PROVEN.** Giving the clone the source's content hash turned **1 test red** |
+| **SLA targets stay hidden** | deliberate break | **PROVEN.** Showing targets before a baseline turned **1 test red** |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **819/819** tests across 34 files |
+| Coverage | `pnpm coverage` | **PASS.** `status.ts` at **100%** |
+
+**Three client states, not seven internal ones** (`OD-12`). `acknowledged`, `in_review` and
+`rfi_open` all read as *"With our team"*. A client watching a submission move through the internal
+lifecycle learns our process rather than their answer, and every transition becomes a question we
+have to field. The mapping is kept in one table **with the internal names visible**, because that is
+what makes a well-meant "let's show them more detail" a visible change rather than a quiet one.
+
+**The mapping fails closed.** Adding a lifecycle state without deciding what the client sees throws
+rather than leaking the internal name — asserted with a state that does not exist.
+
+**The clocks are named for what they deliver:** *Acknowledgement* and *Quote delivery*. Never
+*prelim turnaround* or *engineering review*, which name an authority this product does not hold and
+escape into UI strings and client emails where they cannot be recalled. `forbiddenWordingIn()`
+checks any client string and reports **every** offending phrase, and the status wording is asserted
+clean by it.
+
+**SLA targets stay hidden until ten live submissions are measured** (`OD-11`). Showing a target
+before it is measured is a promise made from a guess, and the first time it is missed the client is
+right to be annoyed.
+
+**A clone leaves the source byte-identical.** The acceptance criterion is exact — *"clone leaves the
+source `content_hash` byte-identical"* — so `cloneToDraft` returns the source alongside the clone,
+letting a caller assert it rather than trust it. The new draft carries **no content hash at all**:
+it has not been frozen, so there is nothing to hash, and carrying the source's would be a lie about
+what the draft contains.
+
+**Group D is complete.** `D-01` through `D-08`: invitation acceptance, facility entry, the option
+builder, preview, findings, comparison, submit and status.
 
 **2026-08-31 — `D-07`/`E-06`: the submit transaction**
 

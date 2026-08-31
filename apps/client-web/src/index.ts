@@ -104,3 +104,20 @@ export {
   type SubmitResult,
   type SubmitStep,
 } from './lib/submit.js';
+
+export {
+  CLOCK_NAMES,
+  FORBIDDEN_STATUS_WORDING,
+  SLA_BASELINE_SUBMISSIONS,
+  STATUS_WORDING,
+  StatusError,
+  clientStatusFor,
+  cloneToDraft,
+  editable,
+  forbiddenWordingIn,
+  slaTargetsVisible,
+  type ClientStatus,
+  type CloneResult,
+  type InternalStatus,
+  type Revision,
+} from './lib/status.js';
