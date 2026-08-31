@@ -1,0 +1,16 @@
+{
+  "name": "@rms/client-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The client-facing web application. Cannot import internal DTOs.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@rms/display-list": "workspace:*",
+    "@rms/kernel-units": "workspace:*"
+  }
+}

@@ -39,7 +39,8 @@
       "@rms/kernel-bom": ["packages/kernel-bom/src/index.ts"],
       "@rms/display-list": ["packages/display-list/src/index.ts"],
       "@rms/db": ["packages/db/src/index.ts"],
-      "@rms/api": ["apps/api/src/index.ts"]
+      "@rms/api": ["apps/api/src/index.ts"],
+      "@rms/client-web": ["apps/client-web/src/index.ts"]
     }
   }
 }

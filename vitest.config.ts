@@ -37,6 +37,9 @@ const alias = {
   ),
   '@rms/db': fileURLToPath(new URL('./packages/db/src/index.ts', import.meta.url)),
   '@rms/api': fileURLToPath(new URL('./apps/api/src/index.ts', import.meta.url)),
+  '@rms/client-web': fileURLToPath(
+    new URL('./apps/client-web/src/index.ts', import.meta.url),
+  ),
 };
 
 export default defineConfig({
@@ -145,6 +148,15 @@ export default defineConfig({
         // that destroys the product's reason to exist. Every action x every
         // role is enumerated in authz/matrix.test.ts; what remains uncovered is
         // defensive branching.
+        // The client bundle's namespace guard and the AC-01 collapse are the
+        // two controls that keep an internal field off a client screen. Both
+        // are pure logic, so 100% is achievable and anything less is untested.
+        'apps/client-web/src/lib/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
         'apps/api/src/authz/**': {
           branches: 90,
           functions: 100,

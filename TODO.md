@@ -19,8 +19,8 @@ backlog id, that id is named.
 > self-test + scan (33 files, **9** pure packages), provenance self-test + lint (64 files),
 > `check-rls` 19 tables, exit 0. Coverage measures `apps/` too, with ratcheted floors.
 >
-> **P1 is complete. The trustworthy model the brief demanded before any UI is built and proven.
-> Group D — the client application — is the next work.**
+> **P1 is complete, and Group D has begun.** `D-01` (invitation acceptance) and `D-02` (facility
+> entry) are built and verified in `apps/client-web`. `D-03`, the option builder, is next.
 > Everything else is `Planned only` unless its own row says otherwise. Nothing here may be marked
 > `Complete` without recording the verification command and its actual result.
 

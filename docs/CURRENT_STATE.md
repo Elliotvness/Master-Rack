@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **684**, all passing across 28 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
+| Product tests | **712**, all passing across 29 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified beam rows **and 435 verified frame-capacity cells**, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **7**: boundary self-test + scan, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 27 commits**, working tree clean |
+| Version control | **git, 28 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,54 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `D-01`/`D-02`: the client application begins**
+
+| Check | Command | Result |
+|---|---|---|
+| Client-web tests | `pnpm test` | **PASS.** 28 tests: the namespace guard, the `AC-01` collapse, and facility entry |
+| **Namespace guard fires** | deliberate break | **PROVEN.** Weakening the guard to a substring check — the exact fix a developer makes for a false positive — turned **2 tests red** |
+| **The AC-01 oracle is caught** | deliberate break | **PROVEN.** Making the invitation refusal "helpful" by showing the server's message turned **3 tests red** |
+| **A zero is refused** | deliberate break | **PROVEN.** Accepting `0` as a facility measurement turned a test red |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **712/712** tests across 29 files |
+| Coverage | `pnpm coverage` | **PASS.** `client-web/src/lib` at **100%**, threshold enforced |
+
+**Two applications, enforced in code rather than by convention.** `apps/client-web` can reach only
+`/api/client/v1`, and `request()` throws a `NamespaceViolationError` before issuing the call. The
+prefix is anchored, so `/api/internal/v1/x?next=/api/client/v1` cannot slip through a substring
+match and `/api/client/v10/` is refused as a lookalike. This is the blueprint's reasoning made
+mechanical: **a shared route that hides fields makes leakage a serialization bug, invisible in
+review; two namespaces make it a routing bug, loud and greppable.**
+
+**`AC-01` is enforced by an ABSENCE.** The refusal type carries no reason code — not "expired", not
+a status. The distinction is not available to render, so it cannot be rendered, and the natural
+future "improvement" of showing a more helpful message cannot compile against this type without
+deliberately adding the field back. Probe 2 shows what that improvement costs: three tests red.
+
+A test asserts the refusals are structurally identical, not merely textually equal — an extra key
+present on one refusal and absent on another is an oracle even when both messages match.
+
+**The standing message names all three possibilities without confirming any:** *"It may have expired,
+already been used, or been withdrawn."* An earlier draft of the test asserted the word "expired"
+never appears, which **failed against correct code** — honest wording and a non-revealing response
+are compatible, and the thing to forbid is the machine-readable field.
+
+**No auto-login on acceptance**, deliberately. Auto-login turns a single-use invitation into a
+session-granting token, so a forwarded email becomes an account takeover rather than a wasted
+invitation.
+
+**`D-02`: a zero is refused at the field.** Every facility field is `known`, `not_known` or `empty`,
+and `setKnown` refuses zero and negatives with a message pointing at the NOT KNOWN control. A zero
+clear height is not a measurement — it is a blank wearing a number's clothes, and it would sail
+through every downstream check. **"Not known" does not block submission**, because refusing to accept
+*I do not know* pushes a client into inventing a number, which is the outcome the whole product
+exists to prevent.
+
+Every finding names **who can answer it**, asserted by test, because a MISSING INPUT finding with no
+route to an answer is a dead end and dead ends become support calls (`R-15`).
+
+**Password policy is length-only.** Composition rules push people toward `Password1!` and away from
+length, which is the property that actually matters.
 
 **2026-08-31 — `B-03` frame capacity: Group B complete**
 
