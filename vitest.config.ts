@@ -14,6 +14,7 @@ const alias = {
   '@rms/kernel-model': fileURLToPath(
     new URL('./packages/kernel-model/src/index.ts', import.meta.url),
   ),
+  '@rms/db': fileURLToPath(new URL('./packages/db/src/index.ts', import.meta.url)),
 };
 
 export default defineConfig({

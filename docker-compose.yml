@@ -1,0 +1,21 @@
+# Local Postgres for development and the RLS tests.
+#
+# The RLS tests run against a REAL Postgres, never a mock. Row-level security
+# fails silently — a SELECT returns empty rather than erroring — so a mock that
+# returns what the test expects proves nothing at all.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: rms-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: rms
+    ports:
+      - '55432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d rms']
+      interval: 2s
+      timeout: 3s
+      retries: 30

@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "./packages/kernel-units" },
-    { "path": "./packages/kernel-model" }
+    { "path": "./packages/kernel-model" },
+    { "path": "./packages/db" }
   ]
 }

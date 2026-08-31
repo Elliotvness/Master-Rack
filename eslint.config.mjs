@@ -43,6 +43,48 @@ export default tseslint.config(
     },
   },
   {
+    // A-05: withTenant() is the only permitted database entry point. A raw
+    // pool checkout skips the transaction-local tenant context, which means
+    // every RLS policy compares against an unset GUC and the query sees
+    // nothing — or, worse, the previous tenant's context under a pooler.
+    files: ['apps/**/*.ts', 'packages/**/*.ts'],
+    ignores: ['packages/db/src/with-tenant.ts', 'packages/db/src/*.test.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'pg',
+              message:
+                'Import from @rms/db and use withTenant() instead. A raw pg client bypasses ' +
+                'the transaction-local tenant context that every RLS policy depends on.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "MemberExpression[object.name='Date'][property.name='now']",
+          message:
+            'Date.now() is banned: derivation must be deterministic. Pass the time in as an explicit, recorded input.',
+        },
+        {
+          selector: "MemberExpression[object.name='Math'][property.name='random']",
+          message:
+            'Math.random() is banned: derivation must be deterministic and reproducible.',
+        },
+        {
+          selector: "CallExpression[callee.property.name='connect'][callee.object.name=/[Pp]ool/]",
+          message:
+            'Raw pool checkout is banned. Use withTenant(), which sets the tenant context ' +
+            'transaction-locally so it cannot survive the connection returning to the pool.',
+        },
+      ],
+    },
+  },
+  {
     // Build tooling runs in Node and is allowed to talk to the operator.
     files: ['tools/**/*.mjs', 'tools/**/*.js', '*.config.ts', '*.config.mjs'],
     languageOptions: {
@@ -50,7 +92,16 @@ export default tseslint.config(
     },
     rules: {
       'no-console': 'off',
+      'no-restricted-imports': 'off',
+      'no-restricted-syntax': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
+    },
+  },
+  {
+    // The database package legitimately touches pg and Node globals.
+    files: ['packages/db/**/*.ts'],
+    languageOptions: {
+      globals: { ...globals.node },
     },
   },
 );

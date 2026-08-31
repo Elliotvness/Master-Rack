@@ -16,15 +16,22 @@
     "lint": "eslint .",
     "check:boundaries": "node tools/check-boundaries.mjs",
     "check:boundaries:selftest": "node tools/selftest-boundaries.mjs",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "migrate": "node tools/migrate.mjs",
+    "check:rls": "node tools/check-rls.mjs",
     "check:docs": "python src/build.py",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:boundaries:selftest && pnpm check:boundaries",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:boundaries:selftest && pnpm check:boundaries && pnpm check:rls",
     "clean": "tsc --build --clean"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.0",
     "@vitest/coverage-v8": "^2.1.0",
     "eslint": "^9.15.0",
     "globals": "^17.11.0",
+    "pg": "^8.13.0",
     "typescript": "^5.6.0",
     "typescript-eslint": "^8.15.0",
     "vitest": "^2.1.0"

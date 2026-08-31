@@ -8,6 +8,29 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+
+    # A real Postgres, never a mock. RLS fails silently — a SELECT returns
+    # empty rather than raising — so a mock that returns what the test expects
+    # proves nothing at all.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: rms
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rms"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      DATABASE_ADMIN_URL: postgresql://postgres:postgres@localhost:55432/rms
+      DATABASE_URL: postgresql://app_user:app_user_dev_only@localhost:55432/rms
+
     steps:
       - uses: actions/checkout@v4
 
@@ -28,7 +51,10 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Unit tests
+      - name: Apply migrations
+        run: pnpm migrate
+
+      - name: Unit and tenancy tests
         run: pnpm test
 
       # The self-test runs BEFORE the checker. A checker that silently stopped
@@ -38,6 +64,9 @@ jobs:
 
       - name: Boundary check
         run: pnpm check:boundaries
+
+      - name: RLS coverage assertion
+        run: pnpm check:rls
 
       - name: Kernel coverage gate
         run: pnpm coverage
