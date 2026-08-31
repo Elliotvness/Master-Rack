@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **757**, all passing across 31 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
+| Product tests | **775**, all passing across 32 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified beam rows **and 435 verified frame-capacity cells**, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
-| Mechanical gates | **7**: boundary self-test + scan, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 30 commits**, working tree clean |
+| Mechanical gates | **9**: kernel-boundary self-test + scan, **app-boundary self-test + scan**, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
+| Version control | **git, 31 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,50 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-08-31 — `D-06` comparison, and a gap it exposed in the app separation**
+
+| Check | Command | Result |
+|---|---|---|
+| Comparison tests | `pnpm test` | **PASS.** 18 tests: the closed metric set, the null-not-zero rule, per-option finding counts |
+| **App boundary check** | `pnpm check:apps` | **PASS.** 11 client files scanned; no internal import |
+| **App boundary self-test** | `pnpm check:apps:selftest` | **PASS.** All **6** violation types caught, all **5** legal imports allowed |
+| **Forbidden metrics refused** | deliberate break | **PROVEN.** Filtering instead of throwing turned **3 tests red** |
+| **The closed set holds** | deliberate break | **PROVEN.** Opening it to arbitrary keys turned **1 test red** |
+| **Unestablished rows unrankable** | deliberate break | **PROVEN.** Ranking a row containing a null turned **1 test red** |
+| **The boundary gate fires** | deliberate break | **PROVEN.** Adding `import ... from '@rms/api'` to a client file failed the check |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **775/775** tests across 32 files |
+
+**A gap found while writing the tests, not by a gate.** The comparison test originally imported
+`FORBIDDEN_CLIENT_FIELDS` from `@rms/api` to cross-check the two lists. That import is *reasonable
+looking* and completely wrong: **nothing in the repository prevented the client bundle from
+importing internal code.** `check-boundaries.mjs` enforces kernel purity and scans only `packages/`,
+so `apps/client-web` was unguarded. The blueprint's claim that *"two bundles is the cheapest
+structural guarantee that internal DTO types cannot reach a client screen"* was, until now, a
+convention.
+
+**`tools/check-app-boundaries.mjs` closes it**, with a self-test alongside. It catches static,
+side-effect **and dynamic** imports — the last matters because `import('@rms/api')` defeats a type
+check entirely — and it scans test files too, since an import reachable from a test is reachable
+from the package. It allows the pure kernels, the display list and the catalog, because a client
+legitimately reads published choices.
+
+Both are now in `pnpm verify` and CI. That is the project's **eighth and ninth mechanical gates**.
+
+**The comparison's own rule: never cost, price, part count or any BOM quantity.** Part counts *are*
+the internal takeoff, and a comparison table is exactly where they leak, because a column of numbers
+looks harmless beside another column of numbers. The comparable set is **closed and enumerated**
+(`netPositions`, `aisleClearWidthIn`, `topOfLoadIn`, `storageLevels`), and anything outside it
+**throws rather than being filtered** — a filter silently drops the field and leaves the developer
+believing the column exists.
+
+**A missing value is null, never zero.** A blank or zero cell in a comparison reads as *"none"*,
+which is a claim. And a row containing an unestablished value is **not rankable**: comparing a number
+to VERIFY produces an ordering the model cannot defend, which the client would read as a real
+preference.
+
+**Per-option counts stay split** — actions apart from reviews. A single "3 issues" badge tells the
+client nothing about whether they have work to do, and in a comparison that matters more, not less.
 
 **2026-08-31 — `D-04`/`D-05`: the preview and findings panel**
 

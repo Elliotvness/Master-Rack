@@ -76,3 +76,18 @@ export {
   type PreviewState,
   type SummaryCounts,
 } from './lib/preview.js';
+
+export {
+  COMPARABLE_METRICS,
+  ComparisonError,
+  FORBIDDEN_COMPARISON_METRICS,
+  comparableOption,
+  compare,
+  rankable,
+  summariseOptions,
+  type ComparableMetric,
+  type ComparableOption,
+  type ComparisonRow,
+  type ComparisonTable,
+  type OptionSummary,
+} from './lib/comparison.js';

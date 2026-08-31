@@ -65,6 +65,14 @@ jobs:
       - name: Boundary check
         run: pnpm check:boundaries
 
+      # The client bundle must not be able to import internal code. Two
+      # applications is only a guarantee if the separation is enforced.
+      - name: App boundary self-test
+        run: pnpm check:apps:selftest
+
+      - name: App boundary check
+        run: pnpm check:apps
+
       # Same reasoning as the boundary self-test: prove the provenance lint
       # still catches a formatter applied to a raw value before trusting it.
       - name: Provenance lint self-test
