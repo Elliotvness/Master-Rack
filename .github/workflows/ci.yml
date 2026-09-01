@@ -41,9 +41,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Version comes from "packageManager" in package.json (pnpm@11.22.0).
+      # Pinning "version: 11" here made the action fail with
+      # "Multiple versions of pnpm specified" — the first CI run ever (2026-09-01)
+      # died on this step before a single test executed.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - uses: actions/setup-node@v4
         with:
