@@ -200,11 +200,40 @@ describe('the current, honest state of the catalog', () => {
     ).toEqual([]);
   });
 
-  it('interlake-2026-09 is DRAFT, and says why it is being held', () => {
+  it('interlake-2026-09 is DRAFT, spot-checked, and approvable but not approved', () => {
+    // This asserted `humanSpotChecks` was EMPTY until 2026-09-01, when the
+    // 42 pinned cells were read off PSG 2025 and recorded. The test went red,
+    // which is what it was written to do: it pins the state so a change to the
+    // state has to be noticed rather than absorbed.
+    //
+    // DRAFT and approvABLE are different facts. The gate no longer refuses this
+    // release; nobody has called approveRelease() on it. Approval stays an act.
     const m = manifestOf('interlake-2026-09');
     expect(m.status).toBe('DRAFT');
     expect(m.approvedBy).toBeNull();
-    expect(m.humanSpotChecks).toEqual([]);
+
+    expect(m.humanSpotChecks.map((c) => c.dataset).sort()).toEqual([...REQUIRED_DATASETS].sort());
+    for (const c of m.humanSpotChecks) {
+      expect(c.outcome, `${c.dataset} did not match the source`).toBe('MATCHED');
+      expect(c.checkedBy.trim(), `${c.dataset} has no named checker`).not.toBe('');
+      expect(c.checkedBy, `${c.dataset} was checked by the digitiser`).not.toBe(m.digitisedBy);
+      expect(c.sampledCells.length).toBeGreaterThanOrEqual(requiredSampleSize(c.cells));
+    }
+
+    // The whole point of the gate: the recorded cells ARE the drawn cells.
+    for (const c of m.humanSpotChecks) {
+      const ids = cellsOf('interlake-2026-09').get(c.dataset);
+      expect(ids, `no cell ids for '${c.dataset}'`).toBeDefined();
+      expect(
+        [...c.sampledCells],
+        `${c.dataset}: the recorded cells are not the draw for seed ${c.seed}`,
+      ).toEqual([...drawSpotCheckSample(ids ?? [], c.seed, requiredSampleSize(c.cells))]);
+    }
+
+    expect(
+      approvalRefusals(m, 'Elliott Villacorta', cellsOf('interlake-2026-09')),
+      'the release is no longer approvable — something regressed',
+    ).toEqual([]);
   });
 
   it('the draw is already pinned, so the sample cannot be shopped for', () => {

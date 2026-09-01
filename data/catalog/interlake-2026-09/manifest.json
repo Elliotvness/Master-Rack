@@ -141,5 +141,73 @@
    "kind": "two_path_reconciliation",
    "note": "Carried forward from interlake-2026-08 unchanged. Every capacity cell was read twice by independent paths - a visual read of the rendered page images and a parse of the PDF embedded text layer - and reconciled 435/435. The 2026-09 re-source read p.88 for beam capacity only; no frame cell was re-read or altered, and a test asserts the tables hash matches 2026-08."
   }
+ ],
+ "human_spot_checks": [
+  {
+   "dataset": "beams",
+   "cells": 336,
+   "sampled_cells": [
+    "59ER/F5M/120in",
+    "65QR/F5M/54in",
+    "50E/F4M/54in",
+    "27E/F3M/108in",
+    "36E/F3M/92in",
+    "59ER/F5M/156in",
+    "40E/F4M/60in",
+    "45E/F4M/96in",
+    "27E/F3M/96in",
+    "40E/F4M/92in",
+    "50E/F4M/48in",
+    "65ER/F5M/114in",
+    "27E/F3M/66in",
+    "36E/F3M/84in",
+    "50ER/F4M/60in",
+    "50E/F4M/126in",
+    "65ER/F5M/138in",
+    "40ER/F4M/156in",
+    "59ER/F5M/132in",
+    "59E/F5M/120in"
+   ],
+   "seed": 20260901,
+   "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
+   "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M",
+   "checked_by": "Elliott Villacorta",
+   "checked_at": "2026-09-01",
+   "outcome": "MATCHED"
+  },
+  {
+   "dataset": "frames",
+   "cells": 435,
+   "sampled_cells": [
+    "cap_welded_frames/HbL48/col9",
+    "cap_welded_frames/HbL108/col4",
+    "cap_bolted_reinforced_frames/HbL78/col5",
+    "cap_bolted_frames/HbL42/col3",
+    "cap_bolted_frames/HbL72/col2",
+    "cap_welded_frames/HbL54/col7",
+    "cap_bolted_frames/HbL102/col1",
+    "cap_bolted_reinforced_frames/HbL48/col5",
+    "cap_bolted_frames/HbL36/col8",
+    "cap_bolted_frames/HbL102/col6",
+    "cap_bolted_reinforced_frames/HbL78/col4",
+    "cap_welded_frames/HbL84/col2",
+    "cap_bolted_reinforced_frames/HbL78/col2",
+    "cap_bolted_frames/HbL66/col9",
+    "cap_bolted_reinforced_frames/HbL96/col5",
+    "cap_bolted_reinforced_frames/HbL90/col2",
+    "cap_welded_frames/HbL84/col7",
+    "cap_bolted_reinforced_frames/HbL36/col6",
+    "cap_welded_frames/HbL54/col1",
+    "cap_welded_frames/HbL36/col1",
+    "cap_welded_frames/HbL102/col1",
+    "cap_bolted_reinforced_frames/HbL108/col5"
+   ],
+   "seed": 20260901,
+   "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
+   "page_ref": "p.8 - 'Bolted Frame Capacities (lbs)' | p.25 - 'Reinforced Bolted Frame Capacities (lbs)' | p.52 - 'Welded Frame Capacities (lbs)'",
+   "checked_by": "Elliott Villacorta",
+   "checked_at": "2026-09-01",
+   "outcome": "MATCHED"
+  }
  ]
 }
