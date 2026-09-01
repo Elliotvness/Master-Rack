@@ -352,7 +352,13 @@ correct and unchanged: it is the manufacturer's printed basis, transcribed.
 
 ---
 
-## Phase 3 — The contract, then the server  *(T-14 needs Q2)*
+### P-00: The benchmark harness and the first baseline  ✅ 2026-09-01
+**Done.** §5.4 budgets 1 and 2 measured for the first time — `fixtures/perf/unit-300-bay.json`,
+`tools/bench/`, `pnpm bench`, a CI step, and `PERF.md` carrying the baseline, the p50-not-p95
+ratchet reasoning, and the ledger. preview p95 1.0–2.4 ms against 120 ms; fullDerivation p95
+0.9–1.5 ms against 400 ms. **The kernel was never the risk.**
+
+## Phase 3 — The contract, then the server  *(Q2 answered: Fastify)*
 
 > **Q2 is answered: Fastify.** Recorded in the project's audit-remediation status
 > ("Stack decided — Fastify, Vite + React Router v7 SPA") but never carried back into
@@ -406,15 +412,103 @@ move from "enforced against a model" to enforced.
 **Verification:** the enumeration count matches the route table; a planted forbidden field is caught.
 **Dependencies:** T-14. **Scope:** S.
 
+### P-01: Measure the submission budget in the same commit as the submit route
+**Description:** §5.4 budget 3 — submission (freeze + manifest + hash + BOM persist) at p95 2 s,
+measured by an end-to-end test. It ships with T-14's submit route, not after it: a budget added
+later is a budget nobody has ever seen fail.
+**Acceptance criteria:**
+- [ ] An end-to-end test that submits the 300-bay fixture through the real route and times it
+- [ ] p50/p95/p99 reported, not p95 alone — see `PERF.md` on why the spread is the signal
+- [ ] Asserted against the §5.4 budget **and** a ratchet derived from the first measurement
+- [ ] The measurement runs against a real Postgres in CI, not a mock. A mocked timing is a number
+      about the mock
+- [ ] The first measurement, and any attempt that did not survive, recorded in `PERF.md`
+**Verification:** `pnpm bench` grows a submission row; CI step passes.
+**Dependencies:** T-14 (submit route), T-13d. **Scope:** M.
+
+### P-02: The queue at 5,000 — seeded load test, and the query that survives it
+**Description:** §5.4 budget 4 — internal queue load at p95 800 ms with 5,000 submissions, measured
+by a seeded load test. This is the budget most likely to be missed, because it is the only one whose
+cost grows with the business rather than with one unit's size.
+**Acceptance criteria:**
+- [ ] A seed script that creates 5,000 submissions across ≥50 organizations, deterministically
+- [ ] The queue query uses `LIMIT`/`OFFSET` from `@rms/contracts`' `paginate`/`offsetOf` — never a
+      full fetch narrowed in the application
+- [ ] `EXPLAIN (ANALYZE, BUFFERS)` recorded in `PERF.md` for the queue query at 5,000 rows, with
+      the chosen index named. An index added without the plan that justifies it is a guess
+- [ ] **No N+1**: the organization name, project number and counts come back in one query. A test
+      counts statements issued per queue render and asserts it is constant in the row count
+- [ ] RLS is ON for the measurement. Measuring with `row_security = off` measures a query the
+      product never runs
+- [ ] Asserted against the budget and a ratchet
+**Verification:** seeded load test in CI; statement-count test fails if a loop is introduced.
+**Dependencies:** T-14 (queue route). **Scope:** M.
+
+### P-03: PDF generation as a job, with the metric it is budgeted by
+**Description:** §5.4 budget 5 — preliminary PDF at p95 6 s, asynchronous with progress, measured by
+a job-queue metric. The budget already says *asynchronous with progress*, so a synchronous
+implementation is not a slow version of the right thing, it is the wrong shape.
+**Acceptance criteria:**
+- [ ] Generation runs as an outbox/job-queue job, never in the request path
+- [ ] The client is given progress, and a failed job is visible rather than silent
+- [ ] Duration recorded per job as a metric; p95 computed over the recorded set, not per call
+- [ ] Asserted against the budget once ≥20 jobs exist; below that the assertion is skipped **loudly**
+- [ ] The 6 s budget is re-checked against a real 300-bay unit, not a one-page fixture
+**Verification:** a job-queue metric exists and the p95 is queryable.
+**Dependencies:** T-14, the document path. **Scope:** M.
+
+### P-05: Front-end budgets, agreed before the first screen exists
+**Description:** §5.4's five budgets are all server- or kernel-side. There is **no front-end budget
+at all** for a product whose premise is a client self-service web app where the preview interaction
+*is* the product. The 120 ms preview budget covers the computation; nothing covers the paint. A
+bundle ceiling agreed after the bundle exists is a ceiling nobody meets.
+**Acceptance criteria:**
+- [ ] Budgets written into the blueprint (a §5.4 amendment) rather than invented in a task file:
+      **LCP ≤ 2.5 s**, **INP ≤ 200 ms**, **CLS ≤ 0.1**, initial JS **≤ 200 KB gzipped**
+- [ ] INP is the one that matters here and is called out as such: a rack configurator is an
+      interaction loop, not a page view
+- [ ] Bundle size asserted in CI on every build, with the number recorded in `PERF.md`
+- [ ] Lighthouse or an equivalent runs against the built SPA in CI once a screen exists
+- [ ] A route-level code-splitting decision recorded — before there are routes to split
+**Verification:** the bundle gate fails when a large dependency is added.
+**Dependencies:** Q1 (frontend framework — answered: Vite + React Router v7), before T-16.
+**Scope:** S to agree, M to enforce.
+
+### P-04: Re-derive the provisional budgets once real unit sizes are known
+**Description:** §5.4 says its own numbers "are provisional and should be re-derived once a real
+unit size distribution is known". The 300-bay fixture is a plausible size, not a measured one.
+**Acceptance criteria:**
+- [ ] Unit sizes from the first real submissions summarised — bays, runs, levels, options per unit
+- [ ] The fixture regenerated at the p90 real size, and the baseline re-measured
+- [ ] Budgets amended in the blueprint if the real distribution says they should be
+- [ ] Old and new baselines both kept in `PERF.md`; a budget change never erases what it replaced
+**Verification:** `PERF.md` carries both baselines with dates.
+**Dependencies:** OD-20a/b pilot data. **Scope:** S. **Not urgent — but do not skip it.**
+
+### R-08 / R-10 — the two review tasks that never ran
+**Description:** Carried forward from `tasks/review-todo.md`. Neither blocks the merge; both are
+worth doing before 24 commits become history.
+- **R-08** — the catalog data reviewed as data against its source: `frames.json` byte-identity
+  verified independently of the test that asserts it, the 2026-08 transcribed values confirmed
+  unchanged by quarantine, every pinned cell id resolving to a real row.
+- **R-10** — the commits judged as commits: each one green on its own (`git checkout <sha> && pnpm
+  typecheck && pnpm test`), each first line standalone in history, and the question of whether the
+  two RLS commits belonged on a branch named for catalog release integrity.
+**Verification:** findings appended to `tasks/review-findings.md`. **Scope:** S each.
+
 ## ══ CHECKPOINT B ══
 - [ ] MVP steps 1, 2, 6, 7 and 8 provable over HTTP
-- [ ] AC-02 / AC-03 / AC-06 enforced live; **17 of 20 criteria** now met against the real system
-- [ ] A submission freezes, hashes, chains and refuses a second edit — end to end
-- [ ] **Review with EL before Phase 4**
+- [ ] Every §5.4 budget that the code now makes measurable HAS a runner: P-01 submission, P-02 queue
+      at 5,000. A budget without a runner is not a budget (AD-7)
+- [ ] `EXPLAIN (ANALYZE, BUFFERS)` for the queue query recorded in `PERF.md`, with the index named
+- [ ] Statement-count test proves no N+1 in the queue render
+- [ ] R-08 and R-10 closed, or explicitly waived on the record
 
----
+## Phase 4 — The interface  *(Q1 answered: Vite + React Router v7 SPA)*
 
-## Phase 4 — The interface  *(needs Q1)*
+> Every one of §15.2's eight MVP-1 steps needs a screen, and there are currently **zero `.tsx`
+> files**. This phase is where 0/8 becomes 8/8, and it is the largest remaining item in the plan.
+> **P-05 lands first**: the front-end budgets are agreed before the first screen, not after.
 
 Sliced as the eight MVP steps, in the blueprint's order, so `AC-20` is assembled rather than authored.
 

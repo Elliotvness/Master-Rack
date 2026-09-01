@@ -13,6 +13,12 @@ planned separately in **`tasks/review-plan.md`**, with its own task list in
 **`tasks/review-todo.md`** (R-01 … R-11) and its findings in `tasks/review-findings.md`. That review
 gates the merge to `main`; this plan resumes at T-05 once it closes.
 
+**Where this plan stands, 2026-09-01.** Phases 1 and 2 landed, the review of them closed its first
+two phases, the catalog has its first approved release, and CI ran green for the first time. The
+measured state of the whole build — what exists, what does not, and which recorded figures are now
+stale — is in **`tasks/state-of-the-build.md`**. Read that before this document: it says what is
+true; this one says what to do about it.
+
 ---
 
 ## Baseline, measured 2026-09-01
@@ -149,10 +155,41 @@ applies with unusual force here: this product's whole argument is that a two-yea
 still renders, which means every observable of a pinned revision is a commitment. Deprecations get a
 window and a changelog entry, never a silent removal.
 
-### AD-6 — Frontend and API framework: **OPEN**, and gating
+### AD-6 — Frontend and API framework: **ANSWERED 2026-09-01**
 
-See Open Questions. Phases 1–2 do not depend on either. Phase 3 needs the API framework; Phase 4
-needs the frontend one.
+**Fastify** for the API, **Vite + React Router v7 SPA** for the front end. Recorded in the project
+status doc before this plan was written, and never carried back here — the kind of drift D-19 was
+about, so it is fixed rather than noted.
+
+Phases 1–2 never depended on either. **T-13a–d never depended on the API framework either**, which
+is why the contract package landed before the question was formally closed: the error envelope,
+the pagination envelope and the forbidden-field list are the same whatever serves them. T-14 is the
+first task that needs Fastify specifically.
+
+### AD-7 — Performance is measured, not asserted *(added 2026-09-01)*
+
+§5.4 sets five budgets and states, for each, how it is measured. Nothing performed any of them: no
+harness, no fixture, and the only quoted figures are rack-studio spikes the blueprint itself calls
+"a floor rather than a measurement". That is the same defect as an unenforced coverage threshold —
+a control that names its own method and has no mechanism behind it.
+
+Three rules from here:
+
+1. **A budget without a runner is not a budget.** Every §5.4 row gets a task that builds the
+   measurement §5.4 already specifies for it. Budgets 1 and 2 are done (`pnpm bench`, CI step);
+   3–5 land with the code they measure, in the same commit, not after it.
+2. **Guard with a ratchet, not only the contract number.** The measured paths sit ~100× inside
+   their budgets, so the §5.4 gate alone catches a catastrophe and nothing smaller. A ratchet just
+   above the measured value is what makes it a regression test. Same principle as the coverage
+   floors, and raised only when the measurement drops.
+3. **No optimisation without a measurement that justifies it,** and every attempt goes in `PERF.md`
+   — kept and reverted alike — so a dead idea is not re-run next quarter.
+
+**The gap §5.4 does not cover.** All five budgets are server- or kernel-side. There is **no
+front-end budget at all** — no LCP, no INP, no CLS, no bundle ceiling — for a product whose entire
+premise is a client self-service web app where the preview interaction *is* the product. The 120 ms
+preview budget covers the computation; nothing covers the paint. `P-05` fixes that before the first
+screen is built, because a bundle ceiling agreed after the bundle exists is a ceiling nobody meets.
 
 ---
 
@@ -269,7 +306,7 @@ codebase is full of adjacent things that look fixable and are out of scope.
 | # | Question | Gates | Owner |
 |---|---|---|---|
 | **Q1** | **Frontend framework.** Blueprint §6.2 says "React with a file-based router (Next.js or Remix/React Router)" and leaves it open. A framework with a server per app reintroduces the leak the two-bundle rule exists to prevent; a pure SPA has no server-render path to police. | Phase 4 (T-16) | EL |
-| **Q2** | **API server framework.** Unchosen. Needs first-class schema validation so §8.3's outbound `additionalProperties:false` is the core model rather than a bolt-on. | Phase 3 (T-14) | EL |
+| ~~**Q2**~~ | **API server framework. ANSWERED: Fastify** (recorded in the project status doc before 2026-09-01; this table never caught up — R-11). Originally: Needs first-class schema validation so §8.3's outbound `additionalProperties:false` is the core model rather than a bolt-on. | Phase 3 (T-14) | EL |
 | **Q3** | **Standing disclaimer text, verbatim**, plus the company/contact name for the title block (`OD-16`) and the document number format. | T-20 / `E-08` / `AC-16` | EL + counsel (RH-06) |
 | **Q4** | **Backblaze B2 credentials**, and permission to run the upload-then-overwrite proof on a Governance test bucket first. | T-24 / `E-07` | EL |
 | **Q5** | **Who performs the catalog spot-check**, and are they positioned to catch a *capacity-table* error specifically (RH-05, `OD-07`)? A name alone does not satisfy the gate this plan builds. | T-04 | EL |
