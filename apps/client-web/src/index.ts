@@ -95,9 +95,12 @@ export {
 export {
   SUBMIT_STEPS,
   SubmitError,
+  preSubmitConfirmation,
   stepsInOrder,
   submit,
   submitRefusals,
+  type Acknowledgement,
+  type Assumption,
   type Derivation,
   type SubmitEffects,
   type SubmitInput,

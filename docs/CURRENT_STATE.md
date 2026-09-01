@@ -1186,6 +1186,37 @@ restored and re-verified immediately.
 
 Still not verified: `verify-visual.py` (`P0-003`), and CI on a real runner.
 
+**2026-09-01 (session 4) — `T-06`, and the constraint that makes AC-15 more than a docstring**
+
+Run in the cloud clone against a native PostgreSQL 16.13 (`127.0.0.1:55432`, db `rms`):
+
+| Command | Result |
+|---|---|
+| `pnpm vitest run` (before the fix, T-06 tests written) | **7 failed**, 140 passed — the red required before writing the implementation |
+| `pnpm vitest run` (after) | 45 files, 1,099 passed |
+| `pnpm vitest run` (after the review hardening) | **46 files, 1,114 passed, 0 skipped** |
+| `pnpm verify` | **exit 0** — typecheck, lint, 11 self-tested checkers, coverage thresholds |
+| `node tools/migrate.mjs` | `apply 0009_assumption_record.sql`, 9 migrations present |
+| constraints dropped by hand, `assumption.db.test.ts` re-run | **4 of 7 RED**, then restored and green — the controls can fire |
+| `assembleReviewPackage` with `plan` moved above `assumptions` | **RED** — the §11.6 ordering is asserted, not decorative |
+
+Two things worth carrying forward.
+
+**The adversarial review paid for itself, again.** Run in fresh context before T-06 stood, it found
+that the §11.6 record had been made a *type* and not a *record*: `app.assumption` had no `scope`
+column and nothing tied `acknowledged_by`/`acknowledged_at` to any audit event, so a row could assert
+that a named client accepted something with nothing in `app.audit_event` to corroborate it — a
+recollection wearing a timestamp. Migration `0009` closes that in the schema. It also found a
+tautological test of mine: four properties read back off the fixture that built them, which survived
+gutting the interface to `{ key }` because `import type` is erased at runtime. Rewritten to assert
+through `preSubmitConfirmation`.
+
+**The audit FK has a visible cost, recorded so the next person is not surprised.**
+`app.assumption.acknowledgement_audit_event_id` references `app.audit_event`, so a bare
+`TRUNCATE app.audit_event` is now refused. `apps/api/src/audit/chain.db.test.ts` needed `CASCADE` on
+two truncates. That refusal *is* the mechanism — an acknowledgement cannot outlive its event — so the
+test was changed, not the constraint.
+
 **2026-08-31 — Group A complete (`A-08`, `A-09`, `A-10`)**
 
 | Check | Command | Result |

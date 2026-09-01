@@ -183,7 +183,10 @@ describe('tamper detection — a chain that cannot detect tampering is not evide
     // Fresh chain for this case.
     await admin('ALTER TABLE app.audit_event DISABLE TRIGGER audit_event_no_update');
     await admin('ALTER TABLE app.audit_event DISABLE TRIGGER audit_event_no_delete');
-    await admin('TRUNCATE app.audit_event RESTART IDENTITY');
+    // CASCADE since migration 0009: `app.assumption.acknowledgement_audit_event_id`
+    // references this table, and a bare TRUNCATE is refused while it does. The
+    // foreign key is the point — an acknowledgement cannot outlive its event.
+    await admin('TRUNCATE app.audit_event RESTART IDENTITY CASCADE');
     await admin('ALTER TABLE app.audit_event ENABLE TRIGGER audit_event_no_update');
     await admin('ALTER TABLE app.audit_event ENABLE TRIGGER audit_event_no_delete');
 
@@ -211,7 +214,10 @@ describe('tamper detection — a chain that cannot detect tampering is not evide
 
 describe('I-3 — audit events cannot be altered or removed, at two layers', () => {
   maybe('the application role is denied UPDATE by revoked privilege', async () => {
-    await admin('TRUNCATE app.audit_event RESTART IDENTITY');
+    // CASCADE since migration 0009: `app.assumption.acknowledgement_audit_event_id`
+    // references this table, and a bare TRUNCATE is refused while it does. The
+    // foreign key is the point — an acknowledgement cannot outlive its event.
+    await admin('TRUNCATE app.audit_event RESTART IDENTITY CASCADE');
     await append('revision.submitted');
     // The app role never had UPDATE on this table: privilege is the first
     // layer, revoked in the migration.
