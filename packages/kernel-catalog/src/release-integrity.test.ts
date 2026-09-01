@@ -199,8 +199,8 @@ describe('the current, honest state of the catalog', () => {
   // deleted when that happened, per its own instruction: the AC-18 tests carry
   // the weight now.
 
-  it('interlake-2026-09 is DRAFT, pending the one-cell top-up the floor requires', () => {
-    // The state this test pins has moved three times in one day, and each move
+  it('interlake-2026-09 is APPROVED, its checks recorded, signed by a named approver', () => {
+    // The state this test pins has moved five times in one day, and each move
     // was a control reporting something true:
     //   humanSpotChecks empty  -> the 42 cells had not been read
     //   APPROVED               -> they had, and the gate returned no refusals
@@ -209,14 +209,26 @@ describe('the current, honest state of the catalog', () => {
     //                             19 published values. p.88 prints one column
     //                             headed `59E / 59ER`; the extract carries two
     //                             rows for it.
+    //   DRAFT, checks recorded -> the one-cell top-up the floor required
+    //                             (65ER/F5M/78in) had been read and recorded
+    //                             MATCHED, so the release was approvable again.
+    //   APPROVED               -> approveRelease() ran against the recorded
+    //                             checks and returned no refusals.
     // Nothing recorded was ever fabricated: the recorded cells were the drawn
     // cells and they matched. The floor was measured against the wrong
     // population, which is the same class of defect as counting a machine as an
     // independent party — a control reporting a number it is not measuring.
     const m = manifestOf('interlake-2026-09');
-    expect(m.status).toBe('DRAFT');
-    expect(m.approvedBy).toBeNull();
-    expect(m.humanSpotChecks).toEqual([]);
+    expect(m.status).toBe('APPROVED');
+    expect(m.approvedBy).toBe('Elliott Villacorta');
+    expect(m.approvedAt).toBe('2026-09-01');
+    expect(m.humanSpotChecks.length).toBe(2);
+    for (const c of m.humanSpotChecks) {
+      expect(c.checkedBy).toBe('Elliott Villacorta');
+      expect(c.outcome).toBe('MATCHED');
+    }
+    const beams = m.humanSpotChecks.find((c) => c.dataset === 'beams');
+    expect(beams?.supplementaryCells).toEqual(['65ER/F5M/78in']);
   });
 
   it('the pinned draw carries the top-up, and it is the tool\'s not a choice', () => {
