@@ -302,6 +302,37 @@ codebase is full of adjacent things that look fixable and are out of scope.
 
 ---
 
+## Commit convention
+
+Written down 2026-09-01 under review finding F-18. The branch used ten commit types and none of
+them were recorded anywhere, so the next contributor would have guessed.
+
+**Type prefixes.** Seven conventional ones — `feat`, `fix`, `docs`, `test`, `chore`, `ci`, `perf` —
+plus three this project genuinely needs:
+
+| type | for | not to be confused with |
+|---|---|---|
+| `catalog` | anything that changes a release under `data/catalog/`: values, manifests, status, approval records | `chore` — a catalog change is never routine |
+| `review` | findings, dispositions and review bookkeeping under `tasks/` | `docs` — a review records a judgement, not documentation |
+| `tools` | a checker, self-test or script under `tools/` that changes what CI can catch | `chore` — if it changes what the build refuses, it is `tools` |
+
+`chore` is what is left: lockfiles, comments, renames, anything that changes neither behaviour nor
+what the build refuses.
+
+**Subjects.** Imperative, standalone, and informative enough to find in history a month later —
+"quarantine interlake-2026-08 — it is wrong, not merely old", not "fix bug" or "phase 1". Say what
+changed *and why it matters*; the house style is "clause, and clause". Aim for 72 characters. Eleven
+subjects on this branch exceed it, which is a fair trade for the second clause but costs truncation
+in narrow views, so spend the length deliberately.
+
+**Task ids go in the body, never in the type.** One commit on this branch is subjected `T-00: …`,
+which reads as an eleventh type. Write `docs: …` and name T-00 in the first line of the body.
+
+**A commit says what it did, not what it hoped.** If it is not proven, the commit says so — this is
+the same rule as every checker here, applied to history.
+
+---
+
 ## Open questions — needed before the phase they gate
 
 | # | Question | Gates | Owner |

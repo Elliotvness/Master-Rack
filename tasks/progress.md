@@ -66,15 +66,20 @@ The procedure, so it is reproducible:
 | Measure | Value | Blueprint anchor | What it measures |
 |---|---|---|---|
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
-| Plan-task completion, effort-weighted | 19 of 143 pts — **13.3%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
-| Plan-task completion, task count | 7 of 43 — 16% | Same, unweighted | Same |
+| Plan-task completion, effort-weighted | 19 of 145 pts — **13.1%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
+| Plan-task completion, task count | 7 of 44 — 16% | Same, unweighted | Same |
 | Pre-merge review `R-01…R-11` | 8 of 11 — 73% | **§16.1** review gates | A sub-checklist of one branch, not the project. **Same figure as this morning, different members** — see the correction below. Done: R-01…R-06, **R-08**, **R-11**. Open: R-07 (partly), R-09, R-10 (one criterion) |
 | Route surface vs the blueprint | 19 of 21 MVP-1 routes declared | **§8.2** (23 rows, 2 marked phase 2) | New this session. A *registry* figure, not a served one — nothing mounts it |
 
-These are not competing answers. **0% is the answer**; 13.3% is how much of the written plan has
-been executed. A reader who quotes 13.3% without §15.2 beside it is quoting the wrong number.
-T-00 closing moved it from 12.6% — one point, and it did not move §15.2 by a step, which is the
-point of keeping the two figures side by side.
+These are not competing answers. **0% is the answer**; 13.1% is how much of the written plan has
+been executed. A reader who quotes 13.1% without §15.2 beside it is quoting the wrong number.
+
+**The denominator moved this session, twice, and in opposite directions.** T-00 closing took it from
+12.6% to 13.3% — one point earned. Then **T-28 was added** (self-tests must not be able to strand
+their own fixtures, S = 2 points), taking the denominator from 143 to 145 and the figure back to
+**13.1%**. Nothing regressed: 19 done points did not move. A percentage that fell because the plan
+grew is not a loss, exactly as one that rose because a task closed is barely a gain. §15.2 sat at
+0 of 8 through both.
 
 **Reconciliation with the older figures.** The Rev C audit's *68%* and `LATEST.md`'s *70%* are
 blueprint-conformance measures — requirements met, and effort remaining — over the whole MVP-1
@@ -85,7 +90,7 @@ neither comparable. The one figure all four agree on is §15.2 at 0 of 8.
 
 ## Method, so it can be re-run
 
-- **Inventory.** The 43 tasks: the 35 `T-…` tasks and 6 `P-…` tasks in `tasks/todo.md` (T-13a–d and
+- **Inventory.** The **44** tasks — 43 until **T-28** was added this session: the 36 `T-…` tasks and 6 `P-…` tasks in `tasks/todo.md` (T-13a–d and
   T-18a–e counted individually), plus R-08 and R-10 counted once. The ten Phase 4 bullets
   (T-16…T-21) and the five Phase 5 bullets (T-22…T-26) are inside the 35, not additions to it.
   `tasks/todo.md`'s 110 checkboxes are *sub-criteria inside* those tasks, not tasks; they are also
@@ -99,13 +104,13 @@ neither comparable. The one figure all four agree on is §15.2 at 0 of 8.
 - **R-08 and R-10 appear twice** in the plan (in `tasks/review-todo.md` and again in Phase 3). They
   are counted once, in Phase 3. The other nine R-items are outside the 43.
 
-### Caveat that cuts against the 13.3%
+### Caveat that cuts against the 13.1%
 
 The T-shirt sizes were written **before anyone attempted the server or the interface**. T-14 is
 sized L = 8 points = 5.6% of the project, yet it gates **all eight** §15.2 steps: every one needs
 HTTP. Phase 4 is eight M tasks, one L, and one S in a repo with zero `.tsx` files and no framework
 installed.
-If either is under-sized — and both probably are — the true denominator is larger and **13.3% is
+If either is under-sized — and both probably are — the true denominator is larger and **13.1% is
 an overstatement**. Treat it as a ceiling.
 
 Also outside the denominator, because the plan does not contain them: dependency audit in CI, E2E
@@ -120,37 +125,37 @@ changelog and tags *are* T-26.)
 |---|---|---|---|---|
 | 0 — Make CI real | 1 | 1 | **100%** | **T-00 complete.** Tip `efbafbd` pushed; CI run #10 **Success** — the first commit in this repo ever verified |
 | 1 — Catalog and schema integrity | 10 | 10 | **100%** | T-01…T-04 complete (verified at `a2f166e` — repository claim, not re-run today) |
-| 2 — Kernel and workflow repairs | 24 | 0 | **0%** | T-05…T-12, T-27 all unstarted |
+| 2 — Kernel and workflow repairs | 26 | 0 | **0%** | T-05…T-12, T-27, **T-28** all unstarted |
 | 3 — The contract, then the server | 50 | 8 | 16% | P-00 and T-13a done; T-13b…T-15, P-01…P-05, R-08, R-10 open |
 | 4 — The interface | 42 | 0 | **0%** | Zero `.tsx` files exist |
 | 5 — Deploy readiness | 16 | 0 | 0% | Not started |
-| **Total** | **143** | **19** | **13.3%** | |
+| **Total** | **145** | **19** | **13.1%** | |
 
-**Remaining: 124 points.** T-14 plus all of Phase 4 is 50 of those — 40% of what is left. The other
-**60% is diffuse**: Phase 2 (24), the rest of Phase 3 (34), Phase 5 (16). The remaining work is
+**Remaining: 126 points.** T-14 plus all of Phase 4 is 50 of those — 40% of what is left. The other
+**60% is diffuse**: Phase 2 (26), the rest of Phase 3 (34), Phase 5 (16). The remaining work is
 *not* concentrated in the two big items, and planning as if it were will under-book the back half.
 
 ---
 
-### How soft is 13.3%?
+### How soft is 13.1%?
 
 The caveat above says the figure is a ceiling because T-14 and Phase 4 were sized before anyone
 attempted either. Quantified — 19 done points never move, only the denominator does:
 
 | T-14 | Phase 4 | Denominator | Completion | Scenario |
 |---|---|---|---|---|
-| 8 | 42 | 143 | **13.3%** | as planned — the published figure |
-| 16 | 63 | 172 | 11.0% | T-14 ×2, Phase 4 ×1.5 |
-| 16 | 84 | 193 | 9.8% | T-14 ×2, Phase 4 ×2 |
-| 24 | 84 | 201 | 9.5% | T-14 ×3, Phase 4 ×2 |
-| 24 | 126 | 243 | 7.8% | T-14 ×3, Phase 4 ×3 |
+| 8 | 42 | 145 | **13.1%** | as planned — the published figure |
+| 16 | 63 | 174 | 10.9% | T-14 ×2, Phase 4 ×1.5 |
+| 16 | 84 | 195 | 9.7% | T-14 ×2, Phase 4 ×2 |
+| 24 | 84 | 203 | 9.4% | T-14 ×3, Phase 4 ×2 |
+| 24 | 126 | 245 | 7.8% | T-14 ×3, Phase 4 ×3 |
 
 Even at triple, the figure moves about five points. **The ceiling is real but shallow**, so
-13.3% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
+13.1% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
 is the number to quote and this one is not.
 
-**Where the remaining 124 points sit:** Phase 3's residue 42 (33.9%) · Phase 4 42 (33.9%) ·
-Phase 2 24 (19.4%) · Phase 5 16 (12.9%). The two largest blocks are equal, and neither is a
+**Where the remaining 126 points sit:** Phase 3's residue 42 (33.3%) · Phase 4 42 (33.3%) ·
+Phase 2 26 (20.6%) · Phase 5 16 (12.7%). The two largest blocks are equal, and neither is a
 majority.
 
 ## Verified today
@@ -171,7 +176,7 @@ Re-measured by running commands against the working tree:
 | Front-end dependency | **none** — no `react`, no `vite` in any `package.json` |
 | Route table | **20 entries** in `apps/api/src/authz/routes.ts` (11 client, 8 internal, 1 public). Imported only by `authorize.test.ts` and the package index — **no router mounts it**. Diffed against §8.2 both ways this session: short two MVP-1 routes, carrying one phase-2 route — see drift 4 |
 | Git tags · `CHANGELOG.md` · Dependabot | none · none · none. `version` is `0.0.0` |
-| CI gates present | typecheck, lint, migrate, test, **10** self-tested checkers, coverage, bench, docs rebuild + `git diff --exit-code`. The tenth landed today: `check-content-hash`, which recomputes each catalog release's `content_sha256` by the method that manifest declares |
+| CI gates present | typecheck, lint, migrate, test, **11** self-tested checkers, coverage, bench, docs rebuild + `git diff --exit-code`. Two landed today: `check-content-hash` (recomputes each release's `content_sha256` by the method that manifest declares) and `check-spot-check-record` (asserts every signed spot-check covers the draw that was pinned before it) |
 | CI gates absent | secret scanning, dependency audit, bundle-size ceiling, E2E |
 
 ### Not verified today — the repository's own figures
@@ -270,6 +275,15 @@ rule earns its keep: the blueprint wins, and the scoreboard is what gets fixed.*
    release**. The 2026-09 digest also turns out to be reproducible only by Python, because
    `face_height_in: 4.0` hashes differently once any other JSON implementation renders it `4`;
    re-basing it would change an APPROVED release, so that is EL's call, recorded not taken.
+   **F-16 is fixed** (the claim now says "identical after parse", and names the consequence that
+   reformatting either file leaves it green — demonstrated accidentally while making the edit).
+   **F-14 is withdrawn as filed**: `pending_spot_checks` and `human_spot_checks` are the question and
+   the answer, kept apart deliberately so the sample can be shown to have been fixed before it was
+   read, and the code says so at the point where deleting the pin would have been easiest. The real
+   finding underneath survived — **nothing asserted that the signature covers the draw**, and
+   `approveRelease` never compares them. `check-spot-check-record` now does, with 10 self-test cases
+   and proven to fire on the real release. **F-15's counting note is in the manifest**; its code half
+   changes the draw on an APPROVED release and is left to the approver.
 4. **Merge PR #1 — and rename it first.** It has lived far past the 1–3 day window a short-lived
    branch is supposed to occupy, and its name stopped describing its contents around commit five.
    **L-12 answered:** the two RLS commits (`73ca8d1`, `75192d0`) did belong on their own branch, and

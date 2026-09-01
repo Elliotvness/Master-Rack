@@ -145,7 +145,7 @@ describe('the approved release resolves a frame as well as a beam', () => {
     expect(catalog.cellCount).toBe(435);
   });
 
-  it('carried the frame tables forward from 2026-08 byte-for-byte', () => {
+  it('carried the frame tables forward from 2026-08 unchanged after parse', () => {
     // The 2026-09 re-source read PSG 2025 p.88 for beam CAPACITY only. If a
     // frame value ever moves, it must move because someone re-read the chart
     // and said so — not because a copy drifted.

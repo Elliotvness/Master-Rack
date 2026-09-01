@@ -111,6 +111,15 @@ jobs:
       - name: Catalog content hashes match their declared method
         run: pnpm check:contenthash
 
+      # approveRelease reads human_spot_checks and never compares it to the
+      # pinned draw it is supposed to answer. A signature over a DIFFERENT set
+      # of cells would pass every other gate (F-14, as restated).
+      - name: Spot-check record checker self-test
+        run: pnpm check:spotrecord:selftest
+
+      - name: Signed spot-checks cover their pinned draw
+        run: pnpm check:spotrecord
+
       # A workspace dependency that never reached the lockfile fails
       # `pnpm install --frozen-lockfile` above — this says WHICH one, and says
       # it in an environment where pnpm may not be installed at all.

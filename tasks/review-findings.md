@@ -348,21 +348,45 @@ concludes the release cannot be pinned.
 **Fix:** rewrite `approval_record` to describe the whole arc — approved, returned to DRAFT on the
 19-distinct-values finding, topped up, re-approved — in the past tense.
 
-## F-14 — `pending_spot_checks` and `human_spot_checks` are two records of one fact
+## F-14 — WITHDRAWN as filed, and replaced by the narrower finding underneath it
 
-**Consider.** Both arrays are present, and for both datasets they carry the *same* `seed`
-(20260901), the *same* 20/22 `sampled_cells` in the same order, and the same `supplementary_cells`.
-`pending_spot_checks` is the pin — the tool-drawn sample awaiting a human. `human_spot_checks` is
-the completed record. After completion the pin has no remaining job, and keeping both means the
-manifest carries the same draw twice with nothing forcing them to agree.
+**What I filed:** that `pending_spot_checks` and `human_spot_checks` are "two records of one fact",
+citing the codebase's own line about how such pairs come to disagree.
 
-`release-integrity.test.ts` already states the principle, about a different pair of fields:
+**Why that was wrong.** They are not two records of one fact. They are the **question and the
+answer**, and the code says so in as many words. `tools/record-spot-check.mjs`, at the point where it
+would have been easiest to delete the pin:
 
-> "Two records of one fact is how they come to disagree."
+> "The pinned draw stays in the file. It is the record of what was ASKED, and removing it once
+> answered would delete the evidence that the sample was fixed before it was read."
 
-They agree today. **Fix:** either have the recorder consume the pin when it writes the human record,
-or derive `human_spot_checks[].sampled_cells` from the pin rather than copying it — so the second
-copy cannot exist.
+And `tools/draw-spot-check.mjs` refuses to redraw while a pin exists — "a sample that can be redrawn
+until it is convenient is not a random sample." The duplicated `sampled_cells` is not redundancy; it
+is what makes the pairing auditable. Deleting either half destroys the property the two-person rule
+depends on.
+
+I pattern-matched a shape without reading the mechanism — which is the same error as the session-2
+drift item that would have edited 23 routes down to 20 to make a document agree with the code.
+Recorded rather than quietly dropped, because a withdrawn finding is evidence about the reviewer.
+
+**The real finding, which survives.** The design's whole value is that the answer covers the
+question, and **nothing asserted it.** `approveRelease` reads only `human_spot_checks`
+(`release.ts:243`); it never compares them. A recorder bug, a rebase or a hand-edit could leave a
+signature over a *different* set of cells from the one that was pinned, and every existing gate
+would still pass — a named person's signature attached to a sample nobody drew.
+
+**Closed:**
+
+- `tools/check-spot-check-record.mjs` compares every signed record against its pin: the sampled
+  cells **in order** (the draw is ordered evidence), the supplementary cells, the seed and the
+  population size. A record with no pin behind it is a failure. A pin with no record yet is not —
+  that is merely unread.
+- `tools/selftest-spot-check-record.mjs` — **10 cases**, run first: a different cell, a *reordered*
+  list, a dropped cell, a changed supplementary cell, a changed seed, a changed population size, an
+  unpinned signature, an unread pin, and a refusal to report a clean pass over an empty set.
+- **Proven to fire against the real release**: one drawn cell in `interlake-2026-09`'s signed record
+  swapped for a different *real* row, checker went red printing both lists side by side, reverted.
+- Wired into `pnpm verify` and CI, self-test first.
 
 ## F-15 — the E/ER collision is the shape of the whole chart, not a 59E quirk
 
@@ -406,8 +430,17 @@ either file, reorder nothing, and the check stays green; the files are in fact *
 (2026-09 adds `carried_forward_from` and `tables_sha256`, drops `status`/`approved_*`, and changes
 `rev`).
 
-Testing meaning rather than whitespace is the better choice. Only the word is wrong. Say
-"identical after parse, asserted by hash".
+Testing meaning rather than whitespace is the better choice. Only the word was wrong.
+
+**Fixed.** The test is now named *"carried the frame tables forward from 2026-08 unchanged after
+parse"*, and `carried_forward_from` says "IDENTICAL AFTER PARSE, asserted by a SHA-256 over the
+tables array — not byte-identical, which this file plainly is not", and names the consequence:
+**because the assertion parses first, reformatting either file leaves it green.**
+
+That consequence is not hypothetical. While making this very edit I rewrote `frames.json` with a
+different indent and produced an 841-line reformat that **every gate passed** — the tables hash was
+unchanged, because it is computed after parse. Restored to one changed line. A data file's
+formatting is part of its reviewability even when nothing asserts it.
 
 **Independently confirmed, for the record:** the `tables` arrays are structurally equal, and
 recomputing the stored hash here by the same method reproduces
@@ -535,7 +568,9 @@ exactly 42 removed, all 40E/40ER under F3M; exactly **264** capacity values chan
 150 + 135 + 150 = **435**; beam `row_count` 336 with no duplicate `(family, series, span)` key.
 
 **Disposition:** the catalog data is in good order and the arithmetic holds everywhere it was
-checked. **F-12 and F-13 are fixed**; F-14, F-15 and F-16 remain open as recorded. F-19 was found
+checked. **F-12, F-13 and F-16 are fixed. F-14 is withdrawn as filed and replaced by a checker.
+F-15's counting note is recorded in the manifest**; its code half — making the sampler draw over
+distinct published values — changes the draw on an APPROVED release and is left to the approver. F-19 was found
 underneath them and is closed with a checker and its self-test. The findings are all in the *prose*
 wrapped around the data — F-12 denies a change, F-13
 contradicts the status, F-14 duplicates a record, F-15 mis-frames a structural property as a quirk.

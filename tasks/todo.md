@@ -337,6 +337,40 @@ added to `CatalogReleaseManifest` and every fixture silently lacked it until the
 **Verification:** add a required field to a type, confirm `tsc --build` goes red, revert.
 **Dependencies:** None. **Files:** `packages/*/tsconfig.json`, `tsconfig.base.json`. **Scope:** S.
 
+### T-28: Self-tests must not be able to strand their own fixtures
+**Description.** Four checker self-tests — `selftest-boundaries`, `selftest-app-boundaries`,
+`selftest-provenance`, `selftest-language` — plant probe files **inside the working tree** and delete
+them at the end. On a filesystem that refuses deletion the probe survives, and the **next** run of
+the checker fails against the self-test's own leftover fixture. That is a false RED, and a false red
+is as corrosive as a false green: it trains people to re-run until it passes.
+
+**It happened twice on 2026-09-01**, both times on the Linux bridge mount, the second time after a
+mid-session permission reset — so "remember to enable deletion" is not a control. The two checkers
+added the same day (`check-content-hash`, `check-spot-check-record`) write their fixtures to the OS
+temp directory instead and cannot strand anything.
+
+**Acceptance criteria:**
+- [ ] Each of the four checkers takes an optional root, defaulting to the repository root, so its
+      self-test can point it at a temp tree
+- [ ] Each of the four self-tests builds its probe tree under `os.tmpdir()` and never writes inside
+      the repository
+- [ ] Proven: with the repository mounted read-only for deletion, all four self-tests still pass and
+      leave `git status` clean
+- [ ] The self-tests still exercise the **real** configuration, not a simplified copy — if a temp
+      tree cannot reproduce the package-purity rules, say so and keep the in-tree probe with a
+      guard that fails with the reason rather than a confusing checker error
+
+**Verification:** run each self-test twice in succession with no cleanup in between; the second run
+must pass. **Dependencies:** none. **Files:** `tools/{check,selftest}-{boundaries,app-boundaries,
+provenance,language}.mjs`. **Scope:** S.
+
+**Why it is not done on this branch.** It refactors four working checkers on a branch already
+36+ commits long and about to merge, and the test suite cannot be run from the bridge to confirm
+nothing else depends on their signatures. Recorded as its own task, per the one-branch-per-task rule
+that starts at Phase 2.
+
+---
+
 ### T-12: Update the source-conflict register
 **Description.** Audit **D-21**. §10.8 records the MH16.1 edition conflict as open. Part of it is now
 answerable: IBC 2024 adopted **ANSI MH16.1-2021**; IBC 2021 referenced MH16.1-2012; a 2023 edition of

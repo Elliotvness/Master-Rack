@@ -845,6 +845,6 @@
       }
     }
   ],
-  "carried_forward_from": "interlake-2026-08, unchanged. The 2026-09 re-source read PSG 2025 p.88 for beam CAPACITY only; no frame cell, axis or variant was re-read or altered. SHA-256 over the tables array is identical to 2026-08 and is asserted by test.",
+  "carried_forward_from": "interlake-2026-08, unchanged. The 2026-09 re-source read PSG 2025 p.88 for beam CAPACITY only; no frame cell, axis or variant was re-read or altered. IDENTICAL AFTER PARSE, asserted by a SHA-256 over the tables array - not byte-identical, which this file plainly is not: it adds carried_forward_from and tables_sha256, drops status and approved_*, and changes rev. Wording corrected 2026-09-01 under review finding F-16, which found the claim describing more than the mechanism does. A consequence worth knowing: because the assertion parses first, REFORMATTING either file leaves it green.",
   "tables_sha256": "8895b30674682bc6087c906378d2e2824452bf3c13ea23411d7caa4b57908c8f"
 }

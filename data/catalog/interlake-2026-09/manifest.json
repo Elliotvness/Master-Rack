@@ -141,7 +141,7 @@
    "cells": 336,
    "dataset": "beams",
    "kind": "full_cross_check",
-   "note": "All 336 capacity cells re-derived from PDF page 88 and compared against the shipped rows by packages/kernel-catalog/src/psg-authority.test.ts, which is wired into the test run. The chart was also parsed directly from the PDF independently of the supplied spreadsheet, and the two agree on every row. End-plate assignment cross-checked against page 84 and character 13 of each 18-digit code."
+   "note": "All 336 capacity cells re-derived from PDF page 88 and compared against the shipped rows by packages/kernel-catalog/src/psg-authority.test.ts, which is wired into the test run. The chart was also parsed directly from the PDF independently of the supplied spreadsheet, and the two agree on every row. End-plate assignment cross-checked against page 84 and character 13 of each 18-digit code. COUNTING NOTE, recorded 2026-09-01 under review finding F-15: 'cells: 336' counts extract ROWS, and p.88 prints one column per E/ER pair - all eight pairs, all 21 spans, identical capacity - so the 336 rows carry 168 DISTINCT PUBLISHED VALUES. Each published value was therefore checked twice by construction. The cross-check is real; the number reports rows, not independent readings. The same asymmetry is why a 20-row random draw lands short of the section 10.2 floor of 20 READINGS by default, which is what the deterministic top-up exists for - the top-up is the normal case, not an exception. A future sampler should draw over distinct published values in the first place; changing the draw on an APPROVED release is the approver's call, so it is recorded here, not done."
   },
   {
    "cells": 435,
