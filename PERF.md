@@ -71,6 +71,7 @@ Every attempt, kept and reverted alike.
 |---|---|---|---|---|
 | 2026-09-01 | Run the harness against the compiled `dist/` via plain node | — | **abandoned** | The workspace symlinks resolve `@rms/*` through each package's `main`, which points at `src/index.ts`. A compiled `dist/index.js` therefore pulls its dependencies in as TypeScript source and will not load. Changing `main` to `dist` to suit a benchmark would change how every consumer resolves the packages — a large change to serve a small one. Moved to a vitest config that already has the alias table. |
 | 2026-09-01 | Ratchet on p95 | p95 spread 1.04–2.42 ms | **rejected** | The run-to-run spread (2.3×) is larger than any regression the gate could usefully catch. Moved to p50. |
+| 2026-09-01 | Run `pnpm bench` as a CI gate on a GitHub runner, with a ratchet derived on the desktop VM | p50 ratchet 2.5 ms, measured 0.49–0.88 ms locally | **kept** | The runner met it — CI green, `verify` 1m11s including the bench step. So the 4× margin absorbs the hardware difference. If it ever fires on CI alone, that is the runner, not a regression: record the runner's number here and set a runner-specific ratchet rather than loosening this one. |
 | 2026-09-01 | Establish the first baseline at all | none existed → see above | **kept** | Two of five budgets now have a number. Three still do not, and are not claimed. |
 
 ## Running it

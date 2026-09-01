@@ -100,6 +100,15 @@ jobs:
       - name: Language discipline check
         run: pnpm check:language
 
+      # A workspace dependency that never reached the lockfile fails
+      # `pnpm install --frozen-lockfile` above — this says WHICH one, and says
+      # it in an environment where pnpm may not be installed at all.
+      - name: Lockfile checker self-test
+        run: pnpm check:lockfile:selftest
+
+      - name: Workspace dependencies are recorded in the lockfile
+        run: pnpm check:lockfile
+
       - name: Spot-check draw agreement (tool vs kernel)
         run: pnpm check:draw:selftest
 

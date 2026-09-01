@@ -25,6 +25,8 @@
     "migrate": "node tools/migrate.mjs",
     "check:rls": "node tools/check-rls.mjs",
     "check:rls:selftest": "node tools/selftest-rls.mjs",
+    "check:lockfile": "node tools/check-lockfile.mjs",
+    "check:lockfile:selftest": "node tools/selftest-lockfile.mjs",
     "check:draw:selftest": "node tools/selftest-spot-check-draw.mjs",
     "bench": "vitest run --config vitest.bench.config.ts",
     "check:determinism": "node tools/check-determinism.mjs",
@@ -33,7 +35,7 @@
     "check:language": "node tools/check-language.mjs",
     "check:language:selftest": "node tools/selftest-language.mjs",
     "check:docs": "python src/build.py",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:boundaries:selftest && pnpm check:boundaries && pnpm check:apps:selftest && pnpm check:apps && pnpm lint:provenance:selftest && pnpm lint:provenance && pnpm check:language:selftest && pnpm check:language && pnpm check:draw:selftest && pnpm check:rls:selftest && pnpm check:rls && pnpm check:determinism:selftest && pnpm check:determinism && pnpm coverage",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:boundaries:selftest && pnpm check:boundaries && pnpm check:apps:selftest && pnpm check:apps && pnpm lint:provenance:selftest && pnpm lint:provenance && pnpm check:language:selftest && pnpm check:language && pnpm check:lockfile:selftest && pnpm check:lockfile && pnpm check:draw:selftest && pnpm check:rls:selftest && pnpm check:rls && pnpm check:determinism:selftest && pnpm check:determinism && pnpm coverage",
     "clean": "tsc --build --clean"
   },
   "devDependencies": {
