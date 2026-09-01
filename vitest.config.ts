@@ -1,52 +1,7 @@
 import { defineConfig } from 'vitest/config';
-import { fileURLToPath } from 'node:url';
 
-/**
- * Alias table. This must agree with `paths` in tsconfig.base.json and with the
- * bundler config when apps exist. The three-way agreement is asserted by
- * tools/check-aliases.mjs, because a silent disagreement here means the type
- * checker and the test runner resolve different files.
- */
-const alias = {
-  '@rms/kernel-units': fileURLToPath(
-    new URL('./packages/kernel-units/src/index.ts', import.meta.url),
-  ),
-  '@rms/kernel-model': fileURLToPath(
-    new URL('./packages/kernel-model/src/index.ts', import.meta.url),
-  ),
-  '@rms/kernel-catalog': fileURLToPath(
-    new URL('./packages/kernel-catalog/src/index.ts', import.meta.url),
-  ),
-  '@rms/kernel-derive': fileURLToPath(
-    new URL('./packages/kernel-derive/src/index.ts', import.meta.url),
-  ),
-  '@rms/kernel-rules': fileURLToPath(
-    new URL('./packages/kernel-rules/src/index.ts', import.meta.url),
-  ),
-  '@rms/kernel-checks': fileURLToPath(
-    new URL('./packages/kernel-checks/src/index.ts', import.meta.url),
-  ),
-  '@rms/kernel-bom': fileURLToPath(
-    new URL('./packages/kernel-bom/src/index.ts', import.meta.url),
-  ),
-  '@rms/display-list': fileURLToPath(
-    new URL('./packages/display-list/src/index.ts', import.meta.url),
-  ),
-  '@rms/kernel-geom': fileURLToPath(
-    new URL('./packages/kernel-geom/src/index.ts', import.meta.url),
-  ),
-  '@rms/contracts': fileURLToPath(
-    new URL('./packages/contracts/src/index.ts', import.meta.url),
-  ),
-  '@rms/db': fileURLToPath(new URL('./packages/db/src/index.ts', import.meta.url)),
-  '@rms/api': fileURLToPath(new URL('./apps/api/src/index.ts', import.meta.url)),
-  '@rms/client-web': fileURLToPath(
-    new URL('./apps/client-web/src/index.ts', import.meta.url),
-  ),
-  '@rms/internal-web': fileURLToPath(
-    new URL('./apps/internal-web/src/index.ts', import.meta.url),
-  ),
-};
+import { alias } from './vitest.alias.js';
+
 
 export default defineConfig({
   resolve: { alias },

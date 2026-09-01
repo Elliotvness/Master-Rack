@@ -122,6 +122,14 @@ jobs:
       - name: Kernel coverage gate
         run: pnpm coverage
 
+      # §5.4's first two budgets. The other three need the server and the job
+      # queue and are not claimed. Its own step, not folded into `test`: a
+      # benchmark inside the normal suite is either slow every run or skipped
+      # every run, and the skipped kind is why these budgets went unmeasured
+      # for the life of the project.
+      - name: Performance budgets (§5.4, budgets 1 and 2)
+        run: pnpm bench
+
   docs:
     runs-on: ubuntu-latest
     steps:

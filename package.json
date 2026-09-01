@@ -26,6 +26,7 @@
     "check:rls": "node tools/check-rls.mjs",
     "check:rls:selftest": "node tools/selftest-rls.mjs",
     "check:draw:selftest": "node tools/selftest-spot-check-draw.mjs",
+    "bench": "vitest run --config vitest.bench.config.ts",
     "check:determinism": "node tools/check-determinism.mjs",
     "check:determinism:selftest": "node tools/selftest-determinism.mjs",
     "check:determinism:update": "node tools/check-determinism.mjs --update",

@@ -90,8 +90,18 @@ export default tseslint.config(
     },
   },
   {
-    // Build tooling runs in Node and is allowed to talk to the operator.
-    files: ['tools/**/*.mjs', 'tools/**/*.js', '*.config.ts', '*.config.mjs'],
+    // Build tooling runs in Node and is allowed to talk to the operator. The
+    // benchmark is included by name rather than by a broad tools/**/*.ts glob:
+    // its whole output IS its report, so console is the point, and a report
+    // written to console.error would read as a failure on a passing run.
+    files: [
+      'tools/**/*.mjs',
+      'tools/**/*.js',
+      'tools/bench/**/*.ts',
+      '*.config.ts',
+      '*.config.mjs',
+      'vitest.alias.ts',
+    ],
     languageOptions: {
       globals: { ...globals.node },
     },
