@@ -41,6 +41,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@rms/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@rms/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -61,6 +64,8 @@ importers:
         version: link:../../packages/kernel-units
 
   apps/internal-web: {}
+
+  packages/contracts: {}
 
   packages/db:
     dependencies:
