@@ -352,13 +352,23 @@ correct and unchanged: it is the manufacturer's printed basis, transcribed.
 
 ---
 
-## Phase 3 — The contract, then the server  *(needs Q2)*
+## Phase 3 — The contract, then the server  *(T-14 needs Q2)*
 
-### T-13a: `packages/contracts` — error envelope, pagination, shared types
+> **Q2 is answered: Fastify.** Recorded in the project's audit-remediation status
+> ("Stack decided — Fastify, Vite + React Router v7 SPA") but never carried back into
+> `tasks/plan.md`, whose open-questions table still lists it unchosen. Drift, filed under R-11.
+> It gates **T-14 only** — T-13a–d never depended on it.
+
+### T-13a: `packages/contracts` — error envelope, pagination, shared types  ✅ 2026-09-01
 **Acceptance criteria:** the AD-2 error envelope as a closed code enum; AD-4 pagination envelope;
 naming conventions enforced by a test over the schema; `FORBIDDEN_CLIENT_FIELDS` relocated here as
 the single shared source for the test, the log redactor and the response validator.
 **Verification:** `vitest run packages/contracts`. **Dependencies:** Checkpoint A. **Scope:** M.
+- [x] Error envelope with the closed `ERROR_CODES` table, the 403/404 split pinned by test
+- [x] Pagination envelope; bad values REFUSED rather than clamped; `totalPages` derived
+- [x] `FORBIDDEN_CLIENT_FIELDS` and the depth walk moved to `@rms/contracts`; `apps/api` re-exports
+- [x] 21 tests, 100% coverage, inside `check-boundaries` as the 10th pure package
+- [x] `pnpm coverage` threshold added for `packages/contracts/src/**`
 
 ### T-13b: Per-audience DTOs and the outbound validator
 **Acceptance criteria:** one DTO per (entity × audience), constructed field by field — never

@@ -35,6 +35,9 @@ const alias = {
   '@rms/kernel-geom': fileURLToPath(
     new URL('./packages/kernel-geom/src/index.ts', import.meta.url),
   ),
+  '@rms/contracts': fileURLToPath(
+    new URL('./packages/contracts/src/index.ts', import.meta.url),
+  ),
   '@rms/db': fileURLToPath(new URL('./packages/db/src/index.ts', import.meta.url)),
   '@rms/api': fileURLToPath(new URL('./apps/api/src/index.ts', import.meta.url)),
   '@rms/client-web': fileURLToPath(
@@ -133,6 +136,12 @@ export default defineConfig({
           statements: 100,
         },
         'packages/display-list/src/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
+        'packages/contracts/src/**': {
           branches: 100,
           functions: 100,
           lines: 100,

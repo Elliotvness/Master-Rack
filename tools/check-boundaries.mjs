@@ -24,7 +24,7 @@ const PACKAGES_DIR = join(ROOT, 'packages');
 const KERNEL_PREFIX = 'kernel-';
 
 /** Additional pure packages that are not named kernel-*. */
-const ALSO_PURE = ['display-list'];
+const ALSO_PURE = ['display-list', 'contracts'];
 
 const FORBIDDEN_IMPORTS = [
   { pattern: /^node:/, why: 'a Node builtin (I/O, clock or platform access)' },

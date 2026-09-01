@@ -41,8 +41,15 @@ describe('findForbiddenFields walks every nesting depth', () => {
   });
 
   it('finds several at once', () => {
+    // Copied before sorting: the result is frozen since the walk moved to
+    // @rms/contracts, so a caller cannot reorder the shared array in place.
     const hits = findForbiddenFields({ price: 1, item: { supplier: 'x', bom_line: {} } });
-    expect(hits.sort()).toEqual(['item.bom_line', 'item.supplier', 'price'].sort());
+    expect([...hits].sort()).toEqual(['item.bom_line', 'item.supplier', 'price'].sort());
+  });
+
+  it('returns a frozen result — a leak report is not a scratch buffer', () => {
+    const hits = findForbiddenFields({ price: 1 });
+    expect(Object.isFrozen(hits)).toBe(true);
   });
 
   it('returns empty for a clean object', () => {
