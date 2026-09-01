@@ -53,6 +53,7 @@ p();
 
 for (const entry of pending) {
   const { dataset, cells, seed, sampled_cells: sampled } = entry;
+  const supplementary = entry.supplementary_cells ?? [];
   p(`---`);
   p();
   p(`## ${dataset} — ${sampled.length} of ${cells} cells (seed ${seed})`);
@@ -77,8 +78,25 @@ for (const entry of pending) {
       p(`| ☐ | ${r.family} | ${r.series} | ${r.span_in}" | **${r.capacity_lbs.toLocaleString()}** | ${r.face_height_in} | ${r.deflection_in} | \`${r.part_number}\` |`);
     }
     p();
+    if (supplementary.length > 0) {
+      p(`#### Supplementary — ${supplementary.length} more`);
+      p();
+      p(`The draw landed on both halves of one printed column, so ${sampled.length} cells were`);
+      p(`${sampled.length - supplementary.length} readings. p.88 prints \`59E / 59ER\` as ONE column;`);
+      p(`the extract carries two rows because the 18-digit code differs in its reinforcement-height`);
+      p(`digit. §10.2's floor is on readings, so the tool drew ${supplementary.length} more — appended, not`);
+      p(`a redraw, and only from rows whose printed value the sample does not already cover.`);
+      p();
+      p(`| ✓ | Family | End plate | Span | **Capacity claimed (lbs/pair)** | Face height (in) | Deflection (in) | Part number |`);
+      p(`|---|---|---|---|---|---|---|---|`);
+      for (const id of supplementary) {
+        const r = byId.get(id);
+        p(`| ☐ | ${r.family} | ${r.series} | ${r.span_in}" | **${r.capacity_lbs.toLocaleString()}** | ${r.face_height_in} | ${r.deflection_in} | \`${r.part_number}\` |`);
+      }
+      p();
+    }
     p(`> Note: an \`R\` suffix on the family (59ER, 65QR, 40ER) marks the reinforced/heavier variant.`);
-    p(`> Check you are on the right row of the chart before comparing the number.`);
+    p(`> On p.88 it shares a column with its base family — one printed capacity for both.`);
     p();
     continue;
   }

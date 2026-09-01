@@ -1,4 +1,7 @@
+import { CatalogError } from './errors.js';
 import { spotCheckRefusals } from './spot-check.js';
+
+export { CatalogError };
 
 /**
  * Catalog release types and the release lifecycle.
@@ -78,6 +81,12 @@ export interface HumanSpotCheck {
   readonly cells: number;
   /** The cells the TOOL drew. An approver-chosen sample drifts to the easy ones. */
   readonly sampledCells: readonly string[];
+  /**
+   * Extra cells the tool drew because the primary sample covered fewer PUBLISHED
+   * values than cells — the `59E / 59ER` case, where two extract rows transcribe
+   * one printed column. Appended, never a redraw. Usually empty.
+   */
+  readonly supplementaryCells: readonly string[];
   /** Recorded so the draw can be reproduced and audited years later. */
   readonly seed: number;
   readonly sourceDocument: string;
@@ -136,9 +145,7 @@ export interface CatalogReleaseManifest {
   readonly constraints: Readonly<Record<string, number>>;
 }
 
-export class CatalogError extends Error {
-  override readonly name: string = 'CatalogError';
-}
+
 
 /** A release that fails the two-person approval gate. */
 export class ApprovalGateError extends CatalogError {

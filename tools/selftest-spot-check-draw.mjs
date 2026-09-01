@@ -42,7 +42,10 @@ if (!existsSync(join(DIST, 'cell-ids.js'))) {
 }
 
 const { cellIdsOf } = await import(join(DIST, 'cell-ids.js'));
-const { drawSpotCheckSample, requiredSampleSize } = await import(join(DIST, 'spot-check.js'));
+const { drawSpotCheckSample, drawSupplementarySample, requiredSampleSize } = await import(
+  join(DIST, 'spot-check.js'),
+);
+const { publishedKeyOf } = await import(join(DIST, 'cell-ids.js'));
 
 /** Seeds to compare on. The pinned one, plus values that stress the shuffle. */
 const SEEDS = [20260901, 0, 1, 7, 4294967295, 123456789];
@@ -91,6 +94,20 @@ for (const dir of releases) {
       continue;
     }
 
+    // The published-key rule decides which rows count as one reading, so a
+    // disagreement here changes the top-up without changing any draw.
+    const keyMismatch = kernelIds.find(
+      (id) => tool.publishedKeyOf(dataset, id) !== publishedKeyOf(dataset, id),
+    );
+    if (keyMismatch !== undefined) {
+      failures += 1;
+      console.error(
+        `  MISS  ${dir}/${dataset}: published key differs for '${keyMismatch}' ` +
+          `(tool '${tool.publishedKeyOf(dataset, keyMismatch)}', ` +
+          `kernel '${publishedKeyOf(dataset, keyMismatch)}')`,
+      );
+    }
+
     for (const seed of SEEDS) {
       const size = requiredSampleSize(kernelIds.length);
       const a = tool.draw(toolIds, seed, size);
@@ -101,9 +118,33 @@ for (const dir of releases) {
         console.error(`  MISS  ${dir}/${dataset} @ seed ${seed}: the drawn samples differ`);
         console.error(`        tool:   ${a.slice(0, 3).join(', ')}…`);
         console.error(`        kernel: ${b.slice(0, 3).join(', ')}…`);
+        continue;
+      }
+
+      // And the top-up, which is where the published-key rule actually bites.
+      const covered = new Set(b.map((id) => publishedKeyOf(dataset, id))).size;
+      const short = size - covered;
+      const ta = tool.drawSupplementary(dataset, toolIds, seed, a, short);
+      const tb = [...drawSupplementarySample(dataset, kernelIds, seed, b, short)];
+      compared += 1;
+      if (ta.length !== tb.length || ta.some((id, i) => id !== tb[i])) {
+        failures += 1;
+        console.error(
+          `  MISS  ${dir}/${dataset} @ seed ${seed}: the top-ups differ (short by ${short})`,
+        );
+        console.error(`        tool:   ${ta.join(', ')}`);
+        console.error(`        kernel: ${tb.join(', ')}`);
       }
     }
-    console.log(`  ok    ${dir}/${dataset}: ${kernelIds.length} ids, ${SEEDS.length} seeds`);
+    const shortAt = SEEDS.filter((seed) => {
+      const size = requiredSampleSize(kernelIds.length);
+      const b = drawSpotCheckSample(kernelIds, seed, size);
+      return new Set([...b].map((id) => publishedKeyOf(dataset, id))).size < size;
+    });
+    console.log(
+      `  ok    ${dir}/${dataset}: ${kernelIds.length} ids, ${SEEDS.length} seeds` +
+        (shortAt.length > 0 ? `, top-up needed at ${shortAt.length} of them` : ''),
+    );
   }
 }
 

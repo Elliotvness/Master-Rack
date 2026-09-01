@@ -16,8 +16,8 @@
  * `load.ts` and `load-frames.ts`.
  */
 
+import { CatalogError } from './errors.js';
 import {
-  CatalogError,
   type CatalogReleaseManifest,
   type DatasetVerificationPath,
   type HumanSpotCheck,
@@ -116,10 +116,17 @@ function humanSpotChecks(raw: Record<string, unknown>, where: string): readonly 
       if (!Array.isArray(sampled) || sampled.some((c) => typeof c !== 'string')) {
         throw new ManifestError(`${at}: 'sampled_cells' must be an array of strings`);
       }
+      // Absent means none, which is the common case: a top-up exists only when
+      // the primary draw covered fewer published values than cells.
+      const supplementary = e['supplementary_cells'] ?? [];
+      if (!Array.isArray(supplementary) || supplementary.some((c) => typeof c !== 'string')) {
+        throw new ManifestError(`${at}: 'supplementary_cells' must be an array of strings`);
+      }
       return Object.freeze({
         dataset: str(e, 'dataset', at),
         cells,
         sampledCells: Object.freeze([...(sampled as string[])]),
+        supplementaryCells: Object.freeze([...(supplementary as string[])]),
         seed,
         sourceDocument: str(e, 'source_document', at),
         pageRef: str(e, 'page_ref', at),

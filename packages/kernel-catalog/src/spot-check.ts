@@ -25,6 +25,8 @@
  * Pure: no I/O, no clock, no RNG. The seed is supplied by the caller.
  */
 
+import { distinctPublishedCount, publishedKeyOf } from './cell-ids.js';
+
 /** How large a sample must be: 20 cells or 5%, whichever is greater (section 10.2). */
 export function requiredSampleSize(cells: number): number {
   if (!Number.isInteger(cells) || cells < 0) {
@@ -89,6 +91,58 @@ export function drawSpotCheckSample(
   return Object.freeze(drawn);
 }
 
+
+/**
+ * Top up a draw that covers fewer PUBLISHED values than cells.
+ *
+ * A beam draw of 20 rows can land on both halves of one printed column — the
+ * `59E / 59ER` pair — and then twenty cells are nineteen readings. §10.2's floor
+ * is a floor on readings, so the shortfall is made up rather than rounded away.
+ *
+ * This APPENDS; it never redraws. The primary sample stays exactly what it was,
+ * so the record of what was originally asked is intact and a top-up cannot be
+ * used to swap an inconvenient cell for an easier one. The eligible pool
+ * excludes every id already drawn AND every id whose published value the draw
+ * already covers, so a top-up can only ever add a reading.
+ *
+ * Deterministic from (cellIds, seed, primary, count): the same shortfall
+ * produces the same top-up, years later, from the recorded seed.
+ */
+export function drawSupplementarySample(
+  dataset: string,
+  cellIds: readonly string[],
+  seed: number,
+  primary: readonly string[],
+  count: number,
+): readonly string[] {
+  if (count < 0 || !Number.isInteger(count)) {
+    throw new RangeError(`supplementary count must be a non-negative integer, got ${count}`);
+  }
+  if (count === 0) return Object.freeze([]);
+
+  const drawn = new Set(primary);
+  const covered = new Set(primary.map((id) => publishedKeyOf(dataset, id)));
+  const pool = cellIds.filter((id) => !drawn.has(id) && !covered.has(publishedKeyOf(dataset, id)));
+  if (pool.length < count) {
+    throw new RangeError(
+      `cannot top up by ${count}: only ${pool.length} cell(s) cover a published value the ` +
+        'primary sample does not',
+    );
+  }
+  // A different seed derivation from the primary draw, so a top-up is never a
+  // prefix or suffix of the sample it is topping up.
+  return drawSpotCheckSample(pool, (seed ^ 0x9e3779b9) >>> 0, count);
+}
+
+/** How many READINGS a recorded check represents, as against how many rows. */
+export function readingsCovered(
+  dataset: string,
+  sampledCells: readonly string[],
+  supplementaryCells: readonly string[],
+): number {
+  return distinctPublishedCount(dataset, [...sampledCells, ...supplementaryCells]);
+}
+
 /**
  * Every reason a recorded spot-check does not satisfy the gate. Empty means it does.
  *
@@ -107,6 +161,7 @@ export function spotCheckRefusals(
     readonly dataset: string;
     readonly cells: number;
     readonly sampledCells: readonly string[];
+    readonly supplementaryCells: readonly string[];
     readonly seed: number;
     readonly checkedBy: string;
     readonly outcome: string;
@@ -181,6 +236,33 @@ export function spotCheckRefusals(
             ? 'the recorded cells are real but are not the ones the tool drew'
             : `${strays.length} of the recorded cells are not in the dataset at all (e.g. '${stray}')`) +
           '. A sample the approver chose is not a random sample',
+      );
+    }
+
+    // The floor is on READINGS, not on rows. A draw that lands on both halves
+    // of one printed column is one reading short, and rounding that away is the
+    // same move as counting a machine as an independent party.
+    const readings = readingsCovered(check.dataset, check.sampledCells, check.supplementaryCells);
+    if (readings < required) {
+      reasons.push(
+        `the spot-check of '${check.dataset}' covers ${readings} distinct published values but ` +
+          `${required} are required; ${check.sampledCells.length} cells were drawn, and rows that ` +
+          'transcribe the same printed cell count once',
+      );
+    }
+
+    const expectedTopUp = drawSupplementarySample(
+      check.dataset,
+      cellIds,
+      check.seed,
+      check.sampledCells,
+      check.supplementaryCells.length,
+    );
+    const topUpMatches = expectedTopUp.every((id, i) => id === check.supplementaryCells[i]);
+    if (!topUpMatches) {
+      reasons.push(
+        `the supplementary cells of '${check.dataset}' are not the top-up for seed ${check.seed}; ` +
+          'a top-up the approver chose is not a top-up',
       );
     }
   }

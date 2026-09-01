@@ -29,6 +29,8 @@ export { ManifestError, loadReleaseManifest } from './load-manifest.js';
 
 export {
   drawSpotCheckSample,
+  drawSupplementarySample,
+  readingsCovered,
   requiredSampleSize,
   spotCheckRefusals,
 } from './spot-check.js';
@@ -57,4 +59,10 @@ export {
 
 export { loadFrameTables } from './load-frames.js';
 
-export { CELL_ID_DATASETS, CellIdError, cellIdsOf } from './cell-ids.js';
+export {
+  CELL_ID_DATASETS,
+  CellIdError,
+  cellIdsOf,
+  distinctPublishedCount,
+  publishedKeyOf,
+} from './cell-ids.js';

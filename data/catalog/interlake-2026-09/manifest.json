@@ -1,6 +1,6 @@
 {
- "approved_at": "2026-09-01",
- "approved_by": "Elliott Villacorta",
+ "approved_at": null,
+ "approved_by": null,
  "authority": "SOLE for beam capacity. Established by owner decision 2026-08-31 (P0-008).",
  "catalog_rev": "Interlake Mecalux Product Support Guide 2025 (SEL-PSG-12/2025), 98-page PDF",
  "changes_from_2026_08": [
@@ -52,7 +52,7 @@
   "stored": "the exact published fraction (e.g. 5 15/16 = 5.9375)"
  },
  "load_basis": "Uniformly distributed product load plus dead load, PER PAIR of beams (dead load = weight of beams). Static load only. Value is the lesser of strength in bending and L/180 deflection.",
- "approval_record": "Approved 2026-09-01 by Elliott Villacorta. approveRelease() returned this manifest — it was not marked APPROVED by hand, which is how the previous APPROVED state on this release arose (audit D-07, task T-04). At approval the gate returned zero refusals against the release on disk: both required datasets present; a dataset-scoped verification path for each; and the approver own recorded spot-check per dataset, whose cells the gate re-derived from drawSpotCheckSample(cellIds, seed, requiredSampleSize(cells)) and found identical to the pinned draw. digitised_by is a machine identity, so the machine cross-checks are evidence and this human spot-check is the signature (section 10.2). The pinned draw is retained in pending_spot_checks as the record of what was asked: 20 of 336 beam cells and 22 of 435 frame cells at seed 20260901, beams read from PSG 2025 p.88 and frames from p.8, p.25 and p.52.",
+ "approval_record": "Returned to DRAFT 2026-09-01 after approval. The 2026-09-01 approval was made against a 20-cell beam sample that covers only 19 distinct PUBLISHED values: PSG 2025 p.88 prints one column headed 59E / 59ER and the extract carries two rows for it, so the draw landed on both halves of one printed cell. Section 10.2 floor is 20 readings, so the release was approvable on a count the gate was measuring wrongly, not on a fabricated record - the 42 cells recorded were the drawn cells and matched. The gate now counts distinct published values, the pinned draw carries a deterministic one-cell top-up, and the release is DRAFT until that cell is read and the record re-made.",
  "manufacturer": "Interlake Mecalux",
  "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M",
  "pending_spot_checks": [
@@ -83,7 +83,10 @@
     "59E/F5M/120in"
    ],
    "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
-   "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M"
+   "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M",
+   "supplementary_cells": [
+    "65ER/F5M/78in"
+   ]
   },
   {
    "dataset": "frames",
@@ -114,7 +117,8 @@
     "cap_bolted_reinforced_frames/HbL108/col5"
    ],
    "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
-   "page_ref": "p.8 - 'Bolted Frame Capacities (lbs)' | p.25 - 'Reinforced Bolted Frame Capacities (lbs)' | p.52 - 'Welded Frame Capacities (lbs)'"
+   "page_ref": "p.8 - 'Bolted Frame Capacities (lbs)' | p.25 - 'Reinforced Bolted Frame Capacities (lbs)' | p.52 - 'Welded Frame Capacities (lbs)'",
+   "supplementary_cells": []
   }
  ],
  "rev": "2026-09",
@@ -126,7 +130,7 @@
  ],
  "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
  "source_url": "https://www.interlakemecalux.com/",
- "status": "APPROVED",
+ "status": "DRAFT",
  "units": "lbs",
  "verification_paths": [
   {
@@ -140,74 +144,6 @@
    "dataset": "frames",
    "kind": "two_path_reconciliation",
    "note": "Carried forward from interlake-2026-08 unchanged. Every capacity cell was read twice by independent paths - a visual read of the rendered page images and a parse of the PDF embedded text layer - and reconciled 435/435. The 2026-09 re-source read p.88 for beam capacity only; no frame cell was re-read or altered, and a test asserts the tables hash matches 2026-08."
-  }
- ],
- "human_spot_checks": [
-  {
-   "dataset": "beams",
-   "cells": 336,
-   "sampled_cells": [
-    "59ER/F5M/120in",
-    "65QR/F5M/54in",
-    "50E/F4M/54in",
-    "27E/F3M/108in",
-    "36E/F3M/92in",
-    "59ER/F5M/156in",
-    "40E/F4M/60in",
-    "45E/F4M/96in",
-    "27E/F3M/96in",
-    "40E/F4M/92in",
-    "50E/F4M/48in",
-    "65ER/F5M/114in",
-    "27E/F3M/66in",
-    "36E/F3M/84in",
-    "50ER/F4M/60in",
-    "50E/F4M/126in",
-    "65ER/F5M/138in",
-    "40ER/F4M/156in",
-    "59ER/F5M/132in",
-    "59E/F5M/120in"
-   ],
-   "seed": 20260901,
-   "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
-   "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M",
-   "checked_by": "Elliott Villacorta",
-   "checked_at": "2026-09-01",
-   "outcome": "MATCHED"
-  },
-  {
-   "dataset": "frames",
-   "cells": 435,
-   "sampled_cells": [
-    "cap_welded_frames/HbL48/col9",
-    "cap_welded_frames/HbL108/col4",
-    "cap_bolted_reinforced_frames/HbL78/col5",
-    "cap_bolted_frames/HbL42/col3",
-    "cap_bolted_frames/HbL72/col2",
-    "cap_welded_frames/HbL54/col7",
-    "cap_bolted_frames/HbL102/col1",
-    "cap_bolted_reinforced_frames/HbL48/col5",
-    "cap_bolted_frames/HbL36/col8",
-    "cap_bolted_frames/HbL102/col6",
-    "cap_bolted_reinforced_frames/HbL78/col4",
-    "cap_welded_frames/HbL84/col2",
-    "cap_bolted_reinforced_frames/HbL78/col2",
-    "cap_bolted_frames/HbL66/col9",
-    "cap_bolted_reinforced_frames/HbL96/col5",
-    "cap_bolted_reinforced_frames/HbL90/col2",
-    "cap_welded_frames/HbL84/col7",
-    "cap_bolted_reinforced_frames/HbL36/col6",
-    "cap_welded_frames/HbL54/col1",
-    "cap_welded_frames/HbL36/col1",
-    "cap_welded_frames/HbL102/col1",
-    "cap_bolted_reinforced_frames/HbL108/col5"
-   ],
-   "seed": 20260901,
-   "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
-   "page_ref": "p.8 - 'Bolted Frame Capacities (lbs)' | p.25 - 'Reinforced Bolted Frame Capacities (lbs)' | p.52 - 'Welded Frame Capacities (lbs)'",
-   "checked_by": "Elliott Villacorta",
-   "checked_at": "2026-09-01",
-   "outcome": "MATCHED"
   }
  ]
 }

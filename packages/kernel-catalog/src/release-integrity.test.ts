@@ -12,6 +12,8 @@ import {
   loadFrameTables,
   requiredSampleSize,
   drawSpotCheckSample,
+  drawSupplementarySample,
+  readingsCovered,
   cellIdsOf,
   type DatasetCells,
   FrameCatalog,
@@ -197,43 +199,66 @@ describe('the current, honest state of the catalog', () => {
   // deleted when that happened, per its own instruction: the AC-18 tests carry
   // the weight now.
 
-  it('interlake-2026-09 is APPROVED, spot-checked, and signed by a named approver', () => {
-    // This asserted `humanSpotChecks` was EMPTY until 2026-09-01, when the
-    // 42 pinned cells were read off PSG 2025 and recorded. The test went red,
-    // which is what it was written to do: it pins the state so a change to the
-    // state has to be noticed rather than absorbed.
-    //
-    // The release was then APPROVED by Elliott Villacorta on 2026-09-01. The
-    // assertions below keep pinning the state: the spot checks are recorded,
-    // the recorded cells ARE the drawn cells, and the release still withstands
-    // the gate.
+  it('interlake-2026-09 is DRAFT, pending the one-cell top-up the floor requires', () => {
+    // The state this test pins has moved three times in one day, and each move
+    // was a control reporting something true:
+    //   humanSpotChecks empty  -> the 42 cells had not been read
+    //   APPROVED               -> they had, and the gate returned no refusals
+    //   DRAFT again            -> the gate was counting ROWS where §10.2 counts
+    //                             READINGS, and the 20-cell beam sample covers
+    //                             19 published values. p.88 prints one column
+    //                             headed `59E / 59ER`; the extract carries two
+    //                             rows for it.
+    // Nothing recorded was ever fabricated: the recorded cells were the drawn
+    // cells and they matched. The floor was measured against the wrong
+    // population, which is the same class of defect as counting a machine as an
+    // independent party — a control reporting a number it is not measuring.
     const m = manifestOf('interlake-2026-09');
-    expect(m.status).toBe('APPROVED');
-    expect(m.approvedBy).toBe('Elliott Villacorta');
-    expect(m.approvedAt).not.toBeNull();
+    expect(m.status).toBe('DRAFT');
+    expect(m.approvedBy).toBeNull();
+    expect(m.humanSpotChecks).toEqual([]);
+  });
 
-    expect(m.humanSpotChecks.map((c) => c.dataset).sort()).toEqual([...REQUIRED_DATASETS].sort());
-    for (const c of m.humanSpotChecks) {
-      expect(c.outcome, `${c.dataset} did not match the source`).toBe('MATCHED');
-      expect(c.checkedBy.trim(), `${c.dataset} has no named checker`).not.toBe('');
-      expect(c.checkedBy, `${c.dataset} was checked by the digitiser`).not.toBe(m.digitisedBy);
-      expect(c.sampledCells.length).toBeGreaterThanOrEqual(requiredSampleSize(c.cells));
-    }
+  it('the pinned draw carries the top-up, and it is the tool\'s not a choice', () => {
+    const raw = JSON.parse(
+      readFileSync(`${CATALOG}interlake-2026-09/manifest.json`, 'utf8'),
+    ) as {
+      pending_spot_checks: {
+        dataset: string;
+        cells: number;
+        seed: number;
+        sampled_cells: string[];
+        supplementary_cells?: string[];
+      }[];
+    };
+    const ids = cellsOf('interlake-2026-09');
 
-    // The whole point of the gate: the recorded cells ARE the drawn cells.
-    for (const c of m.humanSpotChecks) {
-      const ids = cellsOf('interlake-2026-09').get(c.dataset);
-      expect(ids, `no cell ids for '${c.dataset}'`).toBeDefined();
+    for (const p of raw.pending_spot_checks) {
+      const cellIds = ids.get(p.dataset);
+      expect(cellIds, `no cell ids for '${p.dataset}'`).toBeDefined();
+      const required = requiredSampleSize(p.cells);
+      const supplementary = p.supplementary_cells ?? [];
+
+      // Together they reach the floor, counted as READINGS.
       expect(
-        [...c.sampledCells],
-        `${c.dataset}: the recorded cells are not the draw for seed ${c.seed}`,
-      ).toEqual([...drawSpotCheckSample(ids ?? [], c.seed, requiredSampleSize(c.cells))]);
-    }
+        readingsCovered(p.dataset, p.sampled_cells, supplementary),
+        `${p.dataset}: the pinned draw does not reach ${required} distinct published values`,
+      ).toBeGreaterThanOrEqual(required);
 
-    expect(
-      approvalRefusals(m, 'Elliott Villacorta', cellsOf('interlake-2026-09')),
-      'the release is no longer approvable — something regressed',
-    ).toEqual([]);
+      // And the top-up is derived, not chosen.
+      expect(
+        supplementary,
+        `${p.dataset}: the pinned top-up is not the one the tool draws`,
+      ).toEqual([
+        ...drawSupplementarySample(
+          p.dataset,
+          cellIds ?? [],
+          p.seed,
+          p.sampled_cells,
+          supplementary.length,
+        ),
+      ]);
+    }
   });
 
   it('the draw is already pinned, so the sample cannot be shopped for', () => {

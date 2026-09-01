@@ -44,8 +44,20 @@ the 18-digit code; the family (p.84) is characters 3–5.
 | ☐ | 65ER | F5M | 138" | **7,380** | 6.5625 | 0.77 | `UL506772` |
 | ☐ | 65QR | F5M | 54" | **24,940** | 6.5625 | 0.3 | `UM005516` |
 
+#### Supplementary — 1 more
+
+The draw landed on both halves of one printed column, so 20 cells were
+19 readings. p.88 prints `59E / 59ER` as ONE column;
+the extract carries two rows because the 18-digit code differs in its reinforcement-height
+digit. §10.2's floor is on readings, so the tool drew 1 more — appended, not
+a redraw, and only from rows whose printed value the sample does not already cover.
+
+| ✓ | Family | End plate | Span | **Capacity claimed (lbs/pair)** | Face height (in) | Deflection (in) | Part number |
+|---|---|---|---|---|---|---|---|
+| ☐ | 65ER | F5M | 78" | **12,400** | 6.5625 | 0.43 | `UL659522` |
+
 > Note: an `R` suffix on the family (59ER, 65QR, 40ER) marks the reinforced/heavier variant.
-> Check you are on the right row of the chart before comparing the number.
+> On p.88 it shares a column with its base family — one printed capacity for both.
 
 ---
 

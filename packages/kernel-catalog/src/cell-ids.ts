@@ -25,7 +25,7 @@
  * `load.ts`, `load-frames.ts` and `load-manifest.ts`.
  */
 
-import { CatalogError } from './release.js';
+import { CatalogError } from './errors.js';
 
 export class CellIdError extends CatalogError {
   override readonly name = 'CellIdError';
@@ -94,4 +94,46 @@ export function cellIdsOf(dataset: string, doc: unknown): readonly string[] {
   throw new CellIdError(
     `no cell-id derivation for dataset '${dataset}'; add one before a release may ship it`,
   );
+}
+
+/**
+ * The PUBLISHED value a cell id refers to.
+ *
+ * A cell id names a row in the extract. It does not always name a distinct
+ * reading in the source, and the difference matters to the spot-check floor.
+ *
+ * PSG 2025 p.88 prints one column headed `59E / 59ER` — one capacity per span
+ * for both. The extract carries them as two rows, because the 18-digit product
+ * code differs in its reinforcement-height digit (…RSA2000 vs …RSA4000). All
+ * 168 R-suffixed rows are identical to their base rows on capacity, face height
+ * and deflection, so the 336-row beam extract transcribes 168 published values
+ * twice each. The extract is faithful; the row count is a product-code
+ * expansion.
+ *
+ * The consequence: a draw of 20 ROWS can be fewer than 20 READINGS. §10.2's
+ * floor is a floor on readings — "20 cells or 5%, whichever is greater" is
+ * about how much of the source a person actually looked at — so the gate counts
+ * distinct published keys, not rows.
+ *
+ * Frames are 1:1: a table/HbL/column triple is one printed cell.
+ */
+export function publishedKeyOf(dataset: string, cellId: string): string {
+  if (dataset === 'frames') return cellId;
+  if (dataset === 'beams') {
+    // family/series/span. Only the family carries the R suffix.
+    const parts = cellId.split('/');
+    const family = parts[0];
+    if (parts.length !== 3 || family === undefined) {
+      throw new CellIdError(`beams: '${cellId}' is not a family/series/span cell id`);
+    }
+    return [family.replace(/R$/, ''), parts[1], parts[2]].join('/');
+  }
+  throw new CellIdError(
+    `no published-key rule for dataset '${dataset}'; add one before a release may ship it`,
+  );
+}
+
+/** How many distinct published values a set of cell ids actually covers. */
+export function distinctPublishedCount(dataset: string, cellIds: readonly string[]): number {
+  return new Set(cellIds.map((id) => publishedKeyOf(dataset, id))).size;
 }

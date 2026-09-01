@@ -98,6 +98,35 @@ export function pageRefFor(dir, dataset, manifest) {
   return [...new Set(doc.tables.map((t) => t.page_ref))].join(' | ');
 }
 
+/**
+ * The PUBLISHED value a cell id refers to — the kernel's `publishedKeyOf`, in JS.
+ *
+ * PSG 2025 p.88 prints one column headed `59E / 59ER`; the extract carries two
+ * rows for it because the 18-digit code differs in its reinforcement-height
+ * digit. So a draw of 20 ROWS can be 19 READINGS, and §10.2's floor is on
+ * readings. Bound to the kernel by selftest-spot-check-draw.mjs.
+ */
+export function publishedKeyOf(dataset, cellId) {
+  if (dataset === 'frames') return cellId;
+  const parts = cellId.split('/');
+  return [parts[0].replace(/R$/, ''), parts[1], parts[2]].join('/');
+}
+
+/**
+ * Cells to add when the primary draw covers fewer published values than cells.
+ *
+ * Appends; never redraws. The pool excludes ids already drawn and ids whose
+ * published value the draw already covers, so a top-up can only add a reading —
+ * it can never swap an inconvenient cell for an easier one.
+ */
+export function drawSupplementary(dataset, cellIds, seed, primary, count) {
+  if (count === 0) return [];
+  const drawn = new Set(primary);
+  const covered = new Set(primary.map((id) => publishedKeyOf(dataset, id)));
+  const pool = cellIds.filter((id) => !drawn.has(id) && !covered.has(publishedKeyOf(dataset, id)));
+  return draw(pool, (seed ^ 0x9e3779b9) >>> 0, count);
+}
+
 function main() {
 const dir = process.argv[2];
 if (!dir) {
@@ -122,16 +151,29 @@ const pending = [];
 for (const dataset of manifest.datasets ?? []) {
   const ids = cellsOf(dir, dataset);
   const size = requiredSampleSize(ids.length);
+  const sampled = draw(ids, seed, size);
+  // A draw of `size` ROWS can cover fewer published values, so top up to the
+  // floor. Usually zero.
+  const covered = new Set(sampled.map((id) => publishedKeyOf(dataset, id))).size;
+  const supplementary = drawSupplementary(dataset, ids, seed, sampled, size - covered);
   pending.push({
     dataset,
     cells: ids.length,
     seed,
-    sampled_cells: draw(ids, seed, size),
+    sampled_cells: sampled,
+    supplementary_cells: supplementary,
     source_document: manifest.source_document,
     page_ref: pageRefFor(dir, dataset, manifest),
   });
   console.log(`\n${dataset}: read ${size} of ${ids.length} cells (seed ${seed})`);
-  console.log(draw(ids, seed, size).join('\n'));
+  console.log(sampled.join('\n'));
+  if (supplementary.length > 0) {
+    console.log(
+      `  + ${supplementary.length} supplementary (the draw covered ${covered} published values, ` +
+        `${size} are required):`,
+    );
+    console.log(supplementary.map((id) => `  ${id}`).join('\n'));
+  }
 }
 
 manifest.pending_spot_checks = pending;

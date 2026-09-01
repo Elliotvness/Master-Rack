@@ -9,6 +9,7 @@ import {
   quarantineRelease,
   REQUIRED_DATASETS,
   drawSpotCheckSample,
+  drawSupplementarySample,
   requiredSampleSize,
   type DatasetCells,
   type HumanSpotCheck,
@@ -43,8 +44,17 @@ function cells(beams = 336, frames = 435): DatasetCells {
   ]);
 }
 
+/**
+ * Fixture cell ids in the real shape, because `publishedKeyOf` parses them.
+ * Beam ids are family/series/span and a trailing R on the family marks the
+ * reinforced twin of the same printed column; these families are all distinct,
+ * so no two fixture cells collapse onto one published value.
+ */
 function ids(dataset: string, n: number): readonly string[] {
-  return Array.from({ length: n }, (_, i) => `${dataset}-cell-${i}`);
+  if (dataset === 'frames') {
+    return Array.from({ length: n }, (_, i) => `cap_t/HbL${36 + i}/col0`);
+  }
+  return Array.from({ length: n }, (_, i) => `F${i}/F4M/48in`);
 }
 
 function spotCheck(dataset: string, cells: number): HumanSpotCheck {
@@ -53,6 +63,7 @@ function spotCheck(dataset: string, cells: number): HumanSpotCheck {
     dataset,
     cells,
     sampledCells: drawSpotCheckSample(ids(dataset, cells), 20260901, size),
+    supplementaryCells: [],
     seed: 20260901,
     sourceDocument: 'PSG 2025',
     pageRef: 'p.88',
@@ -432,7 +443,7 @@ describe('§10.2 — the approver read the cells the tool drew', () => {
     // Not the approver's fault. But a draw over a list with a repeated id is
     // undefined — one reading would stand for two cells — so nothing derived
     // from it can be verified either.
-    const dupes = [...ids('beams', 335), 'beams-cell-0'];
+    const dupes = [...ids('beams', 335), 'F0/F4M/48in'];
     const m = manifest();
     const reasons = approvalRefusals(
       m,
@@ -443,6 +454,73 @@ describe('§10.2 — the approver read the cells the tool drew', () => {
       ]),
     );
     expect(reasons.some((r) => r.includes('contains a repeated cell id'))).toBe(true);
+  });
+
+  it('counts READINGS, not rows: a 59E/59ER pair in the sample is one reading', () => {
+    // PSG 2025 p.88 prints one column headed `59E / 59ER`. The extract carries
+    // two rows for it, because the 18-digit code differs in its
+    // reinforcement-height digit. A draw that lands on both is twenty cells and
+    // nineteen readings, and §10.2's floor is a floor on readings.
+    const pairIds = [...ids('beams', 334), '59E/F4M/48in', '59ER/F4M/48in'];
+    const base = spotCheck('beams', 336);
+    const withPair = {
+      ...base,
+      sampledCells: [...base.sampledCells.slice(0, 18), '59E/F4M/48in', '59ER/F4M/48in'],
+    };
+    const m = manifest({ humanSpotChecks: [withPair, spotCheck('frames', 435)] });
+    const reasons = approvalRefusals(
+      m,
+      'Elliott Villacorta',
+      new Map([
+        ['beams', pairIds],
+        ['frames', ids('frames', 435)],
+      ]),
+    );
+    expect(reasons.some((r) => r.includes('19 distinct published values'))).toBe(true);
+  });
+
+  it('accepts a shortfall that has been topped up by the tool', () => {
+    const pairIds = [...ids('beams', 334), '59E/F4M/48in', '59ER/F4M/48in'];
+    const base = spotCheck('beams', 336);
+    const sampled = [...base.sampledCells.slice(0, 18), '59E/F4M/48in', '59ER/F4M/48in'];
+    const topUp = drawSupplementarySample('beams', pairIds, base.seed, sampled, 1);
+    const m = manifest({
+      humanSpotChecks: [
+        { ...base, sampledCells: sampled, supplementaryCells: [...topUp] },
+        spotCheck('frames', 435),
+      ],
+    });
+    const reasons = approvalRefusals(
+      m,
+      'Elliott Villacorta',
+      new Map([
+        ['beams', pairIds],
+        ['frames', ids('frames', 435)],
+      ]),
+    );
+    expect(reasons.filter((r) => r.includes('published values'))).toEqual([]);
+  });
+
+  it('refuses a top-up the approver chose rather than the tool', () => {
+    const pairIds = [...ids('beams', 334), '59E/F4M/48in', '59ER/F4M/48in'];
+    const base = spotCheck('beams', 336);
+    const sampled = [...base.sampledCells.slice(0, 18), '59E/F4M/48in', '59ER/F4M/48in'];
+    const m = manifest({
+      humanSpotChecks: [
+        // A real, uncovered cell — just not the one the tool would draw.
+        { ...base, sampledCells: sampled, supplementaryCells: ['F300/F4M/48in'] },
+        spotCheck('frames', 435),
+      ],
+    });
+    const reasons = approvalRefusals(
+      m,
+      'Elliott Villacorta',
+      new Map([
+        ['beams', pairIds],
+        ['frames', ids('frames', 435)],
+      ]),
+    );
+    expect(reasons.some((r) => r.includes('not the top-up for seed'))).toBe(true);
   });
 
   it('accepts the honest record — the gate is not merely refusing everything', () => {

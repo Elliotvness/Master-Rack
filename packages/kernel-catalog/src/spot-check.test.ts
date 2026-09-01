@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest';
 
-import { drawSpotCheckSample, requiredSampleSize, spotCheckRefusals } from './index.js';
+import {
+  drawSpotCheckSample,
+  drawSupplementarySample,
+  readingsCovered,
+  requiredSampleSize,
+  spotCheckRefusals,
+} from './index.js';
 
+// Real-shaped ids: publishedKeyOf parses family/series/span, and a synthetic
+// 'beams-cell-N' is not a beam cell id. The fixtures use distinct families so
+// no two collapse onto one published value.
 const ids = (n: number): readonly string[] =>
-  Array.from({ length: n }, (_, i) => `beams-cell-${i}`);
+  Array.from({ length: n }, (_, i) => `F${i}/F4M/48in`);
 
 function check(over: Partial<Parameters<typeof spotCheckRefusals>[0]> = {}) {
   const cells = 336;
@@ -11,6 +20,7 @@ function check(over: Partial<Parameters<typeof spotCheckRefusals>[0]> = {}) {
     dataset: 'beams',
     cells,
     sampledCells: drawSpotCheckSample(ids(cells), 20260901, requiredSampleSize(cells)),
+    supplementaryCells: [],
     seed: 20260901,
     checkedBy: 'Elliott Villacorta',
     outcome: 'MATCHED',
@@ -119,7 +129,7 @@ describe('spotCheckRefusals — every way a record fails the gate', () => {
   });
 
   it('refuses a dataset with a repeated id — the draw over it is undefined', () => {
-    const dupes = [...ids(335), 'beams-cell-0'];
+    const dupes = [...ids(335), 'F0/F4M/48in'];
     expect(spotCheckRefusals(check(), 'machine', dupes)).toContainEqual(
       expect.stringContaining('contains a repeated cell id'),
     );
@@ -135,5 +145,57 @@ describe('spotCheckRefusals — every way a record fails the gate', () => {
     expect(
       spotCheckRefusals(check({ sampledCells: realButWrong }), 'machine', ids(336)),
     ).toContainEqual(expect.stringContaining('are not the ones the tool drew'));
+  });
+});
+
+describe('drawSupplementarySample — topping up readings, never redrawing', () => {
+  const pool = [...ids(30), '59E/F4M/48in', '59ER/F4M/48in'];
+
+  it('returns nothing when nothing is short', () => {
+    expect(drawSupplementarySample('beams', pool, 1, ids(5), 0)).toEqual([]);
+  });
+
+  it('never draws a cell already in the sample', () => {
+    const primary = [...ids(5)];
+    const top = drawSupplementarySample('beams', pool, 1, primary, 3);
+    expect(top.some((id) => primary.includes(id))).toBe(false);
+  });
+
+  it('never draws a cell whose printed value the sample already covers', () => {
+    // '59ER/F4M/48in' is the same printed cell as '59E/F4M/48in'.
+    const primary = ['59E/F4M/48in'];
+    const top = drawSupplementarySample('beams', pool, 1, primary, 5);
+    expect(top).not.toContain('59ER/F4M/48in');
+  });
+
+  it('is deterministic, and is not a prefix of the primary draw', () => {
+    const primary = [...ids(5)];
+    const a = drawSupplementarySample('beams', pool, 7, primary, 3);
+    expect(drawSupplementarySample('beams', pool, 7, primary, 3)).toEqual(a);
+    expect(a).not.toEqual(drawSpotCheckSample(pool, 7, 3));
+  });
+
+  it('refuses a bad count, and a pool too small to satisfy it', () => {
+    expect(() => drawSupplementarySample('beams', pool, 1, [], -1)).toThrow(/non-negative integer/);
+    expect(() => drawSupplementarySample('beams', pool, 1, [], 1.5)).toThrow(/non-negative integer/);
+    expect(() => drawSupplementarySample('beams', pool, 1, [], 999)).toThrow(/cannot top up by 999/);
+  });
+});
+
+describe('the reading floor', () => {
+  it('counts a 59E/59ER pair as one reading', () => {
+    expect(readingsCovered('beams', ['59E/F4M/48in', '59ER/F4M/48in'], [])).toBe(1);
+    expect(readingsCovered('beams', ['59E/F4M/48in'], ['65E/F4M/48in'])).toBe(2);
+  });
+
+  it('refuses a sample that reaches the cell count but not the reading count', () => {
+    const cellIds = [...ids(334), '59E/F4M/48in', '59ER/F4M/48in'];
+    const sampled = [...drawSpotCheckSample(ids(334), 20260901, 18), '59E/F4M/48in', '59ER/F4M/48in'];
+    const reasons = spotCheckRefusals(
+      { ...check(), sampledCells: sampled, supplementaryCells: [] },
+      'machine',
+      cellIds,
+    );
+    expect(reasons).toContainEqual(expect.stringContaining('19 distinct published values'));
   });
 });

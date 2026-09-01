@@ -72,6 +72,18 @@ describe('a well-formed manifest becomes the shape the gate reads', () => {
     expect(loadReleaseManifest(raw({ approved_by: undefined })).approvedBy).toBeNull();
   });
 
+  it('reads a recorded top-up, and treats its absence as none', () => {
+    const withTop = loadReleaseManifest(
+      raw({
+        human_spot_checks: [
+          { ...(raw()['human_spot_checks'] as Record<string, unknown>[])[0], supplementary_cells: ['65ER/F5M/78in'] },
+        ],
+      }),
+    );
+    expect(withTop.humanSpotChecks[0]?.supplementaryCells).toEqual(['65ER/F5M/78in']);
+    expect(loadReleaseManifest(raw()).humanSpotChecks[0]?.supplementaryCells).toEqual([]);
+  });
+
   it('treats absent optional arrays as empty, not as missing', () => {
     const m = loadReleaseManifest(
       raw({ verification_paths: undefined, human_spot_checks: undefined, source_anomalies: undefined, constraints: undefined }),
@@ -113,6 +125,8 @@ describe('a malformed manifest names the field, and does not half-load', () => {
     ['a spot check with a non-integer seed', raw({ human_spot_checks: [{ cells: 1, seed: 'x' }] }), /the draw must be reproducible/],
     ['a spot check with non-string cells', raw({ human_spot_checks: [{ cells: 1, seed: 1, sampled_cells: [7] }] }), /'sampled_cells' must be an array of strings/],
     ['a spot check with no sampled_cells', raw({ human_spot_checks: [{ cells: 1, seed: 1 }] }), /'sampled_cells' must be an array of strings/],
+    ['supplementary_cells not an array', raw({ human_spot_checks: [{ cells: 1, seed: 1, sampled_cells: ['a'], supplementary_cells: 'x' }] }), /'supplementary_cells' must be an array of strings/],
+    ['supplementary_cells not strings', raw({ human_spot_checks: [{ cells: 1, seed: 1, sampled_cells: ['a'], supplementary_cells: [7] }] }), /'supplementary_cells' must be an array of strings/],
     ['a spot check with no outcome', raw({ human_spot_checks: [{ cells: 1, seed: 1, sampled_cells: ['a'], dataset: 'beams', source_document: 's', page_ref: 'p', checked_by: 'c', checked_at: 'a' }] }), /'outcome' must be a non-empty string/],
   ];
 

@@ -104,6 +104,9 @@ for (const entry of pending) {
     // drawSpotCheckSample(cellIds, seed, requiredSampleSize(cells)), and the
     // draw records its order precisely so this comparison is possible.
     sampled_cells: [...entry.sampled_cells],
+    // The top-up, when the primary draw covered fewer published values than
+    // cells. Copied verbatim for the same reason the sample is.
+    supplementary_cells: [...(entry.supplementary_cells ?? [])],
     seed: entry.seed,
     source_document: entry.source_document,
     page_ref: entry.page_ref,
@@ -129,7 +132,10 @@ manifest.human_spot_checks = [...existing.values(), ...recorded].sort((a, b) =>
 writeFileSync(manifestPath, JSON.stringify(manifest, null, 1));
 
 for (const r of recorded) {
-  console.log(`recorded ${r.dataset}: ${r.sampled_cells.length} cells, ${r.checked_by}, ${r.outcome}`);
+  const extra = r.supplementary_cells.length > 0 ? ` (+${r.supplementary_cells.length} supplementary)` : '';
+  console.log(
+    `recorded ${r.dataset}: ${r.sampled_cells.length} cells${extra}, ${r.checked_by}, ${r.outcome}`,
+  );
 }
 console.log(`\nWritten to data/catalog/${dir}/manifest.json.`);
 console.log('The pinned draw is kept — it is the record of what was asked.\n');
