@@ -27,17 +27,18 @@ Established before any change, so every later claim has something to be a delta 
 
 | Check | Command | Result |
 |---|---|---|
-| Tests, non-DB | `vitest run` (excl. `*.db.test.ts`, `tenancy.test.ts`) | **855 passed / 855**, 33 files |
-| Tests, DB-backed | — | **not run** — no docker or psql in the Linux workspace |
+| Tests, non-DB | `vitest run` (excl. `*.db.test.ts`, `tenancy.test.ts`) | ~~**855 passed / 855**, 33 files~~ — **stale (R-11).** 2026-09-01: **44** `*.test.ts` files, ~875 `it(`/`test(` call sites, counted statically. The suite itself cannot run in the Linux workspace — the pnpm store is win32, so `rollup` and `esbuild` have no Linux binary — but **CI runs it**, green on `efbafbd` (run #10) and `a5d9c5b` (run #11) |
+| Tests, DB-backed | — | ~~**not run**~~ — **now run, in CI.** The `verify` job starts a real Postgres 16 service container, applies migrations and runs the tenancy tests. Still not runnable in the Linux workspace |
 | Typecheck | `tsc --build` | exit 0 |
 | Lint | `eslint .` | exit 0 |
-| `check-boundaries` (+ self-test) | `node tools/…` | PASS — 33 files, 9 pure packages |
+| `check-boundaries` (+ self-test) | `node tools/…` | PASS — **41 files, 10 pure packages** (re-measured 2026-09-01; was 33/9) |
 | `check-app-boundaries` (+ self-test) | `node tools/…` | PASS |
-| `lint-provenance` (+ self-test) | `node tools/…` | PASS — 89 files |
-| `check-language` (+ self-test) | `node tools/…` | PASS — 60 files |
+| `lint-provenance` (+ self-test) | `node tools/…` | PASS — **102 files** (re-measured 2026-09-01; was 89) |
+| `check-language` (+ self-test) | `node tools/…` | PASS — **68 files** (re-measured 2026-09-01; was 60) |
 | `check-determinism` (+ self-test) | `node tools/…` | PASS — 4 cases, 2 hostile environments, matches pin |
-| `check-rls` | — | **not run** — needs Postgres |
-| Repository | `git` | 42 commits, `main`, clean tree, **no remote** |
+| `check-rls` | — | ~~**not run**~~ — **runs in CI**, behind its own self-test, on a real Postgres service container |
+| `check-scoreboard-sync` (+ self-test) | `node tools/…` | PASS — added on this branch; compares two of the four scoreboard copies, figures only |
+| Repository | `git` | ~~42 commits, `main`, clean tree, **no remote**~~ — **stale (R-11).** 2026-09-01: on `fix/catalog-release-integrity`, **36 commits ahead of `origin/main`**, clean tree, remote live at `github.com/Elliotvness/Master-Rack`, PR #1 open and green. Do not quote the commit count from here — re-run `git rev-list --left-right --count origin/main...HEAD` |
 
 855 non-DB + 71 DB-backed = the 926 recorded in `LATEST.md`. That figure is confirmed.
 

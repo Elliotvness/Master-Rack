@@ -68,7 +68,7 @@ The procedure, so it is reproducible:
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
 | Plan-task completion, effort-weighted | 19 of 143 pts — **13.3%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
 | Plan-task completion, task count | 7 of 43 — 16% | Same, unweighted | Same |
-| Pre-merge review `R-01…R-11` | 8 of 11 — 73% | **§16.1** review gates | A sub-checklist of one branch, not the project. R-11 is only *partly* closed; the drift items below are its remainder |
+| Pre-merge review `R-01…R-11` | 8 of 11 — 73% | **§16.1** review gates | A sub-checklist of one branch, not the project. **Same figure as this morning, different members** — see the correction below. Done: R-01…R-06, **R-08**, **R-11**. Open: R-07 (partly), R-09, R-10 (one criterion) |
 | Route surface vs the blueprint | 19 of 21 MVP-1 routes declared | **§8.2** (23 rows, 2 marked phase 2) | New this session. A *registry* figure, not a served one — nothing mounts it |
 
 These are not competing answers. **0% is the answer**; 13.3% is how much of the written plan has
@@ -195,8 +195,9 @@ Re-measured by running commands against the working tree:
 
 ### Drift found while measuring
 
-Session 2 found four. Session 3 re-measured them, **fixed five, and reclassified one** — the
-reclassified one was not documentation drift at all.
+Session 2 found four. Session 3 re-measured them, **fixed nine and reclassified one**. Four of the
+nine were found only by reading R-11's own acceptance criteria rather than the scoreboard's drift
+list — including one this scoreboard published about itself.
 
 | # | Item | Status |
 |---|---|---|
@@ -205,6 +206,10 @@ reclassified one was not documentation drift at all.
 | 3 | Project doc `state-of-the-build-2026-09-01.md` names the branch **`feat/contracts`**; no such branch exists | **Fixed** in the project doc |
 | 4 | `tasks/todo.md` T-14 says **23 §8.2 routes**; the route table carries **20** | **Reclassified — see below** |
 | 5 | *(new)* This scoreboard's own tip figures — `6f05043`, 27 ahead, 1 unpushed — were stale on the day they were written | **Fixed** — `ff63b87`, 30 ahead, 4 unpushed |
+| 7 | *(new, R-11)* `tasks/plan.md`'s verification table — 855 tests / 33 files, `check-boundaries` 33 files / 9 packages, `lint-provenance` 89 files, `check-language` 60 files, "42 commits, `main`, no remote" | **Fixed** — re-measured to 44 test files, 41/10, 102, 68, and the branch with a live remote. Both "not run" rows now run in CI |
+| 8 | *(new, R-11)* `LATEST.md`'s **70% blueprint conformance** stood beside the scoreboard's percentage with nothing saying they are different denominators | **Fixed** — reconciliation note added in `LATEST.md` itself, where the figure is read |
+| 9 | *(new, R-11)* `TODO.md` RH-05 — "two packs sit in DRAFT … the Interlake catalog (378 rows)" | **Fixed** — the catalog is `APPROVED`, **336** rows; the rule pack `mvp-2026-08` is the half still `DRAFT`, with an empty `approved_by` and six recorded open conflicts |
+| 10 | *(new, self-inflicted)* This scoreboard claimed **"R-11 is closed, review 9 of 11"** before R-11's criteria had been read | **Fixed** — corrected in all four copies. The claim was published to every copy before it was checked, which is the defect R-11 exists to catch, committed while closing R-11 |
 | 6 | *(new)* T-04's `DONE` block sat **below** the `## Phase 2` heading, and still said `interlake-2026-09` was back to DRAFT with nothing pinnable — superseded the same day by `eaeb8f0` / `a2f166e` | **Fixed** — moved under T-04, and the re-approval verified against the manifest on disk |
 
 **Drift 4 was not drift.** Both figures were accurate; the *classification* was wrong. Filed beside
@@ -243,18 +248,40 @@ rule earns its keep: the blueprint wins, and the scoreboard is what gets fixed.*
 
 1. ~~**Push the tip and confirm CI green on it.**~~ **Done — T-00 closed.** `efbafbd` pushed,
    run #10 **Success**. Pushes must run from Windows; the bridge shell has no credentials.
-2. **R-10 — judge the commits as commits.** **30** commits is a long chain to review
-   retrospectively and it only gets longer. Includes the fair question of whether two RLS commits and a perf
+2. ~~**R-10 — judge the commits as commits.**~~ **Substantively done.** All 36 subjects judged —
+   35 clear the standard, one (`36881f3`) stops mid-clause. `7559889`'s 1,294 lines are 873 data and
+   204 test, so ~217 lines of source: within guidance. `14d608f`'s 17 files are one coherent change,
+   not a refactor hiding behaviour. Nothing touches the read-only reference projects. **Open:** the
+   per-commit `typecheck && test`, which needs Windows — a partial substitute was run instead
+   (every relative import resolves at its own commit, **0 of 36** unresolved). Includes the fair question of whether two RLS commits and a perf
    harness belonged on a branch named for catalog release integrity.
-3. **R-08 — the catalog data reviewed as data**, independently of the test that asserts it.
-4. **Merge PR #1. Delete the branch.** It has lived far past the 1–3 day window a short-lived
-   branch is supposed to occupy, and its name no longer describes its contents.
-5. ~~**Fix the four drift items above in the same commit as the merge.**~~ **Done in session 3, ahead
-   of the merge**, because the push was blocked and the fixes were not: drift 1, 2, 3, 5 and 6 are
-   corrected in the working tree, and drift 4 was reclassified as T-14 implementation and recorded
-   there. **R-11 is closed on the documentation, taking the review to 9 of 11** — but R-11's own
-   lesson is that a doc fix is only worth the measurement behind it, so re-measure before ticking it.
-   Carry these edits into the merge commit.
+3. ~~**R-08 — the catalog data reviewed as data.**~~ **Done**, re-derived here rather than read off
+   the tests: 378 → 336 rows, exactly 42 phantom rows gone, exactly 264 capacity corrections, 435
+   frame cells, 43 of 43 pinned cell ids resolve, sample floors 20 and 22 reproduce. The data is in
+   good order. **Four findings, all in the prose around it** — F-12 (the change log denies a
+   face-height change it made to 168 rows), F-13 (the approved manifest still says it is DRAFT),
+   F-14 (the draw is recorded twice), F-15 (the E/ER collision is the whole chart, not a 59E quirk,
+   so the top-up is the normal case and `cells: 336` counts rows not readings).
+4. **Merge PR #1 — and rename it first.** It has lived far past the 1–3 day window a short-lived
+   branch is supposed to occupy, and its name stopped describing its contents around commit five.
+   **L-12 answered:** the two RLS commits (`73ca8d1`, `75192d0`) did belong on their own branch, and
+   splitting them out now costs more review than it buys — they have already been reviewed here
+   (F-01, F-03, F-04, F-05) and CI is green on the tip. Merge as one, but retitle the PR to what it
+   is: *catalog release integrity, the RLS audience boundary, the wire contract, and a measured
+   scoreboard*. Then one short-lived branch per task from Phase 2, as the plan already requires.
+   **Fix F-12 and F-13 before the merge** — they are wrong sentences inside an approved catalog
+   release, which is the one artifact that must not carry a false record.
+5. ~~**Fix the four drift items above in the same commit as the merge.**~~ **Done in session 3**:
+   drift 1, 2, 3, 5 and 6 corrected, drift 4 reclassified as T-14 implementation.
+
+   **Correction, same session.** Earlier today this step claimed *"R-11 is closed on the
+   documentation, taking the review to 9 of 11."* **That was wrong, and it was published to all four
+   copies before it was checked.** The scoreboard's drift list and R-11's six acceptance criteria
+   are different lists; fixing the first closes none of the second. Re-reading R-11's own criteria
+   found three more stale documents, now fixed — see *Drift found while measuring*. R-11 **is** now
+   closed, against its own criteria, and the review is **8 of 11**, not 9: R-11 joins the done
+   column and so does R-08, while R-10 does not. The lesson is the one R-11 exists to teach, landed
+   on the person applying it: **a documentation fix is worth exactly the measurement behind it.**
 
 ### Then — Checkpoint A, which was skipped
 

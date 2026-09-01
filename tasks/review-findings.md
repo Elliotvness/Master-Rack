@@ -280,6 +280,226 @@ These were checked and are correct. Listed because "we looked and it held" is a 
 
 ---
 
+# Phase C/D — R-08 and R-10, reviewed 2026-09-01 (session 3)
+
+**Environment.** Reviewed from the Linux bridge shell against the working tree at `ab390d5`.
+Every figure below was re-derived here with `git` and a Python read of the JSON — deliberately
+**not** by reading the tests that assert the same things. The one thing that could not be run here
+is the vitest suite: this repo's `node_modules` is a Windows pnpm store, so `rollup` and `esbuild`
+have no Linux binaries. Installing the two Linux binaries into scratch got past `rollup` and then
+hit `esbuild`; the attempt was abandoned rather than pursued, and nothing was written into the
+repository. CI covers it instead — see the disposition on each task.
+
+## F-12 — `changes_from_2026_08` denies a change it made to 168 rows
+
+**Required before merge. The data is right; the change log is wrong about it.**
+
+`data/catalog/interlake-2026-09/manifest.json`, `changes_from_2026_08[2]`, states verbatim:
+
+> "No part number, code_18, face height or deflection value was altered. Only capacity was
+> re-sourced, and only unpublished rows were removed."
+
+Measured, by diffing the two `beams.json` on the 336 rows the releases share:
+
+| field | rows changed 2026-08 → 2026-09 |
+|---|---|
+| `capacity_lbs` | **264** — matches the manifest's own claim exactly |
+| `face_height_in` | **168** — the manifest says zero |
+| `part_number`, `code_18`, `deflection_in` | 0 — as claimed |
+
+The 168 are eight of the sixteen families, every span:
+
+| families | 2026-08 | 2026-09 | published as (p.84) |
+|---|---|---|---|
+| 36E, 36ER | 3.65 | 3.65625 | 3 21/32 |
+| 59E, 59ER | 5.92 | 5.9375 | 5 15/16 |
+| 65E, 65ER, 65Q, 65QR | 6.54 | 6.5625 | 6 9/16 |
+
+The other eight families (27E/ER, 40E/ER, 45E/ER, 50E/ER) were already exact and did not move.
+
+**The change itself is correct and is documented — three fields down, in the same file.**
+`face_height_59e_status` and `face_height_65_status` both read `disposition: RESOLVED`, resolved by
+Elliott Villacorta on 2026-08-31 against p.84, and `face_height_policy` explains why the exact
+fraction is stored rather than a rounded value. So this is not a hidden change; it is a change
+recorded in one place and **denied in another**, inside one artifact.
+
+That matters more here than it would elsewhere. `changes_from_2026_08` is the field a future reader
+consults to learn what moved between two releases — it is the release's own diff, and the reason
+2026-08 was allowed to keep its wrong values was precisely so the record of what was believed stays
+reconcilable. A change log that under-reports is the same defect as an extract that over-reports.
+
+**Fix:** amend the sentence to name the face-height correction and point at
+`face_height_*_status`. Do not touch a single value.
+
+## F-13 — the approved manifest still carries the note saying it is DRAFT
+
+**Required before merge.** `manifest.json` holds, simultaneously:
+
+- `status: "APPROVED"`, `approved_by: "Elliott Villacorta"`, `approved_at: "2026-09-01"`; and
+- `approval_record`: "*Returned to DRAFT 2026-09-01 after approval … the release is DRAFT until
+  that cell is read and the record re-made.*"
+
+The cell **was** read — `65ER/F5M/78in` is in `human_spot_checks[beams].supplementary_cells` with
+`outcome: MATCHED`, `checked_by: Elliott Villacorta` — so the release is legitimately approved and
+the narrative is simply stale. But `approval_record` is prose inside the artifact that gates
+pinning, and it currently contradicts the field one line above it. A reader who trusts the prose
+concludes the release cannot be pinned.
+
+**Fix:** rewrite `approval_record` to describe the whole arc — approved, returned to DRAFT on the
+19-distinct-values finding, topped up, re-approved — in the past tense.
+
+## F-14 — `pending_spot_checks` and `human_spot_checks` are two records of one fact
+
+**Consider.** Both arrays are present, and for both datasets they carry the *same* `seed`
+(20260901), the *same* 20/22 `sampled_cells` in the same order, and the same `supplementary_cells`.
+`pending_spot_checks` is the pin — the tool-drawn sample awaiting a human. `human_spot_checks` is
+the completed record. After completion the pin has no remaining job, and keeping both means the
+manifest carries the same draw twice with nothing forcing them to agree.
+
+`release-integrity.test.ts` already states the principle, about a different pair of fields:
+
+> "Two records of one fact is how they come to disagree."
+
+They agree today. **Fix:** either have the recorder consume the pin when it writes the human record,
+or derive `human_spot_checks[].sampled_cells` from the pin rather than copying it — so the second
+copy cannot exist.
+
+## F-15 — the E/ER collision is the shape of the whole chart, not a 59E quirk
+
+**Required before merge — it changes what the gate should draw over.**
+
+`approval_record` explains the 20-cells-but-19-readings finding as a property of one column:
+"*PSG 2025 p.88 prints one column headed 59E / 59ER and the extract carries two rows for it.*"
+
+Measured across the whole dataset: **every** family behaves that way.
+
+| base family | spans where E and ER carry an identical (series, span, capacity) |
+|---|---|
+| 27E/27ER, 36E/36ER, 40E/40ER, 45E/45ER, 50E/50ER, 59E/59ER, 65E/65ER, 65Q/65QR | **21 of 21, all eight pairs** |
+
+336 rows carry **168 distinct published capacity values**. Within a pair the rows differ only in
+`part_number` and one character of `code_18`; capacity, deflection and face height are identical
+(e.g. 59E and 59ER at 120" are both 7,330 lb, 0.67", 5.9375").
+
+Three consequences:
+
+1. **The narrative understates it.** As written, a reader takes 59E/59ER for an anomaly. It is the
+   structure of the chart: the guide prints one column per E/ER pair throughout.
+2. **The top-up is the normal case, not the exception.** A uniform draw of 20 rows over 168 pairs
+   yields fewer than 20 distinct values far more often than not — the expected count is about
+   18.9. The current gate is *correct* (it counts distinct published values and tops up), but its
+   shape implies a rare correction. **The sampler should draw over distinct published values in the
+   first place**, and record which row of the pair was read. Otherwise every future release repeats
+   this session: draw, fail the floor, top up, re-approve.
+3. **`verification_paths[beams].cells = 336` counts rows, not readings.** The full cross-check
+   re-derived 336 rows from a chart printing 168 values, so each published value was checked twice
+   by construction. The number is not false, but it reports twice the independent evidence that was
+   obtained — the same class of overstatement F-11 found in the spot-check floor, one level up.
+   State it as "336 rows / 168 distinct published values".
+
+## F-16 — "byte-for-byte" describes more than the mechanism does
+
+**Nit.** `frames.json`'s `carried_forward_from` and the test name both say the frame tables were
+carried forward "byte-for-byte". The mechanism is
+`sha256(JSON.stringify(JSON.parse(file).tables))` — structural equality **after parse**. Reformat
+either file, reorder nothing, and the check stays green; the files are in fact *not* byte-identical
+(2026-09 adds `carried_forward_from` and `tables_sha256`, drops `status`/`approved_*`, and changes
+`rev`).
+
+Testing meaning rather than whitespace is the better choice. Only the word is wrong. Say
+"identical after parse, asserted by hash".
+
+**Independently confirmed, for the record:** the `tables` arrays are structurally equal, and
+recomputing the stored hash here by the same method reproduces
+`8895b30674682bc6087c906378d2e2824452bf3c13ea23411d7caa4b57908c8f` exactly. The hash is real and
+reproducible outside the codebase.
+
+## F-17 — one commit subject stops mid-clause
+
+**Nit.** `36881f3` — *"review: Phase A findings, and the self-test check-rls shipped without"*.
+Shipped without **what**? It is the one subject on the branch that fails the standalone-and-
+informative bar the other 35 clear. Not worth rewriting history for; recorded so the pattern is not
+repeated.
+
+## F-18 — the commit type vocabulary is undocumented and overlapping
+
+**Nit.** The branch uses `feat`, `fix`, `docs`, `test`, `chore`, `ci`, `perf` — conventional — plus
+`tools:`, `catalog:` and `review:`, which are this project's own, and one commit (`a5d9c5b`) that
+uses a task id, `T-00:`, as its type. `tools:` and `chore:` overlap in practice: `6f05043` adds a
+checker under `tools:` while `e488a14` edits a comment under `chore(authz):`.
+
+The extra types are *good* — `catalog:` and `review:` name things this project genuinely does. They
+are just written down nowhere, so the next contributor will guess. **Fix:** one short section in
+`CONTRIBUTING` or the plan listing the seven conventional types plus the three local ones, and
+saying task ids go in the body, not the type.
+
+---
+
+## R-08 — the catalog data, reviewed as data
+
+Every check below was run here, against the files, not against the tests that assert them.
+
+| Acceptance criterion | Result |
+|---|---|
+| `frames.json` carried forward from 2026-08, verified independently | **Confirmed at the level that matters.** The `tables` arrays are structurally identical and the stored hash reproduces exactly. The *files* are not byte-identical, by design — see F-16 |
+| 2026-08's transcribed values unchanged by the quarantine commit | **Confirmed.** `git diff eeaafef^ eeaafef` on that manifest touches exactly three things: `status` DRAFT → QUARANTINED, and the two added fields `corrected_by` and `quarantine_reason`. No transcribed value moved |
+| `quarantine_reason` and `corrected_by` non-null and naming the correcting release | **Confirmed.** `corrected_by: "2026-09"`; the reason names the finding (D-06), the count (264), the phantom rows (42) and why the values are deliberately not corrected |
+| 2026-09 is DRAFT with no residue of a hand-typed APPROVED | **Stale criterion — superseded, not failed.** It was written while `52f708a` held the release at DRAFT. `eaeb8f0` and `a2f166e` then re-approved it against a recorded human spot-check, which is the outcome the criterion was protecting. The residue it was hunting is absent: the APPROVED is backed by `human_spot_checks` with a named checker, a date and MATCHED. See F-13 for the stale prose that *did* survive |
+| Sample sizes re-derived from `max(20, ceil(0.05 × N))` | **Confirmed.** beams `max(20, ⌈16.8⌉) = 20`, pinned 20 (+1 supplementary); frames `max(20, ⌈21.75⌉) = 22`, pinned 22 |
+| Every pinned cell id resolves to a real row | **Confirmed. 43 of 43.** 21 beam ids (20 + the top-up) resolve against `(family, series, span_in)`; 22 frame ids resolve to a non-null cell at `table_id/HbL<height>/col<n>` |
+| `source_anomalies` and `constraints` carried forward unchanged | **`constraints` yes; `source_anomalies` no — and correctly so.** 2026-08 listed 8, 2026-09 lists 3. The 5 individual 17-character `code_18` entries were consolidated into one, and the **59E face-height anomaly was removed because the re-source resolved it** (5.92 → 5.9375, recorded in `face_height_59e_status`). One anomaly is new and correctly recorded: 65QR at 162" carries end-plate letter `R` where F5M specifies `S`, transcribed verbatim and pinned as a named exemption |
+| The 42 phantom 40E/40ER-F3M rows still absent | **Confirmed. Zero.** The family/series map is 16 families × 21 spans = 336, each family under exactly one end plate: F3M for 27E/36E, F4M for 40E/45E/50E, F5M for 59E/65E/65Q |
+| `pnpm lint:provenance` PASS | **PASS**, re-run here, self-test first |
+| `pnpm test packages/kernel-catalog` green | **Not run here** — Windows pnpm store, no Linux `rollup`/`esbuild` binaries. **Covered by CI instead, which is stronger:** the `verify` job's "Unit and tenancy tests" step ran green on `efbafbd` (run #10) and `a5d9c5b` (run #11 attempt 2), and the catalog data has not changed since |
+| Cell-id existence script | Run, and extended past the criterion to cover **both** datasets rather than one |
+
+**Independently re-derived numbers, all matching the manifest's own claims:** 378 → 336 rows;
+exactly 42 removed, all 40E/40ER under F3M; exactly **264** capacity values changed; frame cells
+150 + 135 + 150 = **435**; beam `row_count` 336 with no duplicate `(family, series, span)` key.
+
+**Disposition:** the catalog data is in good order and the arithmetic holds everywhere it was
+checked. The four findings are all in the *prose* wrapped around it — F-12 denies a change, F-13
+contradicts the status, F-14 duplicates a record, F-15 mis-frames a structural property as a quirk.
+That is the same defect class this branch has been finding all day, arrived at from a fourth
+direction.
+
+## R-10 — the commits, judged as commits
+
+**36 commits**, `origin/main..HEAD`.
+
+| Acceptance criterion | Result |
+|---|---|
+| Each subject judged against the standard | **35 of 36 clear it.** They are imperative, standalone, and say what changed *and why it matters* — "quarantine interlake-2026-08 — it is wrong, not merely old" is a better subject than most repositories manage. None reads as "Fix bug" or "Phase 1". The exception is F-17. Eleven subjects exceed 72 characters, a consequence of the house "clause, and clause" style; informative, at the cost of truncation in narrow views |
+| Each commit leaves the tree green on its own | **Not verified, and not verifiable here** — it needs `pnpm typecheck && pnpm test` at 36 checkouts on Windows. **Partially covered by a check that was run:** every relative import in every `.ts` file added or modified by each commit resolves against that commit's own tree — **0 of 36 commits has an unresolved import**. That rules out the ordinary cause of a commit that only builds with its successor; it does not rule out a type error or a red test. The full check stays open |
+| `7559889` (1,294 lines) assessed against sizing | **Within guidance; the raw number misleads.** 873 of the 1,294 insertions are transcribed data (850 of them `frames.json`). Of the 421 remaining, **204 are tests**. It is a ~217-line source change — a new `load-manifest.ts` (132) and edits to `release.ts` (80) and `index.ts` (5) — landing with its data and its tests. Reviewable in one sitting |
+| L-12: do `75192d0` and `73ca8d1` belong here? | **Answered below** |
+| No commit mixes a refactor with new behaviour so as to hide either | **None found.** The one that invited the question is `14d608f` — 17 files, "the spot-check floor counts readings, not rows". It is a single semantic change propagated honestly: two new modules (`cell-ids.ts`, `spot-check.ts`) with their tests, the three tools that draw, record and worksheet the sample, and the manifest re-pinned. It *could* have been split, but the split would have left an intermediate commit where the floor and the id parser disagree — which is worse than a large coherent one |
+| Nothing touches the read-only reference projects | **Confirmed.** No path under `Resourse (do not delete or overwrite files)` — or anywhere outside the repository — appears in any of the 36 commits |
+
+### L-12, answered: they belonged elsewhere, and it is now too late to be worth it
+
+`73ca8d1` (audit-event actor scope) and `75192d0` (the revision audience predicate + `check-rls`
+assertion) are RLS work on a different subsystem from catalog release integrity, and on the day
+they landed the right answer was to split them onto their own branch with their own reviewer.
+
+That is no longer the recommendation. The branch is now 36 commits and carries, beyond the catalog
+work: the RLS pair, the wire contract (`e3ef4fa`), a performance harness and the first §5.4
+measurements (`48c7654`), a CI fix (`2ffd173`), lockfile tooling (`6f05043`), and the scoreboard and
+its gate. **The name stopped describing the contents around commit five, and splitting retroactively
+now costs more review than it buys** — the RLS commits have already been reviewed here (F-01, F-03,
+F-04, F-05) and CI is green on the tip.
+
+**Recommendation:** merge as one, and **rename PR #1** to say what it is — something like
+*"Audit remediation: catalog release integrity, RLS audience boundary, the wire contract, and a
+measured scoreboard"* — so the history does not claim a scope it outgrew. Then adopt one
+short-lived branch per task from Phase 2, which the plan already requires. The cost of this branch
+is not a defect that got through; it is that no single reviewer ever saw a coherent unit.
+
+**Disposition:** R-10 is **substantively complete with one criterion outstanding** — the per-commit
+build check. Everything else is judged and recorded.
+
+---
+
 ## Task status
 
 | Task | State |
@@ -291,8 +511,10 @@ These were checked and are correct. Listed because "we looked and it held" is a 
 | R-05 | **Done** — F-02 confirmed and fixed, with 7 regression tests |
 | R-06 | **Done** — remedy (b): `selftest-spot-check-draw.mjs`, 24 draws over both releases |
 | R-07 | **Partly** — L-3 pinned as deliberate, L-5/L-2 open, L-4 still EL's scope call |
-| R-08, R-09, R-10 | Open (R-09's measurement partly done: 1042 tests / 43 files) |
-| R-11 | **Partly** — T-09's migration renumbered to 0009; the rest open |
+| **R-08** | **Done 2026-09-01 (session 3)** — data re-derived independently; F-12…F-16 raised. One verification item (`pnpm test packages/kernel-catalog`) not runnable from the bridge and covered by CI on `efbafbd`/`a5d9c5b` |
+| R-09 | Open (measurement partly done: 1042 tests / 43 files) |
+| **R-10** | **Substantively done 2026-09-01 (session 3)** — all 36 subjects judged, sizing and mixing assessed, L-12 answered, reference projects confirmed untouched, F-17/F-18 raised. **Open:** the per-commit `typecheck && test` check, which needs Windows |
+| R-11 | **Documentation closed 2026-09-01 (session 3)** — five drift items fixed, one reclassified as T-14 implementation; T-09's migration renumbered to 0009 |
 
 ### R-04: the `release.ts` split, answered
 

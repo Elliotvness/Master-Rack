@@ -155,7 +155,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
       <div class="m primary"><span class="lbl">Definition of done</span><span class="v">0%</span><span class="d">§15.2, 0 of 8 steps. Quote this one.</span></div>
       <div class="m"><span class="lbl">Plan executed · weighted</span><span class="v">13.3%</span><span class="d">19 of 143 effort points in <code>tasks/todo.md</code>. A ceiling, not a measure. T-00 closing moved it one point &mdash; and moved &sect;15.2 by nothing.</span></div>
       <div class="m"><span class="lbl">Plan executed · task count</span><span class="v">14%</span><span class="d">7 of 43 tasks complete</span></div>
-      <div class="m"><span class="lbl">Pre-merge review</span><span class="v">73%</span><span class="d">R-01…R-11, 8 of 11. R-11 is only partly closed, and binary completion applies here too. One branch's checklist — not the project.</span></div>
+      <div class="m"><span class="lbl">Pre-merge review</span><span class="v">73%</span><span class="d">R-01…R-11, 8 of 11. Same figure as this morning, different members: done R-01…R-06, <strong>R-08</strong>, <strong>R-11</strong>; open R-07 (partly), R-09, R-10 (one criterion). One branch's checklist &mdash; not the project.</span></div>
       <div class="m"><span class="lbl">Route surface vs &sect;8.2</span><span class="v">19/21</span><span class="d">New this session. &sect;8.2 lists 23 rows, 2 marked phase 2. The registry declares 19 of the 21 &mdash; and nothing mounts it.</span></div>
     </div>
     <div class="prose">
@@ -239,7 +239,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
   <section>
     <div class="head">
       <h2>Drift found while measuring</h2>
-      <p class="lbl">Sixth consecutive session &mdash; five fixed, one reclassified</p>
+      <p class="lbl">Sixth consecutive session &mdash; nine fixed, one reclassified</p>
     </div>
     <div class="tw">
       <table>
@@ -251,6 +251,10 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
           <tr><td>This scoreboard</td><td><code>6f05043</code>, 27 ahead, 1 unpushed</td><td><code>ff63b87</code>, 30 ahead, 4 unpushed &mdash; stale on the day it was written</td><td class="n">Fixed</td></tr>
           <tr><td><code>tasks/todo.md</code> T-04</td><td><code>DONE</code> block below the Phase 2 heading; &ldquo;back to DRAFT, nothing pinnable&rdquo;</td><td>Superseded the same day by <code>eaeb8f0</code>/<code>a2f166e</code>; the manifest reads <code>APPROVED</code></td><td class="n">Fixed</td></tr>
           <tr><td><code>tasks/todo.md</code> T-14</td><td>23 &sect;8.2 routes</td><td>Both figures were right; the <em>classification</em> was wrong &mdash; see below</td><td class="n">Reclassified &rarr; T-14</td></tr>
+          <tr><td><code>tasks/plan.md</code> <em>(R-11)</em></td><td>855 tests / 33 files; boundaries 33/9; provenance 89; language 60; "42 commits, no remote"</td><td>44 test files; 41/10; 102; 68; a branch with a live remote. Both "not run" rows now run in CI</td><td class="n">Fixed</td></tr>
+          <tr><td><code>LATEST.md</code> <em>(R-11)</em></td><td>70% blueprint conformance, unqualified</td><td>Not comparable to the plan-execution figure. Reconciliation note added where the number is read</td><td class="n">Fixed</td></tr>
+          <tr><td><code>TODO.md</code> RH-05 <em>(R-11)</em></td><td>"two packs sit in DRAFT … catalog (378 rows)"</td><td>Catalog <code>APPROVED</code>, 336 rows. The rule pack is the half still DRAFT</td><td class="n">Fixed</td></tr>
+          <tr><td>This scoreboard <em>(self-inflicted)</em></td><td>"R-11 is closed, review 9 of 11"</td><td>Published to all four copies before R-11's criteria were read. R-11 closes now, properly; the review is 8 of 11</td><td class="n">Fixed</td></tr>
         </tbody>
       </table>
     </div>
@@ -270,10 +274,10 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
     </div>
     <ol class="steps">
       <li><s>Push the tip and confirm CI green on it.</s> <strong>Done &mdash; T-00 closed.</strong> <code>efbafbd</code> pushed, run #10 <strong>Success</strong>. Pushes must run from Windows.</li>
-      <li><strong>R-10 — judge the commits as commits.</strong> <strong>30</strong> is already a long chain to review retrospectively, and it only gets longer. Includes the fair question of whether two RLS commits and a perf harness belonged on a branch named for catalog release integrity.</li>
-      <li><strong>R-08 — review the catalog data as data</strong>, independently of the test that asserts it.</li>
-      <li><strong>Merge PR #1, delete the branch.</strong> It has lived far past the one-to-three-day window a short-lived branch is meant to occupy, and its name stopped describing its contents around commit 12.</li>
-      <li><s>Fix the four drift items in the merge commit.</s> <strong>Done in session 3, ahead of the merge</strong>, because the push was blocked and the fixes were not &mdash; five corrected, one reclassified as T-14 implementation. <strong>R-11 closes on the documentation: 9 of 11.</strong> Carry these edits into the merge commit.</li>
+      <li><s>R-10 &mdash; judge the commits as commits.</s> <strong>Substantively done.</strong> 35 of 36 subjects clear the standard; <code>7559889</code>'s 1,294 lines are 873 data + 204 test, so ~217 of source; <code>14d608f</code>'s 17 files are one coherent change; nothing touches the read-only reference projects. <strong>Open:</strong> the per-commit typecheck+test, which needs Windows &mdash; a substitute was run instead: every relative import resolves at its own commit, <strong>0 of 36</strong> unresolved.</li>
+      <li><s>R-08 &mdash; review the catalog data as data.</s> <strong>Done</strong>, re-derived rather than read off the tests: 378&rarr;336 rows, exactly 42 phantom rows gone, exactly 264 capacity corrections, 435 frame cells, 43 of 43 pinned cell ids resolve. The data is in good order; <strong>four findings, all in the prose around it</strong> &mdash; F-12 the change log denies a face-height change it made to 168 rows; F-13 the approved manifest still says it is DRAFT; F-14 the draw is recorded twice; F-15 the E/ER collision is the whole chart, not a 59E quirk.</li>
+      <li><strong>Merge PR #1 &mdash; and retitle it first.</strong> <strong>L-12 answered:</strong> the two RLS commits did belong elsewhere, and splitting them out now costs more review than it buys &mdash; they are already reviewed (F-01, F-03, F-04, F-05) and CI is green. Merge as one, retitled to what it is: <em>catalog release integrity, the RLS audience boundary, the wire contract, and a measured scoreboard</em>. <strong>Fix F-12 and F-13 before merging</strong> &mdash; they are wrong sentences inside an approved catalog release.</li>
+      <li><s>Fix the four drift items in the merge commit.</s> <strong>Done in session 3</strong> &mdash; nine corrected, one reclassified as T-14 implementation. <strong>Correction, same session:</strong> this page earlier claimed "R-11 closes, 9 of 11". That was published to all four copies before R-11's criteria were read, and it was wrong &mdash; the scoreboard's drift list and R-11's six criteria are different lists. Reading the real criteria found three more stale documents. R-11 <em>is</em> closed now, and the review is <strong>8 of 11</strong>. A documentation fix is worth exactly the measurement behind it.</li>
     </ol>
     <div class="card warnbox">
       <h3>Then: Checkpoint A, which was skipped</h3>

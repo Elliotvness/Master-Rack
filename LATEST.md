@@ -43,7 +43,7 @@ Linux workspace has no credentials. Run from Windows:
 | Coverage | 100% on all pure packages; ratcheted floors on `apps/` | held |
 | `tsc --build` · `eslint` | exit 0 · exit 0 | |
 | Acceptance criteria | **18 of 20** enforced | AC-14 now enforced at the DATABASE, not by a filter |
-| Blueprint conformance | ~70% of MVP-1 scope | from 68% |
+| Blueprint conformance | ~70% of MVP-1 scope | from 68%. **Reconciled 2026-09-01 (R-11): this is not comparable to the scoreboard's 13.3%.** Conformance measures requirements met across all of MVP-1; `tasks/progress.md` measures tasks executed in the remediation plan. Different denominators, both honest. Neither is the answer — **blueprint §15.2 is, and it stands at 0 of 8.** This 70% has not been re-derived since the audit and should be treated as a repository claim, not a measurement |
 
 ---
 

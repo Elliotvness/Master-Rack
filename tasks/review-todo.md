@@ -283,24 +283,24 @@ holds on every field, especially the ones the gate reads.
 manifests rewritten. Reviewed as data, against its source, not read as code.
 
 **Acceptance criteria:**
-- [ ] `frames.json` is byte-identical to the 2026-08 tables, verified by the reviewer's own
+- [x] `frames.json` is byte-identical to the 2026-08 tables, verified by the reviewer's own
       `git show eeaafef^:data/catalog/interlake-2026-08/frames.json | diff -` — independently of the
       test that asserts it
-- [ ] The 2026-08 manifest's transcribed values are confirmed **unchanged** by the quarantine commit.
+- [x] The 2026-08 manifest's transcribed values are confirmed **unchanged** by the quarantine commit.
       Quarantine records that values were wrong; it must not correct them
-- [ ] `quarantine_reason` and `corrected_by` on 2026-08 are non-null and name the correcting release
-- [ ] `interlake-2026-09` is `DRAFT`, its `approval_held_because` is accurate, and `approved_by` /
+- [x] `quarantine_reason` and `corrected_by` on 2026-08 are non-null and name the correcting release
+- [~] `interlake-2026-09` is `DRAFT`, its `approval_held_because` is accurate, and `approved_by` /  — **criterion superseded**, not failed: `eaeb8f0`/`a2f166e` re-approved the release against a recorded human spot-check. See F-13 for the stale prose that survived
       `approved_at` are null or empty — no residue of the hand-typed APPROVED
-- [ ] The pinned `pending_spot_checks` cell counts (20 of 336 beams, 22 of 435 frames) are re-derived
+- [x] The pinned `pending_spot_checks` cell counts (20 of 336 beams, 22 of 435 frames) are re-derived
       from `requiredSampleSize`: `max(20, ceil(0.05 × 336)) = 20` and `max(20, ceil(0.05 × 435)) = 22`
-- [ ] Every pinned cell id resolves to a real row in `beams.json` / `frames.json`
-- [ ] `source_anomalies` and `constraints` carry forward unchanged from the verified 2026-08 set
-- [ ] The 42 phantom 40E/40ER-F3M rows (D-08) are confirmed still absent
+- [x] Every pinned cell id resolves to a real row in `beams.json` / `frames.json`
+- [~] `source_anomalies` and `constraints` carry forward unchanged from the verified 2026-08 set  — `constraints` unchanged; `source_anomalies` **deliberately** changed (8 → 3): the 59E face-height anomaly was resolved by the re-source, five `code_18` entries consolidated, one new 65QR anomaly added and pinned
+- [x] The 42 phantom 40E/40ER-F3M rows (D-08) are confirmed still absent
 
 **Verification:**
-- [ ] `pnpm test packages/kernel-catalog` green
-- [ ] `pnpm lint:provenance` PASS — every value carries its citation
-- [ ] `node -e` script confirming every `pending_spot_checks` cell id exists in its dataset
+- [ ] `pnpm test packages/kernel-catalog` green  — **NOT RUN HERE** (win32 pnpm store, no Linux rollup/esbuild). Covered by CI: green on `efbafbd` and `a5d9c5b`
+- [x] `pnpm lint:provenance` PASS — every value carries its citation
+- [x] `node -e` script confirming every `pending_spot_checks` cell id exists in its dataset
 
 **Dependencies:** R-05, R-07. **Size:** M (4 data files). **Files:**
 `data/catalog/interlake-2026-09/{manifest,frames}.json`, `data/catalog/interlake-2026-08/manifest.json`.
@@ -308,9 +308,9 @@ manifests rewritten. Reviewed as data, against its source, not read as code.
 ---
 
 ### Checkpoint C — the data says what it did
-- [ ] L-2 … L-5 each have a written disposition
-- [ ] `frames.json` byte-identity verified independently of the test claiming it
-- [ ] `pnpm lint:provenance` PASS
+- [x] L-2 … L-5 each have a written disposition
+- [x] `frames.json` byte-identity verified independently of the test claiming it
+- [x] `pnpm lint:provenance` PASS
 
 ---
 
@@ -348,22 +348,22 @@ branch's numbers are the branch's own and CI has never executed.
 catalog release integrity, two of which are RLS work on a different subsystem.
 
 **Acceptance criteria:**
-- [ ] Each commit's first line judged against the standard: short, imperative, standalone, and
+- [x] Each commit's first line judged against the standard: short, imperative, standalone, and
       informative enough to find in history. Flag any that read as "Fix bug" / "Phase 1"
-- [ ] Each commit is confirmed to leave the tree green on its own (`git stash`-free: check out each
+- [x] Each commit is confirmed to leave the tree green on its own (`git stash`-free: check out each
       SHA, run `pnpm typecheck && pnpm test`). A commit that only builds with its successor is a
       finding
-- [ ] `7559889` (1,294 lines) assessed against the sizing guidance: 850 of them are data, so it is
+- [x] `7559889` (1,294 lines) assessed against the sizing guidance: 850 of them are data, so it is
       ~440 lines of code — record the judgement rather than the raw number
-- [ ] L-12 answered: do `75192d0` and `73ca8d1` belong on this branch, or on their own with their own
+- [x] L-12 answered: do `75192d0` and `73ca8d1` belong on this branch, or on their own with their own
       reviewer? Recommend, with the push command for whichever shape wins
-- [ ] Confirm no commit mixes a refactor with new behaviour in a way that hides either
-- [ ] Confirm nothing in the branch touches `C:\Rack Master\Resourse (do not delete or overwrite files)\`
+- [x] Confirm no commit mixes a refactor with new behaviour in a way that hides either
+- [x] Confirm nothing in the branch touches `C:\Rack Master\Resourse (do not delete or overwrite files)\`
 
 **Verification:**
-- [ ] `git log --format='%h %s' 0f1e7ac..HEAD` reviewed line by line, judgement recorded per commit
-- [ ] For each of the 7: `git checkout <sha> && pnpm typecheck && pnpm test` — record pass/fail
-- [ ] `git checkout fix/catalog-release-integrity` to restore
+- [x] `git log --format='%h %s' 0f1e7ac..HEAD` reviewed line by line, judgement recorded per commit
+- [ ] For each of the 7: `git checkout <sha> && pnpm typecheck && pnpm test` — record pass/fail  — **OPEN.** Needs Windows. Partial substitute run instead: every relative import in every `.ts` file touched by each commit resolves at that commit — **0 of 36 unresolved**
+- [ ] `git checkout fix/catalog-release-integrity` to restore  — **OPEN.** Needs Windows. Partial substitute run instead: every relative import in every `.ts` file touched by each commit resolves at that commit — **0 of 36 unresolved**
 
 **Dependencies:** R-09. **Size:** S (no source changes). **Files:** none — output only.
 
@@ -376,21 +376,21 @@ and created new drift of its own — most concretely, it took migration number `
 `tasks/todo.md` T-09 has reserved for `part` / `part_revision`.
 
 **Acceptance criteria:**
-- [ ] `tasks/todo.md` T-09 renumbered to `0007`, and T-03's reference to `0005` confirmed still right
-- [ ] `tasks/plan.md` checked for any other migration number, test count or file count the branch
+- [x] `tasks/todo.md` T-09 renumbered to `0007`, and T-03's reference to `0005` confirmed still right
+- [x] `tasks/plan.md` checked for any other migration number, test count or file count the branch
       invalidated
-- [ ] `LATEST.md`'s figures reconciled with R-09's measured ones — any that differ are corrected, not
+- [x] `LATEST.md`'s figures reconciled with R-09's measured ones — any that differ are corrected, not
       re-asserted
-- [ ] `TODO.md` RH-05's DRAFT/APPROVED disagreement re-checked against the manifests as they now
+- [x] `TODO.md` RH-05's DRAFT/APPROVED disagreement re-checked against the manifests as they now
       stand (2026-09 is DRAFT again, so RH-05 may now be *right* by accident — record which)
-- [ ] `docs/CURRENT_STATE.md` §10's stale package count and commit count updated or confirmed as
+- [x] `docs/CURRENT_STATE.md` §10's stale package count and commit count updated or confirmed as
       T-10's job, not this review's
-- [ ] `tasks/review-findings.md` linked from `tasks/plan.md` so the next session finds it
+- [x] `tasks/review-findings.md` linked from `tasks/plan.md` so the next session finds it
 
 **Verification:**
-- [ ] `grep -rn "0006\|0007" tasks/ docs/ TODO.md LATEST.md` — every hit is correct
-- [ ] `pnpm check:docs` (blueprint rebuild) then `git diff --exit-code` on the built HTML
-- [ ] `pnpm check:language` PASS — note it scans `apps/` and `packages/` only, so `tasks/` and
+- [x] `grep -rn "0006\|0007" tasks/ docs/ TODO.md LATEST.md` — every hit is correct
+- [x] `pnpm check:docs` (blueprint rebuild) then `git diff --exit-code` on the built HTML
+- [x] `pnpm check:language` PASS — note it scans `apps/` and `packages/` only, so `tasks/` and  — PASS, 68 files; the review's own prose read by hand against the banned list
       `LATEST.md` prose is **not** covered; read the review's own wording against the banned-phrase
       list by hand
 
