@@ -20,6 +20,7 @@ import {
   CatalogError,
   type CatalogReleaseManifest,
   type DatasetVerificationPath,
+  type HumanSpotCheck,
   type ReleaseStatus,
 } from './release.js';
 
@@ -90,6 +91,46 @@ function verificationPaths(
   );
 }
 
+function humanSpotChecks(raw: Record<string, unknown>, where: string): readonly HumanSpotCheck[] {
+  const v = raw['human_spot_checks'];
+  if (v === undefined || v === null) return Object.freeze([]);
+  if (!Array.isArray(v)) {
+    throw new ManifestError(`${where}: 'human_spot_checks' must be an array`);
+  }
+  return Object.freeze(
+    v.map((entry, i): HumanSpotCheck => {
+      const at = `${where}: human_spot_checks[${i}]`;
+      if (typeof entry !== 'object' || entry === null) {
+        throw new ManifestError(`${at}: not an object`);
+      }
+      const e = entry as Record<string, unknown>;
+      const cells = e['cells'];
+      const seed = e['seed'];
+      if (typeof cells !== 'number' || !Number.isInteger(cells)) {
+        throw new ManifestError(`${at}: 'cells' must be an integer`);
+      }
+      if (typeof seed !== 'number' || !Number.isInteger(seed)) {
+        throw new ManifestError(`${at}: 'seed' must be an integer — the draw must be reproducible`);
+      }
+      const sampled = e['sampled_cells'];
+      if (!Array.isArray(sampled) || sampled.some((c) => typeof c !== 'string')) {
+        throw new ManifestError(`${at}: 'sampled_cells' must be an array of strings`);
+      }
+      return Object.freeze({
+        dataset: str(e, 'dataset', at),
+        cells,
+        sampledCells: Object.freeze([...(sampled as string[])]),
+        seed,
+        sourceDocument: str(e, 'source_document', at),
+        pageRef: str(e, 'page_ref', at),
+        checkedBy: str(e, 'checked_by', at),
+        checkedAt: str(e, 'checked_at', at),
+        outcome: str(e, 'outcome', at),
+      });
+    }),
+  );
+}
+
 /**
  * Parse a release manifest. Throws with the field named rather than returning a
  * partially-populated object - a manifest half-read is how a release gets
@@ -124,6 +165,7 @@ export function loadReleaseManifest(raw: unknown): CatalogReleaseManifest {
     approvedBy: strOrNull(m, 'approved_by'),
     approvedAt: strOrNull(m, 'approved_at'),
     verificationPaths: verificationPaths(m, where),
+    humanSpotChecks: humanSpotChecks(m, where),
     correctedBy: strOrNull(m, 'corrected_by'),
     quarantineReason: strOrNull(m, 'quarantine_reason'),
     datasets: strArray(m, 'datasets', where),

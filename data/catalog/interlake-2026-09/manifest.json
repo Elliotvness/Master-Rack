@@ -1,6 +1,7 @@
 {
- "approved_at": "2026-08-31",
- "approved_by": "Elliott Villacorta",
+ "approval_held_because": "Returned to DRAFT 2026-09-01 (audit finding D-07, task T-04). This release was marked APPROVED by hand: approveRelease() never returned it, and no human had read a single cell of the source. Its recorded verification is two MACHINE extractions reconciled by a MACHINE - stronger than one extraction, and the technique that caught the 72% overstatement in the reference data, but section 10.2 is explicit that a machine is a tool, not an independent party. The gate now requires the approver own recorded spot-check per dataset. The draw is pinned in pending_spot_checks: 20 of 336 beam cells and 22 of 435 frame cells, drawn by tools/draw-spot-check.mjs at seed 20260901. Read those cells off PSG 2025 p.88 (beams) and the frame charts, record checked_by / checked_at / outcome, and the release can be approved. Any mismatch fails the entire release.",
+ "approved_at": null,
+ "approved_by": null,
  "authority": "SOLE for beam capacity. Established by owner decision 2026-08-31 (P0-008).",
  "catalog_rev": "Interlake Mecalux Product Support Guide 2025 (SEL-PSG-12/2025), 98-page PDF",
  "changes_from_2026_08": [
@@ -54,6 +55,68 @@
  "load_basis": "Uniformly distributed product load plus dead load, PER PAIR of beams (dead load = weight of beams). Static load only. Value is the lesser of strength in bending and L/180 deflection.",
  "manufacturer": "Interlake Mecalux",
  "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M",
+ "pending_spot_checks": [
+  {
+   "dataset": "beams",
+   "cells": 336,
+   "seed": 20260901,
+   "sampled_cells": [
+    "59ER/F5M/120in",
+    "65QR/F5M/54in",
+    "50E/F4M/54in",
+    "27E/F3M/108in",
+    "36E/F3M/92in",
+    "59ER/F5M/156in",
+    "40E/F4M/60in",
+    "45E/F4M/96in",
+    "27E/F3M/96in",
+    "40E/F4M/92in",
+    "50E/F4M/48in",
+    "65ER/F5M/114in",
+    "27E/F3M/66in",
+    "36E/F3M/84in",
+    "50ER/F4M/60in",
+    "50E/F4M/126in",
+    "65ER/F5M/138in",
+    "40ER/F4M/156in",
+    "59ER/F5M/132in",
+    "59E/F5M/120in"
+   ],
+   "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
+   "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M"
+  },
+  {
+   "dataset": "frames",
+   "cells": 435,
+   "seed": 20260901,
+   "sampled_cells": [
+    "cap_welded_frames/HbL48/col9",
+    "cap_welded_frames/HbL108/col4",
+    "cap_bolted_reinforced_frames/HbL78/col5",
+    "cap_bolted_frames/HbL42/col3",
+    "cap_bolted_frames/HbL72/col2",
+    "cap_welded_frames/HbL54/col7",
+    "cap_bolted_frames/HbL102/col1",
+    "cap_bolted_reinforced_frames/HbL48/col5",
+    "cap_bolted_frames/HbL36/col8",
+    "cap_bolted_frames/HbL102/col6",
+    "cap_bolted_reinforced_frames/HbL78/col4",
+    "cap_welded_frames/HbL84/col2",
+    "cap_bolted_reinforced_frames/HbL78/col2",
+    "cap_bolted_frames/HbL66/col9",
+    "cap_bolted_reinforced_frames/HbL96/col5",
+    "cap_bolted_reinforced_frames/HbL90/col2",
+    "cap_welded_frames/HbL84/col7",
+    "cap_bolted_reinforced_frames/HbL36/col6",
+    "cap_welded_frames/HbL54/col1",
+    "cap_welded_frames/HbL36/col1",
+    "cap_welded_frames/HbL102/col1",
+    "cap_bolted_reinforced_frames/HbL108/col5"
+   ],
+   "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
+   "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M"
+  }
+ ],
  "rev": "2026-09",
  "row_count": 336,
  "source_anomalies": [
@@ -63,7 +126,7 @@
  ],
  "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
  "source_url": "https://www.interlakemecalux.com/",
- "status": "APPROVED",
+ "status": "DRAFT",
  "units": "lbs",
  "verification_paths": [
   {

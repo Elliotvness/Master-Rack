@@ -8,6 +8,9 @@ import {
   completenessRefusals,
   quarantineRelease,
   REQUIRED_DATASETS,
+  drawSpotCheckSample,
+  requiredSampleSize,
+  type HumanSpotCheck,
   type CatalogReleaseManifest,
   type DatasetVerificationPath,
 } from './index.js';
@@ -25,6 +28,25 @@ const framePath: DatasetVerificationPath = {
   cells: 435,
   note: 'reconciled 435/435 across two independent extraction paths',
 };
+
+function spotCheck(dataset: string, cells: number): HumanSpotCheck {
+  const size = requiredSampleSize(cells);
+  return {
+    dataset,
+    cells,
+    sampledCells: drawSpotCheckSample(
+      Array.from({ length: cells }, (_, i) => `${dataset}-cell-${i}`),
+      20260901,
+      size,
+    ),
+    seed: 20260901,
+    sourceDocument: 'PSG 2025',
+    pageRef: 'p.88',
+    checkedBy: 'Elliott Villacorta',
+    checkedAt: '2026-09-01',
+    outcome: 'MATCHED',
+  };
+}
 
 function manifest(overrides: Partial<CatalogReleaseManifest> = {}): CatalogReleaseManifest {
   return {
@@ -44,6 +66,7 @@ function manifest(overrides: Partial<CatalogReleaseManifest> = {}): CatalogRelea
     approvedAt: null,
     verificationPaths: [crossCheck, framePath],
     datasets: ['beams', 'frames'],
+    humanSpotChecks: [spotCheck('beams', 336), spotCheck('frames', 435)],
     correctedBy: null,
     quarantineReason: null,
     contentSha256: 'abc',
@@ -219,5 +242,83 @@ describe('QUARANTINED — a release that is wrong, not merely old', () => {
   it('leaves a quarantined release pinnable by nobody new', () => {
     const q = quarantineRelease(manifest(), 'wrong', '2026-09');
     expect(canPinForNewRevision(q)).toBe(false);
+  });
+});
+
+
+describe("the approver's own spot-check — a machine is a tool, not a second party", () => {
+  it('refuses approval when no spot-check is recorded', () => {
+    // The state interlake-2026-09 was actually in: two machine extractions
+    // reconciled by a machine, marked APPROVED by hand, read by nobody.
+    const m = manifest({ humanSpotChecks: [] });
+    const reasons = approvalRefusals(m, 'Elliott Villacorta');
+    expect(reasons.some((r) => r.includes("spot-check of 'beams'"))).toBe(true);
+    expect(reasons.some((r) => r.includes("spot-check of 'frames'"))).toBe(true);
+  });
+
+  it('refuses a sample smaller than 20 cells or 5%, whichever is greater', () => {
+    const short = { ...spotCheck('beams', 336), sampledCells: ['a', 'b', 'c'] };
+    const m = manifest({ humanSpotChecks: [short, spotCheck('frames', 435)] });
+    expect(approvalRefusals(m, 'Elliott Villacorta').some((r) => r.includes('20 are required'))).toBe(
+      true,
+    );
+  });
+
+  it('sizes the sample at 5% once a table exceeds 400 cells', () => {
+    expect(requiredSampleSize(336)).toBe(20);
+    expect(requiredSampleSize(435)).toBe(22);
+    expect(requiredSampleSize(10)).toBe(10);
+  });
+
+  it('refuses a spot-check performed by the digitiser', () => {
+    const self = { ...spotCheck('beams', 336), checkedBy: 'automated extract (Claude)' };
+    const m = manifest({ humanSpotChecks: [self, spotCheck('frames', 435)] });
+    expect(
+      approvalRefusals(m, 'automated extract (Claude)').some((r) =>
+        r.includes('a machine is a tool, not an independent party'),
+      ),
+    ).toBe(true);
+  });
+
+  it('refuses when the signature does not attach to the person who read the cells', () => {
+    const m = manifest();
+    const reasons = approvalRefusals(m, 'Someone Else');
+    expect(reasons.some((r) => r.includes('the signature must attach to the person'))).toBe(true);
+  });
+
+  it('fails the ENTIRE release on any mismatch — no partial pass', () => {
+    const bad = { ...spotCheck('beams', 336), outcome: 'MISMATCH at 65E/48in' };
+    const m = manifest({ humanSpotChecks: [bad, spotCheck('frames', 435)] });
+    expect(
+      approvalRefusals(m, 'Elliott Villacorta').some((r) =>
+        r.includes('any mismatch fails the entire release'),
+      ),
+    ).toBe(true);
+  });
+
+  it('approves once a real spot-check is on the record', () => {
+    expect(canApprove(manifest(), 'Elliott Villacorta')).toBe(true);
+  });
+});
+
+describe('the draw is reproducible, and the tool makes it', () => {
+  const ids = Array.from({ length: 336 }, (_, i) => `cell-${i}`);
+
+  it('gives the same cells for the same seed, and different for another', () => {
+    // Recorded so a reviewer in two years can redraw and confirm the approver
+    // checked what they said they checked.
+    expect(drawSpotCheckSample(ids, 42, 20)).toEqual(drawSpotCheckSample(ids, 42, 20));
+    expect(drawSpotCheckSample(ids, 42, 20)).not.toEqual(drawSpotCheckSample(ids, 43, 20));
+  });
+
+  it('never draws the same cell twice', () => {
+    const drawn = drawSpotCheckSample(ids, 7, 20);
+    expect(new Set(drawn).size).toBe(20);
+  });
+
+  it('refuses a sample larger than the population, or a duplicated cell id', () => {
+    expect(() => drawSpotCheckSample(ids, 1, 999)).toThrow(RangeError);
+    expect(() => drawSpotCheckSample(['a', 'a'], 1, 1)).toThrow(/unique/);
+    expect(() => drawSpotCheckSample([], 1, 0)).toThrow(RangeError);
   });
 });

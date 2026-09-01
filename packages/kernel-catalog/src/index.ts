@@ -16,6 +16,7 @@ export {
   canPinForNewRevision,
   completenessRefusals,
   quarantineRelease,
+  type HumanSpotCheck,
   type CatalogReleaseManifest,
   type DatasetVerificationPath,
   type ReleaseStatus,
@@ -23,6 +24,12 @@ export {
 } from './release.js';
 
 export { ManifestError, loadReleaseManifest } from './load-manifest.js';
+
+export {
+  drawSpotCheckSample,
+  requiredSampleSize,
+  spotCheckRefusals,
+} from './spot-check.js';
 
 export {
   BeamCatalog,

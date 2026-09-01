@@ -1,3 +1,5 @@
+import { spotCheckRefusals } from './spot-check.js';
+
 /**
  * Catalog release types and the release lifecycle.
  *
@@ -63,6 +65,30 @@ export type VerificationPath =
 export type DatasetVerificationPath = VerificationPath & { readonly dataset: string };
 
 /**
+ * The approver's own reading of the source, recorded as data.
+ *
+ * A machine cross-check is EVIDENCE. This is the SIGNATURE, and section 10.2 is
+ * clear that the two are not interchangeable: "A machine extraction is
+ * evidence, not a signature." A release carrying only machine paths has been
+ * checked by nobody, however many times the machine agreed with itself.
+ */
+export interface HumanSpotCheck {
+  readonly dataset: string;
+  /** Total cells in the dataset, so the required sample size is derivable. */
+  readonly cells: number;
+  /** The cells the TOOL drew. An approver-chosen sample drifts to the easy ones. */
+  readonly sampledCells: readonly string[];
+  /** Recorded so the draw can be reproduced and audited years later. */
+  readonly seed: number;
+  readonly sourceDocument: string;
+  readonly pageRef: string;
+  readonly checkedBy: string;
+  readonly checkedAt: string;
+  /** 'MATCHED' or anything else. Anything else fails the entire release. */
+  readonly outcome: string;
+}
+
+/**
  * The datasets the MVP-1 check set consumes.
  *
  * Check 1 (beam/frame connector compatibility) and check 2 (beam pair capacity)
@@ -97,6 +123,7 @@ export interface CatalogReleaseManifest {
    * latch on the reason, so flipping the status back to DRAFT does not reopen
    * the door.
    */
+  readonly humanSpotChecks: readonly HumanSpotCheck[];
   readonly correctedBy: string | null;
   /** Why this release was quarantined, in words. Non-null iff QUARANTINED. */
   readonly quarantineReason: string | null;
@@ -134,7 +161,12 @@ export class ApprovalGateError extends CatalogError {
 export function approvalRefusals(
   manifest: Pick<
     CatalogReleaseManifest,
-    'approvedBy' | 'digitisedBy' | 'verificationPaths' | 'datasets' | 'correctedBy'
+    | 'approvedBy'
+    | 'digitisedBy'
+    | 'verificationPaths'
+    | 'datasets'
+    | 'correctedBy'
+    | 'humanSpotChecks'
   >,
   approver: string,
 ): readonly string[] {
@@ -183,6 +215,27 @@ export function approvalRefusals(
     }
   }
 
+  // The approver's own act, per dataset. A machine cross-check is evidence; a
+  // person reading cells the tool chose is the signature. Without this, a
+  // release can be "approved" by someone who never opened the source.
+  for (const dataset of REQUIRED_DATASETS) {
+    const check = manifest.humanSpotChecks.find((c) => c.dataset === dataset);
+    if (check === undefined) {
+      reasons.push(
+        `approval requires the approver's own recorded spot-check of '${dataset}' ` +
+          '(20 cells or 5%, whichever is greater, drawn by the tool)',
+      );
+      continue;
+    }
+    if (check.checkedBy !== approver) {
+      reasons.push(
+        `the spot-check of '${dataset}' was recorded by '${check.checkedBy}' but '${approver}' is approving; ` +
+          'the signature must attach to the person who did the reading',
+      );
+    }
+    reasons.push(...spotCheckRefusals(check, manifest.digitisedBy));
+  }
+
   reasons.push(...completenessRefusals(manifest));
 
   return Object.freeze(reasons);
@@ -215,7 +268,12 @@ export function completenessRefusals(
 export function canApprove(
   manifest: Pick<
     CatalogReleaseManifest,
-    'approvedBy' | 'digitisedBy' | 'verificationPaths' | 'datasets' | 'correctedBy'
+    | 'approvedBy'
+    | 'digitisedBy'
+    | 'verificationPaths'
+    | 'datasets'
+    | 'correctedBy'
+    | 'humanSpotChecks'
   >,
   approver: string,
 ): boolean {

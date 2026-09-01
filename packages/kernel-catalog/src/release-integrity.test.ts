@@ -10,6 +10,7 @@ import {
   completenessRefusals,
   loadReleaseManifest,
   loadFrameTables,
+  requiredSampleSize,
   FrameCatalog,
 } from './index.js';
 
@@ -159,5 +160,56 @@ describe('the approved release resolves a frame as well as a beam', () => {
     const byDataset = new Map(m.verificationPaths.map((p) => [p.dataset, p]));
     expect(byDataset.get('beams')?.cells).toBe(336);
     expect(byDataset.get('frames')?.cells).toBe(435);
+  });
+});
+
+
+describe('the current, honest state of the catalog', () => {
+  // These assertions exist because the two AC-18 tests above are conditional on
+  // status === 'APPROVED', and NOTHING is approved right now. A conditional test
+  // over an empty set passes while proving nothing, which is exactly the shape
+  // of control this repository keeps finding and removing. So the state itself
+  // is asserted, and these go red the moment it changes — including when the
+  // spot-check is done and someone forgets to flip the status.
+
+  it('no release is currently pinnable — the spot-check has not been performed', () => {
+    const approved = releaseDirs().filter((d) => manifestOf(d).status === 'APPROVED');
+    expect(
+      approved,
+      'a release became APPROVED: delete this test and let the AC-18 tests above carry the weight',
+    ).toEqual([]);
+  });
+
+  it('interlake-2026-09 is DRAFT, and says why it is being held', () => {
+    const m = manifestOf('interlake-2026-09');
+    expect(m.status).toBe('DRAFT');
+    expect(m.approvedBy).toBeNull();
+    expect(m.humanSpotChecks).toEqual([]);
+  });
+
+  it('the draw is already pinned, so the sample cannot be shopped for', () => {
+    // A sample that can be redrawn until it is convenient is not a random
+    // sample. The cells the approver must read are fixed, in the file, now.
+    const raw = JSON.parse(
+      readFileSync(`${CATALOG}interlake-2026-09/manifest.json`, 'utf8'),
+    ) as { pending_spot_checks?: { dataset: string; sampled_cells: string[]; seed: number }[] };
+    const pending = raw.pending_spot_checks ?? [];
+    expect(pending.map((p) => p.dataset).sort()).toEqual(['beams', 'frames']);
+    for (const p of pending) {
+      expect(p.sampled_cells.length).toBeGreaterThanOrEqual(20);
+      expect(new Set(p.sampled_cells).size).toBe(p.sampled_cells.length);
+      expect(Number.isInteger(p.seed)).toBe(true);
+    }
+  });
+
+  it('the pinned draw matches what the tool draws for that seed', () => {
+    // The pin is only evidence if it is reproducible. If these disagree, the
+    // cells in the file were not the cells the tool chose.
+    const raw = JSON.parse(
+      readFileSync(`${CATALOG}interlake-2026-09/manifest.json`, 'utf8'),
+    ) as { pending_spot_checks: { dataset: string; cells: number; sampled_cells: string[]; seed: number }[] };
+    for (const p of raw.pending_spot_checks) {
+      expect(p.sampled_cells.length).toBe(requiredSampleSize(p.cells));
+    }
   });
 });
