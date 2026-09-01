@@ -235,6 +235,16 @@ unreachable. Destructuring the first stray turns two branches into one that the 
 so only `kernel-catalog` has been measured. Whether the other nine packages still meet their
 thresholds is exactly what `T-00`'s first green CI run is for.
 
+**Executed 2026-09-01 (R-09):** `pnpm coverage` ran to completion (31s, 974 passed / 67 skipped).
+`kernel-catalog` measured **100% statements / 100% branches / 100% functions / 100% lines** across
+all ten files — the F-08 gate holds. The run's only failures were the DB-backed layers
+(`apps/api/src/auth/**`, `apps/api/src/audit/**`, `apps/api/src/outbox/**`, `packages/db/src/**`),
+which sit below threshold **only because their tests skip without a migrated Postgres** — CI's
+Postgres service is what measures them. The first real CI run (PR #1, 2026-09-01) died in
+`pnpm/action-setup@v4` before a single test executed: `version: 11` in `ci.yml` conflicted with
+`"packageManager": "pnpm@11.22.0"` in `package.json`. Fixed by deleting the `version` key so the
+action reads `packageManager` (`2ffd173`).
+
 ---
 
 ## F-09 — **FYI** the recorded file count was wrong
