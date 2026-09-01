@@ -305,13 +305,13 @@ codebase is full of adjacent things that look fixable and are out of scope.
 
 | # | Question | Gates | Owner |
 |---|---|---|---|
-| **Q1** | **Frontend framework.** Blueprint §6.2 says "React with a file-based router (Next.js or Remix/React Router)" and leaves it open. A framework with a server per app reintroduces the leak the two-bundle rule exists to prevent; a pure SPA has no server-render path to police. | Phase 4 (T-16) | EL |
+| ~~**Q1**~~ | **Frontend framework. ANSWERED 2026-09-01: Vite + React Router v7 as an SPA** (AD-6; recorded in the state-of-the-build doc — this table did not catch up until session 3, R-11). Originally: Blueprint §6.2 says "React with a file-based router (Next.js or Remix/React Router)" and leaves it open. A framework with a server per app reintroduces the leak the two-bundle rule exists to prevent; a pure SPA has no server-render path to police. | Phase 4 (T-16) | EL |
 | ~~**Q2**~~ | **API server framework. ANSWERED: Fastify** (recorded in the project status doc before 2026-09-01; this table never caught up — R-11). Originally: Needs first-class schema validation so §8.3's outbound `additionalProperties:false` is the core model rather than a bolt-on. | Phase 3 (T-14) | EL |
 | **Q3** | **Standing disclaimer text, verbatim**, plus the company/contact name for the title block (`OD-16`) and the document number format. | T-20 / `E-08` / `AC-16` | EL + counsel (RH-06) |
 | **Q4** | **Backblaze B2 credentials**, and permission to run the upload-then-overwrite proof on a Governance test bucket first. | T-24 / `E-07` | EL |
-| **Q5** | **Who performs the catalog spot-check**, and are they positioned to catch a *capacity-table* error specifically (RH-05, `OD-07`)? A name alone does not satisfy the gate this plan builds. | T-04 | EL |
+| ~~**Q5**~~ | **Catalog spot-check. ANSWERED 2026-09-01: Elliott Villacorta**, who read the tool-drawn sample off PSG 2025 p.88 and re-approved `interlake-2026-09` (`eaeb8f0`, `a2f166e`); Nick Heraldez is the recorded fallback approver (`OD-07`/`OD-15`), and the single-point dependency is formally accepted for MVP-1 only. The gate keys on the recorded verification path, not on the digitiser identity. Originally: who performs it, and are they positioned to catch a *capacity-table* error specifically (RH-05)? | T-04 | EL |
 | **Q6** | **External pilot client** (`OD-20b`). Gates no code. Gates the meaning of all of it — R-01 stays open until one outside organization submits unaided. | Nothing technical | EL |
-| **Q7** | **Git remote** — where does this push? CI has never run. | T-00 | EL |
+| ~~**Q7**~~ | **Git remote. ANSWERED: `https://github.com/Elliotvness/Master-Rack.git`.** `main` is pushed and nine CI runs exist. T-00 stays open only because the branch **tip** is unpushed — the Linux workspace holds no credentials, so the push must run from Windows. | T-00 | EL |
 
 ---
 

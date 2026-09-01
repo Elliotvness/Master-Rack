@@ -1,10 +1,12 @@
-# Progress scoreboard — 2026-09-01
+# Progress scoreboard — 2026-09-01 (session 3)
 
 Derived from `tasks/todo.md`, which stays the source of truth for task detail. This file holds
 only the arithmetic and the ordering. Where a figure was re-measured today it says so; where it is
 the repository's own claim it says that instead.
 
-Measured on branch `fix/catalog-release-integrity` @ `6f05043`.
+Measured on branch `fix/catalog-release-integrity` @ **`ff63b87`** — **30 commits ahead of
+`main`**, **4 unpushed**. The session-2 scoreboard measured itself at `6f05043` (27 ahead, 1
+unpushed) and three commits landed after it, so its own tip figures were stale before it was read.
 
 ---
 
@@ -57,12 +59,13 @@ The procedure, so it is reproducible:
 
 ## The headline
 
-| Measure | Value | What it measures |
-|---|---|---|
-| **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **The blueprint's own definition of done. This is the answer to "how done is it".** |
-| Plan-task completion, effort-weighted | 18 of 143 pts — **12.6%** | Bookkeeping against `tasks/todo.md`. An upper bound — see the caveat below. |
-| Plan-task completion, task count | 6 of 43 — 14% | Same, unweighted |
-| Pre-merge review `R-01…R-11` | 8 of 11 — 73% | A sub-checklist of one branch, not the project. R-11 is only *partly* closed, and binary completion applies here too — the four drift items below are its remainder |
+| Measure | Value | Blueprint anchor | What it measures |
+|---|---|---|---|
+| **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
+| Plan-task completion, effort-weighted | 18 of 143 pts — **12.6%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
+| Plan-task completion, task count | 6 of 43 — 14% | Same, unweighted | Same |
+| Pre-merge review `R-01…R-11` | 8 of 11 — 73% | **§16.1** review gates | A sub-checklist of one branch, not the project. R-11 is only *partly* closed; the drift items below are its remainder |
+| Route surface vs the blueprint | 19 of 21 MVP-1 routes declared | **§8.2** (23 rows, 2 marked phase 2) | New this session. A *registry* figure, not a served one — nothing mounts it |
 
 These are not competing answers. **0% is the answer**; 12.6% is how much of the written plan has
 been executed. A reader who quotes 12.6% without §15.2 beside it is quoting the wrong number.
@@ -151,14 +154,15 @@ Re-measured by running commands against the working tree:
 
 | | |
 |---|---|
-| Branch | `fix/catalog-release-integrity` @ `6f05043`, **27 commits ahead of `main`**, **1 commit unpushed** |
+| Branch | `fix/catalog-release-integrity` @ `ff63b87`, **30 commits ahead of `main`**, **4 commits unpushed** (`6f05043`, `57eb7d4`, `aa4a9e7`, `ff63b87`) |
+| `main` | pushed and in sync with `origin/main` @ `0f1e7ac` |
 | Packages | 11 |
 | Test files | 44 (`*.test.ts`) |
 | Migrations | 8 (`0001`–`0008`) |
 | `.tsx` / `.jsx` / `.vue` / `.svelte` / `.astro` files | **0** |
 | Server entry point | **none** — no `fastify`, `express`, `koa`, `hono`, `node:http`, `.listen(` anywhere in `apps/` or `packages/` |
 | Front-end dependency | **none** — no `react`, no `vite` in any `package.json` |
-| Route table | **20 entries** in `apps/api/src/authz/routes.ts` (11 client, 8 internal, 1 public). Imported only by `authorize.test.ts` and the package index — **no router mounts it** |
+| Route table | **20 entries** in `apps/api/src/authz/routes.ts` (11 client, 8 internal, 1 public). Imported only by `authorize.test.ts` and the package index — **no router mounts it**. Diffed against §8.2 both ways this session: short two MVP-1 routes, carrying one phase-2 route — see drift 4 |
 | Git tags · `CHANGELOG.md` · Dependabot | none · none · none. `version` is `0.0.0` |
 | CI gates present | typecheck, lint, migrate, test, 8 self-tested checkers, coverage, bench, docs rebuild + `git diff --exit-code` |
 | CI gates absent | secret scanning, dependency audit, bundle-size ceiling, E2E |
@@ -168,24 +172,57 @@ Re-measured by running commands against the working tree:
 - **"1,042 tests passing" and "100% coverage on every pure package."** The suite could not be run:
   `node_modules` holds win32 native binaries and the available shell is Linux. Statically there are
   44 test files and ~875 `it(`/`test(` call sites.
-- **"CI green."** No CI run was queried. Three same-day documents disagree —
+- **"CI green."** Session 3 could read the Actions page unauthenticated: **nine workflow runs exist**
+  (one push to `main`, eight on PR #1). The per-run *conclusions* are not in the unauthenticated page
+  and the GitHub API returned 403, so **green is still a claim, not a measurement**. Three same-day
+  documents disagree —
   `review-findings` (07:31) says CI has *never* run; `catalog-release-approved` (09:21) says green
   on the previous head; `state-of-the-build` (10:12) says PR #1 green. The latest is taken as
   current, and it is a claim, not a measurement.
-- **Neither figure describes `6f05043`**, which is unpushed and has been tested by nothing.
+- **No figure describes `ff63b87`.** Four commits are unpushed, so nothing in CI has ever seen the
+  tip. `git push` from the bridge shell fails — no credentials — so this must run from Windows.
 
 ### Drift found while measuring
 
-1. `tasks/todo.md` checkboxes for T-01…T-04 are unchecked though the file's own header says those
-   tasks are complete.
-2. `tasks/plan.md`'s open-questions table still lists **Q1 (frontend framework) as open**; AD-6
-   closed it — Vite + React Router v7. Q7 (git remote) is also answered and still listed.
-3. The project doc `state-of-the-build-2026-09-01.md` names the current branch **`feat/contracts`**.
-   No such branch exists; the work is on `fix/catalog-release-integrity`.
-4. `tasks/todo.md` T-14 says **23 §8.2 routes**; the route table carries **20**.
+Session 2 found four. Session 3 re-measured them, **fixed five, and reclassified one** — the
+reclassified one was not documentation drift at all.
 
-All four are R-11 / T-10 work. This is the fifth consecutive session in which documentation drift
-was found by measurement — it is a recurring defect, not an accident.
+| # | Item | Status |
+|---|---|---|
+| 1 | `tasks/todo.md` checkboxes for T-01…T-04 unchecked though the file's own header says those tasks are complete | **Fixed** — 20 boxes ticked |
+| 2 | `tasks/plan.md` lists **Q1** (frontend framework) as open; AD-6 closed it — Vite + React Router v7. **Q7** (git remote) likewise | **Fixed** — and session 2's list was itself incomplete: **Q5** (who performs the catalog spot-check) was also still listed as open, and is answered. Three struck, not two |
+| 3 | Project doc `state-of-the-build-2026-09-01.md` names the branch **`feat/contracts`**; no such branch exists | **Fixed** in the project doc |
+| 4 | `tasks/todo.md` T-14 says **23 §8.2 routes**; the route table carries **20** | **Reclassified — see below** |
+| 5 | *(new)* This scoreboard's own tip figures — `6f05043`, 27 ahead, 1 unpushed — were stale on the day they were written | **Fixed** — `ff63b87`, 30 ahead, 4 unpushed |
+| 6 | *(new)* T-04's `DONE` block sat **below** the `## Phase 2` heading, and still said `interlake-2026-09` was back to DRAFT with nothing pinnable — superseded the same day by `eaeb8f0` / `a2f166e` | **Fixed** — moved under T-04, and the re-approval verified against the manifest on disk |
+
+**Drift 4 was not drift.** Both figures were accurate; the *classification* was wrong. Filed beside
+three doc-vs-reality typos and closed with "all four are R-11 / T-10 work", it read as documentation
+clean-up — which invited the fix of editing 23 down to 20. Re-derived from the blueprint this
+session and put through a fresh-context adversarial review (AD-7):
+
+- **§8.2 lists 23 rows.** Two are marked phase 2 by the blueprint itself
+  (`POST /api/internal/v1/submissions/:id/status`, `GET /api/internal/v1/audit`). A third row is
+  MVP-1 with only a *sub-feature* deferred (`GET /api/client/v1/submissions/:id`, "RFI thread is
+  phase 2") and stays in. **The MVP-1 surface is 21 — neither 23 nor 20.**
+- The registry carries 20, and the diff runs **both** ways: it omits `GET /api/client/v1/documents/:id`
+  (the signed watermarked-PDF URL that §15.2 step 6, `E-08` and `AC-16` depend on) and
+  `POST /api/internal/v1/revisions/:id/notes` (`E-05`), and it *carries* the phase-2 audit route.
+  Neither missing route has an `Action` in `authorize.ts`. Coverage: **19 of 21**.
+- The arithmetic coincidence that makes "20" look right — 23 minus the three rows containing the
+  string "phase 2" — selects a *different* twenty than the code has. It does not survive naming the
+  members.
+- **Consequence nobody had recorded:** because the documents route is absent from `ROUTES`, `AC-02`'s
+  leakage walk never enumerates the one client route that hands out a document URL. It is outside the
+  contract test **even at model level**.
+- This is unstarted T-14 implementation, not a doc to edit. Recorded in `todo.md` under T-14, and the
+  false "MVP-1 surface from blueprint §8.2" comment at `routes.ts` was corrected to say what the
+  table actually is.
+
+This is the **sixth** consecutive session in which drift was found by measurement — a recurring
+defect, not an accident. Note what the pattern cost here: session 2's remedy for drift 4, applied as written,
+would have *hidden* two missing MVP-1 routes by moving the target to meet the code. **The precedence
+rule earns its keep: the blueprint wins, and the scoreboard is what gets fixed.**
 
 ---
 
@@ -193,16 +230,21 @@ was found by measurement — it is a recurring defect, not an accident.
 
 ### Immediate — close the branch out (est. 1 session)
 
-1. **Push `6f05043`** and confirm CI green *on the tip*. Nothing in this repo has been verified at
-   its current commit.
-2. **R-10 — judge the commits as commits.** 27 commits is a long chain to review retrospectively
-   and it only gets longer. Includes the fair question of whether two RLS commits and a perf
+1. **Push `ff63b87`** (4 commits) and confirm CI green *on the tip*. Nothing in this repo has been
+   verified at its current commit. The bridge shell has no credentials — run it from Windows:
+   `git push origin fix/catalog-release-integrity`.
+2. **R-10 — judge the commits as commits.** **30** commits is a long chain to review
+   retrospectively and it only gets longer. Includes the fair question of whether two RLS commits and a perf
    harness belonged on a branch named for catalog release integrity.
 3. **R-08 — the catalog data reviewed as data**, independently of the test that asserts it.
 4. **Merge PR #1. Delete the branch.** It has lived far past the 1–3 day window a short-lived
    branch is supposed to occupy, and its name no longer describes its contents.
-5. **Fix the four drift items above in the same commit as the merge**, so the docs and the history
-   agree at one point in time. That closes **R-11**, taking the review to 9 of 11.
+5. ~~**Fix the four drift items above in the same commit as the merge.**~~ **Done in session 3, ahead
+   of the merge**, because the push was blocked and the fixes were not: drift 1, 2, 3, 5 and 6 are
+   corrected in the working tree, and drift 4 was reclassified as T-14 implementation and recorded
+   there. **R-11 is closed on the documentation, taking the review to 9 of 11** — but R-11's own
+   lesson is that a doc fix is only worth the measurement behind it, so re-measure before ticking it.
+   Carry these edits into the merge commit.
 
 ### Then — Checkpoint A, which was skipped
 
@@ -234,8 +276,9 @@ report a clean pass forever — the exact failure mode that produced F-06 and F-
 
 Gaps, in priority order:
 
-- **The tip is unverified.** One unpushed commit means the pipeline's guarantee does not cover the
-  code that exists. Fix first.
+- **The tip is unverified.** **Four** unpushed commits mean the pipeline's guarantee does not cover
+  the code that exists. Fix first — and note the gap grew from one commit to four in a single
+  session, which is the argument for pushing per task rather than per branch.
 - **Secret scanning (T-11)** and a **dependency audit** are absent. Both are one CI step each.
 - **No bundle ceiling (P-05).** Agree it *before* the first screen; a ceiling set after the bundle
   exists is one nobody meets.
@@ -262,7 +305,10 @@ that shape. So are the next three:
   the real router is F-02 again, one layer up.
 
 And the standing one: **AC-06 is still enforced against a model.** The 20-entry route table is
-asserted against no router because no router exists. T-15 is what converts it.
+asserted against no router because no router exists. T-15 is what converts it — and session 3 found
+the model itself is short: the table covers **19 of §8.2's 21 MVP-1 routes**, so `AC-02`'s leakage
+walk does not enumerate `GET /api/client/v1/documents/:id` at all. A control asserted against an
+incomplete model is the same defect shape one layer further back.
 
 ### Frontend UI engineering
 
@@ -285,8 +331,8 @@ Zero `.tsx` files, so every decision here is still free.
 
 ### Git workflow and versioning
 
-- **Merge the branch.** 27 commits, well past short-lived, and the name stopped describing the
-  contents around commit 12.
+- **Merge the branch.** **30** commits, well past short-lived, and the name stopped describing the
+  contents around commit 12. It grew by three while sitting unmerged.
 - **Push the tip.**
 - From Phase 2 on, **one short-lived branch per task**, merged within a day or two. The tasks are
   already sized for it.
@@ -306,4 +352,5 @@ Zero `.tsx` files, so every decision here is still free.
 | **Q4** | Backblaze B2 credentials + permission for the Governance-bucket proof | T-24 |
 | **Q6 / OD-20b** | External pilot client name | No code. Retires R-01, and P-04's real unit sizes |
 
-Q1, Q2, Q5 and Q7 are answered; `tasks/plan.md` has not caught up on Q1 and Q7.
+Q1, Q2, Q5 and Q7 are answered, and as of session 3 `tasks/plan.md` says so for all four — it had
+not caught up on Q1, Q5 **or** Q7 (session 2's drift list missed Q5).

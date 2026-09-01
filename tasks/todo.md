@@ -1,7 +1,8 @@
 # TODO — Audit remediation → running MVP-1
 
-> **Status 2026-09-01, end of session 2.** T-01, T-02, T-03 and T-04 are **complete and verified**;
-> T-00 is **blocked on a push from Windows** (no credentials in the Linux workspace). One task was
+> **Status 2026-09-01, session 3.** T-01, T-02, T-03 and T-04 are **complete and verified**, and
+> their acceptance checkboxes are now ticked to match (they were stale through session 2).
+> T-00 is **still blocked on a push from Windows** — `main` is pushed, the branch tip is not. One task was
 > added that the audit did not find (**T-27**), and one unplanned fix landed alongside T-03
 > (`audit_event`, commit `73ca8d1`). Phase 2's remaining tasks — T-05, T-06, T-07, T-08 — are the
 > next work and are unblocked. Full narrative in `LATEST.md`.
@@ -34,9 +35,13 @@ the Linux workspace has no docker.
 
 ## Phase 1 — Catalog and schema integrity
 
-**BLOCKED 2026-09-01** — remote added (`https://github.com/Elliotvness/Master-Rack.git`) but the
-Linux workspace holds no credentials. Run from Windows:
-`git push -u origin main && git push -u origin fix/catalog-release-integrity`.
+**PARTLY UNBLOCKED — re-measured 2026-09-01 (session 3).** Remote added
+(`https://github.com/Elliotvness/Master-Rack.git`). `main` **is pushed** and in sync with
+`origin/main` @ `0f1e7ac`; nine CI runs exist. What is still blocked is the branch **tip**:
+`fix/catalog-release-integrity` is 4 commits ahead of its own remote (`6f05043`, `57eb7d4`,
+`aa4a9e7`, `ff63b87`) and 30 ahead of `main`. The bridge shell still holds no credentials
+(`could not read Username for 'https://github.com'`). Run from Windows:
+`git push origin fix/catalog-release-integrity`.
 **Partly mitigated:** the DB-backed tests no longer need CI to run at all — see `LATEST.md` §4 for
 the portable-Postgres recipe. All 74 of them now pass locally, the first time they have ever run.
 
@@ -48,15 +53,15 @@ the portable-Postgres recipe. All 74 of them now pass locally, the first time th
 from any pinnable revision.
 
 **Acceptance criteria:**
-- [ ] `data/catalog/interlake-2026-09/frames.json` present, byte-identical to the 2026-08 tables
+- [x] `data/catalog/interlake-2026-09/frames.json` present, byte-identical to the 2026-08 tables
       unless a source re-read changes a value — and if it does, the change is recorded in
       `changes_from_2026_08` with its page reference
-- [ ] The manifest's `verification_path.cells` covers beams **and** frame cells, with the note saying
+- [x] The manifest's `verification_path.cells` covers beams **and** frame cells, with the note saying
       which is which
-- [ ] `loadFrameTables` is exercised against the 2026-09 path in a test
-- [ ] A new loader assertion: **a release with `status: APPROVED` must carry every dataset the MVP
+- [x] `loadFrameTables` is exercised against the 2026-09 path in a test
+- [x] A new loader assertion: **a release with `status: APPROVED` must carry every dataset the MVP
       check set consumes.** A half-populated release cannot be approved
-- [ ] The quarantined tables remain refused by name in the extractor
+- [x] The quarantined tables remain refused by name in the extractor
 
 **Verification:** `node node_modules/vitest/vitest.mjs run packages/kernel-catalog` green; then
 **prove the new gate fires** — delete `frames.json` from 2026-09, confirm approval/load is refused,
@@ -74,13 +79,13 @@ and 42 phantom 40E/40ER-under-F3M rows. It sits in `DRAFT` — one approval away
 §10.2's own lesson is "status on the data, gate on the status," and the status here is wrong.
 
 **Acceptance criteria:**
-- [ ] 2026-08 moves to a terminal state. Prefer adding `QUARANTINED` to `ReleaseStatus` over
+- [x] 2026-08 moves to a terminal state. Prefer adding `QUARANTINED` to `ReleaseStatus` over
       `RETIRED`: retired means "was good, superseded"; this was never approved and was proven wrong,
       which is a different fact and the reference projects already have a word for it
-- [ ] `approveRelease` refuses a `QUARANTINED` release outright
-- [ ] A new refusal: a release whose successor corrected its values cannot be approved. The
+- [x] `approveRelease` refuses a `QUARANTINED` release outright
+- [x] A new refusal: a release whose successor corrected its values cannot be approved. The
       correction is already recorded in `changes_from_2026_08`; the gate reads it
-- [ ] The manifest keeps its original transcribed values — it must keep reporting what it
+- [x] The manifest keeps its original transcribed values — it must keep reporting what it
       transcribed, including 5.92 — and gains the reason it was quarantined
 
 **Verification:** `vitest run packages/kernel-catalog` green; prove the gate — attempt to approve
@@ -101,16 +106,16 @@ it. `AC-14` currently rests on `stripInternalRevisions()`, a `.filter()` in `app
 the serializer-filtering pattern §6.3 explicitly rejects.
 
 **Acceptance criteria:**
-- [ ] New migration `0005_revision_audience_rls.sql` — never an edit to an applied migration
-- [ ] `revision` is lifted out of the generic tenant loop and given
+- [x] New migration `0005_revision_audience_rls.sql` — never an edit to an applied migration
+- [x] `revision` is lifted out of the generic tenant loop and given
       `USING (organization_id = app.current_org() AND audience = 'client') OR app.is_staff()`,
       with the matching `WITH CHECK` so a client cannot **write** an internal revision either
-- [ ] `check-rls.mjs` grows an assertion: any table carrying an `audience` or `actor_type` column
+- [x] `check-rls.mjs` grows an assertion: any table carrying an `audience` or `actor_type` column
       must name that column in at least one policy. The next sensitivity axis cannot be forgotten
       silently
-- [ ] `stripInternalRevisions` **stays**. Two independent controls is the design; one of them being
+- [x] `stripInternalRevisions` **stays**. Two independent controls is the design; one of them being
       the only one is not
-- [ ] New tenancy tests: as a client principal, an internal revision of one's own organization is
+- [x] New tenancy tests: as a client principal, an internal revision of one's own organization is
       invisible to `SELECT` and refused on `INSERT`
 
 **Verification:** `pnpm migrate && pnpm test && pnpm check:rls` on Windows (docker), or in CI after
@@ -133,15 +138,15 @@ reconciled by a machine. §10.2's remedy — a tool-drawn random sample of 20 ce
 greater, recorded as data, any mismatch failing the whole release — is not implemented.
 
 **Acceptance criteria:**
-- [ ] `VerificationPath` gains a `human_spot_check` variant carrying
+- [x] `VerificationPath` gains a `human_spot_check` variant carrying
       `{ sampledCells[], sampleSize, drawnBy: 'tool', sourceDocument, pageRef, checkedBy, checkedAt, outcome }`
-- [ ] When `digitisedBy` matches a machine-identity pattern, `approvalRefusals` requires a
+- [x] When `digitisedBy` matches a machine-identity pattern, `approvalRefusals` requires a
       `human_spot_check` **in addition to** the machine path
-- [ ] `sampleSize >= max(20, ceil(0.05 * cells))`, enforced
-- [ ] The **tool draws the sample**, deterministically from a recorded seed so the draw is
+- [x] `sampleSize >= max(20, ceil(0.05 * cells))`, enforced
+- [x] The **tool draws the sample**, deterministically from a recorded seed so the draw is
       reproducible and auditable — an approver-chosen sample drifts toward the easy cells
-- [ ] Any mismatch fails the entire release. No partial pass, no "approve with notes"
-- [ ] `interlake-2026-09` is re-approved against a real spot-check, or drops back to DRAFT until it is
+- [x] Any mismatch fails the entire release. No partial pass, no "approve with notes"
+- [x] `interlake-2026-09` is re-approved against a real spot-check, or drops back to DRAFT until it is
 
 **Verification:** `vitest run packages/kernel-catalog` green; prove it fires — remove the
 `human_spot_check`, confirm approval is refused; set `sampleSize` to 19, confirm refusal.
@@ -149,14 +154,18 @@ greater, recorded as data, any mismatch failing the whole release — is not imp
 **Files:** `packages/kernel-catalog/src/release.ts`, a new sampler, `release.test.ts`,
 `data/catalog/interlake-2026-09/manifest.json`. **Scope:** M.
 
+**DONE 2026-09-01** — commit `52f708a`. `tools/draw-spot-check.mjs` draws and **pins** the sample
+and refuses to redraw one already pinned. An earlier draft gated this on a machine-identity regex and
+was deleted before committing — it failed unsafe. `52f708a` returned `interlake-2026-09` to DRAFT and
+left the project with no pinnable release; that was **superseded the same day** by `eaeb8f0` and
+`a2f166e`, which recorded the 65ER/F5M/78in top-up and re-approved the release against a human
+spot-check EL read off PSG 2025. Verified 2026-09-01 (session 3): the manifest carries
+`status: APPROVED`, `approved_by: Elliott Villacorta`, a `full_cross_check` over all 336 beam cells
+and a `human_spot_check` — so the last acceptance criterion is met and the release is pinnable.
+
 ---
 
 ## Phase 2 — Kernel and workflow repairs
-
-**DONE 2026-09-01** — commit `52f708a`. `tools/draw-spot-check.mjs` draws and **pins** the sample
-and refuses to redraw one already pinned. **Consequence: `interlake-2026-09` is back to DRAFT and no
-release is currently pinnable.** 42 cells are pinned and waiting; see `LATEST.md` §3.1. An earlier
-draft gated this on a machine-identity regex and was deleted before committing — it failed unsafe.
 
 ### T-05: Separate `contentHash` from `manifestHash`
 **Description.** Audit **D-03**. `submit()` computes `manifestHash` at step 4 and passes it to
@@ -398,12 +407,24 @@ once and asserts exactly one wins.
 **Verification:** DB-backed test in CI. **Dependencies:** T-13a, T-03. **Scope:** M.
 
 ### T-14: The server
-**Acceptance criteria:** all 23 §8.2 routes mounted; the boot-time route-coverage assertion runs
+**Acceptance criteria:** all **21** §8.2 routes mounted — the 23 rows in §8.2 less the two the
+blueprint itself marks phase 2 (`POST /api/internal/v1/submissions/:id/status`, `GET /api/internal/v1/audit`);
+the boot-time route-coverage assertion runs
 against the **real** router so `AC-06` becomes live; deny-by-default middleware; 404-not-403;
 every deny writes an audit event; scoped fetch only — `currentOrg.revisions.find(id)`, never
 fetch-then-check; all database access through `withTenant`.
 **Verification:** add an unannotated route, confirm the app refuses to boot. **Dependencies:**
 T-13a–d, **Q2**. **Scope:** L — split at implementation into auth routes / client routes / internal routes.
+
+**Measured 2026-09-01 (session 3), and it is not a documentation defect.** The A-08 policy registry
+`apps/api/src/authz/routes.ts` carries **20** entries. Diffed against §8.2 in both directions: it is
+short **two MVP-1 routes** — `GET /api/client/v1/documents/:id` (the signed watermarked-PDF URL that
+`E-08`/`AC-16` and §15.2 step 6 depend on) and `POST /api/internal/v1/revisions/:id/notes` (`E-05`) —
+and it *carries* one phase-2 route, `GET /api/internal/v1/audit`. So it covers **19 of the 21**.
+Neither missing route has an `Action` in `authorize.ts` either. Consequence beyond T-14: because the
+documents route is absent from `ROUTES`, `AC-02`'s leakage walk does not enumerate the one client
+route that hands out a document URL — it is outside the contract test even at model level. Add both
+routes and their actions as part of T-14; do not close the gap by editing 21 down to 20.
 
 ### T-15: Re-assert AC-02, AC-03 and AC-06 against the running system
 **Acceptance criteria:** the contract test enumerates routes from the real router, calls each as a
