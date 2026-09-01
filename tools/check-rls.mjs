@@ -23,6 +23,8 @@
  *     read, so INSERT (WITH CHECK) is checked separately from SELECT.
  */
 
+import { sep } from 'node:path';
+
 import pg from 'pg';
 
 const CONNECTION =
@@ -93,6 +95,61 @@ const SENSITIVITY_EXEMPTIONS = {
 // pg_policy.polcmd: r=SELECT, a=INSERT, w=UPDATE, d=DELETE, *=ALL
 const CMD = { r: 'SELECT', a: 'INSERT', w: 'UPDATE', d: 'DELETE' };
 
+/**
+ * Every sensitivity column that no policy on its table mentions, plus every
+ * exemption that no longer names a real column.
+ *
+ * Exported and PURE so `selftest-rls.mjs` can prove it still catches things
+ * without a database. Every other checker here is shaped this way, and the
+ * reason is the one selftest-boundaries states: a checker that silently stopped
+ * working reports a clean pass forever, which is worse than no checker at all.
+ *
+ * @param {{table_name: string, column_name: string}[]} sensitiveColumns
+ * @param {{table_name: string, using_expr: string, check_expr: string}[]} policyExprs
+ * @param {Record<string, Record<string, string>>} exemptions
+ * @returns {string[]}
+ */
+export function sensitivityViolations(sensitiveColumns, policyExprs, exemptions) {
+  const violations = [];
+
+  const exprsByTable = new Map();
+  for (const row of policyExprs) {
+    if (!exprsByTable.has(row.table_name)) exprsByTable.set(row.table_name, []);
+    exprsByTable.get(row.table_name).push(`${row.using_expr} ${row.check_expr}`);
+  }
+
+  for (const { table_name, column_name } of sensitiveColumns) {
+    if (exemptions[table_name]?.[column_name] !== undefined) continue;
+    const exprs = exprsByTable.get(table_name) ?? [];
+    const mentioned = exprs.some((e) => new RegExp(`\\b${column_name}\\b`).test(e));
+    if (!mentioned) {
+      violations.push(
+        `app.${table_name}: column '${column_name}' is a sensitivity axis and is named in no ` +
+          'policy. Tenancy and audience are orthogonal — an organization predicate alone ' +
+          'returns rows of the wrong audience to the tenant that owns them (D-02).',
+      );
+    }
+  }
+
+  // An exemption for a column that no longer exists is a justification for
+  // nothing, still being honoured. It outlives its reason silently, which is
+  // the same failure mode the exemption list was written to avoid.
+  const present = new Set(sensitiveColumns.map((c) => `${c.table_name}.${c.column_name}`));
+  for (const [table, columns] of Object.entries(exemptions)) {
+    for (const column of Object.keys(columns)) {
+      if (!present.has(`${table}.${column}`)) {
+        violations.push(
+          `SENSITIVITY_EXEMPTIONS names app.${table}.${column}, which no longer exists. ` +
+            'Remove the exemption — a justification for a column that is gone is not evidence ' +
+            'about the schema as it now stands.',
+        );
+      }
+    }
+  }
+
+  return violations;
+}
+
 async function main() {
   const client = new pg.Client({ connectionString: CONNECTION });
   await client.connect();
@@ -140,24 +197,9 @@ async function main() {
        WHERE n.nspname = 'app'
     `);
 
-    const exprsByTable = new Map();
-    for (const row of policyExprs) {
-      if (!exprsByTable.has(row.table_name)) exprsByTable.set(row.table_name, []);
-      exprsByTable.get(row.table_name).push(`${row.using_expr} ${row.check_expr}`);
-    }
-
-    for (const { table_name, column_name } of sensitiveColumns) {
-      if (SENSITIVITY_EXEMPTIONS[table_name]?.[column_name] !== undefined) continue;
-      const exprs = exprsByTable.get(table_name) ?? [];
-      const mentioned = exprs.some((e) => new RegExp(`\\b${column_name}\\b`).test(e));
-      if (!mentioned) {
-        violations.push(
-          `app.${table_name}: column '${column_name}' is a sensitivity axis and is named in no ` +
-            'policy. Tenancy and audience are orthogonal — an organization predicate alone ' +
-            'returns rows of the wrong audience to the tenant that owns them (D-02).',
-        );
-      }
-    }
+    violations.push(
+      ...sensitivityViolations(sensitiveColumns, policyExprs, SENSITIVITY_EXEMPTIONS),
+    );
 
     const byTable = new Map();
     for (const row of policies) {
@@ -238,4 +280,13 @@ async function main() {
   }
 }
 
-await main();
+// Same guard as check-boundaries.mjs: importing this module for its pure
+// helpers must not open a database connection. Without it, selftest-rls cannot
+// run without a Postgres, and a self-test that needs the thing it is testing
+// against is not much of a self-test.
+if (
+  import.meta.url === `file://${process.argv[1]?.split(sep).join('/')}` ||
+  process.argv[1]?.endsWith('check-rls.mjs')
+) {
+  await main();
+}

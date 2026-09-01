@@ -24,13 +24,14 @@
     "db:down": "docker compose down",
     "migrate": "node tools/migrate.mjs",
     "check:rls": "node tools/check-rls.mjs",
+    "check:rls:selftest": "node tools/selftest-rls.mjs",
     "check:determinism": "node tools/check-determinism.mjs",
     "check:determinism:selftest": "node tools/selftest-determinism.mjs",
     "check:determinism:update": "node tools/check-determinism.mjs --update",
     "check:language": "node tools/check-language.mjs",
     "check:language:selftest": "node tools/selftest-language.mjs",
     "check:docs": "python src/build.py",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:boundaries:selftest && pnpm check:boundaries && pnpm check:apps:selftest && pnpm check:apps && pnpm lint:provenance:selftest && pnpm lint:provenance && pnpm check:language:selftest && pnpm check:language && pnpm check:rls && pnpm check:determinism:selftest && pnpm check:determinism",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:boundaries:selftest && pnpm check:boundaries && pnpm check:apps:selftest && pnpm check:apps && pnpm lint:provenance:selftest && pnpm lint:provenance && pnpm check:language:selftest && pnpm check:language && pnpm check:rls:selftest && pnpm check:rls && pnpm check:determinism:selftest && pnpm check:determinism",
     "clean": "tsc --build --clean"
   },
   "devDependencies": {
