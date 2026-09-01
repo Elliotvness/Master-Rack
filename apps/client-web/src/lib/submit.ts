@@ -7,7 +7,8 @@
  *   1. Re-derive FROM SCRATCH, never from cached derived rows.
  *   2. Refuse if any BLOCKER is open, listing EVERY reason.
  *   3. Record the client's acknowledgement of the assumption register.
- *   4. Serialise the manifest as canonical JSON and hash it.
+ *   4. Serialise as canonical JSON and hash: the CONTENT (§7.4) and the
+ *      MANIFEST (§13.2). Two hashes, two jobs — see step 4 in the body.
  *   5. Freeze the revision; write frozen_at and content_hash.
  *   6. Persist derived rows keyed to that hash.
  *   7. Create the submission with this_hash = SHA-256(prev ‖ manifest ‖ meta).
@@ -77,7 +78,23 @@ export interface SubmitInput {
 export interface Derivation {
   readonly findings: readonly ClientFinding[];
   readonly assumptions: readonly string[];
-  /** Canonical JSON of the manifest content. */
+  /**
+   * Canonical JSON of the revision's CONTENT ONLY, with `NON_CONTENT_FIELDS`
+   * already excluded by `kernel-model`'s canonical serialiser.
+   *
+   * This is what §7.4's hash covers, and the exclusion list is asserted as data
+   * in `kernel-model/src/canonical.test.ts` so what the hash covers is a fact
+   * anyone can read rather than a convention buried in a function.
+   */
+  readonly contentJson: string;
+  /**
+   * Canonical JSON of the submission manifest — §13.2, which deliberately
+   * covers lineage, actor, timestamp, pins, derived output and BOM.
+   *
+   * Strictly more than the content. Two revisions that are the same thing have
+   * the same `contentJson` and different `manifestJson`, which is the whole
+   * reason these are two fields and not one.
+   */
   readonly manifestJson: string;
 }
 
@@ -90,16 +107,30 @@ export interface Derivation {
 export interface SubmitEffects {
   /** Step 1. MUST re-run the kernel; never returns cached rows. */
   rederive(revisionId: string): Promise<Derivation>;
-  /** Step 4. */
+  /**
+   * Step 4. Called TWICE — once over the content, once over the manifest.
+   *
+   * One hashing effect, two inputs, because the difference that matters is
+   * *what is hashed*, not how. An implementation that ignores its argument
+   * would make the two hashes equal, which is exactly the defect D-03 found,
+   * so the tests inject a hash that depends on its input.
+   */
   hash(canonicalJson: string): Promise<string>;
-  /** Step 5. */
+  /** Step 5. Receives the CONTENT hash — §13.1 step 5 writes `content_hash`. */
   freezeRevision(revisionId: string, contentHash: string, at: string): Promise<void>;
-  /** Step 6. */
+  /** Step 6. Derived rows are keyed to the CONTENT hash, per §7.2. */
   persistDerived(contentHash: string, derivation: Derivation): Promise<void>;
-  /** Step 7. Returns the chained hash. */
+  /**
+   * Step 7. Returns the chained hash.
+   *
+   * The MANIFEST hash lives on the `submission` row, where §7.2 puts it. The
+   * content hash is passed too, so the row records which frozen content it
+   * was taken from without having to re-derive it.
+   */
   createSubmission(input: {
     readonly revisionId: string;
     readonly manifestHash: string;
+    readonly contentHash: string;
     readonly at: string;
   }): Promise<string>;
   /** Step 8. */
@@ -109,6 +140,9 @@ export interface SubmitEffects {
 }
 
 export interface SubmitResult {
+  /** §7.4 — content only. Answers "did this edit change anything?". */
+  readonly contentHash: string;
+  /** §13.2 — lineage, actor, time, pins, derived output and BOM. */
   readonly manifestHash: string;
   readonly submissionHash: string;
   readonly stepsCompleted: readonly SubmitStep[];
@@ -177,26 +211,46 @@ export async function submit(
   // 3. Record the acknowledgement.
   completed.push('record_acknowledgement');
 
-  // 4. Serialise and hash the manifest.
+  // 4. Serialise and hash. TWO hashes, because they answer two questions:
+  //    the content hash (§7.4) answers "did this edit change anything?" and is
+  //    what makes identical content hash identically; the manifest hash (§13.2)
+  //    deliberately covers lineage, actor, timestamp, pins, derived output and
+  //    BOM, so it differs even when the content does not.
+  //
+  //    They were conflated until D-03: the manifest hash was passed as the
+  //    content hash, which broke the edit check, the artifact cache key and
+  //    AC-14's assertion — and every test still passed, because the wrong value
+  //    was computed reproducibly. A reproducible wrong answer is invisible to
+  //    every gate that only checks reproducibility.
+  const contentHash = await effects.hash(derivation.contentJson);
   const manifestHash = await effects.hash(derivation.manifestJson);
+  if (contentHash.trim() === '') {
+    throw new SubmitError('hash_manifest', ['the content hash was empty']);
+  }
   if (manifestHash.trim() === '') {
     throw new SubmitError('hash_manifest', ['the manifest hash was empty']);
   }
   completed.push('hash_manifest');
 
-  // 5. Freeze BEFORE persisting derived rows: the rows are keyed to this hash,
-  //    so the hash must be final first.
-  await effects.freezeRevision(input.revisionId, manifestHash, input.submittedAt);
+  // 5. Freeze BEFORE persisting derived rows: the rows are keyed to the CONTENT
+  //    hash, so that hash must be final first. §13.1 step 5 writes frozen_at and
+  //    content_hash — the manifest hash belongs on the submission row, step 7.
+  await effects.freezeRevision(input.revisionId, contentHash, input.submittedAt);
   completed.push('freeze_revision');
 
-  // 6. Persist the derived rows against the frozen hash.
-  await effects.persistDerived(manifestHash, derivation);
+  // 6. Persist the derived rows against the frozen CONTENT hash. Keying them to
+  //    the manifest hash would mean two revisions with identical content could
+  //    not share derived output, and that regenerating the BOM from the revision
+  //    alone (AC-12) would look like a change.
+  await effects.persistDerived(contentHash, derivation);
   completed.push('persist_derived');
 
-  // 7. Create the submission, chaining from the previous head.
+  // 7. Create the submission, chaining from the previous head. The manifest hash
+  //    is the one that lands on the submission row.
   const submissionHash = await effects.createSubmission({
     revisionId: input.revisionId,
     manifestHash,
+    contentHash,
     at: input.submittedAt,
   });
   completed.push('create_submission');
@@ -218,6 +272,7 @@ export async function submit(
   completed.push('enqueue_outbox');
 
   return Object.freeze({
+    contentHash,
     manifestHash,
     submissionHash,
     stepsCompleted: Object.freeze(completed),

@@ -184,19 +184,45 @@ deliberately covers lineage, actor, timestamp, pins, derived output and BOM. Con
 because the wrong value is computed reproducibly — which is why no existing gate can see it.
 
 **Acceptance criteria:**
-- [ ] A `contentHash(revision)` effect, computed by `kernel-model`'s canonical serialiser over
+- [x] A `contentHash(revision)` effect, computed by `kernel-model`'s canonical serialiser over
       content only, using the existing documented exclusion list
-- [ ] `freezeRevision` receives the **content** hash; the manifest hash is persisted on the
+- [x] `freezeRevision` receives the **content** hash; the manifest hash is persisted on the
       `submission` row where §7.2 puts it
-- [ ] Derived rows are keyed to the content hash
-- [ ] **The test that would have caught this:** two revisions, identical content, different author and
+- [x] Derived rows are keyed to the content hash
+- [x] **The test that would have caught this:** two revisions, identical content, different author and
       timestamp ⇒ *same* `contentHash`, *different* `manifestHash`
-- [ ] The exclusion list is asserted as data, per §7.4
+- [x] The exclusion list is asserted as data, per §7.4
 
 **Verification:** `vitest run packages/kernel-model apps/client-web` green; the new test red against
 the current code first.
 **Dependencies:** None. **Files:** `packages/kernel-model/src/canonical.ts` (likely unchanged),
 `apps/client-web/src/lib/submit.ts`, `submit.test.ts`. **Scope:** S.
+
+**DONE 2026-09-01 (session 3)** — branch `task/t-05-content-hash`, the first task under the
+one-branch-per-task rule. Written test-first: the three new cases were **red against the current
+code** (3 failed / 135 passed) before a line of `submit.ts` changed, and green after
+(138 passed in `apps/client-web`; **1,084 passed / 1,084** across the whole suite).
+
+`Derivation` now carries `contentJson` alongside `manifestJson`, step 4 hashes **both**,
+`freezeRevision` and `persistDerived` receive the **content** hash, and `createSubmission` carries
+the manifest hash — which is where the schema already put it: `revision.content_hash` at
+`0001_init.sql:201` and `submission.manifest_hash` at `:338`. The schema was right all along; the
+orchestration passed the wrong value into it.
+
+**The last acceptance criterion was already met and is recorded rather than duplicated:** the
+exclusion list is asserted as data at `packages/kernel-model/src/canonical.test.ts:96`, which reads
+`[...NON_CONTENT_FIELDS].sort()` against the eight named fields.
+
+**One honest limit.** No production code supplies a `Derivation` yet — `rederive` is an injected
+effect with no implementation, because there is no server. So `contentJson` being produced by
+`kernel-model`'s canonical serialiser is a **contract stated in the type**, not yet a wired call.
+`kernel-model` already exports the `contentHash()` that applies the list; connecting them is T-14's
+work, and T-14 should be read as owing that wiring.
+
+**A test-double lesson worth keeping.** The first draft of the two-revisions test used a
+length-based hash stub, and it passed while hashing two different manifests identically — the stub
+reproduced the very defect under test. A double has to be at least as discriminating as the thing it
+stands in for.
 
 ### T-06: Actually record the assumption acknowledgement
 **Description.** Audit **D-04**. Step 3 `record_acknowledgement` pushes a label onto `stepsCompleted`
