@@ -171,12 +171,15 @@ export function spotCheckRefusals(
       expected.every((id, i) => id === check.sampledCells[i]);
     if (!same) {
       const strays = check.sampledCells.filter((id) => !cellIds.includes(id));
+      // Destructured rather than indexed, so the message has one branch on
+      // "is there a stray" instead of two — a `strays[0] ?? ''` fallback inside
+      // a `strays.length > 0` guard is a branch no input can reach.
+      const [stray] = strays;
       reasons.push(
         `the spot-check of '${check.dataset}' does not match the draw for seed ${check.seed}; ` +
-          (strays.length > 0
-            ? `${strays.length} of the recorded cells are not in the dataset at all ` +
-              `(e.g. '${strays[0] ?? ''}')`
-            : 'the recorded cells are real but are not the ones the tool drew') +
+          (stray === undefined
+            ? 'the recorded cells are real but are not the ones the tool drew'
+            : `${strays.length} of the recorded cells are not in the dataset at all (e.g. '${stray}')`) +
           '. A sample the approver chose is not a random sample',
       );
     }

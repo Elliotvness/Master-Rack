@@ -98,6 +98,12 @@ jobs:
       - name: Language discipline check
         run: pnpm check:language
 
+      - name: Spot-check draw agreement (tool vs kernel)
+        run: pnpm check:draw:selftest
+
+      - name: RLS sensitivity checker self-test
+        run: pnpm check:rls:selftest
+
       - name: RLS coverage assertion
         run: pnpm check:rls
 

@@ -349,6 +349,24 @@ describe('the draw is reproducible, and the tool makes it', () => {
  * That is the same failure D-07 named one layer down: a record of verification
  * standing in for the verification.
  */
+describe('a quarantined release is refused whether or not it says why', () => {
+  it('names the reason when there is one', () => {
+    const q = manifest({ status: 'QUARANTINED', quarantineReason: '264 capacities are wrong' });
+    expect(() => approveRelease(q, 'Elliott Villacorta', '2026-09-01', cells())).toThrow(
+      /264 capacities are wrong/,
+    );
+  });
+
+  it('still refuses when the reason is missing', () => {
+    // quarantineRelease() cannot produce this — it demands a reason — but a
+    // hand-edited manifest can, and the refusal must not depend on the prose.
+    const q = manifest({ status: 'QUARANTINED', quarantineReason: null });
+    expect(() => approveRelease(q, 'Elliott Villacorta', '2026-09-01', cells())).toThrow(
+      /a QUARANTINED release may never be approved/,
+    );
+  });
+});
+
 describe('§10.2 — the approver read the cells the tool drew', () => {
   function withSpotCheck(check: Partial<HumanSpotCheck>): CatalogReleaseManifest {
     const base = spotCheck('beams', 336);
@@ -408,6 +426,23 @@ describe('§10.2 — the approver read the cells the tool drew', () => {
     const reasons = approvalRefusals(manifest(), 'Elliott Villacorta', new Map());
     expect(reasons.some((r) => r.includes("cell ids were not supplied"))).toBe(true);
     expect(reasons.some((r) => r.includes("'frames'"))).toBe(true);
+  });
+
+  it('refuses when the dataset itself contains a repeated cell id', () => {
+    // Not the approver's fault. But a draw over a list with a repeated id is
+    // undefined — one reading would stand for two cells — so nothing derived
+    // from it can be verified either.
+    const dupes = [...ids('beams', 335), 'beams-cell-0'];
+    const m = manifest();
+    const reasons = approvalRefusals(
+      m,
+      'Elliott Villacorta',
+      new Map([
+        ['beams', dupes],
+        ['frames', ids('frames', 435)],
+      ]),
+    );
+    expect(reasons.some((r) => r.includes('contains a repeated cell id'))).toBe(true);
   });
 
   it('accepts the honest record — the gate is not merely refusing everything', () => {
