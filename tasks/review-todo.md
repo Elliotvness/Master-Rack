@@ -331,11 +331,11 @@ branch's numbers are the branch's own and CI has never executed.
 - [ ] `packages/*/tsconfig.json` excluding tests from `tsc` (filed as T-27) is confirmed still true
       and confirmed not to hide a type error in any test file this branch added — run `tsc` over the
       test files once, by hand
-- [ ] Coverage on `kernel-catalog` re-measured; 100% statements/branches or the real figure recorded
+- [x] Coverage on `kernel-catalog` re-measured; 100% statements/branches or the real figure recorded
 
 **Verification:**
 - [ ] `pnpm verify` output pasted into `tasks/review-findings.md`
-- [ ] `pnpm coverage` output for `kernel-catalog` recorded
+- [x] `pnpm coverage` output for `kernel-catalog` recorded
 - [ ] `npx tsc --noEmit packages/kernel-catalog/src/*.test.ts` — record what it says
 
 **Dependencies:** Checkpoints A, B, C. **Size:** S (no source changes). **Files:** none — output only.
