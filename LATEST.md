@@ -97,38 +97,73 @@ call and should be reverted — but AC-14 and that cannot both hold. Flagged for
 
 ---
 
-## 4. The workspace can now run the database tests
+## 4. Running the tests, and the figure that was wrong
 
-This is new and worth keeping. The 71 DB-backed tests had **never executed anywhere** — no docker in
-the Linux workspace, no CI remote. A portable Postgres solves it:
+**Superseded 2026-09-01 (session 3).** The recipe that used to live here — `embedded-postgres`
+18.4, plus dropping `@esbuild/linux-x64` and `@rollup/rollup-linux-x64-gnu` into a Windows
+`node_modules` — existed because nothing better was available. Something better is available. It is
+kept below only as a footnote, because it still works if you are driving the Windows checkout
+directly.
+
+**Use this instead.** A clean clone in a Linux workspace with network, which installs its own
+dependencies for its own platform and needs no binary surgery — and against **native PostgreSQL
+16**, which is the major version CI pins rather than the 18.4 the embedded package produces:
+
+```bash
+git clone https://github.com/Elliotvness/Master-Rack.git && cd Master-Rack
+pnpm install --frozen-lockfile                       # ~10 s, no platform patching
+
+su postgres -c "/usr/lib/postgresql/16/bin/initdb -D /tmp/pg16 -U postgres --auth=trust --pwfile=/tmp/pgpw"
+su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /tmp/pg16 \
+  -o '-p 55432 -k /tmp/pgsock -c listen_addresses=127.0.0.1' -l /tmp/pg.log start"
+psql -h 127.0.0.1 -p 55432 -U postgres -c 'create database rms;'
+
+export DATABASE_ADMIN_URL='postgresql://postgres:postgres@127.0.0.1:55432/rms'
+export DATABASE_URL='postgresql://app_user:app_user_dev_only@127.0.0.1:55432/rms'
+node tools/migrate.mjs && pnpm test && node tools/check-rls.mjs
+```
+
+`initdb` refuses to run as root, hence `su postgres`. The daemon survives between shell
+invocations, so unlike the old recipe it does not have to be started in the same command as the
+tests.
+
+**Measured 2026-09-01 with exactly that:**
+
+| | |
+|---|---|
+| `pnpm test` with the database | **44 files, 1,081 tests, 0 skipped** |
+| `pnpm test` without it | 42 files, 1,014 passed, **67 skipped** — `tenancy` (41), `auth.db` (12), `chain.db` (8), `outbox.db` (6) |
+| `node tools/migrate.mjs` | 8 migrations applied to Postgres 16.13 |
+| `node tools/check-rls.mjs` | **PASS** — 19 tables, 8 sensitivity columns |
+| `pnpm typecheck` · `pnpm lint` | exit 0 |
+
+**And the figure this document has been repeating is wrong.** "1,042 tests passing" appears
+throughout the handoff trail. It is **1,081** — and after `T-05` landed, 1,084. The scoreboard was
+right to carry 1,042 as an unverified repository claim; it is now measured, and it did not survive
+the measurement. Quote 1,081 as of `dab5a8e`, and re-run rather than re-read it.
+
+<details>
+<summary>Superseded: the embedded-postgres recipe, for a Windows checkout</summary>
 
 ```bash
 cd /tmp && mkdir pgtest && cd pgtest && npm i embedded-postgres
 node -e "import('embedded-postgres').then(async({default:P})=>{const p=new P({databaseDir:'/tmp/pgtest/data',user:'postgres',password:'postgres',port:55432,persistent:true});await p.initialise();await p.start();await p.createDatabase('rms');})"
 ```
 
-Then, **in the same shell invocation** (each `device_bash` call is a fresh shell, so a backgrounded
-daemon dies with it):
+Then **in the same shell invocation**, because a backgrounded daemon dies with the shell:
 
 ```bash
 PGBIN=/tmp/pgtest/node_modules/@embedded-postgres/linux-x64/native/bin
 $PGBIN/postgres -D /tmp/pgtest/data -p 55432 -k /tmp/pgtest > /tmp/pgtest/pg.log 2>&1 &
 for i in $(seq 1 25); do sleep 1; grep -q "ready to accept" /tmp/pgtest/pg.log && break; done
-export DATABASE_ADMIN_URL='postgresql://postgres:postgres@127.0.0.1:55432/rms'
-export DATABASE_URL='postgresql://app_user:app_user_dev_only@127.0.0.1:55432/rms'
-node tools/migrate.mjs && node tools/check-rls.mjs
 ```
 
-The data directory persists between calls even though the process does not. **Caveat:** this is
-Postgres **18.4**; CI pins **16**. RLS semantics are stable across both, but CI remains the
-authority.
+This is Postgres **18.4** where CI pins **16**. It also needed `@esbuild/linux-x64` and
+`@rollup/rollup-linux-x64-gnu` dropped into a Windows `node_modules/.pnpm/`, which a `pnpm install`
+then clears — a workaround that had to be repeated after every install. Both problems disappear with
+a clean clone.
 
-**Also required in the Linux workspace:** `node_modules` is a Windows install, so vitest needs
-`@esbuild/linux-x64` and `@rollup/rollup-linux-x64-gnu` dropped into `node_modules/.pnpm/`.
-Neither `package.json` nor the lockfile was touched; a `pnpm install` clears them.
-
-The mount is slow — budget ~20 s of startup per vitest invocation and run in chunks; the full suite
-exceeds the 120 s shell limit in one go.
+</details>
 
 ---
 
