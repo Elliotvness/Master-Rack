@@ -8,6 +8,11 @@ Task list: **`tasks/todo.md`**. Every task there carries acceptance criteria, a 
 its dependencies and a size. Nothing in this plan is marked done without the command and its actual
 output recorded, per the standing rule in `LATEST.md` §10.
 
+Pre-merge review of the first instalment (the seven commits on `fix/catalog-release-integrity`) is
+planned separately in **`tasks/review-plan.md`**, with its own task list in
+**`tasks/review-todo.md`** (R-01 … R-11) and its findings in `tasks/review-findings.md`. That review
+gates the merge to `main`; this plan resumes at T-05 once it closes.
+
 ---
 
 ## Baseline, measured 2026-09-01
