@@ -155,6 +155,7 @@ Re-measured by running commands against the working tree:
 | | |
 |---|---|
 | Branch | `fix/catalog-release-integrity` @ `ff63b87`, **30 commits ahead of `main`**, **4 commits unpushed** (`6f05043`, `57eb7d4`, `aa4a9e7`, `ff63b87`) |
+| Where that leaves the branch **after** the two commits that record this measurement | **32 ahead, 6 unpushed** (`e488a14` route-table comment, `c08cca3` this scoreboard). Stated rather than left for the next session to discover — that discovery *was* drift item 5 |
 | `main` | pushed and in sync with `origin/main` @ `0f1e7ac` |
 | Packages | 11 |
 | Test files | 44 (`*.test.ts`) |
