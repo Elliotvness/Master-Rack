@@ -124,6 +124,8 @@ export function loadReleaseManifest(raw: unknown): CatalogReleaseManifest {
     approvedBy: strOrNull(m, 'approved_by'),
     approvedAt: strOrNull(m, 'approved_at'),
     verificationPaths: verificationPaths(m, where),
+    correctedBy: strOrNull(m, 'corrected_by'),
+    quarantineReason: strOrNull(m, 'quarantine_reason'),
     datasets: strArray(m, 'datasets', where),
     contentSha256: str(m, 'content_sha256', where),
     sourceAnomalies: strArray(m, 'source_anomalies', where),

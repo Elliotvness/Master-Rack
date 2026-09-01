@@ -8,6 +8,7 @@
   "crossbar_required_over_in_when_decked": 90
  },
  "content_sha256": "9c3feb456c57b0fb6924a3661d4a493a6c4330ee859bbfb1cb0d683f25fbabcc",
+ "corrected_by": "2026-09",
  "deflection_limit": "L/180",
  "digitised_at": "2026-08-19",
  "digitised_by": "automated extract (Claude)",
@@ -34,6 +35,7 @@
  "load_basis": "Uniformly distributed product load plus dead load, PER PAIR of beams (dead load = weight of beams). Static load only. Value is the lesser of strength in bending and L/180 deflection.",
  "manufacturer": "Interlake Mecalux",
  "page_ref": "Beam Load Capacities Chart, all beam faces, all lengths",
+ "quarantine_reason": "Proven wrong, not merely old. interlake-2026-09 re-sourced beam capacity from the published PSG 2025 chart (p.88) and found 264 capacity values in this extract that appear nowhere in the source document, plus 42 phantom 40E/40ER rows under an F3M end plate that page 84 publishes only for 27E and 36E - rows reading 3.8-12.2% BELOW the real 40E capacity, so the engine would have quoted a beam that does not exist while appearing conservative. Face heights here (5.92 for 59E, 6.54 for 65E) also appear nowhere in the source; the guide prints exact fractions. This release was never approved: checked_by has always been empty. Its values are NOT corrected here and never will be - a release must keep reporting what it transcribed, or the extract stops being reconcilable against its source and the record of what was believed is lost. Quarantined 2026-09-01 per audit finding D-06.",
  "rev": "2026-08",
  "row_count": 378,
  "sheet_name": "Step Beam Capacities",
@@ -51,6 +53,6 @@
  "source_pdf": "",
  "source_status_carried": "PENDING_CHECK",
  "source_url": "https://www.interlakemecalux.com/beam-load-capacities",
- "status": "DRAFT",
+ "status": "QUARANTINED",
  "units": "lbs"
 }

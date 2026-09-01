@@ -15,6 +15,7 @@ export {
   canApprove,
   canPinForNewRevision,
   completenessRefusals,
+  quarantineRelease,
   type CatalogReleaseManifest,
   type DatasetVerificationPath,
   type ReleaseStatus,

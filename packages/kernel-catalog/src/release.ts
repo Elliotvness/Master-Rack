@@ -15,7 +15,32 @@
  *      two-year-old submission still renders.
  */
 
-export type ReleaseStatus = 'DRAFT' | 'APPROVED' | 'SUPERSEDED' | 'RETIRED';
+/**
+ * Where a release sits in its lifecycle.
+ *
+ * `DRAFT -> APPROVED -> SUPERSEDED -> RETIRED` is the published path (section
+ * 10.2). `QUARANTINED` is a fifth state and a terminal one, and it is not the
+ * same fact as either of the two that look like it:
+ *
+ *   SUPERSEDED  was approved; a newer release exists; still pinnable by the
+ *               revisions that already pin it, so a two-year-old submission
+ *               still renders.
+ *   RETIRED     was approved; withdrawn from use.
+ *   QUARANTINED never approved, and PROVEN WRONG. Not "old" -- incorrect.
+ *
+ * The distinction is the reference projects' most expensive lesson. A frame
+ * table there overstated capacity by up to 72% and looked entirely plausible;
+ * what stopped it reaching a drawing was a status field on the data reading
+ * QUARANTINED until a human signed it. Calling such a release SUPERSEDED would
+ * say "there is a newer one" when the fact is "this one is wrong", and the two
+ * invite different behaviour from whoever reads it next.
+ */
+export type ReleaseStatus =
+  | 'DRAFT'
+  | 'APPROVED'
+  | 'SUPERSEDED'
+  | 'RETIRED'
+  | 'QUARANTINED';
 
 /**
  * How a release earned single-human approval, recorded as data. A name with no
@@ -63,6 +88,18 @@ export interface CatalogReleaseManifest {
   readonly approvedBy: string | null;
   readonly approvedAt: string | null;
   readonly verificationPaths: readonly DatasetVerificationPath[];
+  /**
+   * The rev of a later release that corrected this one's values, or null.
+   *
+   * Non-null is a permanent bar on approval, independent of `status`. Status is
+   * one field one edit away from saying something else; this records WHY, and
+   * the gate reads both. Status on the data, gate on the status -- and a second
+   * latch on the reason, so flipping the status back to DRAFT does not reopen
+   * the door.
+   */
+  readonly correctedBy: string | null;
+  /** Why this release was quarantined, in words. Non-null iff QUARANTINED. */
+  readonly quarantineReason: string | null;
   /** Dataset names this release ships, as declared by its manifest. */
   readonly datasets: readonly string[];
   readonly contentSha256: string;
@@ -97,11 +134,21 @@ export class ApprovalGateError extends CatalogError {
 export function approvalRefusals(
   manifest: Pick<
     CatalogReleaseManifest,
-    'approvedBy' | 'digitisedBy' | 'verificationPaths' | 'datasets'
+    'approvedBy' | 'digitisedBy' | 'verificationPaths' | 'datasets' | 'correctedBy'
   >,
   approver: string,
 ): readonly string[] {
   const reasons: string[] = [];
+
+  // A release a later one had to correct is wrong, and stays wrong. This is
+  // checked before anything else because no amount of signature or sampling
+  // makes a superseded-by-correction table safe to pin.
+  if (manifest.correctedBy !== null) {
+    reasons.push(
+      `this release was corrected by '${manifest.correctedBy}' and can never be approved; ` +
+        'approve the release that corrected it',
+    );
+  }
 
   if (approver.trim() === '') {
     reasons.push('the approver must be a named person');
@@ -168,7 +215,7 @@ export function completenessRefusals(
 export function canApprove(
   manifest: Pick<
     CatalogReleaseManifest,
-    'approvedBy' | 'digitisedBy' | 'verificationPaths' | 'datasets'
+    'approvedBy' | 'digitisedBy' | 'verificationPaths' | 'datasets' | 'correctedBy'
   >,
   approver: string,
 ): boolean {
@@ -185,6 +232,12 @@ export function approveRelease(
   approver: string,
   approvedAt: string,
 ): CatalogReleaseManifest {
+  if (manifest.status === 'QUARANTINED') {
+    throw new ApprovalGateError([
+      'a QUARANTINED release may never be approved' +
+        (manifest.quarantineReason === null ? '' : `: ${manifest.quarantineReason}`),
+    ]);
+  }
   if (manifest.status !== 'DRAFT') {
     throw new ApprovalGateError([`only a DRAFT release may be approved; this is ${manifest.status}`]);
   }
@@ -203,4 +256,40 @@ export function approveRelease(
 /** Only an APPROVED release may be pinned by a new revision. */
 export function canPinForNewRevision(manifest: Pick<CatalogReleaseManifest, 'status'>): boolean {
   return manifest.status === 'APPROVED';
+}
+
+
+/**
+ * Quarantine a release: it is not old, it is wrong.
+ *
+ * Terminal and one-way. There is deliberately no `unquarantine`: a release
+ * reaches this state because its values were proven incorrect, and the remedy
+ * is a new release that transcribes the source correctly -- not an edit to the
+ * record of what was wrong. The wrong values stay exactly as transcribed, so
+ * the extract remains reconcilable against its source and a future reader can
+ * see what was believed and when.
+ */
+export function quarantineRelease(
+  manifest: CatalogReleaseManifest,
+  reason: string,
+  correctedBy: string | null,
+): CatalogReleaseManifest {
+  if (reason.trim() === '') {
+    throw new ApprovalGateError(['a quarantine must state its reason']);
+  }
+  if (manifest.status === 'APPROVED') {
+    // An approved release that turns out to be wrong is a different and worse
+    // event: revisions may already pin it, and silently reclassifying it would
+    // change what those revisions mean. That path needs an impact review
+    // (FR-CT-06) and is not this function.
+    throw new ApprovalGateError([
+      'an APPROVED release cannot be quarantined directly; open revisions may pin it',
+    ]);
+  }
+  return Object.freeze({
+    ...manifest,
+    status: 'QUARANTINED' as const,
+    quarantineReason: reason,
+    correctedBy,
+  });
 }

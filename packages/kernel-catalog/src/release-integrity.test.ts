@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import {
   REQUIRED_DATASETS,
   approvalRefusals,
+  canPinForNewRevision,
   completenessRefusals,
   loadReleaseManifest,
   loadFrameTables,
@@ -86,13 +87,28 @@ describe('AC-18 over the real releases, not over a fixture', () => {
     }
   });
 
-  it('interlake-2026-08 is not approvable — it was never checked', () => {
-    // Its manifest carries an empty `checked_by`, no verification paths and no
-    // dataset declaration. It must fail, and it must fail for stated reasons.
+  it('interlake-2026-08 is QUARANTINED, and is refused for stated reasons', () => {
+    // It was never approved -- checked_by has always been empty -- and 2026-09
+    // proved 264 of its capacities appear nowhere in the source document. It is
+    // wrong, not old, and the status must say the harder of the two things.
     const m = manifestOf('interlake-2026-08');
+    expect(m.status).toBe('QUARANTINED');
+    expect(m.correctedBy).toBe('2026-09');
+    expect(m.quarantineReason).not.toBeNull();
+
     const reasons = approvalRefusals(m, 'Elliott Villacorta');
-    expect(reasons.length).toBeGreaterThan(0);
-    expect(m.status).not.toBe('APPROVED');
+    expect(reasons.some((r) => r.includes("corrected by '2026-09'"))).toBe(true);
+    expect(canPinForNewRevision(m)).toBe(false);
+  });
+
+  it('no quarantined release keeps its wrong values hidden', () => {
+    // The values stay exactly as transcribed. Silently "fixing" a quarantined
+    // extract destroys the ability to reconcile it against its source and
+    // erases the record of what was believed.
+    const m = manifestOf('interlake-2026-08');
+    expect(m.contentSha256).toBe(
+      '9c3feb456c57b0fb6924a3661d4a493a6c4330ee859bbfb1cb0d683f25fbabcc',
+    );
   });
 });
 

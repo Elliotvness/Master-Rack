@@ -6,6 +6,7 @@ import {
   canApprove,
   canPinForNewRevision,
   completenessRefusals,
+  quarantineRelease,
   REQUIRED_DATASETS,
   type CatalogReleaseManifest,
   type DatasetVerificationPath,
@@ -43,6 +44,8 @@ function manifest(overrides: Partial<CatalogReleaseManifest> = {}): CatalogRelea
     approvedAt: null,
     verificationPaths: [crossCheck, framePath],
     datasets: ['beams', 'frames'],
+    correctedBy: null,
+    quarantineReason: null,
     contentSha256: 'abc',
     sourceAnomalies: [],
     constraints: {},
@@ -173,5 +176,48 @@ describe('immutability', () => {
     const approved = approveRelease(draft, 'Elliott Villacorta', '2026-08-31T00:00:00Z');
     expect(draft.status).toBe('DRAFT');
     expect(Object.isFrozen(approved)).toBe(true);
+  });
+});
+
+
+describe('QUARANTINED — a release that is wrong, not merely old', () => {
+  it('quarantines a draft, recording the reason and what corrected it', () => {
+    const q = quarantineRelease(manifest(), '264 capacities appear nowhere in the source', '2026-09');
+    expect(q.status).toBe('QUARANTINED');
+    expect(q.correctedBy).toBe('2026-09');
+    expect(q.quarantineReason).toContain('264 capacities');
+  });
+
+  it('refuses a quarantine with no stated reason', () => {
+    expect(() => quarantineRelease(manifest(), '   ', '2026-09')).toThrow(ApprovalGateError);
+  });
+
+  it('never approves a QUARANTINED release, and says why', () => {
+    const q = quarantineRelease(manifest(), 'values proven wrong', '2026-09');
+    expect(() => approveRelease(q, 'Elliott Villacorta', '2026-09-01T00:00:00Z')).toThrow(
+      /may never be approved: values proven wrong/,
+    );
+  });
+
+  it('refuses to quarantine an APPROVED release — revisions may already pin it', () => {
+    // A different and worse event: reclassifying it would silently change what
+    // those revisions mean. That path needs an impact review (FR-CT-06).
+    expect(() => quarantineRelease(manifest({ status: 'APPROVED' }), 'wrong', '2026-09')).toThrow(
+      /open revisions may pin it/,
+    );
+  });
+
+  it('bars approval on correctedBy alone, even if the status is flipped back', () => {
+    // Status is one field one edit away from saying something else. The reason
+    // is the second latch, and it is the one that cannot be argued with.
+    const m = manifest({ status: 'DRAFT', correctedBy: '2026-09' });
+    const reasons = approvalRefusals(m, 'Elliott Villacorta');
+    expect(reasons.some((r) => r.includes("corrected by '2026-09'"))).toBe(true);
+    expect(canApprove(m, 'Elliott Villacorta')).toBe(false);
+  });
+
+  it('leaves a quarantined release pinnable by nobody new', () => {
+    const q = quarantineRelease(manifest(), 'wrong', '2026-09');
+    expect(canPinForNewRevision(q)).toBe(false);
   });
 });
