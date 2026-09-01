@@ -41,8 +41,19 @@ export function namespaceAllows(namespace: Namespace, actorType: ActorType): boo
 }
 
 /**
- * The route table. MVP-1 surface from blueprint §8.2. Each entry is a promise
- * that the route is covered; the assertion below proves the promise is kept.
+ * The route table: the A-08/A-09 policy registry. Each entry is a promise that
+ * the route is covered; the assertion below proves the promise is kept.
+ *
+ * It is NOT yet the MVP-1 surface from blueprint §8.2, and saying so would be
+ * false in both directions. §8.2 lists 23 rows, two marked phase 2, so the
+ * MVP-1 surface is 21. This table carries 20: it omits two MVP-1 routes —
+ * `GET /api/client/v1/documents/:id` and `POST /api/internal/v1/revisions/:id/notes`
+ * (neither has an Action in authorize.ts either) — and it carries the phase-2
+ * `GET /api/internal/v1/audit`. Coverage against §8.2 is 19 of 21. T-14 closes
+ * the gap by adding the routes, never by editing the target down.
+ *
+ * Nothing mounts this table yet; no HTTP router exists. AC-06 is therefore
+ * still enforced against a model, which is what T-15 converts.
  */
 export const ROUTES: readonly RoutePolicy[] = [
   // Public — no session required, single-use token instead.
