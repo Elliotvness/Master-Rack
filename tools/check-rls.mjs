@@ -1,5 +1,14 @@
 #!/usr/bin/env node
 /**
+ * check-rls - AC-05: every application-schema table has row-level security
+ * enabled and forced, with at least one policy per operation. Adding a table
+ * without one fails CI.
+ *
+ * The criterion ID is named here deliberately. A traceability audit scans for
+ * it, and a control that enforces a criterion without citing it reads as an
+ * unenforced criterion - which is how a real gap and a labelling gap become
+ * indistinguishable to anyone auditing this later.
+ *
  * check-rls — every table in the application schema has row-level security
  * enabled, forced, and a policy for every operation.
  *
