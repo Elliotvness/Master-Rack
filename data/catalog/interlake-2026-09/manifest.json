@@ -1,7 +1,6 @@
 {
- "approval_held_because": "Returned to DRAFT 2026-09-01 (audit finding D-07, task T-04). This release was marked APPROVED by hand: approveRelease() never returned it, and no human had read a single cell of the source. Its recorded verification is two MACHINE extractions reconciled by a MACHINE - stronger than one extraction, and the technique that caught the 72% overstatement in the reference data, but section 10.2 is explicit that a machine is a tool, not an independent party. The gate now requires the approver own recorded spot-check per dataset. The draw is pinned in pending_spot_checks: 20 of 336 beam cells and 22 of 435 frame cells, drawn by tools/draw-spot-check.mjs at seed 20260901. Read those cells off PSG 2025 p.88 (beams) and the frame charts, record checked_by / checked_at / outcome, and the release can be approved. Any mismatch fails the entire release.",
- "approved_at": null,
- "approved_by": null,
+ "approved_at": "2026-09-01",
+ "approved_by": "Elliott Villacorta",
  "authority": "SOLE for beam capacity. Established by owner decision 2026-08-31 (P0-008).",
  "catalog_rev": "Interlake Mecalux Product Support Guide 2025 (SEL-PSG-12/2025), 98-page PDF",
  "changes_from_2026_08": [
@@ -53,6 +52,7 @@
   "stored": "the exact published fraction (e.g. 5 15/16 = 5.9375)"
  },
  "load_basis": "Uniformly distributed product load plus dead load, PER PAIR of beams (dead load = weight of beams). Static load only. Value is the lesser of strength in bending and L/180 deflection.",
+ "approval_record": "Approved 2026-09-01 by Elliott Villacorta. approveRelease() returned this manifest — it was not marked APPROVED by hand, which is how the previous APPROVED state on this release arose (audit D-07, task T-04). At approval the gate returned zero refusals against the release on disk: both required datasets present; a dataset-scoped verification path for each; and the approver own recorded spot-check per dataset, whose cells the gate re-derived from drawSpotCheckSample(cellIds, seed, requiredSampleSize(cells)) and found identical to the pinned draw. digitised_by is a machine identity, so the machine cross-checks are evidence and this human spot-check is the signature (section 10.2). The pinned draw is retained in pending_spot_checks as the record of what was asked: 20 of 336 beam cells and 22 of 435 frame cells at seed 20260901, beams read from PSG 2025 p.88 and frames from p.8, p.25 and p.52.",
  "manufacturer": "Interlake Mecalux",
  "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M",
  "pending_spot_checks": [
@@ -126,7 +126,7 @@
  ],
  "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
  "source_url": "https://www.interlakemecalux.com/",
- "status": "DRAFT",
+ "status": "APPROVED",
  "units": "lbs",
  "verification_paths": [
   {

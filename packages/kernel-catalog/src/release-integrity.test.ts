@@ -186,31 +186,31 @@ describe('the approved release resolves a frame as well as a beam', () => {
 
 describe('the current, honest state of the catalog', () => {
   // These assertions exist because the two AC-18 tests above are conditional on
-  // status === 'APPROVED', and NOTHING is approved right now. A conditional test
-  // over an empty set passes while proving nothing, which is exactly the shape
-  // of control this repository keeps finding and removing. So the state itself
-  // is asserted, and these go red the moment it changes — including when the
-  // spot-check is done and someone forgets to flip the status.
+  // status === 'APPROVED', and a conditional test over an empty set passes while
+  // proving nothing, which is exactly the shape of control this repository keeps
+  // finding and removing. So the state itself is asserted, and these go red the
+  // moment it changes — including when the spot-check is done and someone forgets
+  // to flip the status.
+  //
+  // interlake-2026-09 was APPROVED on 2026-09-01, so the AC-18 tests above are
+  // now live against it. The "no release is currently pinnable" sentinel was
+  // deleted when that happened, per its own instruction: the AC-18 tests carry
+  // the weight now.
 
-  it('no release is currently pinnable — the spot-check has not been performed', () => {
-    const approved = releaseDirs().filter((d) => manifestOf(d).status === 'APPROVED');
-    expect(
-      approved,
-      'a release became APPROVED: delete this test and let the AC-18 tests above carry the weight',
-    ).toEqual([]);
-  });
-
-  it('interlake-2026-09 is DRAFT, spot-checked, and approvable but not approved', () => {
+  it('interlake-2026-09 is APPROVED, spot-checked, and signed by a named approver', () => {
     // This asserted `humanSpotChecks` was EMPTY until 2026-09-01, when the
     // 42 pinned cells were read off PSG 2025 and recorded. The test went red,
     // which is what it was written to do: it pins the state so a change to the
     // state has to be noticed rather than absorbed.
     //
-    // DRAFT and approvABLE are different facts. The gate no longer refuses this
-    // release; nobody has called approveRelease() on it. Approval stays an act.
+    // The release was then APPROVED by Elliott Villacorta on 2026-09-01. The
+    // assertions below keep pinning the state: the spot checks are recorded,
+    // the recorded cells ARE the drawn cells, and the release still withstands
+    // the gate.
     const m = manifestOf('interlake-2026-09');
-    expect(m.status).toBe('DRAFT');
-    expect(m.approvedBy).toBeNull();
+    expect(m.status).toBe('APPROVED');
+    expect(m.approvedBy).toBe('Elliott Villacorta');
+    expect(m.approvedAt).not.toBeNull();
 
     expect(m.humanSpotChecks.map((c) => c.dataset).sort()).toEqual([...REQUIRED_DATASETS].sort());
     for (const c of m.humanSpotChecks) {
