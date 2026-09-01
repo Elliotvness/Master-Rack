@@ -232,19 +232,58 @@ a list of strings. Right now nothing is written, so "you accepted a 4-inch overh
 a recollection rather than becoming a fact.
 
 **Acceptance criteria:**
-- [ ] `Assumption` becomes the §11.6 record: `key`, `assumedValue {value, unit}`, `why`, `scope`,
+- [x] `Assumption` becomes the §11.6 record: `key`, `assumedValue {value, unit}`, `why`, `scope`,
       `acknowledgedBy`, `acknowledgedAt` — replacing `readonly string[]`
-- [ ] A `recordAcknowledgement` effect is added and step 3 fails if it does not succeed
-- [ ] The acknowledgement writes an audit event in the same transaction (`AC-15`)
-- [ ] The register appears in the pre-submit confirmation payload and at the top of the internal
+- [x] A `recordAcknowledgement` effect is added and step 3 fails if it does not succeed
+- [x] The acknowledgement writes an audit event in the same transaction (`AC-15`)
+- [x] The register appears in the pre-submit confirmation payload and at the top of the internal
       review package
-- [ ] Submitting with unacknowledged assumptions is refused, and the refusal is one of the reasons
+- [x] Submitting with unacknowledged assumptions is refused, and the refusal is one of the reasons
       `submitRefusals` returns — which it already is; this task makes the recording real
 
 **Verification:** `vitest run apps/client-web` green; prove it fires — make the effect throw, confirm
 the submission does not complete.
 **Dependencies:** T-05. **Files:** `apps/client-web/src/lib/submit.ts`, `preview.ts`,
 `submit.test.ts`, `apps/api/src/audit/chain.ts`. **Scope:** M.
+
+**DONE 2026-09-01 (session 4).** Test-first: 7 red observed before a line of the fix, then 6 more red
+for the hardening the adversarial review demanded. Verified today in the cloud clone with a native
+PostgreSQL 16.13 — `pnpm verify` exit 0, **46 test files, 1,114 tests, 0 skipped**.
+
+- **§11.6 record.** `Assumption` and `Acknowledgement` moved to `@rms/contracts` — three audiences
+  (pre-submit confirmation, client PDF, internal review package) is why the declaration is shared
+  rather than duplicated per app. `apps/client-web` and `apps/internal-web` gained the workspace
+  dependency and the tsconfig project reference.
+- **The schema, not just the type — migration `0009_assumption_record.sql`.** The adversarial review
+  found the record was unstorable: `app.assumption` had no `scope` column, and nothing tied
+  `acknowledged_by`/`acknowledged_at` to any audit event. 0009 adds `scope` (NOT NULL, non-blank
+  CHECK, no DEFAULT and no backfill — there is no defensible stand-in for which objects an assumption
+  affected), adds `acknowledgement_audit_event_id` with a foreign key to `app.audit_event`, and a
+  CHECK making the three acknowledgement columns all-or-nothing. **That is the AC-15 mechanism:** a
+  transaction that records the acknowledgement and fails to write the event cannot commit, because
+  the key has nothing to point at. Orchestration validation is a control the next caller routes
+  around; a CHECK is one the database enforces for every writer.
+- **Proven to fire.** `packages/db/src/assumption.db.test.ts`, 7 cases against a real Postgres. The
+  three constraints were dropped by hand and 4 of the 7 went RED, then restored and re-run green.
+- **Step 3 is an effect.** `recordAcknowledgement` added to `SubmitEffects`; called only when the
+  register is non-empty; the submission dies before `freeze_revision` if it throws, returns a blank
+  `auditEventId`, a blank `acknowledgedBy`, a blank `acknowledgedAt`, or covers fewer keys than the
+  register holds. The acknowledgement event is written by step 8 with the rest, not left as a string
+  an effect handed back and nobody used.
+- **Both surfaces.** `preSubmitConfirmation()` puts the register FIRST in the pre-submit payload;
+  `apps/internal-web/src/lib/review-package.ts` puts it at the TOP of the internal review package and
+  stamps every entry with who acknowledged it and when. Key order is asserted against
+  `REVIEW_PACKAGE_KEYS` by a test — moving `plan` above `assumptions` was tried and went red.
+  `assembleReviewPackage` refuses an unacknowledged register, a blank acknowledger or time, a missing
+  audit event, and key coverage that disagrees **in either direction**.
+- **Adversarial review (AD-7) run in fresh context before this stood**, and it earned its keep: it
+  caught the unstorable record, a blank acknowledger passing every check in both modules, a dead
+  branch, one-directional key coverage, and one tautological test (four properties read back off the
+  fixture that built them — it survived gutting the interface to `{key}`, because `import type` is
+  erased at runtime). All fixed. Its three residual findings are filed as **F-20** (the register
+  shown and the register recorded are tied by nothing — out of this task's stated scope), **F-21**
+  (`vitest.alias.ts` cites a `tools/check-aliases.mjs` that does not exist) and **F-22** (the shared
+  contracts barrel now reaches the client bundle with no boundary rule about it).
 
 ### T-07: Move the submit orchestration into a pure `packages/workflow`
 **Description.** Audit **D-01**. The nine-step transaction, `AC-10`'s refusal, the freeze and the
@@ -302,7 +341,7 @@ registry that makes the reference resolvable, so FR-BM-05 (where-used) and FR-CT
 impact) stop being unanswerable.
 
 **Acceptance criteria:**
-- [ ] Migration `0009` adds `part` and `part_revision`, populated from the pinned catalog release at
+- [ ] Migration `0010` adds `part` and `part_revision`, populated from the pinned catalog release at
       load — the files stay the source of truth, the tables are the queryable projection
 - [ ] `bom_line.part_revision_id` gains its foreign key
 - [ ] The projection carries the release id, so a discontinued part stays resolvable and a historical
@@ -312,7 +351,7 @@ impact) stop being unanswerable.
 
 **Verification:** `pnpm migrate && pnpm test && pnpm check:rls`; a test asserting a BOM line cannot be
 inserted against a non-existent part revision.
-**Dependencies:** T-03. **Files:** `packages/db/migrations/0009_*.sql`, `packages/kernel-catalog/src/`,
+**Dependencies:** T-03. **Files:** `packages/db/migrations/0010_*.sql`, `packages/kernel-catalog/src/`,
 new tests. **Scope:** M.
 
 ### T-10: Reconcile the documentation and port `check-claims`

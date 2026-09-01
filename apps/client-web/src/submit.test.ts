@@ -3,14 +3,27 @@ import { describe, expect, it } from 'vitest';
 import {
   SUBMIT_STEPS,
   SubmitError,
+  preSubmitConfirmation,
   stepsInOrder,
   submit,
   submitRefusals,
+  type Acknowledgement,
+  type Assumption,
   type ClientFinding,
   type Derivation,
   type SubmitEffects,
   type SubmitInput,
 } from './index.js';
+
+function assumption(key = 'pallet_overhang', over: Partial<Assumption> = {}): Assumption {
+  return {
+    key,
+    assumedValue: { value: 101_600, unit: 'um' },
+    why: 'No pallet overhang was stated, so the catalogue default is assumed.',
+    scope: 'unit',
+    ...over,
+  };
+}
 
 function finding(severity: ClientFinding['severity'], closedBy = 'fix it'): ClientFinding {
   return { code: 'X', severity, closedBy, subjectObjectIds: [] };
@@ -48,6 +61,15 @@ function recorder(over: Partial<SubmitEffects> = {}, d: Derivation = derivation(
     hash: async () => {
       calls.push('hash');
       return 'sha256:manifest';
+    },
+    recordAcknowledgement: async (): Promise<Acknowledgement> => {
+      calls.push('recordAcknowledgement');
+      return {
+        acknowledgedBy: 'user-1',
+        acknowledgedAt: '2026-08-31T12:00:00Z',
+        auditEventId: 'audit-1',
+        keys: ['pallet_overhang'],
+      };
     },
     freezeRevision: async () => {
       calls.push('freezeRevision');
@@ -140,7 +162,7 @@ describe('AC-10 \u2014 a refusal lists EVERY reason, not the first', () => {
     // this ordering avoids.
     const reasons = submitRefusals(
       input({ assumptionsAcknowledged: false }),
-      derivation({ findings: [finding('BLOCKER')], assumptions: ['pallet size assumed'] }),
+      derivation({ findings: [finding('BLOCKER')], assumptions: [assumption()] }),
     );
     expect(reasons).toHaveLength(2);
     expect(reasons[0]).toBe('fix it');
@@ -331,5 +353,159 @@ describe('D-03 — the content hash and the manifest hash are two hashes with tw
   it('refuses an empty content hash as loudly as an empty manifest hash', async () => {
     const { effects } = recorder({ hash: async (json) => (json.includes('author') ? 'sha256:m' : '   ') });
     await expect(submit(input(), effects)).rejects.toThrow(SubmitError);
+  });
+});
+
+describe('D-04 — the acknowledgement is recorded, not merely stepped past', () => {
+  it('calls recordAcknowledgement, and does so BEFORE anything is hashed or frozen', async () => {
+    const { effects, calls } = recorder({}, derivation({ assumptions: [assumption()] }));
+    await submit(input(), effects);
+    expect(calls).toContain('recordAcknowledgement');
+    expect(calls.indexOf('recordAcknowledgement')).toBeLessThan(calls.indexOf('hash'));
+    expect(calls.indexOf('recordAcknowledgement')).toBeLessThan(calls.indexOf('freezeRevision'));
+  });
+
+  it('refuses the whole submission if the acknowledgement cannot be recorded', async () => {
+    // The point of the task. A step that pushes a label and performs no effect
+    // leaves "you accepted a 4-inch overhang" a recollection rather than a fact.
+    const { effects, calls } = recorder(
+      {
+        recordAcknowledgement: async () => {
+          throw new Error('database refused');
+        },
+      },
+      derivation({ assumptions: [assumption()] }),
+    );
+    await expect(submit(input(), effects)).rejects.toThrow(/database refused/);
+    expect(calls).not.toContain('freezeRevision');
+    expect(calls).not.toContain('createSubmission');
+  });
+
+  it('refuses an acknowledgement that wrote no audit event — AC-15 is not optional', async () => {
+    const { effects, calls } = recorder(
+      {
+        recordAcknowledgement: async () => ({
+          acknowledgedBy: 'user-1',
+          acknowledgedAt: '2026-08-31T12:00:00Z',
+          auditEventId: '   ',
+          keys: ['pallet_overhang'],
+        }),
+      },
+      derivation({ assumptions: [assumption()] }),
+    );
+    await expect(submit(input(), effects)).rejects.toThrow(SubmitError);
+    expect(calls).not.toContain('freezeRevision');
+  });
+
+  it('refuses an acknowledgement that covers fewer keys than the register holds', async () => {
+    // Acknowledging two of three assumptions and submitting anyway is exactly
+    // the argument this record exists to settle.
+    const { effects } = recorder(
+      {
+        recordAcknowledgement: async () => ({
+          acknowledgedBy: 'user-1',
+          acknowledgedAt: '2026-08-31T12:00:00Z',
+          auditEventId: 'audit-1',
+          keys: ['pallet_overhang'],
+        }),
+      },
+      derivation({ assumptions: [assumption(), assumption('floor_position')] }),
+    );
+    await expect(submit(input(), effects)).rejects.toThrow(/floor_position/);
+  });
+
+  it('refuses an acknowledgement that names nobody', async () => {
+    // `acknowledgedBy` and `acknowledgedAt` are the two fields §11.6 actually
+    // names. A package that stamps every assumption `acknowledgedBy: ''` asserts
+    // an acceptance and identifies no-one, which is the recollection this task
+    // exists to replace.
+    const { effects, calls } = recorder(
+      {
+        recordAcknowledgement: async () => ({
+          acknowledgedBy: '  ',
+          acknowledgedAt: '2026-08-31T12:00:00Z',
+          auditEventId: 'audit-1',
+          keys: ['pallet_overhang'],
+        }),
+      },
+      derivation({ assumptions: [assumption()] }),
+    );
+    await expect(submit(input(), effects)).rejects.toThrow(/acknowledg/i);
+    expect(calls).not.toContain('freezeRevision');
+  });
+
+  it('refuses an acknowledgement with no time on it', async () => {
+    const { effects } = recorder(
+      {
+        recordAcknowledgement: async () => ({
+          acknowledgedBy: 'user-1',
+          acknowledgedAt: '',
+          auditEventId: 'audit-1',
+          keys: ['pallet_overhang'],
+        }),
+      },
+      derivation({ assumptions: [assumption()] }),
+    );
+    await expect(submit(input(), effects)).rejects.toThrow(SubmitError);
+  });
+
+  it('puts the acknowledgement into the audit events the transaction writes', async () => {
+    // AC-15 — the event is written in the same transaction as the change it
+    // describes, so it has to be in the list this transaction writes, not in a
+    // string an effect handed back and nobody used.
+    let written: readonly string[] = [];
+    const { effects } = recorder(
+      {
+        writeAudit: async (events) => {
+          written = events;
+        },
+      },
+      derivation({ assumptions: [assumption()] }),
+    );
+    await submit(input(), effects);
+    expect(written).toContain('assumption.acknowledged:audit-1');
+  });
+
+  it('does not call recordAcknowledgement when there is nothing to acknowledge', async () => {
+    const { effects, calls } = recorder({}, derivation({ assumptions: [] }));
+    await submit(input(), effects);
+    expect(calls).not.toContain('recordAcknowledgement');
+  });
+
+  it('returns the acknowledgement on the result, so it can be shown and audited', async () => {
+    const { effects } = recorder({}, derivation({ assumptions: [assumption()] }));
+    const result = await submit(input(), effects);
+    expect(result.acknowledgement?.auditEventId).toBe('audit-1');
+    expect(result.acknowledgement?.keys).toEqual(['pallet_overhang']);
+  });
+});
+
+describe('§11.6 — the assumption register is a record, not a list of strings', () => {
+  it('carries key, value with unit, why and scope THROUGH the confirmation payload', () => {
+    // Asserted through `preSubmitConfirmation` rather than against the fixture:
+    // reading four properties back off an object literal this file just built
+    // exercises no production code and would pass with the whole change
+    // reverted, because `import type` is erased at runtime.
+    const payload = preSubmitConfirmation(derivation({ assumptions: [assumption()] }));
+    const a = payload.assumptions[0];
+    expect(a?.key).toBe('pallet_overhang');
+    expect(a?.assumedValue).toEqual({ value: 101_600, unit: 'um' });
+    expect(a?.why.length ?? 0).toBeGreaterThan(0);
+    expect(a?.scope).toBe('unit');
+  });
+
+  it('puts the register FIRST in the pre-submit confirmation, above the findings', () => {
+    const payload = preSubmitConfirmation(
+      derivation({ assumptions: [assumption()], findings: [finding('WARNING')] }),
+    );
+    expect(Object.keys(payload)[0]).toBe('assumptions');
+    expect(payload.assumptions).toHaveLength(1);
+    expect(payload.assumptions[0].key).toBe('pallet_overhang');
+  });
+
+  it('says plainly when there is nothing to acknowledge', () => {
+    const payload = preSubmitConfirmation(derivation({ assumptions: [] }));
+    expect(payload.assumptions).toEqual([]);
+    expect(payload.acknowledgementRequired).toBe(false);
   });
 });

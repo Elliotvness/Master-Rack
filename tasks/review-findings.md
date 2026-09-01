@@ -520,6 +520,62 @@ the others.
 implementation-independent canonical form would change a field on an **APPROVED** release. The
 checker records and verifies what is there; changing it is EL's call.
 
+## F-20 — the register the client is SHOWN and the register that gets RECORDED are two lists, tied by nothing
+
+Raised by the adversarial review of T-06 (2026-09-01, session 4), and **not fixed there** — T-06's
+AC-5 states the refusal "already is" in place and scopes the task to making the *recording* real.
+
+There are two representations of an assumption in the client bundle:
+
+- `groupFindings(...).assumptions` — `ClientFinding[]` of severity `ASSUMPTION`, from the rule
+  engine. This is what a client screen displays.
+- `Derivation.assumptions` — `Assumption[]`, the §11.6 register, produced by `effects.rederive`
+  inside `submit`.
+
+`submitRefusals` gates on `input.assumptionsAcknowledged`, a client-supplied **boolean**, against
+`derivation.assumptions`. Nothing compares the two lists, and no code derives one from the other. So
+a client can tick a box against the list it saw and have a **different** list recorded against its
+name, and every control added by T-06 passes: the acknowledgement is recorded, the audit event is
+written, the keys are covered — of the register nobody was shown.
+
+The recording is now real. What it is a recording *of* is still unpinned.
+
+**Remedy, when the surface that shows the register exists (Phase 4, or T-07 when the orchestration
+moves):** replace `assumptionsAcknowledged: boolean` with the keys the client acknowledged, and
+refuse when the acknowledged set and the re-derived register disagree. A boolean cannot carry which
+register it was ticked against; a key list can.
+
+## F-21 — `vitest.alias.ts` names a checker that does not exist
+
+The recurring shape again — a control that states its own method with no mechanism behind it.
+
+`vitest.alias.ts` line 6: the alias table *"must agree with `paths` in tsconfig.base.json and with the
+bundler config when apps exist, and tools/check-aliases.mjs asserts that three-way agreement."*
+`ls tools/check-aliases.mjs` → **No such file or directory**. Verified 2026-09-01. Nothing asserts
+the agreement; the sentence asserting it is the only thing there.
+
+The cost is not theoretical: an alias present in `vitest.alias.ts` and absent from
+`tsconfig.base.json` gives green tests and a red build, and the reverse gives a green build and tests
+that resolve a different file than the one shipping.
+
+**Remedy:** either write `tools/check-aliases.mjs` with a self-test and wire it into `verify` and CI,
+or delete the claim. Writing it is cheap — the three sources are three files in the repo root.
+
+## F-22 — **FYI** the shared contracts barrel now reaches `client-web`, and `check-app-boundaries` has no rule about it
+
+T-06 made `apps/client-web` a dependant of `@rms/contracts` for the first time, to share the §11.6
+`Assumption` record with `apps/internal-web`. That barrel also exports `FORBIDDEN_CLIENT_FIELDS` —
+the internal-schema field-name blocklist (`cost`, `margin`, `supplier`, `buy_price`, …).
+
+Today there is no leak: `submit.ts` imports it as `import type`, which a bundler erases, and the
+blocklist is a list of *names to refuse*, not internal data. The observation worth recording is that
+`RULES` in `tools/check-app-boundaries.mjs` has no entry for `@rms/contracts`, so the next
+**value** import from that barrel into the client bundle ships the list with nothing objecting.
+
+**Remedy, cheap and worth doing before T-13b adds more to the barrel:** either move
+`forbidden-fields` behind its own entry point that the client rule forbids, or add a rule that
+`client-web` may import `@rms/contracts` for types only.
+
 ## F-12 and F-13 — fixed, values untouched
 
 Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.

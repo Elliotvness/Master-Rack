@@ -35,6 +35,8 @@
  * Pure: no I/O, no clock, no RNG. Time and identifiers arrive as arguments.
  */
 
+import type { Acknowledgement, Assumption } from '@rms/contracts';
+
 import type { ClientFinding } from './preview.js';
 
 /** The nine steps, in the only order they may occur. */
@@ -75,9 +77,21 @@ export interface SubmitInput {
   readonly disclaimerVersionId: string;
 }
 
+/**
+ * The §11.6 register and its acknowledgement live in `@rms/contracts`.
+ *
+ * Re-exported here because this module is where they are produced and checked,
+ * and a caller should not have to know which package a type is declared in to
+ * use the function that returns it. The declaration is shared because the same
+ * record has to appear in the pre-submit confirmation, the client PDF and the
+ * top of the internal review package — three audiences, one contract.
+ */
+export type { Acknowledgement, Assumption } from '@rms/contracts';
+
 export interface Derivation {
   readonly findings: readonly ClientFinding[];
-  readonly assumptions: readonly string[];
+  /** The §11.6 register. Records, not sentences — see `Assumption`. */
+  readonly assumptions: readonly Assumption[];
   /**
    * Canonical JSON of the revision's CONTENT ONLY, with `NON_CONTENT_FIELDS`
    * already excluded by `kernel-model`'s canonical serialiser.
@@ -116,6 +130,34 @@ export interface SubmitEffects {
    * so the tests inject a hash that depends on its input.
    */
   hash(canonicalJson: string): Promise<string>;
+  /**
+   * Step 3. Must write the acknowledgement AND its audit event in the same
+   * transaction as the submission — AC-15, and §11.6's *"the client's
+   * acknowledgement is an audit event"*.
+   *
+   * This interface cannot enforce that; the constraint that can is in the
+   * schema. `app.assumption` carries a NOT NULL-together CHECK across
+   * `acknowledged_by`, `acknowledged_at` and `acknowledgement_audit_event_id`
+   * with a foreign key to `app.audit_event`, so a transaction that records the
+   * acknowledgement and fails to write the event cannot commit — the key has
+   * nothing to point at (migration 0009).
+   *
+   * What this module can do, and does below, is refuse a return value that
+   * shows the contract was not met.
+   *
+   * Not called when the register is empty: there is nothing to acknowledge, and
+   * a record of accepting nothing is noise in the audit trail.
+   *
+   * Returns the record, because a step that returns nothing cannot be checked.
+   * Before D-04 this step existed only as a label pushed onto `stepsCompleted`;
+   * every test passed and no acknowledgement was ever stored.
+   */
+  recordAcknowledgement(input: {
+    readonly revisionId: string;
+    readonly acknowledgedBy: string;
+    readonly at: string;
+    readonly keys: readonly string[];
+  }): Promise<Acknowledgement>;
   /** Step 5. Receives the CONTENT hash — §13.1 step 5 writes `content_hash`. */
   freezeRevision(revisionId: string, contentHash: string, at: string): Promise<void>;
   /** Step 6. Derived rows are keyed to the CONTENT hash, per §7.2. */
@@ -145,6 +187,8 @@ export interface SubmitResult {
   /** §13.2 — lineage, actor, time, pins, derived output and BOM. */
   readonly manifestHash: string;
   readonly submissionHash: string;
+  /** Absent only when the register was empty and nothing was acknowledged. */
+  readonly acknowledgement?: Acknowledgement;
   readonly stepsCompleted: readonly SubmitStep[];
 }
 
@@ -208,7 +252,49 @@ export async function submit(
   }
   completed.push('refuse_on_blockers');
 
-  // 3. Record the acknowledgement.
+  // 3. Record the acknowledgement — an EFFECT, not a label.
+  //
+  //    D-04: this step used to push its own name onto `stepsCompleted` and do
+  //    nothing else, so "you accepted a 101.6 mm pallet overhang" was a
+  //    recollection rather than a fact anyone could produce. If the record
+  //    cannot be written, the submission does not happen: everything after this
+  //    point freezes content the client is held to.
+  let acknowledgement: Acknowledgement | undefined;
+  if (derivation.assumptions.length > 0) {
+    const keys = derivation.assumptions.map((a) => a.key);
+    acknowledgement = await effects.recordAcknowledgement({
+      revisionId: input.revisionId,
+      acknowledgedBy: input.submittedBy,
+      at: input.submittedAt,
+      keys,
+    });
+
+    const problems: string[] = [];
+    // WHO and WHEN are the two fields §11.6 names, and the two the internal
+    // review package stamps onto every assumption. Checking only the audit id
+    // would let a package assert an acceptance and identify nobody.
+    if (acknowledgement.acknowledgedBy.trim() === '') {
+      problems.push('the acknowledgement names no-one who acknowledged it');
+    }
+    if (acknowledgement.acknowledgedAt.trim() === '') {
+      problems.push('the acknowledgement records no time it was given');
+    }
+    if (acknowledgement.auditEventId.trim() === '') {
+      problems.push(
+        'the acknowledgement was stored without an audit event (AC-15 requires one in the same transaction)',
+      );
+    }
+    const covered = new Set(acknowledgement.keys);
+    const uncovered = keys.filter((key) => !covered.has(key));
+    if (uncovered.length > 0) {
+      problems.push(
+        `the acknowledgement does not cover every assumption in the register: ${uncovered.join(', ')}`,
+      );
+    }
+    if (problems.length > 0) {
+      throw new SubmitError('record_acknowledgement', problems);
+    }
+  }
   completed.push('record_acknowledgement');
 
   // 4. Serialise and hash. TWO hashes, because they answer two questions:
@@ -256,7 +342,14 @@ export async function submit(
   completed.push('create_submission');
 
   // 8. Audit events, in the same transaction as the change they describe.
+  //    The acknowledgement event is written HERE, with the rest, rather than
+  //    left as a string an effect handed back and nobody used. AC-15 puts the
+  //    event in the same transaction as the change it describes, and this is
+  //    that transaction.
   await effects.writeAudit([
+    ...(acknowledgement === undefined
+      ? []
+      : [`assumption.acknowledged:${acknowledgement.auditEventId}`]),
     `revision.frozen:${input.revisionId}`,
     `submission.created:${submissionHash}`,
   ]);
@@ -275,6 +368,9 @@ export async function submit(
     contentHash,
     manifestHash,
     submissionHash,
+    // Spread rather than assigned: with `exactOptionalPropertyTypes`, an
+    // absent register means the key is ABSENT, not present-and-undefined.
+    ...(acknowledgement === undefined ? {} : { acknowledgement }),
     stepsCompleted: Object.freeze(completed),
   });
 }
@@ -293,4 +389,24 @@ export function stepsInOrder(steps: readonly SubmitStep[]): boolean {
     expected = index + 1;
   }
   return true;
+}
+
+/**
+ * What the client is shown immediately before submitting.
+ *
+ * The register comes FIRST — §11.6, and the reason is not cosmetic. An
+ * acknowledgement scrolled past below a list of findings is the acknowledgement
+ * this task exists to stop being nominal. Key order here is asserted by a test,
+ * so it stays a decision rather than an accident of authoring.
+ */
+export function preSubmitConfirmation(derivation: Derivation): {
+  readonly assumptions: readonly Assumption[];
+  readonly acknowledgementRequired: boolean;
+  readonly findings: readonly ClientFinding[];
+} {
+  return Object.freeze({
+    assumptions: Object.freeze([...derivation.assumptions]),
+    acknowledgementRequired: derivation.assumptions.length > 0,
+    findings: Object.freeze([...derivation.findings]),
+  });
 }

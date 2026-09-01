@@ -53,6 +53,9 @@ importers:
 
   apps/client-web:
     dependencies:
+      '@rms/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       '@rms/display-list':
         specifier: workspace:*
         version: link:../../packages/display-list
@@ -63,7 +66,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/kernel-units
 
-  apps/internal-web: {}
+  apps/internal-web:
+    dependencies:
+      '@rms/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
 
   packages/contracts: {}
 

@@ -8,5 +8,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@rms/contracts": "workspace:*"
   }
 }

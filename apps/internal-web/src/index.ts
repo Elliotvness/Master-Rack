@@ -45,3 +45,16 @@ export {
   type QueueEntry,
   type SourceSubmission,
 } from './lib/queue.js';
+
+export {
+  REVIEW_PACKAGE_KEYS,
+  ReviewPackageError,
+  assembleReviewPackage,
+  type DisplayListRef,
+  type ReviewPackage,
+  type ReviewPackageFinding,
+  type ReviewPackageInput,
+  type ReviewPackageKey,
+} from './lib/review-package.js';
+
+export type { Acknowledgement, Assumption } from '@rms/contracts';

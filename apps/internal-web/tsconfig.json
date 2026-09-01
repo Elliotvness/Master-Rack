@@ -5,7 +5,7 @@
     "outDir": "./dist",
     "lib": ["ES2022", "DOM"]
   },
-  "references": [],
+  "references": [{ "path": "../../packages/contracts" }],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
 }
