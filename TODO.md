@@ -583,7 +583,23 @@ must not be two renderers that can disagree about a number.
 RFC 3161 authority. Customer-facing copy says *tamper-evident, externally timestamped and
 independently re-verifiable* — **never** *tamper-proof*.
 **Verification.** Upload then attempt overwrite as account root; must fail. `src/verify.py`'s language-discipline check already guards the wording in documents; add the equivalent for UI strings.
-**Dependencies.** P2-004. **Status.** `Not started`. **Evidence:** `Planned only`.
+**Provider (owner, 2026-09-01).** **Backblaze B2**, Object Lock, **COMPLIANCE** mode, **7-year**
+retention (2557 days, rounded up past two leap days). Staged: prove upload-then-overwrite fails on a
+**Governance** test bucket first, then switch production to Compliance, which is irreversible.
+**Cloudflare R2 was rejected for this bucket** — it offers *bucket locks*, removable via
+`wrangler r2 bucket lock remove --id`, which defends against accident but not against the insider
+the control exists for. R2 remains in use for non-WORM data. Timestamp authority: **FreeTSA**.
+**Dependencies.** P2-004.
+**Status.** `Logic complete; awaiting credentials`. **Evidence:** `apps/api/src/worm/`
+(`store.ts`, `anchor.ts`, `memory-store.ts`), 41 tests at **100%** coverage. Five invariants proven
+by deliberate breakage: overwrite refused, lapsed retention refused, Governance refused in
+production, the in-memory store's own enforcement, and the anchor token digest check.
+**The UI-string language check is DONE** — `tools/check-language.mjs` plus its self-test, wired into
+`pnpm verify` and CI, four gates proven red including a real hole a gate proof found in its own
+exemption.
+**OUTSTANDING, and cannot be done from this repository:** the live upload-then-overwrite attempt
+against a real B2 bucket, including the reported `DeleteObject`-inside-a-locked-prefix behaviour.
+No test here can prove a provider's behaviour; only that attempt can.
 
 ### P2-007 · `D-08` Status view and clone-to-draft
 **Acceptance.** Coarse three-state client status (`OD-12`). Clone records `derived_from_revision_id`;

@@ -30,13 +30,13 @@ chain. **`C-08` (golden fixtures) and `B-03` (frame capacity) are the next real 
 | Blueprint revision | Rev C, 2026-08-31 |
 | Decisions | 21 of 21 settled; one commercial item deliberately open (`OD-20b`) |
 | Production source files | **70+** across nine pure packages, `db`, `apps/api`, `tools/` |
-| Product tests | **885**, all passing across 38 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
+| Product tests | **926**, all passing across 39 files (pure + real-Postgres + real catalog, rule and as-built fixture data) |
 | Coverage | **100%** on all nine pure packages; `apps/` and `db` measured with ratcheted floors (authz 92%, auth 96%, DTO/audit/outbox 100%) |
 | Catalog data | 378 verified beam rows **and 435 verified frame-capacity cells**, extracted verbatim, status `DRAFT` (awaiting human approval) |
 | Database | Postgres 16, **19 tables**, RLS enabled + forced on every one |
 | Documentation toolchain | Working, 11 checks, all passing |
 | Mechanical gates | **9**: kernel-boundary self-test + scan, **app-boundary self-test + scan**, provenance self-test + lint, RLS assertion, coverage thresholds, eslint determinism bans |
-| Version control | **git, 39 commits**, working tree clean |
+| Version control | **git, 40 commits**, working tree clean |
 | Last full verification | `pnpm verify` **PASS**, exit 0, 2026-08-31 |
 
 ## 2. Naming
@@ -86,6 +86,58 @@ C:\Rack Master\rack-master-studio\
 
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
+
+**2026-09-01 — `E-07` groundwork and the language-discipline gate**
+
+| Check | Command | Result |
+|---|---|---|
+| WORM suite | `pnpm test` | **PASS.** 41 tests, `apps/api/src/worm` at **100%** coverage |
+| Language self-test | `pnpm check:language:selftest` | **PASS.** 8 overclaims caught, 5 honest forms allowed |
+| Language check | `pnpm check:language` | **PASS.** 60 shipped files, no overclaiming strings |
+| **Overwrite allowed instead of refused** | deliberate break | **PROVEN RED**, 3 tests |
+| **A lapsed retention date accepted** | deliberate break | **PROVEN RED**, 2 tests |
+| **Governance allowed in production** | deliberate break | **PROVEN RED** |
+| **The in-memory store stops refusing** | deliberate break | **PROVEN RED** |
+| **Anchor token digest unchecked** | deliberate break | **PROVEN RED** |
+| **"tamper-proof" removed from the list** | deliberate break | **PROVEN RED**, 3 misses reported |
+| **Exemption widened to every `lib/` file** | deliberate break | **PROVEN RED** *(after a fix — see below)* |
+| **Exemption widened to the whole client app** | deliberate break | **PROVEN RED** |
+| **Scanner stops listing files** | deliberate break | **PROVEN RED** |
+| **Every file treated as a test and skipped** | deliberate break | **PROVEN RED** |
+| Whole pipeline | `pnpm verify` | **PASS**, exit 0. **926/926** tests |
+
+**R2 was rejected for the manifest bucket, on the mechanism rather than the marketing.** R2 was the
+owner's default and the reasoning was sound — no egress fees. But R2 offers *bucket locks*, whose
+rules are removable with a documented one-command call (`wrangler r2 bucket lock remove --id`).
+That defends against accident, which is not the threat: the blueprint names **an insider with
+account access**, and a lock the attacker can remove is not a control against them. Backblaze B2
+compliance-mode retention "cannot be removed by any user" and can only be extended, so manifests go
+to B2. R2 remains in use for everything that does not need the irreversible lock. The alternative
+was keeping R2 and weakening the customer-facing claim, which the owner declined.
+
+**The staged rollout is enforced, not remembered.** `modeRefusals` refuses a production write in
+Governance mode. Compliance is irreversible — a misconfigured seven-year lock cannot be undone by
+anyone, including the account root — so it is not the mode in which to discover a bug.
+
+**The in-memory store is a test double with teeth.** A fake that accepted every write would let the
+whole suite pass while the real bucket silently overwrote manifests. This one refuses exactly what a
+correctly configured bucket refuses. It does **not** prove the live provider behaves that way —
+nothing in this repository can, and the upload-then-overwrite test against the real bucket is
+recorded as an outstanding operational step, including the reported `DeleteObject`-inside-a-locked-prefix
+behaviour.
+
+**The language gate found five apparent violations on its first run, and all five were false.**
+`status.ts` exports `FORBIDDEN_STATUS_WORDING`, a denylist the client app checks its own strings
+against; flagging a denylist for containing the words it denies is exactly the noise that gets a
+checker switched off within a week. The exemption is **one exact path**, listed explicitly so
+widening it is visible in a diff.
+
+**A gate proof caught a real hole in that exemption.** Widening it to `rel.includes('/lib/')`
+silenced the checker across the whole client library and **every test still passed** — the self-test
+only probed outside `lib/`. A second probe now sits inside `lib/`, where a widened exemption would
+swallow it. A first attempt at that fix also passed for the wrong reason (both probes share a
+directory name, so one satisfied the other's filter); the filter is now path-specific. An exemption
+is a hole, and a hole is only safe if its exact width is asserted.
 
 **2026-08-31 — `P0-009`: face heights stored exactly, displayed to one decimal**
 

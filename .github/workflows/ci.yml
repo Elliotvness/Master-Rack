@@ -88,6 +88,16 @@ jobs:
       - name: Provenance lint
         run: pnpm lint:provenance
 
+      # The product must not claim more than the design delivers. "tamper-proof"
+      # is the phrase this exists for: the chain gives tamper EVIDENCE, and a
+      # button label saying otherwise is a claim we would have to withdraw in
+      # front of the person who relied on it. Self-test first, as always.
+      - name: Language discipline self-test
+        run: pnpm check:language:selftest
+
+      - name: Language discipline check
+        run: pnpm check:language
+
       - name: RLS coverage assertion
         run: pnpm check:rls
 

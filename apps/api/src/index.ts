@@ -92,3 +92,28 @@ export {
   type OutboxMessage,
   type OutboxStatus,
 } from './outbox/outbox.js';
+
+export {
+  RETENTION_DAYS_7_YEARS,
+  WormError,
+  anchorKey,
+  manifestKey,
+  modeRefusals,
+  prepareManifest,
+  writeRefusals,
+  type RetentionMode,
+  type WormObject,
+  type WormStore,
+} from './worm/store.js';
+
+export { InMemoryWormStore } from './worm/memory-store.js';
+
+export {
+  anchorClaim,
+  anchorDigest,
+  anchorGaps,
+  anchorRefusals,
+  prepareAnchor,
+  type DailyAnchor,
+  type TimestampToken,
+} from './worm/anchor.js';
