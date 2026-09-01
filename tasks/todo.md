@@ -1,5 +1,11 @@
 # TODO — Audit remediation → running MVP-1
 
+> **Status 2026-09-01, end of session 2.** T-01, T-02, T-03 and T-04 are **complete and verified**;
+> T-00 is **blocked on a push from Windows** (no credentials in the Linux workspace). One task was
+> added that the audit did not find (**T-27**), and one unplanned fix landed alongside T-03
+> (`audit_event`, commit `73ca8d1`). Phase 2's remaining tasks — T-05, T-06, T-07, T-08 — are the
+> next work and are unblocked. Full narrative in `LATEST.md`.
+
 Companion to `tasks/plan.md`. Created 2026-09-01 from the Rev C conformance audit.
 Sizes: **XS** 1 file · **S** 1–2 · **M** 3–5 · **L** 5–8 (break down) · **XL** too large.
 
@@ -28,6 +34,12 @@ the Linux workspace has no docker.
 
 ## Phase 1 — Catalog and schema integrity
 
+**BLOCKED 2026-09-01** — remote added (`https://github.com/Elliotvness/Master-Rack.git`) but the
+Linux workspace holds no credentials. Run from Windows:
+`git push -u origin main && git push -u origin fix/catalog-release-integrity`.
+**Partly mitigated:** the DB-backed tests no longer need CI to run at all — see `LATEST.md` §4 for
+the portable-Postgres recipe. All 74 of them now pass locally, the first time they have ever run.
+
 ### T-01: Put the frame tables into the approved catalog release
 **Description.** Audit **D-05**, and the first thing to fix because it silently blocks the demo.
 `interlake-2026-09` is the only `APPROVED` release and it carries `beams.json` only; `frames.json`
@@ -52,6 +64,10 @@ revert.
 **Dependencies:** None. **Files:** `data/catalog/interlake-2026-09/{frames.json,manifest.json}`,
 `packages/kernel-catalog/src/{load-frames.ts,release.ts,frames.test.ts}`. **Scope:** S.
 
+**DONE 2026-09-01** — commit `7559889`. Also produced `load-manifest.ts`: the approval gate
+had never once run against a manifest on disk, so it was guarding its own test fixtures. Verification
+is now recorded per *dataset*, not per release. kernel-catalog 79 → 93 tests. Three gates proven to fire.
+
 ### T-02: Retire `interlake-2026-08` out of DRAFT
 **Description.** Audit **D-06**. That release carries 264 capacities the 2026-09 re-source corrected
 and 42 phantom 40E/40ER-under-F3M rows. It sits in `DRAFT` — one approval away from being pinnable.
@@ -71,6 +87,11 @@ and 42 phantom 40E/40ER-under-F3M rows. It sits in `DRAFT` — one approval away
 2026-08 and confirm the refusal names both reasons.
 **Dependencies:** T-01. **Files:** `packages/kernel-catalog/src/release.ts`,
 `data/catalog/interlake-2026-08/manifest.json`, `release.test.ts`. **Scope:** S.
+
+**DONE 2026-09-01** — commit `eeaafef`. `QUARANTINED` added as a fifth `ReleaseStatus`,
+deliberately distinct from `SUPERSEDED`. Two latches: status, and `correctedBy` which bars approval
+independently so flipping the status back does not reopen the door. Closed a type hole T-01 opened.
+Three gates proven to fire.
 
 ### T-03: Put `audience` into the revision RLS policy
 **Description.** Audit **D-02**, the most serious of the three structural defects. `revision.audience`
@@ -96,6 +117,12 @@ the serializer-filtering pattern §6.3 explicitly rejects.
 T-00. Prove it fires: drop the `audience` clause, confirm the new tests go red, revert.
 **Dependencies:** None (T-00 for a runner). **Files:** `packages/db/migrations/0005_*.sql`,
 `tools/check-rls.mjs`, `packages/db/src/tenancy.test.ts`. **Scope:** S.
+
+**DONE 2026-09-01** — commit `75192d0`, with `73ca8d1` alongside it. Migration `0005`; policies
+REPLACED not amended (an added policy is OR-ed, which widens). `check-rls` now asserts any
+sensitivity column is named in a policy — on its first run it found `audit_event`, fixed in
+`73ca8d1`, a finding the audit did not have. **Proven:** reverting the old policy turns 4 tenancy
+tests red — a client could read, write AND flip internal revisions on its own project.
 
 ### T-04: Make the two-person rule require a human spot-check
 **Description.** Audit **D-07**. §10.2 anticipated exactly the current situation: "running an
@@ -125,6 +152,11 @@ greater, recorded as data, any mismatch failing the whole release — is not imp
 ---
 
 ## Phase 2 — Kernel and workflow repairs
+
+**DONE 2026-09-01** — commit `52f708a`. `tools/draw-spot-check.mjs` draws and **pins** the sample
+and refuses to redraw one already pinned. **Consequence: `interlake-2026-09` is back to DRAFT and no
+release is currently pinnable.** 42 cells are pinned and waiting; see `LATEST.md` §3.1. An earlier
+draft gated this on a machine-identity regex and was deleted before committing — it failed unsafe.
 
 ### T-05: Separate `contentHash` from `manifestHash`
 **Description.** Audit **D-03**. `submit()` computes `manifestHash` at step 4 and passes it to
@@ -271,6 +303,22 @@ arrive at T-24, which is the wrong moment to discover this gap.
 
 **Verification:** the failing run recorded, then the passing one.
 **Dependencies:** T-00. **Files:** `.github/workflows/ci.yml`. **Scope:** XS.
+
+### T-27: Type-check the test files
+**Description.** Found this session, not in the audit. `packages/*/tsconfig.json` carries
+`"exclude": ["src/**/*.test.ts"]`, so no test file is ever type-checked. A fixture can drift from a
+changed type and `tsc --build` stays green — which happened during T-04, where a required field was
+added to `CatalogReleaseManifest` and every fixture silently lacked it until the tests ran.
+
+**Acceptance criteria:**
+- [ ] Test files are type-checked, via a separate `tsconfig.test.json` per package or by removing
+      the exclusion and accepting the vitest globals
+- [ ] Adding a required field to a shared type fails `tsc` on stale fixtures, proven by deliberate
+      breakage
+- [ ] `pnpm verify` still passes and does not slow materially
+
+**Verification:** add a required field to a type, confirm `tsc --build` goes red, revert.
+**Dependencies:** None. **Files:** `packages/*/tsconfig.json`, `tsconfig.base.json`. **Scope:** S.
 
 ### T-12: Update the source-conflict register
 **Description.** Audit **D-21**. §10.8 records the MH16.1 edition conflict as open. Part of it is now
