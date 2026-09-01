@@ -41,9 +41,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Version comes from "packageManager" in package.json (pnpm@11.22.0).
+      # Pinning "version: 11" here made the action fail with
+      # "Multiple versions of pnpm specified" — the first CI run ever (2026-09-01)
+      # died on this step before a single test executed.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - uses: actions/setup-node@v4
         with:
@@ -98,6 +100,41 @@ jobs:
       - name: Language discipline check
         run: pnpm check:language
 
+      # A catalog release records a content_sha256 that, until 2026-09-01,
+      # nothing recomputed - and whose METHOD silently differed between the two
+      # releases sitting in the same directory (F-19). Each manifest now
+      # declares its method and this recomputes by it, failing closed on any
+      # method it does not implement.
+      - name: Content-hash checker self-test
+        run: pnpm check:contenthash:selftest
+
+      - name: Catalog content hashes match their declared method
+        run: pnpm check:contenthash
+
+      # approveRelease reads human_spot_checks and never compares it to the
+      # pinned draw it is supposed to answer. A signature over a DIFFERENT set
+      # of cells would pass every other gate (F-14, as restated).
+      - name: Spot-check record checker self-test
+        run: pnpm check:spotrecord:selftest
+
+      - name: Signed spot-checks cover their pinned draw
+        run: pnpm check:spotrecord
+
+      # A workspace dependency that never reached the lockfile fails
+      # `pnpm install --frozen-lockfile` above — this says WHICH one, and says
+      # it in an environment where pnpm may not be installed at all.
+      - name: Lockfile checker self-test
+        run: pnpm check:lockfile:selftest
+
+      - name: Workspace dependencies are recorded in the lockfile
+        run: pnpm check:lockfile
+
+      - name: Spot-check draw agreement (tool vs kernel)
+        run: pnpm check:draw:selftest
+
+      - name: RLS sensitivity checker self-test
+        run: pnpm check:rls:selftest
+
       - name: RLS coverage assertion
         run: pnpm check:rls
 
@@ -111,8 +148,26 @@ jobs:
       - name: Determinism check
         run: pnpm check:determinism
 
+      # The scoreboard lives in two files - tasks/progress.md holds the arithmetic,
+      # tasks/progress.html is the source of the published page. Two copies of the
+      # same numbers drift; this re-derives them from both and fails if they differ.
+      # Self-test first: a comparison that stopped comparing would pass forever.
+      - name: Scoreboard sync self-test
+        run: pnpm check:scoreboard:selftest
+
+      - name: Scoreboard copies agree
+        run: pnpm check:scoreboard
+
       - name: Kernel coverage gate
         run: pnpm coverage
+
+      # §5.4's first two budgets. The other three need the server and the job
+      # queue and are not claimed. Its own step, not folded into `test`: a
+      # benchmark inside the normal suite is either slow every run or skipped
+      # every run, and the skipped kind is why these budgets went unmeasured
+      # for the life of the project.
+      - name: Performance budgets (§5.4, budgets 1 and 2)
+        run: pnpm bench
 
   docs:
     runs-on: ubuntu-latest

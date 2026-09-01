@@ -680,7 +680,7 @@ None of these can be resolved by writing code. Each needs a person, a document o
 | ~~RH-02~~ | ~~Reconcile the three Carson counts (P0-004)~~ **Closed 2026-08-31.** EL: the two quotes are reference only and are disregarded; as-built drawing 0005-01 R-1 governs. 6,824 net is established. | — | EL |
 | ~~RH-03~~ | ~~Read the source chart for 59E face height (P0-005)~~ **Closed 2026-08-31.** EL read the chart as **5.93**, corroborating the 5.928 documentation table over the transcribed 5.92. Parked rather than settled: no page reference yet, rows left as published, and face height is not a lookup key so nothing depends on it. Reopens if face height is ever used dimensionally. | — | EL |
 | RH-04 | Confirm the Entra licence tier. OIDC works on any tier; SCIM needs P1+. Without it, offboarding is a quarterly-review checklist item, not an automated one. | Nothing in MVP-1 | IT |
-| RH-05 | **Name an approver for each pinned artifact — now the most actionable open item.** Two packs sit in `DRAFT` and neither can be pinned by a new revision until approved: the Interlake catalog (378 rows) and the MVP rule pack (12 rules). Both gates refuse self-approval and both require a recorded verification path, so a name alone is not enough. For the catalog, confirm the approver is positioned to catch a **capacity-table** error specifically — a different competence from design or sales review (`OD-07`). | `B-04` catalog release + `B-05` rule-pack release | EL |
+| RH-05 | **Half closed 2026-09-01 (re-checked under R-11).** ~~Two packs sit in `DRAFT`~~ — **the catalog is now `APPROVED` and pinnable**: `interlake-2026-09`, **336 rows** (not 378 — 42 phantom 40E/40ER-F3M rows were removed), approved by Elliott Villacorta against a tool-drawn 20-cell sample plus a deterministic top-up, all read off PSG 2025 p.88 and recorded MATCHED. `interlake-2026-08` is `QUARANTINED`. **What remains open is the rule pack**: `data/rules/mvp-2026-08` is still `DRAFT` with an empty `approved_by`, 12 rules and six recorded open conflicts. Both gates still refuse self-approval and require a recorded verification path, so a name alone is not enough. The catalog half also answered the competence question — the approver read the capacity chart itself. | ~~`B-04`~~ · `B-05` rule-pack release | EL |
 | RH-06 | Legal review of the standing disclaimer before any client sees it, and confirmation against PE board rules in the states sold into (`OD-16`, `R-03`). | P2-005 | Counsel |
 | RH-07 | Six open source conflicts (§10.8): MH16.1 edition, NFPA section for the 18-inch rule, aisle measurement convention, max row length, dock setback, dead-load basis. Santa Fe Springs' rack handout must be obtained by phone. | No compliance claim may be made until resolved; MVP-1 makes none | EL |
 | RH-08 | Re-run the performance spikes on target hardware. Existing figures were taken under software rasterization in a cloud container — a floor, not a measurement. | Confidence in the §5.4 budgets | Dev |
@@ -729,10 +729,10 @@ Postgres, and the catalog proven against real published data. The next five are:
    pilot client (`OD-20b`) should be named before this starts.
 4. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
    proven rather than one.
-5. **The catalog and rule-pack approvers** (`RH-05`). Both packs sit in `DRAFT`, both gates refuse
-   self-approval, and neither can be pinned by a new revision until approved. Needs a name and a
-   recorded verification act, not code. **This is the only item on this list that development
-   cannot clear by itself.**
+5. **The rule-pack approver** (`RH-05`, half closed 2026-09-01). ~~Both packs sit in `DRAFT`~~ — the
+   catalog is approved and pinnable; `data/rules/mvp-2026-08` is not. The gate still refuses
+   self-approval, so it needs a name and a recorded verification act, not code. **This is the only
+   item on this list that development cannot clear by itself.**
 
 ---
 

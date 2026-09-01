@@ -1,0 +1,36 @@
+{
+  "$comment": "The performance fixture blueprint \u00a75.4 names and the repository did not have. Budget 1 reads 'p95 120 ms on a 300-bay unit, measured by a synthetic benchmark in CI on a fixed fixture' \u2014 this is that fixture. It is DESCRIPTIVE, not an as-built: it exists to give the derivation and display-list paths a workload of the stated size, and it makes no claim about a real job. The golden fixture (fixtures/golden) is the one that reconciles against reality; this one does not and must never be read as if it did.",
+  "id": "unit-300-bay",
+  "purpose": "Performance baseline only. Not an acceptance fixture. No number here is sourced.",
+  "shape": {
+    "$comment": "12 runs of 25 bays = 300 bays, arranged as 6 back-to-back pairs with an aisle between each pair. That is the OD-03 MVP-1 geometry (back-to-back and single row, floor plus 2-6 beam levels, uniform bays), at the size the budget names.",
+    "runs": 12,
+    "baysPerRun": 25,
+    "totalBays": 300,
+    "aisles": 6,
+    "rowsPerRun": 1,
+    "beamLevels": 4,
+    "floorStores": true,
+    "positionsPerBay": 3
+  },
+  "dimensions_mm": {
+    "$comment": "Round numbers chosen to be exactly representable in micrometres, so the fixture cannot fail for a unit-conversion reason that has nothing to do with performance.",
+    "clearSpan": 2743,
+    "uprightFace": 76,
+    "frameDepth": 1067,
+    "frameHeight": 6096,
+    "levelPitch": 1524,
+    "aisleWidth": 3353,
+    "runSpacing": 2200
+  },
+  "budgets_ms_p95": {
+    "$comment": "From blueprint \u00a75.4, which calls them provisional and says they should be re-derived once a real unit size distribution is known. Budgets 3-5 (submission, queue load, PDF) are not measurable until the server exists. MEASURED 2026-09-01: preview p95 1.0-2.4 ms, fullDerivation p95 0.9-1.5 ms across four runs. Both are met by roughly two orders of magnitude, so these gates catch a catastrophe, not a regression - which is what the ratchet below is for.",
+    "preview": 120,
+    "fullDerivation": 400
+  },
+  "ratchet_ms_p50": {
+    "$comment": "A ratchet on the MEDIAN, set above the measured value, in the same spirit as the coverage floors in vitest.config.ts: it sits just above what was measured so an improvement is free and a regression fails the build. It keys on p50 rather than p95 deliberately - across four runs the p95 varied by 2.3x (1.04 to 2.42 ms) while the p50 varied by 1.3x (0.49 to 0.66 ms). At sub-millisecond scale the p95 is dominated by scheduler and GC noise, not by the work, so a p95 ratchet tight enough to catch a real regression would flap on noise, and one loose enough not to flap would catch nothing. Raise these when the measured value drops; never raise them to make a build pass.",
+    "preview": 2.5,
+    "fullDerivation": 2.5
+  }
+}

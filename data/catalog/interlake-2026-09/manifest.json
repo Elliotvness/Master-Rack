@@ -1,12 +1,13 @@
 {
- "approved_at": "2026-08-31",
+ "approved_at": "2026-09-01",
  "approved_by": "Elliott Villacorta",
  "authority": "SOLE for beam capacity. Established by owner decision 2026-08-31 (P0-008).",
  "catalog_rev": "Interlake Mecalux Product Support Guide 2025 (SEL-PSG-12/2025), 98-page PDF",
  "changes_from_2026_08": [
   "264 capacity values corrected to the published chart. The 2026-08 extract carried values that were consistently off by 5-25 lbs, none of which appear anywhere in the source document.",
   "42 rows REMOVED: 40E and 40ER under an F3M (6\", 3-tab) end plate. Page 84 publishes F3M for 27E and 36E only, and page 88 groups the 40E column under F4M. Character 13 of those rows' own codes reads 'C' (F3M) on a 40E beam, which the code format does not allow. They were a phantom variant: not published, and reading 3.8-12.2% BELOW the real 40E capacity, so the engine would have quoted a beam that does not exist while appearing conservative.",
-  "No part number, code_18, face height or deflection value was altered. Only capacity was re-sourced, and only unpublished rows were removed."
+  "No part number, code_18 or deflection value was altered, and no capacity value was invented: 264 capacities were re-sourced to the published chart and 42 unpublished rows were removed. FACE HEIGHT WAS CORRECTED on 168 of the 336 rows - 36E/36ER 3.65 -> 3.65625 (3 21/32), 59E/59ER 5.92 -> 5.9375 (5 15/16), and 65E/65ER/65Q/65QR 6.54 -> 6.5625 (6 9/16) - to the exact fractions printed on p.84. The other eight families were already exact and did not move. See face_height_59e_status, face_height_65_status and face_height_policy for the reasoning and the approver. This sentence previously read 'no face height value was altered', which was false; corrected 2026-09-01 under review finding F-12. A change log that under-reports is the same defect as an extract that over-reports.",
+  "frames.json carried forward from 2026-08 UNCHANGED, so the approved release resolves a frame as well as a beam. Previously the three frame tables existed only in the DRAFT 2026-08 release, which canPinForNewRevision correctly refuses - so MVP checks 1 and 2 could not resolve a frame from any pinnable revision. No frame value was altered; the tables SHA-256 is recorded in frames.json and asserted by test."
  ],
  "code_basis": "RMI guidelines and ANSI MH16.1-2012 (p.88 footnote); FY = 55 KSI",
  "constraints": {
@@ -14,6 +15,14 @@
   "crossbar_required_over_in_when_decked": 90
  },
  "content_sha256": "a137a7f983696ea1b284afd8c67105b1ec4dbe266d99f3ac02178bcb98ef7942",
+ "content_sha256_method": {
+  "id": "rows-canonical-json",
+  "note": "sha256 of json.dumps(beams.json['rows'], sort_keys=True, separators=(',',':')) encoded UTF-8 - the canonical rows array, not the file text. Written by tools/build-2026-09-manifest.py and tools/set-exact-face-heights.py. CAVEAT, recorded under review finding F-19: this digest depends on Python's float formatting. beams.json carries \"face_height_in\": 4.0 for the whole-number families; Python writes 4.0 and every other JSON implementation writes 4, so the same data yields a different digest anywhere but Python unless the original numeric literal is preserved. tools/check-content-hash.mjs preserves it and verifies this hash on every run. Re-basing the digest onto an implementation-independent form would change an APPROVED release, so it is left for the approver to decide rather than done here."
+ },
+ "datasets": [
+  "beams",
+  "frames"
+ ],
  "deflection_limit": "L/180 (p.88: 'lesser of strength in bending, or L/180 deflection criteria')",
  "digitised_at": "2026-08-31",
  "digitised_by": "automated extract (Claude)",
@@ -47,8 +56,75 @@
   "stored": "the exact published fraction (e.g. 5 15/16 = 5.9375)"
  },
  "load_basis": "Uniformly distributed product load plus dead load, PER PAIR of beams (dead load = weight of beams). Static load only. Value is the lesser of strength in bending and L/180 deflection.",
+ "approval_record": "APPROVED 2026-09-01 by Elliott Villacorta, after one return to DRAFT on the same day. The first approval was made against a 20-cell beam sample that covered only 19 distinct PUBLISHED values: p.88 prints one column per E/ER pair, and the draw landed on both halves of one printed cell. The 42 recorded cells were the drawn cells and every one matched - the gate was measuring the wrong thing, not accepting a fabricated record. The release was returned to DRAFT, the gate was changed to count distinct published values rather than extract rows, the pinned draw gained a deterministic one-cell top-up (65ER/F5M/78in), that cell was read off PSG 2025 p.88 and recorded MATCHED, and the release was re-approved. See human_spot_checks for the completed record. This field previously described the DRAFT state as current; corrected 2026-09-01 under review finding F-13.",
  "manufacturer": "Interlake Mecalux",
  "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M",
+ "pending_spot_checks": [
+  {
+   "dataset": "beams",
+   "cells": 336,
+   "seed": 20260901,
+   "sampled_cells": [
+    "59ER/F5M/120in",
+    "65QR/F5M/54in",
+    "50E/F4M/54in",
+    "27E/F3M/108in",
+    "36E/F3M/92in",
+    "59ER/F5M/156in",
+    "40E/F4M/60in",
+    "45E/F4M/96in",
+    "27E/F3M/96in",
+    "40E/F4M/92in",
+    "50E/F4M/48in",
+    "65ER/F5M/114in",
+    "27E/F3M/66in",
+    "36E/F3M/84in",
+    "50ER/F4M/60in",
+    "50E/F4M/126in",
+    "65ER/F5M/138in",
+    "40ER/F4M/156in",
+    "59ER/F5M/132in",
+    "59E/F5M/120in"
+   ],
+   "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
+   "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M",
+   "supplementary_cells": [
+    "65ER/F5M/78in"
+   ]
+  },
+  {
+   "dataset": "frames",
+   "cells": 435,
+   "seed": 20260901,
+   "sampled_cells": [
+    "cap_welded_frames/HbL48/col9",
+    "cap_welded_frames/HbL108/col4",
+    "cap_bolted_reinforced_frames/HbL78/col5",
+    "cap_bolted_frames/HbL42/col3",
+    "cap_bolted_frames/HbL72/col2",
+    "cap_welded_frames/HbL54/col7",
+    "cap_bolted_frames/HbL102/col1",
+    "cap_bolted_reinforced_frames/HbL48/col5",
+    "cap_bolted_frames/HbL36/col8",
+    "cap_bolted_frames/HbL102/col6",
+    "cap_bolted_reinforced_frames/HbL78/col4",
+    "cap_welded_frames/HbL84/col2",
+    "cap_bolted_reinforced_frames/HbL78/col2",
+    "cap_bolted_frames/HbL66/col9",
+    "cap_bolted_reinforced_frames/HbL96/col5",
+    "cap_bolted_reinforced_frames/HbL90/col2",
+    "cap_welded_frames/HbL84/col7",
+    "cap_bolted_reinforced_frames/HbL36/col6",
+    "cap_welded_frames/HbL54/col1",
+    "cap_welded_frames/HbL36/col1",
+    "cap_welded_frames/HbL102/col1",
+    "cap_bolted_reinforced_frames/HbL108/col5"
+   ],
+   "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
+   "page_ref": "p.8 - 'Bolted Frame Capacities (lbs)' | p.25 - 'Reinforced Bolted Frame Capacities (lbs)' | p.52 - 'Welded Frame Capacities (lbs)'",
+   "supplementary_cells": []
+  }
+ ],
  "rev": "2026-09",
  "row_count": 336,
  "source_anomalies": [
@@ -60,9 +136,90 @@
  "source_url": "https://www.interlakemecalux.com/",
  "status": "APPROVED",
  "units": "lbs",
- "verification_path": {
-  "cells": 336,
-  "kind": "full_cross_check",
-  "note": "All 336 capacity cells re-derived from PDF page 88 and compared against the shipped rows by packages/kernel-catalog/src/psg-authority.test.ts, which is wired into the test run. The chart was also parsed directly from the PDF independently of the supplied spreadsheet, and the two agree on every row. End-plate assignment cross-checked against page 84 and character 13 of each 18-digit code."
- }
+ "verification_paths": [
+  {
+   "cells": 336,
+   "dataset": "beams",
+   "kind": "full_cross_check",
+   "note": "All 336 capacity cells re-derived from PDF page 88 and compared against the shipped rows by packages/kernel-catalog/src/psg-authority.test.ts, which is wired into the test run. The chart was also parsed directly from the PDF independently of the supplied spreadsheet, and the two agree on every row. End-plate assignment cross-checked against page 84 and character 13 of each 18-digit code. COUNTING NOTE, recorded 2026-09-01 under review finding F-15: 'cells: 336' counts extract ROWS, and p.88 prints one column per E/ER pair - all eight pairs, all 21 spans, identical capacity - so the 336 rows carry 168 DISTINCT PUBLISHED VALUES. Each published value was therefore checked twice by construction. The cross-check is real; the number reports rows, not independent readings. The same asymmetry is why a 20-row random draw lands short of the section 10.2 floor of 20 READINGS by default, which is what the deterministic top-up exists for - the top-up is the normal case, not an exception. A future sampler should draw over distinct published values in the first place; changing the draw on an APPROVED release is the approver's call, so it is recorded here, not done."
+  },
+  {
+   "cells": 435,
+   "dataset": "frames",
+   "kind": "two_path_reconciliation",
+   "note": "Carried forward from interlake-2026-08 unchanged. Every capacity cell was read twice by independent paths - a visual read of the rendered page images and a parse of the PDF embedded text layer - and reconciled 435/435. The 2026-09 re-source read p.88 for beam capacity only; no frame cell was re-read or altered, and a test asserts the tables hash matches 2026-08."
+  }
+ ],
+ "human_spot_checks": [
+  {
+   "dataset": "beams",
+   "cells": 336,
+   "sampled_cells": [
+    "59ER/F5M/120in",
+    "65QR/F5M/54in",
+    "50E/F4M/54in",
+    "27E/F3M/108in",
+    "36E/F3M/92in",
+    "59ER/F5M/156in",
+    "40E/F4M/60in",
+    "45E/F4M/96in",
+    "27E/F3M/96in",
+    "40E/F4M/92in",
+    "50E/F4M/48in",
+    "65ER/F5M/114in",
+    "27E/F3M/66in",
+    "36E/F3M/84in",
+    "50ER/F4M/60in",
+    "50E/F4M/126in",
+    "65ER/F5M/138in",
+    "40ER/F4M/156in",
+    "59ER/F5M/132in",
+    "59E/F5M/120in"
+   ],
+   "supplementary_cells": [
+    "65ER/F5M/78in"
+   ],
+   "seed": 20260901,
+   "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
+   "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M",
+   "checked_by": "Elliott Villacorta",
+   "checked_at": "2026-09-01",
+   "outcome": "MATCHED"
+  },
+  {
+   "dataset": "frames",
+   "cells": 435,
+   "sampled_cells": [
+    "cap_welded_frames/HbL48/col9",
+    "cap_welded_frames/HbL108/col4",
+    "cap_bolted_reinforced_frames/HbL78/col5",
+    "cap_bolted_frames/HbL42/col3",
+    "cap_bolted_frames/HbL72/col2",
+    "cap_welded_frames/HbL54/col7",
+    "cap_bolted_frames/HbL102/col1",
+    "cap_bolted_reinforced_frames/HbL48/col5",
+    "cap_bolted_frames/HbL36/col8",
+    "cap_bolted_frames/HbL102/col6",
+    "cap_bolted_reinforced_frames/HbL78/col4",
+    "cap_welded_frames/HbL84/col2",
+    "cap_bolted_reinforced_frames/HbL78/col2",
+    "cap_bolted_frames/HbL66/col9",
+    "cap_bolted_reinforced_frames/HbL96/col5",
+    "cap_bolted_reinforced_frames/HbL90/col2",
+    "cap_welded_frames/HbL84/col7",
+    "cap_bolted_reinforced_frames/HbL36/col6",
+    "cap_welded_frames/HbL54/col1",
+    "cap_welded_frames/HbL36/col1",
+    "cap_welded_frames/HbL102/col1",
+    "cap_bolted_reinforced_frames/HbL108/col5"
+   ],
+   "supplementary_cells": [],
+   "seed": 20260901,
+   "source_document": "Selective PSG_2025.pdf (Product Support Guide - Selective Rack - Roll Formed Beams and Frames, 2025, SEL-PSG-12/2025)",
+   "page_ref": "p.8 - 'Bolted Frame Capacities (lbs)' | p.25 - 'Reinforced Bolted Frame Capacities (lbs)' | p.52 - 'Welded Frame Capacities (lbs)'",
+   "checked_by": "Elliott Villacorta",
+   "checked_at": "2026-09-01",
+   "outcome": "MATCHED"
+  }
+ ]
 }

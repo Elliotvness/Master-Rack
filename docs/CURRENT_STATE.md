@@ -87,6 +87,52 @@ C:\Rack Master\rack-master-studio\
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
 
+**2026-09-01 (session 3) — `T-00` closes: CI green on the tip, recorded**
+
+`T-00`'s three acceptance criteria are met for the first time. Its verification requirement was
+*"the CI run URL and its conclusion recorded in `docs/CURRENT_STATE.md` §4"* — this is that record.
+
+| Item | Value |
+|---|---|
+| Run | **CI #10** — https://github.com/Elliotvness/Master-Rack/actions/runs/33529120263 |
+| Commit | `efbafbd` — the branch **tip**, not an ancestor |
+| Conclusion | **Success**, total duration 1m 34s |
+| Jobs | `verify` 1m 10s · `docs` 5s |
+| Read by | the PR checks page and the job log, in a signed-in browser, 2026-09-01 |
+
+**`verify` step-by-step, all green:** Initialize containers (Postgres) · checkout · pnpm setup ·
+node setup · `pnpm install --frozen-lockfile` · Typecheck · Lint · **Apply migrations** ·
+**Unit and tenancy tests** (13s) · boundary self-test + check · app-boundary self-test + check ·
+provenance-lint self-test + check · language self-test + check · lockfile self-test + check ·
+spot-check draw agreement · **RLS sensitivity self-test + RLS coverage assertion** · determinism
+self-test + check · **scoreboard sync self-test + copies agree** · kernel coverage gate (16s) ·
+performance budgets §5.4 1–2. Every checker ran behind its own self-test, in that order.
+
+`docs` succeeded in 5s — the blueprint rebuild plus `git diff --exit-code`.
+
+**Two warnings, neither a failure.** Node.js 20 is deprecated on GitHub runners, so
+`actions/checkout@v4`, `actions/setup-node@v4`, `actions/setup-python@v5` and `pnpm/action-setup@v4`
+are being forced onto Node 24. Worth pinning newer action versions before it becomes an error;
+tracked with the other CI gaps (T-11 secret scanning, dependency audit, P-05 bundle ceiling).
+
+**Addendum — run #11 on `a5d9c5b`, and a failure mode worth naming.** The commit that *records* this
+entry is docs-only, and its first CI attempt **failed in 12s** with `Docker start fail with exit
+code 1` — the Postgres **service container** never came up. Nothing in the commit could have caused
+it. Re-running the failed job gave **Success in 1m 12s** (`verify` 1m 5s, `docs` 5s):
+https://github.com/Elliotvness/Master-Rack/actions/runs/33530810806 (attempt 2).
+
+Worth naming because of how it presents: in the PR checks UI an infrastructure flake and a real
+regression look identical — a red ✗ on `verify`. The tell is the **duration**. A genuine failure
+gets past `Initialize containers` and dies at typecheck, lint or a test, tens of seconds in; a
+12-second failure never reached the code. **Read the duration before reading the diff.** The
+project's own habit applies here too: the red mark is a claim about the code until you check which
+step produced it.
+
+**What this does and does not settle.** It settles that the pipeline's guarantee now covers the code
+that exists — before today, nothing in the repository had been verified at its current commit, and
+three same-day documents disagreed about whether CI had ever run. It does **not** move §15.2, which
+stays at **0 of 8**: CI proves the foundations, not the product.
+
 **2026-09-01 — `E-07` groundwork and the language-discipline gate**
 
 | Check | Command | Result |

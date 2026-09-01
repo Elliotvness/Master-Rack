@@ -156,6 +156,253 @@ afterAll(async () => {
   if (available) await closeDatabase();
 });
 
+describe('AC-14 at the audit log — our actions on their job are not their events', () => {
+  // Found by the sensitivity assertion in check-rls, not by the audit. The
+  // policy keyed on subject_organization_id -- the org an event is ABOUT -- so
+  // a client admin could read `revision.derived` performed by staff on their
+  // own submission. Suppressing the revision row while publishing an audit
+  // event that names it closes one door and leaves the next one open.
+  const EV_CLIENT = 'cccccccc-1111-4111-8111-cccccccccccc';
+  const EV_STAFF = 'cccccccc-2222-4222-8222-cccccccccccc';
+  // A SERVICE principal acting INSIDE the client's own organization. This is
+  // the case the `actor_type = 'client'` half of the policy exists for, and
+  // nothing tested it: removing that half left all 35 tests green, because
+  // EV_STAFF is already excluded by the organization half alone.
+  const EV_SERVICE = 'cccccccc-3333-4333-8333-cccccccccccc';
+
+  beforeAll(async () => {
+    if (!available) return;
+    await withTenant({ organizationId: ORG_INTERNAL, actorType: 'staff' }, async (tx) => {
+      await tx.query(
+        `INSERT INTO app.audit_event
+           (event_id, occurred_at, actor_type, actor_organization_id, subject_organization_id,
+            action, resource_type, outcome, hash)
+         VALUES ($1, now(), 'client',  $4, $4, 'revision.edited', 'revision', 'success', 'h1'),
+                ($2, now(), 'staff',   $5, $4, 'revision.derived', 'revision', 'success', 'h2'),
+                ($3, now(), 'service', $4, $4, 'bom.derived', 'revision', 'success', 'h3')
+         ON CONFLICT (event_id) DO NOTHING`,
+        [EV_CLIENT, EV_STAFF, EV_SERVICE, ORG_A, ORG_INTERNAL],
+      );
+    });
+  });
+
+  maybe('a client reads its own people\'s events', async () => {
+    const rows = await withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) =>
+      (await tx.query('SELECT action FROM app.audit_event WHERE event_id = $1', [EV_CLIENT])).rows,
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  maybe('a client cannot read a STAFF action on its own project', async () => {
+    // `revision.derived` names an internal revision into existence. AC-14 says
+    // absent, and absent has to mean absent everywhere.
+    const rows = await withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) =>
+      (await tx.query('SELECT action FROM app.audit_event WHERE event_id = $1', [EV_STAFF])).rows,
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  maybe('a client cannot read a SERVICE action inside its own organization', async () => {
+    // SERVICE_ENGINE writes derived outputs and audit events. A service
+    // principal acting inside a client organization carries that organization's
+    // id, so the tenancy half of the predicate passes it; only
+    // `actor_type = 'client'` refuses it. Without this test that clause could
+    // be deleted as redundant and the suite would stay green.
+    const rows = await withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) =>
+      (await tx.query('SELECT action FROM app.audit_event WHERE event_id = $1', [EV_SERVICE])).rows,
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  maybe('staff read all three', async () => {
+    const rows = await withTenant({ organizationId: ORG_INTERNAL, actorType: 'staff' }, async (tx) =>
+      (await tx.query('SELECT action FROM app.audit_event WHERE event_id = ANY($1)', [
+        [EV_CLIENT, EV_STAFF, EV_SERVICE],
+      ])).rows,
+    );
+    expect(rows).toHaveLength(3);
+  });
+
+  maybe('a client-actor event cannot be written without an actor organization', async () => {
+    // 0007. The predicate compares a nullable column, so a NULL yields NULL,
+    // not false -- the row is invisible to the organization whose action it
+    // records. It fails CLOSED, so it is not a leak; it is a hole in a client's
+    // own audit trail that nothing would report.
+    await expect(
+      admin(
+        `INSERT INTO app.audit_event
+           (event_id, occurred_at, actor_type, actor_organization_id, subject_organization_id,
+            action, resource_type, outcome, hash)
+         VALUES (gen_random_uuid(), now(), 'client', NULL, $1, 'revision.edited', 'revision',
+                 'success', 'h4')`,
+        [ORG_A],
+      ),
+    ).rejects.toThrow(/audit_event_client_actor_has_org|violates check constraint/i);
+  });
+});
+
+describe('D-02 / AC-14 — an internal revision is ABSENT, not filtered', () => {
+  // The leak the Rev C audit found. `audience` was NOT NULL, indexed and
+  // correctly commented, and named in no policy -- so the tenant predicate
+  // passed internal revisions straight through to the client who owned them.
+  // A derived internal revision carries the CLIENT'S OWN organization_id: it is
+  // derived from their submission. Organization isolation was never going to
+  // stop this, and only an Array.filter() in a front-end package did.
+  const REV_A_INTERNAL = 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa';
+
+  beforeAll(async () => {
+    if (!available) return;
+    await withTenant({ organizationId: ORG_INTERNAL, actorType: 'staff' }, async (tx) => {
+      await tx.query(
+        `INSERT INTO app.revision
+           (id, organization_id, project_id, revision_code, audience,
+            catalog_release_id, rule_pack_release_id, created_by, content)
+         SELECT $1, r.organization_id, r.project_id, 'C01', 'internal',
+                r.catalog_release_id, r.rule_pack_release_id, r.created_by, '{"aisle":132}'
+           FROM app.revision r WHERE r.id = $2
+         ON CONFLICT (id) DO NOTHING`,
+        [REV_A_INTERNAL, REV_A],
+      );
+    });
+  });
+
+  maybe('the client who OWNS the project cannot see the internal revision', async () => {
+    const rows = await withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) => {
+      const r = await tx.query('SELECT id FROM app.revision WHERE id = $1', [REV_A_INTERNAL]);
+      return r.rows;
+    });
+    // Absent. Not "present but locked" -- "locked" tells a client that something
+    // exists which they may not see, and that is itself information: it says we
+    // are working on a variant of their job.
+    expect(rows).toHaveLength(0);
+  });
+
+  maybe('the client sees only client-audience revisions of its own project', async () => {
+    const rows = await withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) => {
+      const r = await tx.query('SELECT audience FROM app.revision');
+      return r.rows;
+    });
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((x) => x['audience'] === 'client')).toBe(true);
+  });
+
+  maybe('the rows hanging off the internal revision are absent too', async () => {
+    // F-01. 0005 closed app.revision and left its children on the generic
+    // tenant predicate. A derived internal revision carries the CLIENT'S OWN
+    // organization_id, so a finding attached to it satisfied that predicate and
+    // was fully readable -- code and severity -- while the revision row itself
+    // was correctly absent. Closing one door and leaving the next one open.
+    const FINDING = 'dddddddd-1111-4111-8111-dddddddddddd';
+    await admin(
+      `INSERT INTO app.finding
+         (id, organization_id, revision_id, code, severity, closed_by, revision_hash,
+          engine_version, audience)
+       VALUES ($1, $2, $3, 'INTERNAL-MARGIN-NOTE', 'BLOCKER', 'internal only', 'h', '1', 'internal')
+       ON CONFLICT (id) DO NOTHING`,
+      [FINDING, ORG_A, REV_A_INTERNAL],
+    );
+
+    const asClient = await withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) =>
+      (await tx.query('SELECT id FROM app.finding WHERE id = $1', [FINDING])).rows,
+    );
+    expect(asClient).toHaveLength(0);
+
+    const asStaff = await withTenant(
+      { organizationId: ORG_INTERNAL, actorType: 'staff' },
+      async (tx) => (await tx.query('SELECT id FROM app.finding WHERE id = $1', [FINDING])).rows,
+    );
+    expect(asStaff).toHaveLength(1);
+  });
+
+  maybe('the client still sees its OWN findings — this is not a blanket denial', async () => {
+    // A control that denies everything passes the test above and breaks the
+    // product. The client-audience row must still be readable by its owner.
+    const OWN = 'dddddddd-2222-4222-8222-dddddddddddd';
+    await admin(
+      `INSERT INTO app.finding
+         (id, organization_id, revision_id, code, severity, closed_by, revision_hash,
+          engine_version, audience)
+       VALUES ($1, $2, $3, 'AISLE-TOO-NARROW', 'BLOCKER', 'widen the aisle', 'h', '1', 'client')
+       ON CONFLICT (id) DO NOTHING`,
+      [OWN, ORG_A, REV_A],
+    );
+    const rows = await withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) =>
+      (await tx.query('SELECT code FROM app.finding WHERE id = $1', [OWN])).rows,
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  maybe('a child row cannot disagree with its parent about the audience', async () => {
+    // The composite foreign key, not a convention. A denormalised copy that can
+    // drift from its parent is a second source of truth and a slower version of
+    // the same bug.
+    await expect(
+      admin(
+        `INSERT INTO app.finding
+           (id, organization_id, revision_id, code, severity, closed_by, revision_hash,
+            engine_version, audience)
+         VALUES (gen_random_uuid(), $1, $2, 'MISMATCH', 'BLOCKER', 'x', 'h', '1', 'client')`,
+        [ORG_A, REV_A_INTERNAL],
+      ),
+    ).rejects.toThrow(/finding_revision_audience_fkey|foreign key/i);
+  });
+
+  maybe('a client cannot WRITE an internal-audience child row into its own org', async () => {
+    await expect(
+      withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) =>
+        tx.query(
+          `INSERT INTO app.finding
+             (id, organization_id, revision_id, code, severity, closed_by, revision_hash,
+              engine_version, audience)
+           VALUES (gen_random_uuid(), $1, $2, 'SNEAK', 'BLOCKER', 'x', 'h', '1', 'internal')`,
+          [ORG_A, REV_A_INTERNAL],
+        ),
+      ),
+    ).rejects.toThrow();
+  });
+
+  maybe('staff DO see the internal revision — the asymmetry is the point', async () => {
+    const rows = await withTenant(
+      { organizationId: ORG_INTERNAL, actorType: 'staff' },
+      async (tx) => (await tx.query('SELECT id FROM app.revision WHERE id = $1', [REV_A_INTERNAL])).rows,
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  maybe('a client cannot WRITE an internal revision into its own organization', async () => {
+    // Without WITH CHECK this succeeds: the row lands in the client's own org,
+    // invisible to them afterwards, present in every staff queue, attributable
+    // to nobody. A USING-only policy is a write hole wearing a read control.
+    await expect(
+      withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) => {
+        await tx.query(
+          `INSERT INTO app.revision
+             (id, organization_id, project_id, revision_code, audience,
+              catalog_release_id, rule_pack_release_id, created_by, content)
+           SELECT $1, r.organization_id, r.project_id, 'C99', 'internal',
+                  r.catalog_release_id, r.rule_pack_release_id, r.created_by, '{}'
+             FROM app.revision r WHERE r.id = $2`,
+          ['bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb', REV_A],
+        );
+      }),
+    ).rejects.toThrow();
+  });
+
+  maybe('a client cannot FLIP one of its own revisions to internal', async () => {
+    // The one-way disappearance: without WITH CHECK on UPDATE, a client could
+    // move a row out of its own sight permanently.
+    await expect(
+      withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) => {
+        const r = await tx.query(
+          "UPDATE app.revision SET audience = 'internal' WHERE id = $1 RETURNING id",
+          [REV_A],
+        );
+        if (r.rowCount === 0) throw new Error('no row updated');
+      }),
+    ).rejects.toThrow();
+  });
+});
+
 describe('AC-04 — cross-tenant reads return nothing', () => {
   maybe('sees only its own organization\'s projects', async () => {
     const rows = await withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) => {
@@ -339,11 +586,17 @@ describe('AC-11 — a frozen revision is immutable at the database layer', () =>
 
 describe('I-3 — audit events cannot be altered or removed', () => {
   maybe('refuses an UPDATE', async () => {
+    // The actor organization is incidental to what this tests (append-only),
+    // but 0007 requires it: this fixture was writing a client event that no
+    // client could ever read, which is the hole 0007 closes. The constraint
+    // found it on its first run.
     await admin(
       `INSERT INTO app.audit_event
-         (event_id, occurred_at, actor_type, action, resource_type, outcome, hash)
-       VALUES (gen_random_uuid(), now(), 'client', 'revision.frozen', 'revision',
+         (event_id, occurred_at, actor_type, actor_organization_id, action, resource_type,
+          outcome, hash)
+       VALUES (gen_random_uuid(), now(), 'client', $1, 'revision.frozen', 'revision',
                'success', 'h1')`,
+      [ORG_A],
     );
     await expect(
       admin(`UPDATE app.audit_event SET action = 'tampered'`),

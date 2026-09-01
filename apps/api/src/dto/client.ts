@@ -16,76 +16,17 @@
  *      so they cannot drift.
  */
 
-/**
- * Keys that must never appear in a client-facing response, at any nesting
- * depth. This is AC-02's list: every row marked Hidden in blueprint §9.2.
- */
-export const FORBIDDEN_CLIENT_FIELDS: readonly string[] = [
-  'cost',
-  'unit_cost',
-  'landed_cost',
-  'buy_price',
-  'price',
-  'margin',
-  'margin_pct',
-  'discount',
-  'supplier',
-  'supplier_id',
-  'mpn',
-  'manufacturer_part_number',
-  'bom',
-  'bom_line',
-  'item_snapshot',
-  'capacity',
-  'capacity_case',
-  'catalog_release',
-  'source_document',
-  'page_ref',
-  'catalog_page_ref',
-  'digitised_by',
-  'approved_by',
-  'citation',
-  'verification_tier',
-  'rule_id',
-  'internal_note',
-];
+// The forbidden-field list and its walk live in `@rms/contracts` (T-13a): they
+// have three consumers — this leakage test, the log redactor, and the outbound
+// validator — and a list two apps can each amend is a list that drifts.
+// Re-exported so existing callers are unaffected.
+export {
+  FORBIDDEN_CLIENT_FIELDS,
+  findForbiddenFields,
+  isForbiddenClientField,
+} from '@rms/contracts';
 
-const FORBIDDEN_SET: ReadonlySet<string> = new Set(FORBIDDEN_CLIENT_FIELDS);
-
-export function isForbiddenClientField(key: string): boolean {
-  return FORBIDDEN_SET.has(key);
-}
-
-/**
- * Recursively find every forbidden key in a value, with the path to each.
- * Empty means the value is safe to send to a client.
- *
- * This is what the contract test calls over every client route's response, and
- * what the response validator can call in production to alert on a leak.
- */
-export function findForbiddenFields(value: unknown, path = ''): readonly string[] {
-  const hits: string[] = [];
-  walk(value, path, hits, new Set());
-  return hits;
-}
-
-function walk(value: unknown, path: string, hits: string[], seen: Set<object>): void {
-  if (value === null || typeof value !== 'object') return;
-  // A cycle cannot leak a new field; stop rather than recurse forever.
-  if (seen.has(value)) return;
-  seen.add(value);
-
-  if (Array.isArray(value)) {
-    value.forEach((item, i) => walk(item, `${path}[${i}]`, hits, seen));
-    return;
-  }
-
-  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-    const here = path === '' ? key : `${path}.${key}`;
-    if (isForbiddenClientField(key)) hits.push(here);
-    walk(child, here, hits, seen);
-  }
-}
+import { isForbiddenClientField } from '@rms/contracts';
 
 // --------------------------------------------------------------------------
 // Client DTOs — built field by field, never spread

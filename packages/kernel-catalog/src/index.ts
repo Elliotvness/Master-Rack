@@ -9,14 +9,31 @@
 export {
   ApprovalGateError,
   CatalogError,
+  REQUIRED_DATASETS,
   approvalRefusals,
   approveRelease,
   canApprove,
   canPinForNewRevision,
+  completenessRefusals,
+  quarantineRelease,
+  type ApprovalFacts,
+  type DatasetCells,
+  type HumanSpotCheck,
   type CatalogReleaseManifest,
+  type DatasetVerificationPath,
   type ReleaseStatus,
   type VerificationPath,
 } from './release.js';
+
+export { ManifestError, loadReleaseManifest } from './load-manifest.js';
+
+export {
+  drawSpotCheckSample,
+  drawSupplementarySample,
+  readingsCovered,
+  requiredSampleSize,
+  spotCheckRefusals,
+} from './spot-check.js';
 
 export {
   BeamCatalog,
@@ -41,3 +58,11 @@ export {
 } from './frames.js';
 
 export { loadFrameTables } from './load-frames.js';
+
+export {
+  CELL_ID_DATASETS,
+  CellIdError,
+  cellIdsOf,
+  distinctPublishedCount,
+  publishedKeyOf,
+} from './cell-ids.js';

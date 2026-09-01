@@ -1,0 +1,639 @@
+# Review Findings — `fix/catalog-release-integrity`
+
+Companion to `tasks/review-plan.md` and `tasks/review-todo.md`.
+**Severities:** **Critical:** blocks merge · *(no prefix)* required before merge · **Consider:** ·
+**Nit:** · **FYI**. Findings are ordered by leverage, not by task.
+
+**Environment.** Reviewed 2026-09-01 against a live Postgres 18.4 (embedded, port 55433, migrations
+0001–0006 applied clean). `check-rls` re-run independently: **PASS, 19 tables, 4 sensitivity
+columns.** Vitest runs in the Linux workspace against the Windows `node_modules` without the
+esbuild/rollup workaround `LATEST.md` §4 describes — that note is now stale.
+
+---
+
+## F-01 — **Critical:** the audience boundary stops at `revision`. Its children leak. *(FIXED — `270631b`)*
+
+**Demonstrated, not argued.** Against the live database, as a client principal of ORG_A:
+
+```
+internal revision row visible : 0  (absent, correct — 0005 works)
+findings on it visible        : 1  <-- LEAK
+leaked: [{"id":"cafe0002-…","code":"INTERNAL-MARGIN-NOTE","severity":"BLOCKER"}]
+```
+
+0005 closed `app.revision`. Four tables carrying a `revision_id` foreign key were not closed, and
+their SELECT policies still read the generic tenant predicate alone:
+
+| table | policy | predicate |
+|---|---|---|
+| `assumption` | `assumption_tenant_select` | `organization_id = app.current_org() OR app.is_staff()` |
+| `finding` | `finding_tenant_select` | same |
+| `submission` | `submission_tenant_select` | same |
+| `uncatalogued_part` | `uncatalogued_part_tenant_select` | same |
+
+The mechanism is D-02's, exactly: **a derived internal revision carries the client's own
+`organization_id`**, so every child row written against it satisfies the tenant predicate. Suppressing
+the parent row while leaving its children readable is the same shape of defect as suppressing the
+revision while publishing an audit event that names it — which is what 0006 was written to fix.
+
+`bom_line`, `internal_note` and `finding_internal_detail` are staff-only and are **not** affected.
+That is the design working: the *detail* behind a finding is protected. The finding row itself —
+its code and severity, e.g. an internal blocker on our own working copy — is not.
+
+**Why no gate caught it.** `check-rls`'s new assertion keys on a table **having** a sensitivity
+column. These four tables have none; they inherit their audience from a parent. The checker built to
+stop D-02 recurring is structurally unable to see D-02 recurring one join away. That is the more
+important half of this finding.
+
+**Latency.** Not exploitable today: `deriveInternalRevision` is a pure function returning a shape,
+nothing persists a derived revision's children, and there is no server. It goes live the first time
+Phase 3 writes them — at which point nothing in `pnpm verify` will say a word.
+
+**Proposed remedy** — make the existing checker cover them, rather than adding a second checker:
+
+1. `UNIQUE (id, audience)` on `app.revision` (redundant given the PK, which is what makes it free).
+2. `audience` column on each of the four children, `NOT NULL`, with a **composite foreign key**
+   `(revision_id, audience) REFERENCES app.revision (id, audience)`. Divergence from the parent then
+   becomes impossible at the database rather than by convention — the same argument `0001` already
+   makes for denormalising `organization_id` onto every child.
+3. Their four policies gain `AND audience = 'client'`, matching 0005 exactly.
+4. `check-rls` then covers all five tables with no new rule, because they now carry the column.
+
+**Alternatives considered and rejected:** a `revision_is_client_visible(uuid)` STABLE function in each
+child policy (a function call per row, and it re-centralises rather than removes the problem); an
+`EXISTS` subquery per policy (same cost, and the predicate stops being readable).
+
+**Decision needed:** fix on this branch, or file as a task and merge with the hole recorded. Filing is
+defensible — nothing writes these rows yet — but the branch must not be described as having closed
+the audience boundary until it is done.
+
+---
+
+## F-02 — **Critical:** the approval gate does not enforce the draw it pinned *(FIXED — `540f4cd`)*
+
+`approvalRefusals()` returns **`[]`** — the release is approvable — for a manifest whose recorded
+spot-check cells are `TOTALLY/FAKE/CELL-0` … `TOTALLY/FAKE/CELL-19`. Reproduced against the real
+`interlake-2026-09` manifest:
+
+```
+REFUSALS WITH FABRICATED CELLS: []
+```
+
+The fabrication kept only what the gate checks: the right *count* (20 beams, 22 frames), the right
+seed, unique ids, a non-empty page ref, `outcome: 'MATCHED'`, and `checked_by ≠ digitised_by`. Every
+cell id was invented. `spotCheckRefusals` never calls `drawSpotCheckSample`, so the seed it insists
+on recording is never used for anything, and the cells are never checked against the dataset either —
+ids that exist in no file at all pass.
+
+This is **D-07's own failure mode, one layer up.** D-07 was "the two-person rule is satisfied by a
+machine checking its own work." The fix requires the approver's own recorded reading of cells the
+tool drew. The record can be written without the tool, without the source, and without reading a
+cell. `52f708a`'s entire purpose is the thing that does not hold.
+
+`release-integrity.test.ts:205` ("the pinned draw matches what the tool draws for that seed") does
+bind the *currently pinned* draw to the kernel. That is a test over today's data file. It is not the
+gate, and it does not run when a manifest is approved.
+
+**Proposed remedy.** The identity check needs the dataset's cell ids, which a pure function in
+`release.ts` does not have. So:
+
+- `spotCheckRefusals` gains a required `cellIds: readonly string[]` parameter and asserts
+  `sampledCells` deep-equals `drawSpotCheckSample(cellIds, seed, requiredSampleSize(cells))`, in
+  order — the draw records the order for exactly this reason.
+- `approvalRefusals` takes a `datasetCells: ReadonlyMap<string, readonly string[]>` and passes each
+  dataset's ids through. A dataset with no entry is a refusal, not a skip.
+- The caller (`release-integrity.test.ts` today, `apps/api` later) supplies them from the loaded
+  datasets. The package stays pure — the ids are data, not I/O.
+- `check.cells` is asserted equal to `cellIds.length`, so a shrunken `cells` cannot shrink the
+  required sample.
+
+**Regression test to write with the fix:** the probe above, inverted — fabricated cells at the right
+count must produce a refusal naming the dataset. Record it failing before the fix lands.
+
+---
+
+## F-03 — the `actor_type = 'client'` half of 0006 is untested *(FIXED — `e6b4784`)*
+
+Removed the clause from the live policy, leaving `actor_organization_id = app.current_org() OR
+app.is_staff()`. **All 35 tenancy tests pass.**
+
+The migration argues the point at length in its own comment — "the second is not redundant.
+SERVICE_ENGINE writes derived outputs and audit events, and a service principal acting inside a
+client organization is not that organization's own action either" — and nothing proves it. A future
+hand simplifying the predicate to one clause gets a green suite.
+
+For contrast, 0005 **is** properly tested: reverting `revision_audience_select` to the generic tenant
+predicate fails 2 of 35, at `tenancy.test.ts:251`. That is what a test of a fix looks like.
+
+**Remedy:** a test in the AC-14 audit-log block that writes an audit event with
+`actor_organization_id = ORG_A` and `actor_type = 'service'`, and asserts a client principal of ORG_A
+cannot read it.
+
+---
+
+## F-04 — `actor_organization_id` is nullable with nothing tying it to `actor_type` *(FIXED — `e6b4784`, migration 0007)*
+
+```
+actor_type              NO   (NOT NULL)   ✓
+actor_organization_id   YES  (nullable)
+```
+
+`app.audit_event` carries no CHECK constraints at all. The 0006 predicate compares a nullable column,
+so a client-actor event written without an actor organization yields NULL, not false, and is
+invisible to every client principal — including the organization whose action it records.
+
+It **fails closed**, so this is not a leak. It is a silent hole in a client's own audit trail, and
+0002's own comment names why that matters: "RLS fails silently … application predicates fail loudly."
+Here both halves are silent.
+
+**Remedy:** `ALTER TABLE app.audit_event ADD CONSTRAINT audit_event_client_actor_has_org
+CHECK (actor_type <> 'client' OR actor_organization_id IS NOT NULL);`
+
+---
+
+## F-05 — **FYI** `audit_event_subject_org_idx` no longer serves the SELECT policy
+
+`(subject_organization_id, sequence)` was built for the predicate 0006 replaced. The new policy reads
+`(actor_organization_id, actor_type)`, which `audit_event_actor_org_idx` now covers. Keep the old
+index only if staff-side queries filter by subject organization; drop it otherwise. Worth a sentence
+in the migration, not a change on this branch.
+
+---
+
+## F-06 — the missing self-test, now written *(R-03, fixed on this branch)*
+
+`check-rls` gained a real control in 0005 and shipped with no self-test, in a repository where every
+other checker has one and `pnpm verify` runs the self-test **first**. That ordering is not ceremony:
+a checker that silently stops working reports a clean pass forever, which is worse than no checker,
+because the build stays green while the invariant rots.
+
+Fixed here rather than filed, because it is an hour and it guards the control that found F-01's
+sibling:
+
+- `sensitivityViolations()` extracted from `main()` in `tools/check-rls.mjs` and **exported pure** —
+  the shape every other checker in `tools/` already has, and the reason `selftest-boundaries` can
+  import `checkBoundaries`.
+- `check-rls.mjs` gained the same `import.meta.url` entry-point guard as `check-boundaries.mjs`.
+  Without it, importing the module opened a database connection, so the self-test needed the very
+  Postgres it exists to avoid depending on.
+- **New:** a stale-exemption assertion. `SENSITIVITY_EXEMPTIONS` naming a table/column that no longer
+  exists is now a violation. A justification for a dropped column is not evidence about the schema as
+  it stands, and it was being honoured silently.
+- `tools/selftest-rls.mjs`, seven cases, no database: D-02's own shape, D-06's own shape, a
+  sensitivity column on a table with no policies, a substring near-miss (`audience_id` must not count
+  as `audience`), a stale exemption — all must go **red**; the WITH-CHECK-only case and the schema as
+  0005/0006 leave it must stay **green**, because a checker that fails on everything is no more use
+  than one that fails on nothing.
+- Wired into `verify` as `check:rls:selftest`, ahead of `check:rls`, matching every sibling.
+
+```
+selftest-rls: PASS — 7 cases.
+check-rls: inspected 19 table(s) in schema "app", 4 sensitivity column(s).
+check-rls: PASS
+```
+
+**Still open, and it is F-01's real remedy:** the assertion keys on a table *having* a sensitivity
+column, so it cannot see a table that inherits its audience through a foreign key. The self-test now
+locks in the behaviour that exists; it does not widen it.
+
+---
+
+## F-07 — a test name that promised more than its body delivered *(FIXED — `540f4cd`)*
+
+`release-integrity.test.ts` carried a test called **"the pinned draw matches what the tool draws for
+that seed"** whose body asserted only that the sample was the right SIZE. Nothing compared a cell.
+
+This is most of why F-02 survived. Anyone auditing the test list — including the author of the gate —
+would read that name as coverage of the draw's identity, and write the gate to match what they
+believed was already proven. A name that overstates its body is worse than a missing test: a missing
+test is visibly missing.
+
+It now derives the ids and compares the pinned cells to `drawSpotCheckSample`, and it passes: the pin
+in `interlake-2026-09` is a genuine draw at seed 20260901.
+
+---
+
+## F-08 — the 100% coverage rule has not been enforced by anything *(FIXED — `c6f603e`)*
+
+`pnpm verify` runs `pnpm test`, not `pnpm coverage`. `ci.yml` **does** have a "Kernel coverage gate"
+step — and CI has never executed, because there is still no remote (`T-00`). So blueprint §16.1's
+rule that every pure package sits at 100% has been unchecked since the packages were written.
+
+It was not holding. `kernel-catalog` measured **90.9% lines**: `load-manifest.ts` at 60% and
+`spot-check.ts` at 89%, both added by this branch. **The branch would have failed CI on its first
+push**, on a gate nobody could see.
+
+Fixed by writing the two missing test files — `spot-check.test.ts` (18) and `load-manifest.test.ts`
+(28), for the two modules that shipped without one — and adding `pnpm coverage` to `verify` so it
+matches what CI already runs. kernel-catalog is back to 100% on all four measures across its ten
+files.
+
+One branch was **deleted rather than tested**: `strays[0] ?? ''` inside a `strays.length > 0` guard is
+unreachable. Destructuring the first stray turns two branches into one that the tests exercise.
+
+**Limit, stated plainly:** a full-repo coverage run exceeds this workspace's 180-second shell limit,
+so only `kernel-catalog` has been measured. Whether the other nine packages still meet their
+thresholds is exactly what `T-00`'s first green CI run is for.
+
+**Executed 2026-09-01 (R-09):** `pnpm coverage` ran to completion (31s, 974 passed / 67 skipped).
+`kernel-catalog` measured **100% statements / 100% branches / 100% functions / 100% lines** across
+all ten files — the F-08 gate holds. The run's only failures were the DB-backed layers
+(`apps/api/src/auth/**`, `apps/api/src/audit/**`, `apps/api/src/outbox/**`, `packages/db/src/**`),
+which sit below threshold **only because their tests skip without a migrated Postgres** — CI's
+Postgres service is what measures them. The first real CI run (PR #1, 2026-09-01) died in
+`pnpm/action-setup@v4` before a single test executed: `version: 11` in `ci.yml` conflicted with
+`"packageManager": "pnpm@11.22.0"` in `package.json`. Fixed by deleting the `version` key so the
+action reads `packageManager` (`2ffd173`).
+
+---
+
+## F-09 — **FYI** the recorded file count was wrong
+
+`LATEST.md` records "961 tests / 42 files". The branch tip carried **40** test files
+(`git ls-tree -r 0b9fd73`). The current tree carries 43 and **1042 tests, all passing**, DB-backed
+included. The test count is plausible; the file count was not. Corrected under R-11.
+
+---
+
+## Confirmed sound — recorded so the review is not re-run
+
+These were checked and are correct. Listed because "we looked and it held" is a review output too.
+
+- **Policy names.** `revision_tenant_{select,insert,update,delete}` are exactly what 0002's
+  `format('%1$I_tenant_select', 'revision')` generates. The `DROP POLICY IF EXISTS` names match, so
+  none of the wide policies survived to be OR-ed with the new ones. Verified against `pg_policy` on
+  the live database: `app.revision` carries **four** policies, all `revision_audience_*`.
+- **All four commands, both clauses.** `SELECT`/`INSERT`/`UPDATE`/`DELETE` present; `UPDATE` carries
+  both `USING` and `WITH CHECK`, so a client cannot flip its own revision to `audience='internal'`.
+- **Enum, not free text.** The predicate renders as `audience = 'client'::app.audience`. There is no
+  string to misspell into a passing comparison.
+- **No re-widening at the policy layer.** No other table's policy expression mentions `revision` in
+  a subquery. (The leak in F-01 is by FK, not by predicate — which is why this check was not enough.)
+- **Index.** `revision_audience_idx (organization_id, audience)` matches the new predicate's leading
+  columns; the change costs nothing on the read path.
+- **`stripInternalRevisions` was kept**, at `apps/internal-web/src/lib/queue.ts:211`. Two independent
+  controls, as designed — one quiet, one loud.
+- **`check-rls` PASS re-run independently**: 19 tables, 4 sensitivity columns
+  (`app_user.actor_type`, `audit_event.actor_type`, `revision.audience`, `session.actor_type`); the
+  two exemptions cover the two `app_user`/`session` cases and are consistent with staff living in
+  their own organization.
+
+---
+
+# Phase C/D — R-08 and R-10, reviewed 2026-09-01 (session 3)
+
+**Environment.** Reviewed from the Linux bridge shell against the working tree at `ab390d5`.
+Every figure below was re-derived here with `git` and a Python read of the JSON — deliberately
+**not** by reading the tests that assert the same things. The one thing that could not be run here
+is the vitest suite: this repo's `node_modules` is a Windows pnpm store, so `rollup` and `esbuild`
+have no Linux binaries. Installing the two Linux binaries into scratch got past `rollup` and then
+hit `esbuild`; the attempt was abandoned rather than pursued, and nothing was written into the
+repository. CI covers it instead — see the disposition on each task.
+
+## F-12 — `changes_from_2026_08` denies a change it made to 168 rows
+
+**Required before merge. The data is right; the change log is wrong about it.**
+
+`data/catalog/interlake-2026-09/manifest.json`, `changes_from_2026_08[2]`, states verbatim:
+
+> "No part number, code_18, face height or deflection value was altered. Only capacity was
+> re-sourced, and only unpublished rows were removed."
+
+Measured, by diffing the two `beams.json` on the 336 rows the releases share:
+
+| field | rows changed 2026-08 → 2026-09 |
+|---|---|
+| `capacity_lbs` | **264** — matches the manifest's own claim exactly |
+| `face_height_in` | **168** — the manifest says zero |
+| `part_number`, `code_18`, `deflection_in` | 0 — as claimed |
+
+The 168 are eight of the sixteen families, every span:
+
+| families | 2026-08 | 2026-09 | published as (p.84) |
+|---|---|---|---|
+| 36E, 36ER | 3.65 | 3.65625 | 3 21/32 |
+| 59E, 59ER | 5.92 | 5.9375 | 5 15/16 |
+| 65E, 65ER, 65Q, 65QR | 6.54 | 6.5625 | 6 9/16 |
+
+The other eight families (27E/ER, 40E/ER, 45E/ER, 50E/ER) were already exact and did not move.
+
+**The change itself is correct and is documented — three fields down, in the same file.**
+`face_height_59e_status` and `face_height_65_status` both read `disposition: RESOLVED`, resolved by
+Elliott Villacorta on 2026-08-31 against p.84, and `face_height_policy` explains why the exact
+fraction is stored rather than a rounded value. So this is not a hidden change; it is a change
+recorded in one place and **denied in another**, inside one artifact.
+
+That matters more here than it would elsewhere. `changes_from_2026_08` is the field a future reader
+consults to learn what moved between two releases — it is the release's own diff, and the reason
+2026-08 was allowed to keep its wrong values was precisely so the record of what was believed stays
+reconcilable. A change log that under-reports is the same defect as an extract that over-reports.
+
+**Fix:** amend the sentence to name the face-height correction and point at
+`face_height_*_status`. Do not touch a single value.
+
+## F-13 — the approved manifest still carries the note saying it is DRAFT
+
+**Required before merge.** `manifest.json` holds, simultaneously:
+
+- `status: "APPROVED"`, `approved_by: "Elliott Villacorta"`, `approved_at: "2026-09-01"`; and
+- `approval_record`: "*Returned to DRAFT 2026-09-01 after approval … the release is DRAFT until
+  that cell is read and the record re-made.*"
+
+The cell **was** read — `65ER/F5M/78in` is in `human_spot_checks[beams].supplementary_cells` with
+`outcome: MATCHED`, `checked_by: Elliott Villacorta` — so the release is legitimately approved and
+the narrative is simply stale. But `approval_record` is prose inside the artifact that gates
+pinning, and it currently contradicts the field one line above it. A reader who trusts the prose
+concludes the release cannot be pinned.
+
+**Fix:** rewrite `approval_record` to describe the whole arc — approved, returned to DRAFT on the
+19-distinct-values finding, topped up, re-approved — in the past tense.
+
+## F-14 — WITHDRAWN as filed, and replaced by the narrower finding underneath it
+
+**What I filed:** that `pending_spot_checks` and `human_spot_checks` are "two records of one fact",
+citing the codebase's own line about how such pairs come to disagree.
+
+**Why that was wrong.** They are not two records of one fact. They are the **question and the
+answer**, and the code says so in as many words. `tools/record-spot-check.mjs`, at the point where it
+would have been easiest to delete the pin:
+
+> "The pinned draw stays in the file. It is the record of what was ASKED, and removing it once
+> answered would delete the evidence that the sample was fixed before it was read."
+
+And `tools/draw-spot-check.mjs` refuses to redraw while a pin exists — "a sample that can be redrawn
+until it is convenient is not a random sample." The duplicated `sampled_cells` is not redundancy; it
+is what makes the pairing auditable. Deleting either half destroys the property the two-person rule
+depends on.
+
+I pattern-matched a shape without reading the mechanism — which is the same error as the session-2
+drift item that would have edited 23 routes down to 20 to make a document agree with the code.
+Recorded rather than quietly dropped, because a withdrawn finding is evidence about the reviewer.
+
+**The real finding, which survives.** The design's whole value is that the answer covers the
+question, and **nothing asserted it.** `approveRelease` reads only `human_spot_checks`
+(`release.ts:243`); it never compares them. A recorder bug, a rebase or a hand-edit could leave a
+signature over a *different* set of cells from the one that was pinned, and every existing gate
+would still pass — a named person's signature attached to a sample nobody drew.
+
+**Closed:**
+
+- `tools/check-spot-check-record.mjs` compares every signed record against its pin: the sampled
+  cells **in order** (the draw is ordered evidence), the supplementary cells, the seed and the
+  population size. A record with no pin behind it is a failure. A pin with no record yet is not —
+  that is merely unread.
+- `tools/selftest-spot-check-record.mjs` — **10 cases**, run first: a different cell, a *reordered*
+  list, a dropped cell, a changed supplementary cell, a changed seed, a changed population size, an
+  unpinned signature, an unread pin, and a refusal to report a clean pass over an empty set.
+- **Proven to fire against the real release**: one drawn cell in `interlake-2026-09`'s signed record
+  swapped for a different *real* row, checker went red printing both lists side by side, reverted.
+- Wired into `pnpm verify` and CI, self-test first.
+
+## F-15 — the E/ER collision is the shape of the whole chart, not a 59E quirk
+
+**Required before merge — it changes what the gate should draw over.**
+
+`approval_record` explains the 20-cells-but-19-readings finding as a property of one column:
+"*PSG 2025 p.88 prints one column headed 59E / 59ER and the extract carries two rows for it.*"
+
+Measured across the whole dataset: **every** family behaves that way.
+
+| base family | spans where E and ER carry an identical (series, span, capacity) |
+|---|---|
+| 27E/27ER, 36E/36ER, 40E/40ER, 45E/45ER, 50E/50ER, 59E/59ER, 65E/65ER, 65Q/65QR | **21 of 21, all eight pairs** |
+
+336 rows carry **168 distinct published capacity values**. Within a pair the rows differ only in
+`part_number` and one character of `code_18`; capacity, deflection and face height are identical
+(e.g. 59E and 59ER at 120" are both 7,330 lb, 0.67", 5.9375").
+
+Three consequences:
+
+1. **The narrative understates it.** As written, a reader takes 59E/59ER for an anomaly. It is the
+   structure of the chart: the guide prints one column per E/ER pair throughout.
+2. **The top-up is the normal case, not the exception.** A uniform draw of 20 rows over 168 pairs
+   yields fewer than 20 distinct values far more often than not — the expected count is about
+   18.9. The current gate is *correct* (it counts distinct published values and tops up), but its
+   shape implies a rare correction. **The sampler should draw over distinct published values in the
+   first place**, and record which row of the pair was read. Otherwise every future release repeats
+   this session: draw, fail the floor, top up, re-approve.
+3. **`verification_paths[beams].cells = 336` counts rows, not readings.** The full cross-check
+   re-derived 336 rows from a chart printing 168 values, so each published value was checked twice
+   by construction. The number is not false, but it reports twice the independent evidence that was
+   obtained — the same class of overstatement F-11 found in the spot-check floor, one level up.
+   State it as "336 rows / 168 distinct published values".
+
+## F-16 — "byte-for-byte" describes more than the mechanism does
+
+**Nit.** `frames.json`'s `carried_forward_from` and the test name both say the frame tables were
+carried forward "byte-for-byte". The mechanism is
+`sha256(JSON.stringify(JSON.parse(file).tables))` — structural equality **after parse**. Reformat
+either file, reorder nothing, and the check stays green; the files are in fact *not* byte-identical
+(2026-09 adds `carried_forward_from` and `tables_sha256`, drops `status`/`approved_*`, and changes
+`rev`).
+
+Testing meaning rather than whitespace is the better choice. Only the word was wrong.
+
+**Fixed.** The test is now named *"carried the frame tables forward from 2026-08 unchanged after
+parse"*, and `carried_forward_from` says "IDENTICAL AFTER PARSE, asserted by a SHA-256 over the
+tables array — not byte-identical, which this file plainly is not", and names the consequence:
+**because the assertion parses first, reformatting either file leaves it green.**
+
+That consequence is not hypothetical. While making this very edit I rewrote `frames.json` with a
+different indent and produced an 841-line reformat that **every gate passed** — the tables hash was
+unchanged, because it is computed after parse. Restored to one changed line. A data file's
+formatting is part of its reviewability even when nothing asserts it.
+
+**Independently confirmed, for the record:** the `tables` arrays are structurally equal, and
+recomputing the stored hash here by the same method reproduces
+`8895b30674682bc6087c906378d2e2824452bf3c13ea23411d7caa4b57908c8f` exactly. The hash is real and
+reproducible outside the codebase.
+
+## F-17 — one commit subject stops mid-clause
+
+**Nit.** `36881f3` — *"review: Phase A findings, and the self-test check-rls shipped without"*.
+Shipped without **what**? It is the one subject on the branch that fails the standalone-and-
+informative bar the other 35 clear. Not worth rewriting history for; recorded so the pattern is not
+repeated.
+
+## F-18 — the commit type vocabulary is undocumented and overlapping
+
+**Nit.** The branch uses `feat`, `fix`, `docs`, `test`, `chore`, `ci`, `perf` — conventional — plus
+`tools:`, `catalog:` and `review:`, which are this project's own, and one commit (`a5d9c5b`) that
+uses a task id, `T-00:`, as its type. `tools:` and `chore:` overlap in practice: `6f05043` adds a
+checker under `tools:` while `e488a14` edits a comment under `chore(authz):`.
+
+The extra types are *good* — `catalog:` and `review:` name things this project genuinely does. They
+are just written down nowhere, so the next contributor will guess. **Fix:** one short section in
+`CONTRIBUTING` or the plan listing the seven conventional types plus the three local ones, and
+saying task ids go in the body, not the type.
+
+## F-19 — `content_sha256` had no verifier, and its method changed between releases without saying so
+
+**Found while answering "is it safe to edit an approved manifest?" — the answer was yes, and this
+was underneath it.**
+
+Every catalog manifest records a `content_sha256`. Nothing recomputed it. `load-manifest.ts:179`
+reads it with `str(m, 'content_sha256')` — an opaque string — and the only assertion on it,
+`release-integrity.test.ts:132`, pins the **2026-08** value against a hard-coded literal. That
+assertion is worth keeping: it proves the quarantine commit did not alter the data. It says nothing
+about whether the hash *describes* the data.
+
+Worse, the two releases in the same directory use two different definitions of the field:
+
+| release | method | recomputes to the stored value? |
+|---|---|---|
+| `interlake-2026-09` | `sha256` of the canonical `rows` array — `json.dumps(rows, sort_keys=True, separators=(',',':'))`, per `tools/build-2026-09-manifest.py` | yes |
+| `interlake-2026-08` | `sha256` of the **file text** with the trailing newline stripped, per `tools/extract-catalog.py` | yes |
+
+Cross-applied, they disagree. One field name, two definitions, no verifier, and the method stated
+nowhere — the shape of F-02, F-08 and F-11 again, this time in the field whose entire job is
+integrity.
+
+**And the 2026-09 digest is not implementation-independent.** `beams.json` carries
+`"face_height_in": 4.0` for the whole-number families. Python keeps the float and writes `4.0`;
+every other JSON implementation parses it to `4` and writes `4`. One character, a different digest,
+identical data. The stored hash is reproducible only by something that preserves the original
+numeric literal.
+
+**Closed, mechanically:**
+
+- Each manifest now declares `content_sha256_method` as `{ id, note }`, with the caveat above
+  recorded in the 2026-09 note.
+- `tools/check-content-hash.mjs` recomputes by the declared id and **fails closed**: a manifest with
+  no declared method, an unimplemented method, or a missing hash is a failure, never a skip. It
+  preserves numeric literals through Node 22's source-preserving reviver, and throws rather than
+  hashing a normalised form if the runtime cannot.
+- `tools/selftest-content-hash.mjs` — **11 cases**, run before the checker: the honest pair under
+  both methods; the two methods proven to disagree on identical data; a hash computed by the *other*
+  method caught; one changed capacity value red; the `4.0`-vs-`4` trap; all three fail-closed cases;
+  a vacuous empty-set pass refused; the bare-string method form accepted.
+- **Proven to fire against the real release**, not only fixtures: one character changed in
+  `interlake-2026-09`'s stored hash, `check-content-hash` went red naming both digests, reverted.
+- Wired into `pnpm verify` and CI, self-test first.
+
+**Fixture handling, deliberately different from the other checkers.** This self-test writes to the
+OS temp directory. The others write probe files into the working tree and delete them at the end,
+which on 2026-09-01 stranded four `__*_probe__` folders on a mount that forbids deletion and made
+`check-boundaries` report a **false FAIL against its own leftover fixture**. Worth retrofitting to
+the others.
+
+**Left for the approver, not done here.** Re-basing the 2026-09 digest onto an
+implementation-independent canonical form would change a field on an **APPROVED** release. The
+checker records and verifies what is there; changing it is EL's call.
+
+## F-12 and F-13 — fixed, values untouched
+
+Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.
+Established first, because it governed whether the edit was safe at all: **`content_sha256` covers
+`beams.json` only** — the rows array under 2026-09's method, the file text under 2026-08's — so no
+manifest prose is inside either hash, and the approval gate reads `status`, the approver identity,
+the verification paths and the human spot-checks, none of which this touches. Editing the prose
+neither invalidates the hash nor reopens the gate. Confirmed by recomputing both hashes before and
+after: unchanged.
+
+- **F-12** — `changes_from_2026_08` now names the face-height correction, the three affected family
+  groups with their old and new values, the eight families that did not move, and points at
+  `face_height_59e_status` / `face_height_65_status` / `face_height_policy`. It also records that
+  the sentence previously said the opposite, and why that mattered.
+- **F-13** — `approval_record` is rewritten in the past tense across the whole arc: approved,
+  returned to DRAFT on the 19-distinct-values finding, gate changed to count published values, the
+  one-cell top-up drawn and read, re-approved.
+
+**No capacity, part number, code, face height or deflection value was altered.** The diff is
+1 line in the 2026-08 manifest and 6 in the 2026-09 manifest, all of them prose or the new method
+field.
+
+
+---
+
+## R-08 — the catalog data, reviewed as data
+
+Every check below was run here, against the files, not against the tests that assert them.
+
+| Acceptance criterion | Result |
+|---|---|
+| `frames.json` carried forward from 2026-08, verified independently | **Confirmed at the level that matters.** The `tables` arrays are structurally identical and the stored hash reproduces exactly. The *files* are not byte-identical, by design — see F-16 |
+| 2026-08's transcribed values unchanged by the quarantine commit | **Confirmed.** `git diff eeaafef^ eeaafef` on that manifest touches exactly three things: `status` DRAFT → QUARANTINED, and the two added fields `corrected_by` and `quarantine_reason`. No transcribed value moved |
+| `quarantine_reason` and `corrected_by` non-null and naming the correcting release | **Confirmed.** `corrected_by: "2026-09"`; the reason names the finding (D-06), the count (264), the phantom rows (42) and why the values are deliberately not corrected |
+| 2026-09 is DRAFT with no residue of a hand-typed APPROVED | **Stale criterion — superseded, not failed.** It was written while `52f708a` held the release at DRAFT. `eaeb8f0` and `a2f166e` then re-approved it against a recorded human spot-check, which is the outcome the criterion was protecting. The residue it was hunting is absent: the APPROVED is backed by `human_spot_checks` with a named checker, a date and MATCHED. See F-13 for the stale prose that *did* survive |
+| Sample sizes re-derived from `max(20, ceil(0.05 × N))` | **Confirmed.** beams `max(20, ⌈16.8⌉) = 20`, pinned 20 (+1 supplementary); frames `max(20, ⌈21.75⌉) = 22`, pinned 22 |
+| Every pinned cell id resolves to a real row | **Confirmed. 43 of 43.** 21 beam ids (20 + the top-up) resolve against `(family, series, span_in)`; 22 frame ids resolve to a non-null cell at `table_id/HbL<height>/col<n>` |
+| `source_anomalies` and `constraints` carried forward unchanged | **`constraints` yes; `source_anomalies` no — and correctly so.** 2026-08 listed 8, 2026-09 lists 3. The 5 individual 17-character `code_18` entries were consolidated into one, and the **59E face-height anomaly was removed because the re-source resolved it** (5.92 → 5.9375, recorded in `face_height_59e_status`). One anomaly is new and correctly recorded: 65QR at 162" carries end-plate letter `R` where F5M specifies `S`, transcribed verbatim and pinned as a named exemption |
+| The 42 phantom 40E/40ER-F3M rows still absent | **Confirmed. Zero.** The family/series map is 16 families × 21 spans = 336, each family under exactly one end plate: F3M for 27E/36E, F4M for 40E/45E/50E, F5M for 59E/65E/65Q |
+| `pnpm lint:provenance` PASS | **PASS**, re-run here, self-test first |
+| `pnpm test packages/kernel-catalog` green | **Not run here** — Windows pnpm store, no Linux `rollup`/`esbuild` binaries. **Covered by CI instead, which is stronger:** the `verify` job's "Unit and tenancy tests" step ran green on `efbafbd` (run #10) and `a5d9c5b` (run #11 attempt 2), and the catalog data has not changed since |
+| Cell-id existence script | Run, and extended past the criterion to cover **both** datasets rather than one |
+
+**Independently re-derived numbers, all matching the manifest's own claims:** 378 → 336 rows;
+exactly 42 removed, all 40E/40ER under F3M; exactly **264** capacity values changed; frame cells
+150 + 135 + 150 = **435**; beam `row_count` 336 with no duplicate `(family, series, span)` key.
+
+**Disposition:** the catalog data is in good order and the arithmetic holds everywhere it was
+checked. **F-12, F-13 and F-16 are fixed. F-14 is withdrawn as filed and replaced by a checker.
+F-15's counting note is recorded in the manifest**; its code half — making the sampler draw over
+distinct published values — changes the draw on an APPROVED release and is left to the approver. F-19 was found
+underneath them and is closed with a checker and its self-test. The findings are all in the *prose*
+wrapped around the data — F-12 denies a change, F-13
+contradicts the status, F-14 duplicates a record, F-15 mis-frames a structural property as a quirk.
+That is the same defect class this branch has been finding all day, arrived at from a fourth
+direction.
+
+## R-10 — the commits, judged as commits
+
+**36 commits**, `origin/main..HEAD`.
+
+| Acceptance criterion | Result |
+|---|---|
+| Each subject judged against the standard | **35 of 36 clear it.** They are imperative, standalone, and say what changed *and why it matters* — "quarantine interlake-2026-08 — it is wrong, not merely old" is a better subject than most repositories manage. None reads as "Fix bug" or "Phase 1". The exception is F-17. Eleven subjects exceed 72 characters, a consequence of the house "clause, and clause" style; informative, at the cost of truncation in narrow views |
+| Each commit leaves the tree green on its own | **Not verified, and not verifiable here** — it needs `pnpm typecheck && pnpm test` at 36 checkouts on Windows. **Partially covered by a check that was run:** every relative import in every `.ts` file added or modified by each commit resolves against that commit's own tree — **0 of 36 commits has an unresolved import**. That rules out the ordinary cause of a commit that only builds with its successor; it does not rule out a type error or a red test. The full check stays open |
+| `7559889` (1,294 lines) assessed against sizing | **Within guidance; the raw number misleads.** 873 of the 1,294 insertions are transcribed data (850 of them `frames.json`). Of the 421 remaining, **204 are tests**. It is a ~217-line source change — a new `load-manifest.ts` (132) and edits to `release.ts` (80) and `index.ts` (5) — landing with its data and its tests. Reviewable in one sitting |
+| L-12: do `75192d0` and `73ca8d1` belong here? | **Answered below** |
+| No commit mixes a refactor with new behaviour so as to hide either | **None found.** The one that invited the question is `14d608f` — 17 files, "the spot-check floor counts readings, not rows". It is a single semantic change propagated honestly: two new modules (`cell-ids.ts`, `spot-check.ts`) with their tests, the three tools that draw, record and worksheet the sample, and the manifest re-pinned. It *could* have been split, but the split would have left an intermediate commit where the floor and the id parser disagree — which is worse than a large coherent one |
+| Nothing touches the read-only reference projects | **Confirmed.** No path under `Resourse (do not delete or overwrite files)` — or anywhere outside the repository — appears in any of the 36 commits |
+
+### L-12, answered: they belonged elsewhere, and it is now too late to be worth it
+
+`73ca8d1` (audit-event actor scope) and `75192d0` (the revision audience predicate + `check-rls`
+assertion) are RLS work on a different subsystem from catalog release integrity, and on the day
+they landed the right answer was to split them onto their own branch with their own reviewer.
+
+That is no longer the recommendation. The branch is now 36 commits and carries, beyond the catalog
+work: the RLS pair, the wire contract (`e3ef4fa`), a performance harness and the first §5.4
+measurements (`48c7654`), a CI fix (`2ffd173`), lockfile tooling (`6f05043`), and the scoreboard and
+its gate. **The name stopped describing the contents around commit five, and splitting retroactively
+now costs more review than it buys** — the RLS commits have already been reviewed here (F-01, F-03,
+F-04, F-05) and CI is green on the tip.
+
+**Recommendation:** merge as one, and **rename PR #1** to say what it is — something like
+*"Audit remediation: catalog release integrity, RLS audience boundary, the wire contract, and a
+measured scoreboard"* — so the history does not claim a scope it outgrew. Then adopt one
+short-lived branch per task from Phase 2, which the plan already requires. The cost of this branch
+is not a defect that got through; it is that no single reviewer ever saw a coherent unit.
+
+**Disposition:** R-10 is **substantively complete with one criterion outstanding** — the per-commit
+build check. Everything else is judged and recorded.
+
+---
+
+## Task status
+
+| Task | State |
+|---|---|
+| R-01 | **Done** — F-01 found and fixed |
+| R-02 | **Done** — F-03, F-04, F-05 found; F-03/F-04 fixed. AC-14 kept as absence, per EL |
+| R-03 | **Done** — F-06 fixed; 7-case self-test in `verify` and CI |
+| R-04 | **Done** — L-6 (the duplicated `Pick<>`) and L-7 closed in `540f4cd`; the `release.ts` split is **declined**, see below |
+| R-05 | **Done** — F-02 confirmed and fixed, with 7 regression tests |
+| R-06 | **Done** — remedy (b): `selftest-spot-check-draw.mjs`, 24 draws over both releases |
+| R-07 | **Partly** — L-3 pinned as deliberate, L-5/L-2 open, L-4 still EL's scope call |
+| **R-08** | **Done 2026-09-01 (session 3)** — data re-derived independently; F-12…F-16 raised. One verification item (`pnpm test packages/kernel-catalog`) not runnable from the bridge and covered by CI on `efbafbd`/`a5d9c5b` |
+| R-09 | Open (measurement partly done: 1042 tests / 43 files) |
+| **R-10** | **Substantively done 2026-09-01 (session 3)** — all 36 subjects judged, sizing and mixing assessed, L-12 answered, reference projects confirmed untouched, F-17/F-18 raised. **Open:** the per-commit `typecheck && test` check, which needs Windows |
+| R-11 | **Documentation closed 2026-09-01 (session 3)** — five drift items fixed, one reclassified as T-14 implementation; T-09's migration renumbered to 0009 |
+
+### R-04: the `release.ts` split, answered
+
+**Declined, for now.** 353 lines holding one concept — what a catalog release is and when it may
+change state — is still one coherent module, and the change that grew it also gave it a second file
+(`spot-check.ts`) and now a third (`cell-ids.ts`), which is the decomposition happening in the right
+direction. Revisit when `apps/api` gives it a fourth caller, not before. Recorded so it is a decision
+rather than a deferral.

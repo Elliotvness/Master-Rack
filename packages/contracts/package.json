@@ -1,0 +1,12 @@
+{
+  "name": "@rms/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The wire contract: error envelope, pagination envelope, and the forbidden-field list every audience boundary shares. Pure: no I/O, no clock, no RNG.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

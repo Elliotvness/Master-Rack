@@ -25,8 +25,15 @@ and `C-03` (`kernel-geom`). **`B-05` then `C-04` is next.**
 | Verification | `pnpm verify` green, exit 0; results recorded in `docs/CURRENT_STATE.md` §4 |
 | Next | `E-08` (client PDF) — **blocked on the standing disclaimer text**, which is a legal document and cannot be invented. `E-07` logic is built; it needs B2 credentials and the live upload-then-overwrite proof |
 
-**Start with `README.md` for how to run the checks, `TODO.md` for what is next, and
-`docs/CURRENT_STATE.md` for what has actually been run rather than what is planned.**
+**Start with `tasks/progress.md` — the measured scoreboard, and the only file that is
+re-measured rather than re-read. Then `README.md` for how to run the checks, `tasks/todo.md`
+for task detail, and `docs/CURRENT_STATE.md` for what has actually been run rather than what
+is planned.**
+
+> **Standing rule.** `tasks/progress.md` is updated whenever a long task or a batch of tasks
+> completes — see its *Update cadence* section for the procedure. Everything else in this
+> handoff is dated 2026-08-31 and is stale: the figures below (926 tests, 39 files, Group A
+> as the frontier) were superseded on 2026-09-01.
 
 ## 2. Where everything is
 

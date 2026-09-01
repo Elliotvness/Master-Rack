@@ -1,0 +1,391 @@
+<title>Rack Master Build Scoreboard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --ground:#F5F4F1; --surface:#FFFFFF; --surface-2:#EFEEEA;
+  --ink:#16191D; --ink-2:#3A4048; --muted:#6A7079; --rule:#DFDCD6;
+  --accent:#2C4A5E; --accent-soft:#E3EAEF;
+  --ok:#3E7A57; --warn:#B45309; --stop:#B23A17; --idle:#A8ADB4;
+  --shadow:0 1px 0 rgba(22,25,29,.05);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#131519; --surface:#1B1E24; --surface-2:#22262D;
+    --ink:#E9E7E2; --ink-2:#C3C7CD; --muted:#949AA2; --rule:#2E333B;
+    --accent:#89AFC8; --accent-soft:#1E2A34;
+    --ok:#6FB58C; --warn:#D99A45; --stop:#E08260; --idle:#5C636C;
+    --shadow:0 1px 0 rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#131519; --surface:#1B1E24; --surface-2:#22262D;
+  --ink:#E9E7E2; --ink-2:#C3C7CD; --muted:#949AA2; --rule:#2E333B;
+  --accent:#89AFC8; --accent-soft:#1E2A34;
+  --ok:#6FB58C; --warn:#D99A45; --stop:#E08260; --idle:#5C636C;
+  --shadow:0 1px 0 rgba(0,0,0,.3);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:"Newsreader",Georgia,"Times New Roman",serif;
+  font-size:16.5px; line-height:1.62; margin:0;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1000px; margin:0 auto; padding:48px 28px 96px; display:flex; flex-direction:column; gap:52px}
+h1,h2,h3,.lbl,.num,th{font-family:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif}
+.mono,.num,.lbl,td.n,th.n{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums}
+h1{font-size:clamp(30px,4.6vw,46px); line-height:1.06; font-weight:700; letter-spacing:-.02em; margin:0; text-wrap:balance}
+h2{font-size:20px; font-weight:700; letter-spacing:-.008em; margin:0; text-wrap:balance}
+h3{font-size:15.5px; font-weight:600; letter-spacing:-.005em; margin:0}
+p{margin:0}
+a{color:var(--accent)}
+.lbl{font-size:10.5px; font-weight:600; letter-spacing:.13em; text-transform:uppercase; color:var(--muted)}
+
+/* masthead */
+.mast{display:flex; flex-direction:column; gap:16px; border-bottom:2px solid var(--ink); padding-bottom:26px}
+.mast .meta{display:flex; flex-wrap:wrap; gap:8px 20px; align-items:baseline}
+.mast .sub{font-size:17px; color:var(--ink-2); max-width:62ch}
+
+/* headline gauge */
+.gauge{
+  background:var(--surface); border:1px solid var(--rule); border-left:5px solid var(--stop);
+  padding:26px 28px; display:flex; flex-wrap:wrap; gap:26px 40px; align-items:center; box-shadow:var(--shadow);
+}
+.gauge .big{font-family:"Archivo",sans-serif; font-size:64px; font-weight:700; line-height:.9; letter-spacing:-.03em; color:var(--stop); font-variant-numeric:tabular-nums}
+.gauge .g-txt{flex:1 1 320px; display:flex; flex-direction:column; gap:7px}
+.gauge .g-txt p{font-size:15.5px; color:var(--ink-2)}
+
+/* measures */
+.measures{display:grid; grid-template-columns:repeat(auto-fit,minmax(215px,1fr)); gap:1px; background:var(--rule); border:1px solid var(--rule)}
+.m{background:var(--surface); padding:17px 19px 19px; display:flex; flex-direction:column; gap:7px}
+.m .v{font-family:"Archivo",sans-serif; font-size:31px; font-weight:700; line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
+.m .d{font-size:13.5px; color:var(--muted); line-height:1.45}
+.m.primary .v{color:var(--stop)}
+
+/* phases */
+.phases{display:flex; flex-direction:column; gap:2px}
+.ph{display:grid; grid-template-columns:minmax(150px,1.4fr) 1fr 92px; gap:18px; align-items:center; padding:11px 2px; border-bottom:1px solid var(--rule)}
+.ph .nm{display:flex; flex-direction:column; gap:2px}
+.ph .nm b{font-family:"Archivo",sans-serif; font-weight:600; font-size:14.5px}
+.ph .nm span{font-size:12.5px; color:var(--muted); line-height:1.4}
+.bar{height:9px; background:var(--surface-2); border:1px solid var(--rule); position:relative; overflow:hidden}
+.bar i{position:absolute; inset:0 auto 0 0; background:var(--ok); display:block}
+.bar.zero i{background:var(--idle)}
+.ph .pct{text-align:right; font-family:"IBM Plex Mono",monospace; font-size:13px; font-variant-numeric:tabular-nums; color:var(--ink-2)}
+.ph.total{border-bottom:2px solid var(--ink); border-top:1px solid var(--rule); padding-top:14px; margin-top:6px}
+.ph.total .nm b, .ph.total .pct{font-weight:700; color:var(--ink)}
+
+/* generic sections */
+section{display:flex; flex-direction:column; gap:18px}
+.head{display:flex; flex-direction:column; gap:5px; border-bottom:1px solid var(--rule); padding-bottom:9px}
+.prose{max-width:68ch; display:flex; flex-direction:column; gap:13px; font-size:16px; color:var(--ink-2)}
+.prose strong{color:var(--ink); font-weight:500}
+.note{font-size:14.5px; line-height:1.6; color:var(--ink-2); max-width:68ch}
+.note strong{color:var(--ink); font-weight:500}
+
+/* two-col split */
+.split{display:grid; grid-template-columns:repeat(auto-fit,minmax(290px,1fr)); gap:26px}
+.card{background:var(--surface); border:1px solid var(--rule); padding:18px 20px 20px; display:flex; flex-direction:column; gap:11px; box-shadow:var(--shadow)}
+.card.warnbox{border-left:3px solid var(--warn)}
+.card ul{margin:0; padding-left:17px; display:flex; flex-direction:column; gap:7px; font-size:14.5px; color:var(--ink-2)}
+.card li::marker{color:var(--muted)}
+
+/* tables */
+.tw{overflow-x:auto; border:1px solid var(--rule); background:var(--surface)}
+table{border-collapse:collapse; width:100%; font-size:14px}
+th{text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); padding:11px 14px; border-bottom:1px solid var(--rule); white-space:nowrap}
+td{padding:10px 14px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2)}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right; white-space:nowrap}
+td b{color:var(--ink); font-weight:500}
+.tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:500; padding:2px 7px; border:1px solid currentColor; white-space:nowrap}
+.tag.ok{color:var(--ok)} .tag.no{color:var(--idle)} .tag.wip{color:var(--warn)}
+
+/* ordered steps */
+ol.steps{list-style:none; margin:0; padding:0; counter-reset:s}
+ol.steps li{counter-increment:s; position:relative; padding:14px 0 14px 54px; border-bottom:1px solid var(--rule); font-size:15px; line-height:1.55; color:var(--ink-2)}
+ol.steps li::before{content:counter(s,decimal-leading-zero); position:absolute; left:0; top:16px; font-family:"IBM Plex Mono",monospace; font-size:12.5px; font-weight:600; letter-spacing:.02em; color:var(--accent)}
+ol.steps li strong{color:var(--ink); font-weight:500}
+ol.steps li code{background:transparent; padding:0}
+
+/* lenses */
+.lens{background:var(--surface); border:1px solid var(--rule); padding:20px 22px 22px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow)}
+.lens .lens-h{display:flex; flex-direction:column; gap:3px; border-bottom:1px solid var(--rule); padding-bottom:10px}
+.lens p{font-size:14.5px; color:var(--ink-2)}
+.lens ul{margin:0; padding-left:17px; display:flex; flex-direction:column; gap:8px; font-size:14.5px; color:var(--ink-2)}
+.lens strong{color:var(--ink); font-weight:500}
+
+.foot{border-top:1px solid var(--rule); padding-top:18px; font-size:13px; color:var(--muted); max-width:70ch; display:flex; flex-direction:column; gap:8px}
+code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--surface-2); padding:1px 5px; border-radius:2px; color:var(--ink)}
+@media (max-width:620px){
+  .ph{grid-template-columns:1fr 62px; }
+  .ph .bar{grid-column:1/-1; order:3}
+  .gauge .big{font-size:52px}
+}
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <div class="meta">
+      <span class="lbl">Rack Master Studio</span>
+      <span class="lbl">2026-09-01 &middot; session 3</span>
+      <span class="lbl">tip efbafbd &middot; pushed &middot; CI run #10 green</span>
+    </div>
+    <h1>The foundations are strong.<br>The product does not exist yet.</h1>
+    <p class="sub">A scoreboard measured against the repository, not against the plan documents. Where a figure was re-run today it says so; where it is the repo's own claim, it says that instead.</p>
+  </header>
+
+  <div class="gauge">
+    <div class="big">0<span style="color:var(--muted);font-size:.5em;font-weight:500">/8</span></div>
+    <div class="g-txt">
+      <span class="lbl">Blueprint §15.2 — MVP-1 "done when"</span>
+      <p><strong>This is the answer to "how done is it."</strong> All eight steps need HTTP and a screen. CI is now green on the tip and Phase 0 is complete &mdash; and the gauge did not move, because there are still zero <code>.tsx</code> files, no server entry point, and no router mounting the 20-entry route table, which itself covers only 19 of &sect;8.2&rsquo;s 21 MVP-1 routes.</p>
+    </div>
+  </div>
+
+  <section>
+    <div class="head">
+      <h2>The numbers, and which one to quote</h2>
+      <p class="lbl">They are not competing answers</p>
+    </div>
+    <div class="measures">
+      <div class="m primary"><span class="lbl">Definition of done</span><span class="v">0%</span><span class="d">§15.2, 0 of 8 steps. Quote this one.</span></div>
+      <div class="m"><span class="lbl">Plan executed · weighted</span><span class="v">13.1%</span><span class="d">19 of <strong>145</strong> effort points. A ceiling, not a measure. T-00 closing took it to 13.3%; adding T-28 took the denominator to 145 and the figure back to 13.1%. Nothing regressed &mdash; the plan grew.</span></div>
+      <div class="m"><span class="lbl">Plan executed · task count</span><span class="v">14%</span><span class="d">7 of 44 tasks complete</span></div>
+      <div class="m"><span class="lbl">Pre-merge review</span><span class="v">73%</span><span class="d">R-01…R-11, 8 of 11. Same figure as this morning, different members: done R-01…R-06, <strong>R-08</strong>, <strong>R-11</strong>; open R-07 (partly), R-09, R-10 (one criterion). One branch's checklist &mdash; not the project.</span></div>
+      <div class="m"><span class="lbl">Route surface vs &sect;8.2</span><span class="v">19/21</span><span class="d">New this session. &sect;8.2 lists 23 rows, 2 marked phase 2. The registry declares 19 of the 21 &mdash; and nothing mounts it.</span></div>
+    </div>
+    <div class="prose">
+      <p><strong>Why 13.1% is an overstatement.</strong> The T-shirt sizes were written before anyone attempted the server or the interface. T-14 is sized L — 8 points, 5.6% of the whole project — yet it gates all eight §15.2 steps. Phase 4 is eight M tasks, one L and one S, in a repo with no framework installed. If either is under-sized, and both probably are, the denominator is larger than 143.</p>
+      <p><strong>Reconciling with the older figures.</strong> The Rev C audit's 68% and <code>LATEST.md</code>'s 70% measure blueprint conformance — requirements met, effort remaining — across all of MVP-1. This page counts tasks in the remediation plan. Different denominators, both honest, neither comparable. The one figure every document agrees on is §15.2 at 0 of 8.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>By phase</h2>
+      <p class="lbl">Effort points · XS 1 · S 2 · M 4 · L 8, the plan's own sizes</p>
+    </div>
+    <div class="phases">
+      <div class="ph"><div class="nm"><b>0 — Make CI real</b><span><strong>T-00 complete.</strong> Tip <code>efbafbd</code> pushed; CI run #10 <strong>Success</strong> &mdash; the first commit in this repo ever verified</span></div><div class="bar"><i style="width:100%"></i></div><div class="pct">1 / 1</div></div>
+      <div class="ph"><div class="nm"><b>1 — Catalog &amp; schema integrity</b><span>T-01…T-04 complete — verified at <code>a2f166e</code>, a repository claim, not re-run today</span></div><div class="bar"><i style="width:100%"></i></div><div class="pct">10 / 10</div></div>
+      <div class="ph"><div class="nm"><b>2 — Kernel &amp; workflow repairs</b><span>T-05…T-12, T-27, <strong>T-28</strong> — all unstarted</span></div><div class="bar zero"><i style="width:0%"></i></div><div class="pct">0 / 26</div></div>
+      <div class="ph"><div class="nm"><b>3 — The contract, then the server</b><span>P-00 and T-13a done; T-13b…T-15, P-01…P-05, R-08, R-10 open</span></div><div class="bar"><i style="width:16%"></i></div><div class="pct">8 / 50</div></div>
+      <div class="ph"><div class="nm"><b>4 — The interface</b><span>Zero <code>.tsx</code> files exist</span></div><div class="bar zero"><i style="width:0%"></i></div><div class="pct">0 / 42</div></div>
+      <div class="ph"><div class="nm"><b>5 — Deploy readiness</b><span>Not started</span></div><div class="bar zero"><i style="width:0%"></i></div><div class="pct">0 / 16</div></div>
+      <div class="ph total"><div class="nm"><b>Total</b><span>13.1% of the written plan executed &mdash; denominator moved from 143 to 145 when T-28 was added</span></div><div class="bar"><i style="width:13.1%"></i></div><div class="pct">19 / 145</div></div>
+    </div>
+    <div class="prose">
+      <p><strong>126 points remain.</strong> The server plus all of Phase 4 is 50 of them &mdash; 40% of what is left. The other 60% is diffuse: Phase 2 (26), the rest of Phase 3 (34), Phase 5 (16). Planning as though the remainder is two big items will under-book the back half.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>How soft is 13.1%?</h2>
+      <p class="lbl">Sensitivity &mdash; 19 done points never move, only the denominator does (it moved to 145 today)</p>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr><th class="n">T-14</th><th class="n">Phase 4</th><th class="n">Denominator</th><th class="n">Completion</th><th>Scenario</th></tr></thead>
+        <tbody>
+          <tr><td class="n">8</td><td class="n">42</td><td class="n">145</td><td class="n"><b>13.1%</b></td><td>as planned &mdash; the published figure</td></tr>
+          <tr><td class="n">16</td><td class="n">63</td><td class="n">174</td><td class="n">10.9%</td><td>T-14 &times;2, Phase 4 &times;1.5</td></tr>
+          <tr><td class="n">16</td><td class="n">84</td><td class="n">195</td><td class="n">9.7%</td><td>T-14 &times;2, Phase 4 &times;2</td></tr>
+          <tr><td class="n">24</td><td class="n">84</td><td class="n">203</td><td class="n">9.4%</td><td>T-14 &times;3, Phase 4 &times;2</td></tr>
+          <tr><td class="n">24</td><td class="n">126</td><td class="n">245</td><td class="n">7.8%</td><td>T-14 &times;3, Phase 4 &times;3</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="prose">
+      <p>Even at triple, the figure moves about five points. <strong>The ceiling is real but shallow</strong>, so 13.1% is not worth re-deriving — and §15.2 stays <strong>0 of 8</strong> in every scenario. That is why §15.2 is the number to quote and this one is not.</p>
+      <p><strong>Where the remaining 126 points sit:</strong> Phase 3's residue 42 (33.3%) &middot; Phase 4 42 (33.3%) &middot; Phase 2 26 (20.6%) &middot; Phase 5 16 (12.7%). The two largest blocks are exactly equal, and neither is a majority.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>Evidence</h2>
+      <p class="lbl">What was re-measured, and what is still a claim</p>
+    </div>
+    <div class="split">
+      <div class="card">
+        <h3>Verified today by running commands</h3>
+        <ul>
+          <li><strong>CI is green on the tip.</strong> Measurement pass at <code>ff63b87</code>; branch then pushed, and <code>origin/fix/catalog-release-integrity</code> @ <code>efbafbd</code> ran <strong>CI #10 &mdash; Success</strong>, 1m 34s (<code>verify</code> 1m 10s, <code>docs</code> 5s). Postgres containers, migrations, tenancy tests and the RLS coverage assertion all green, every checker behind its own self-test. <strong>T-00 closes</strong></li>
+          <li><strong>The pair moves as this page is written.</strong> Each documentation commit recording this measurement adds one to both counts, so <strong>do not quote ahead/unpushed from this page</strong> &mdash; re-run <code>git rev-list --left-right --count origin/main...HEAD</code>. Session 3 added <code>e488a14</code>, <code>c08cca3</code> and the commit carrying this line. That self-reference is exactly how drift item 5 arose; naming it is cheaper than chasing it</li>
+          <li>11 packages · 44 test files · 8 migrations</li>
+          <li><strong>0</strong> <code>.tsx</code>/<code>.jsx</code>/<code>.vue</code>/<code>.svelte</code>/<code>.astro</code> files</li>
+          <li>No server anywhere: no <code>fastify</code>, <code>express</code>, <code>koa</code>, <code>hono</code>, <code>node:http</code>, or <code>.listen(</code></li>
+          <li>No <code>react</code>, no <code>vite</code> in any <code>package.json</code></li>
+          <li>Route table holds <strong>20</strong> entries (11 client · 8 internal · 1 public), imported only by a test and the package index — <strong>no router mounts it</strong>. Diffed against §8.2 both ways: short two MVP-1 routes, carrying one phase-2 route</li>
+          <li><strong>11</strong> self-tested checkers in CI &mdash; two landed today, both proven to fire against the real release: <code>check-content-hash</code> recomputes each release's <code>content_sha256</code> by the method its manifest declares, and <code>check-spot-check-record</code> asserts every signed spot-check covers the draw that was pinned before it</li>
+          <li>No git tags · no <code>CHANGELOG.md</code> · no Dependabot · version <code>0.0.0</code></li>
+        </ul>
+      </div>
+      <div class="card warnbox">
+        <h3>Not verified — the repository's own figures</h3>
+        <ul>
+          <li><strong>"1,042 tests passing", "100% coverage."</strong> The suite could not run: <code>node_modules</code> holds win32 native binaries and the available shell is Linux. Statically: 44 test files, ~875 <code>it(</code>/<code>test(</code> call sites.</li>
+          <li><s><strong>"CI green."</strong></s> <strong>Now measured</strong> &mdash; run #10 on the tip, read from the PR checks page and the job log. It still does not settle the test count or coverage figures above: CI reports a green job, not a number this session read. Historical note: three same-day documents disagreed &mdash; 07:31 said CI had never run, 09:21 said green on the previous head, 10:12 said PR #1 green.</li>
+          <li><s><strong>No figure describes the tip.</strong></s> <strong>Resolved.</strong> The bridge shell still holds no git credentials, so pushes must run from Windows &mdash; GitHub Desktop's <em>Push origin</em>, after adding this repo to it; its existing <code>Master-Rack</code> entry points at a second, near-empty clone.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>Drift found while measuring</h2>
+      <p class="lbl">Sixth consecutive session &mdash; nine fixed, one reclassified</p>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Where</th><th>Says</th><th>Actually</th><th class="n">Status</th></tr></thead>
+        <tbody>
+          <tr><td><code>tasks/todo.md</code></td><td>T-01&hellip;T-04 boxes unchecked</td><td>The file's own header says all four are complete</td><td class="n">Fixed &mdash; 20 ticked</td></tr>
+          <tr><td><code>tasks/plan.md</code></td><td>Q1 open; Q7 open</td><td>Both answered &mdash; and <strong>Q5 was open too</strong>, which session 2's list missed. Three struck, not two</td><td class="n">Fixed</td></tr>
+          <tr><td>Project doc <code>state-of-the-build</code></td><td>Branch <code>feat/contracts</code></td><td>No such branch. Work is on <code>fix/catalog-release-integrity</code></td><td class="n">Fixed</td></tr>
+          <tr><td>This scoreboard</td><td><code>6f05043</code>, 27 ahead, 1 unpushed</td><td><code>ff63b87</code>, 30 ahead, 4 unpushed &mdash; stale on the day it was written</td><td class="n">Fixed</td></tr>
+          <tr><td><code>tasks/todo.md</code> T-04</td><td><code>DONE</code> block below the Phase 2 heading; &ldquo;back to DRAFT, nothing pinnable&rdquo;</td><td>Superseded the same day by <code>eaeb8f0</code>/<code>a2f166e</code>; the manifest reads <code>APPROVED</code></td><td class="n">Fixed</td></tr>
+          <tr><td><code>tasks/todo.md</code> T-14</td><td>23 &sect;8.2 routes</td><td>Both figures were right; the <em>classification</em> was wrong &mdash; see below</td><td class="n">Reclassified &rarr; T-14</td></tr>
+          <tr><td><code>tasks/plan.md</code> <em>(R-11)</em></td><td>855 tests / 33 files; boundaries 33/9; provenance 89; language 60; "42 commits, no remote"</td><td>44 test files; 41/10; 102; 68; a branch with a live remote. Both "not run" rows now run in CI</td><td class="n">Fixed</td></tr>
+          <tr><td><code>LATEST.md</code> <em>(R-11)</em></td><td>70% blueprint conformance, unqualified</td><td>Not comparable to the plan-execution figure. Reconciliation note added where the number is read</td><td class="n">Fixed</td></tr>
+          <tr><td><code>TODO.md</code> RH-05 <em>(R-11)</em></td><td>"two packs sit in DRAFT … catalog (378 rows)"</td><td>Catalog <code>APPROVED</code>, 336 rows. The rule pack is the half still DRAFT</td><td class="n">Fixed</td></tr>
+          <tr><td>This scoreboard <em>(self-inflicted)</em></td><td>"R-11 is closed, review 9 of 11"</td><td>Published to all four copies before R-11's criteria were read. R-11 closes now, properly; the review is 8 of 11</td><td class="n">Fixed</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card warnbox">
+      <h3>Drift 4 was not drift</h3>
+      <p class="note"><strong>&sect;8.2 lists 23 rows; two are marked phase 2</strong> (<code>POST /api/internal/v1/submissions/:id/status</code>, <code>GET /api/internal/v1/audit</code>). A third defers only a sub-feature &mdash; the RFI thread &mdash; and stays in. <strong>The MVP-1 surface is 21: neither 23 nor 20.</strong></p>
+      <p class="note">The registry carries 20, and the diff runs both ways. It omits <code>GET /api/client/v1/documents/:id</code> &mdash; the signed watermarked-PDF URL that &sect;15.2 step 6, <code>E-08</code> and <code>AC-16</code> depend on &mdash; and <code>POST /api/internal/v1/revisions/:id/notes</code> (<code>E-05</code>), while carrying the phase-2 audit route. Neither missing route has an <code>Action</code> in <code>authorize.ts</code>. <strong>Coverage: 19 of 21.</strong></p>
+      <p class="note"><strong>The consequence nobody had recorded:</strong> because the documents route is absent from <code>ROUTES</code>, <code>AC-02</code>'s leakage walk never enumerates the one client route that hands out a document URL. It is outside the contract test <em>even at model level</em>.</p>
+      <p class="note">Session 2's remedy, applied as written, would have edited 23 down to 20 and <strong>hidden two missing MVP-1 routes by moving the target to meet the code</strong>. That is why the blueprint wins and the scoreboard is what gets fixed.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>Next, in order</h2>
+      <p class="lbl">Close the branch out, then the checkpoint that was skipped</p>
+    </div>
+    <ol class="steps">
+      <li><s>Push the tip and confirm CI green on it.</s> <strong>Done &mdash; T-00 closed.</strong> <code>efbafbd</code> pushed, run #10 <strong>Success</strong>. Pushes must run from Windows.</li>
+      <li><s>R-10 &mdash; judge the commits as commits.</s> <strong>Substantively done.</strong> 35 of 36 subjects clear the standard; <code>7559889</code>'s 1,294 lines are 873 data + 204 test, so ~217 of source; <code>14d608f</code>'s 17 files are one coherent change; nothing touches the read-only reference projects. <strong>Open:</strong> the per-commit typecheck+test, which needs Windows &mdash; a substitute was run instead: every relative import resolves at its own commit, <strong>0 of 36</strong> unresolved.</li>
+      <li><s>R-08 &mdash; review the catalog data as data.</s> <strong>Done</strong>, re-derived rather than read off the tests: 378&rarr;336 rows, exactly 42 phantom rows gone, exactly 264 capacity corrections, 435 frame cells, 43 of 43 pinned cell ids resolve. The data is in good order; <strong>four findings, all in the prose around it</strong> &mdash; F-12 the change log denies a face-height change it made to 168 rows; F-13 the approved manifest still says it is DRAFT; F-14 the draw is recorded twice; F-15 the E/ER collision is the whole chart, not a 59E quirk. <strong>F-12 and F-13 are now fixed</strong> &mdash; prose only, no value touched. Underneath them sat <strong>F-19</strong>: <code>content_sha256</code> had no verifier, and its method differed between the two releases in one directory with the definition written down nowhere. Now declared, recomputed, self-tested in 11 cases, and proven to fire. <strong>F-16 fixed</strong> (the claim now says "identical after parse"). <strong>F-14 withdrawn as filed</strong> &mdash; the pin and the record are the question and the answer, kept apart on purpose &mdash; and replaced by the finding underneath it: nothing asserted that the signature covers the draw. It does now.</li>
+      <li><strong>Merge PR #1 &mdash; and retitle it first.</strong> <strong>L-12 answered:</strong> the two RLS commits did belong elsewhere, and splitting them out now costs more review than it buys &mdash; they are already reviewed (F-01, F-03, F-04, F-05) and CI is green. Merge as one, retitled to what it is: <em>catalog release integrity, the RLS audience boundary, the wire contract, and a measured scoreboard</em>. <strong>Fix F-12 and F-13 before merging</strong> &mdash; they are wrong sentences inside an approved catalog release.</li>
+      <li><s>Fix the four drift items in the merge commit.</s> <strong>Done in session 3</strong> &mdash; nine corrected, one reclassified as T-14 implementation. <strong>Correction, same session:</strong> this page earlier claimed "R-11 closes, 9 of 11". That was published to all four copies before R-11's criteria were read, and it was wrong &mdash; the scoreboard's drift list and R-11's six criteria are different lists. Reading the real criteria found three more stale documents. R-11 <em>is</em> closed now, and the review is <strong>8 of 11</strong>. A documentation fix is worth exactly the measurement behind it.</li>
+    </ol>
+    <div class="card warnbox">
+      <h3>Then: Checkpoint A, which was skipped</h3>
+      <p class="note"><code>tasks/todo.md</code> puts Checkpoint A after T-00…T-12 and requires <em>"Review with EL before Phase 3."</em> Phase 3 started anyway — P-00 and T-13a are done while T-05…T-12 and T-27 are untouched. The checkpoint can no longer go green in sequence. Two honest options: run Phase 2 now and hold the checkpoint, or amend the plan on the record to say it moved. Leaving it silent is the third option, and it is the one that produces the next audit finding.</p>
+      <p class="note"><strong>Phase 2 in dependency order:</strong> T-05 (contentHash ≠ manifestHash) → T-06 (record the acknowledgement) → T-07 / T-08 (orchestration off the client into <code>packages/workflow</code>) → T-27 (type-check the test files) → T-09 (<code>part</code> / <code>part_revision</code>) → T-10 (docs + <code>check-claims</code>) → T-11 (secret scanning) → T-12 (source-conflict register).</p>
+      <p class="note"><strong>Then Phase 3:</strong> T-13b → T-13c → T-13d → T-14 → T-15, with P-01 and P-02 landing in the same commits as the routes they measure.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>Four lenses on what remains</h2>
+      <p class="lbl">CI/CD · doubt-driven · frontend · git workflow</p>
+    </div>
+    <div class="split">
+
+      <div class="lens">
+        <div class="lens-h"><span class="lbl">Lens 01</span><h3>CI/CD and automation</h3></div>
+        <p>What exists is above ordinary practice in one specific way worth protecting: <strong>every checker has a self-test, and the self-test runs first.</strong> A checker that silently stopped working would otherwise report a clean pass forever — the exact failure mode behind F-06 and F-08.</p>
+        <ul>
+          <li><s><strong>The tip is unverified.</strong></s> <strong>Closed.</strong> The gap reached eight unpushed commits before it was closed &mdash; the argument for pushing per task, not per branch.</li>
+          <li><strong>The runner is on borrowed time.</strong> Run #10 carries two warnings: Node.js 20 is deprecated, so <code>actions/checkout@v4</code>, <code>actions/setup-node@v4</code>, <code>actions/setup-python@v5</code> and <code>pnpm/action-setup@v4</code> are forced onto Node 24. Pin newer versions before it becomes an error.</li>
+          <li><strong><code>verify</code> can fail without the code being wrong.</strong> Run #11's first attempt died in <strong>12&nbsp;s</strong> with <code>Docker start fail with exit code 1</code> &mdash; the Postgres service container never came up, on a docs-only commit; a re-run was green in 1m 12s. A flake and a regression look identical in the checks UI, so <strong>read the duration first</strong>: a real failure gets past <em>Initialize containers</em> and dies tens of seconds in.</li>
+          <li><strong>No secret scanning (T-11), no dependency audit.</strong> One CI step each.</li>
+          <li><strong>No bundle ceiling (P-05).</strong> Agree it before the first screen; a ceiling set after the bundle exists is one nobody meets.</li>
+          <li><strong>One serial job, suite runs twice</strong> — <code>pnpm test</code> then <code>pnpm coverage</code>. Split lint / typecheck / test into parallel jobs while the pipeline is still short enough that nobody is tempted to skip it.</li>
+          <li><strong>No rollback path, no release mechanics</strong> (T-26).</li>
+        </ul>
+      </div>
+
+      <div class="lens">
+        <div class="lens-h"><span class="lbl">Lens 02</span><h3>Doubt-driven development</h3></div>
+        <p>Already the project's strongest habit, and the reason today's numbers hold up. Five defects landed in one day and <strong>four were found by building the control that was supposed to already exist</strong>, not by reading code.</p>
+        <p>The pattern has a name worth keeping in front of the next three tasks: <strong>a control that states its own method and has no mechanism behind it.</strong></p>
+        <ul>
+          <li><strong>T-13b, the outbound validator</strong> — a validator never fed a forbidden field passes forever. Plant one, watch it go red.</li>
+          <li><strong>T-13d, idempotency</strong> — a uniqueness constraint nothing races is untested. The concurrency test is the control; the constraint alone is not.</li>
+          <li><strong>T-14, deny-by-default</strong> — a route-coverage assertion run against a fixture instead of the real router is F-02 again, one layer up.</li>
+          <li><strong>AC-06 is still enforced against a model &mdash; and the model is short.</strong> The route table is asserted against no router because none exists, and it declares only <strong>19 of &sect;8.2's 21</strong> MVP-1 routes. T-15 converts it; T-14 has to complete it first.</li>
+        </ul>
+      </div>
+
+      <div class="lens">
+        <div class="lens-h"><span class="lbl">Lens 03</span><h3>Frontend UI engineering</h3></div>
+        <p>Zero <code>.tsx</code> files, so every decision here is still free — and the cheapest it will ever be.</p>
+        <ul>
+          <li><strong>P-05 first.</strong> LCP ≤ 2.5 s, CLS ≤ 0.1, initial JS ≤ 200 KB gzipped — and <strong>INP ≤ 200 ms is the one that matters</strong>: a rack configurator is an interaction loop, not a page view. The 120 ms preview budget covers the computation; nothing covers the paint.</li>
+          <li><strong>T-17 carries the architecture.</strong> The renderer consumes the display list and never recomputes. Screen and output diverging as separate code paths is what fragmented all four prior projects.</li>
+          <li><strong>T-16 tokens before components.</strong> This product exists to protect a commercial position; a templated look undercuts that. Spacing scale, type hierarchy, semantic colour tokens, never colour alone for state.</li>
+          <li><strong>WCAG 2.1 AA is a Checkpoint C gate</strong>, not a polish pass. Keyboard traversal and focus management belong in T-16, and every screen gets its empty, loading and error states from the start.</li>
+          <li><strong>T-21 audits the auditor</strong> — self-tested against known contrast ratios before it is trusted to report.</li>
+        </ul>
+      </div>
+
+      <div class="lens">
+        <div class="lens-h"><span class="lbl">Lens 04</span><h3>Git workflow and versioning</h3></div>
+        <ul>
+          <li><strong>Merge the branch.</strong> <strong>30</strong> commits, well past short-lived, and the name no longer describes the contents. It grew by three while sitting unmerged.</li>
+          <li><s><strong>Push the tip.</strong></s> Done: <code>efbafbd</code>, CI green. Push each task's commit as it lands rather than letting eight accumulate again.</li>
+          <li><strong>One short-lived branch per task from Phase 2 on</strong>, merged within a day or two. The tasks are already sized for it.</li>
+          <li><strong>No tags, no changelog, version <code>0.0.0</code>.</strong> Fine today — nothing consumes this yet. The moment the pilot organisation touches a deployed build, that stops being true, and a changelog reconstructed later is one with half its entries missing. T-26 lands with the first deploy, not after it.</li>
+          <li><strong>Write the changelog entry in the commit that makes the change.</strong></li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>Still gating work</h2>
+      <p class="lbl">Open questions that need EL, not code</p>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>#</th><th>Question</th><th>Gates</th></tr></thead>
+        <tbody>
+          <tr><td class="n"><b>Q3</b></td><td>Standing disclaimer text verbatim, company and contact name, document number format</td><td>T-20 · AC-16</td></tr>
+          <tr><td class="n"><b>Q4</b></td><td>Backblaze B2 credentials, and permission for the Governance-bucket proof</td><td>T-24</td></tr>
+          <tr><td class="n"><b>Q6</b></td><td>External pilot client name (OD-20b)</td><td>No code. Retires R-01; supplies P-04's real unit sizes</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Q1, Q2, Q5 and Q7 are answered, and as of session 3 <code>tasks/plan.md</code> says so for all four &mdash; it had not caught up on Q1, Q5 <em>or</em> Q7. Session 2's drift list missed Q5.</p>
+  </section>
+
+  <section>
+    <div class="head">
+      <h2>Update cadence</h2>
+      <p class="lbl">Standing rule — a scoreboard refreshed only on request becomes another stale document</p>
+    </div>
+    <div class="prose"><p>This page and <code>tasks/progress.md</code> are updated <strong>whenever a long task completes, or a batch of several tasks completes</strong> — unprompted, before the session ends.</p></div>
+    <ol class="steps">
+      <li><strong>Re-measure, don't re-read.</strong> Run the commands again against the working tree. Figures copied from the previous scoreboard are claims, not measurements.</li>
+      <li><strong>Recompute</strong> done-points over the 143-point denominator using the plan's own sizes. Completion stays <strong>binary</strong>.</li>
+      <li><strong>Re-check §15.2.</strong> It is the headline, and it does not move until HTTP and a screen exist.</li>
+      <li><strong>Label every figure</strong> verified-today or repository-claim. Anything that could not be re-run goes in the claims list, with the reason.</li>
+      <li><strong>Record new drift</strong> found while measuring, with its owning task.</li>
+      <li><strong>Update all four copies.</strong> <code>tasks/progress.md</code> and <code>tasks/progress.html</code> in the repo, this published page, and the Claude Project doc. Republish to the <em>same</em> URL, never a new one.</li>
+      <li><strong>Know what the gate covers.</strong> <code>pnpm check:scoreboard</code> compares the two repo files and <em>nothing else</em> — two of the four copies. A green build says nothing about this page or the project doc; CI cannot reach either. Re-read and compare both by hand.</li>
+      <li><strong>Re-date, and say if the denominator moved.</strong> A percentage that changed because the denominator changed is not progress.</li>
+    </ol>
+  </section>
+
+  <div class="foot">
+    <p><strong style="color:var(--ink)">Source of truth:</strong> <code>tasks/todo.md</code> for task detail, <code>tasks/progress.md</code> in the repo for this arithmetic. This page is a rendering of that file, dated 2026-09-01 (session 3).</p>
+    <p><strong style="color:var(--ink)">Method:</strong> The <strong>44</strong> tasks &mdash; 43 until <strong>T-28</strong> was added this session &mdash; are the 36 <code>T-…</code> and 6 <code>P-…</code> tasks in <code>tasks/todo.md</code> (T-13a–d and T-18a–e counted individually), plus R-08 and R-10. The Phase 4 and Phase 5 bullets are <em>inside</em> the 35, not additions to it. Weights are the plan's own T-shirt sizes. Completion is strictly binary — no partial credit, including T-00 (sized XS by the plan) and R-11. Status came from commit subjects, <code>✅</code> markers and file-existence checks, not from the file's checkboxes. (Session 3 ticked the 20 stale T-01&hellip;T-04 boxes so the file stops contradicting its own header; they remain sub-criteria and are still not what the count derives from.) R-08 and R-10 appear in two task files and are counted once.</p>
+  </div>
+
+</div>
