@@ -1,0 +1,408 @@
+# TODO — Audit remediation → running MVP-1
+
+Companion to `tasks/plan.md`. Created 2026-09-01 from the Rev C conformance audit.
+Sizes: **XS** 1 file · **S** 1–2 · **M** 3–5 · **L** 5–8 (break down) · **XL** too large.
+
+Standing definition of done for every task is in `tasks/plan.md`. It is not repeated below.
+Verification commands assume the Linux workspace; `pnpm verify` runs the full chain on Windows.
+
+---
+
+## Phase 0 — Make CI real
+
+### T-00: Add a git remote and observe CI green once
+**Description.** The workflow in `.github/workflows/ci.yml` is well built — real Postgres, self-test
+before every checker — and has never executed. Until it does, "CI is green" is an untested claim, and
+the DB-backed tests (`*.db.test.ts`, `tenancy.test.ts`, `check-rls`) have no runner at all, because
+the Linux workspace has no docker.
+
+**Acceptance criteria:**
+- [ ] Remote added; `main` pushed
+- [ ] The `verify` job completes green, including the 6 DB-backed test files and `check-rls`
+- [ ] The `docs` job rebuilds the blueprint and `git diff --exit-code` passes
+
+**Verification:** the CI run URL and its conclusion recorded in `docs/CURRENT_STATE.md` §4.
+**Dependencies:** Q7 (where does this push?). **Files:** none. **Scope:** XS.
+
+---
+
+## Phase 1 — Catalog and schema integrity
+
+### T-01: Put the frame tables into the approved catalog release
+**Description.** Audit **D-05**, and the first thing to fix because it silently blocks the demo.
+`interlake-2026-09` is the only `APPROVED` release and it carries `beams.json` only; `frames.json`
+(3 tables, 435 cells) exists solely in `interlake-2026-08`, which is `DRAFT`.
+`canPinForNewRevision()` correctly refuses a DRAFT, so MVP checks 1 and 2 cannot resolve a frame
+from any pinnable revision.
+
+**Acceptance criteria:**
+- [ ] `data/catalog/interlake-2026-09/frames.json` present, byte-identical to the 2026-08 tables
+      unless a source re-read changes a value — and if it does, the change is recorded in
+      `changes_from_2026_08` with its page reference
+- [ ] The manifest's `verification_path.cells` covers beams **and** frame cells, with the note saying
+      which is which
+- [ ] `loadFrameTables` is exercised against the 2026-09 path in a test
+- [ ] A new loader assertion: **a release with `status: APPROVED` must carry every dataset the MVP
+      check set consumes.** A half-populated release cannot be approved
+- [ ] The quarantined tables remain refused by name in the extractor
+
+**Verification:** `node node_modules/vitest/vitest.mjs run packages/kernel-catalog` green; then
+**prove the new gate fires** — delete `frames.json` from 2026-09, confirm approval/load is refused,
+revert.
+**Dependencies:** None. **Files:** `data/catalog/interlake-2026-09/{frames.json,manifest.json}`,
+`packages/kernel-catalog/src/{load-frames.ts,release.ts,frames.test.ts}`. **Scope:** S.
+
+### T-02: Retire `interlake-2026-08` out of DRAFT
+**Description.** Audit **D-06**. That release carries 264 capacities the 2026-09 re-source corrected
+and 42 phantom 40E/40ER-under-F3M rows. It sits in `DRAFT` — one approval away from being pinnable.
+§10.2's own lesson is "status on the data, gate on the status," and the status here is wrong.
+
+**Acceptance criteria:**
+- [ ] 2026-08 moves to a terminal state. Prefer adding `QUARANTINED` to `ReleaseStatus` over
+      `RETIRED`: retired means "was good, superseded"; this was never approved and was proven wrong,
+      which is a different fact and the reference projects already have a word for it
+- [ ] `approveRelease` refuses a `QUARANTINED` release outright
+- [ ] A new refusal: a release whose successor corrected its values cannot be approved. The
+      correction is already recorded in `changes_from_2026_08`; the gate reads it
+- [ ] The manifest keeps its original transcribed values — it must keep reporting what it
+      transcribed, including 5.92 — and gains the reason it was quarantined
+
+**Verification:** `vitest run packages/kernel-catalog` green; prove the gate — attempt to approve
+2026-08 and confirm the refusal names both reasons.
+**Dependencies:** T-01. **Files:** `packages/kernel-catalog/src/release.ts`,
+`data/catalog/interlake-2026-08/manifest.json`, `release.test.ts`. **Scope:** S.
+
+### T-03: Put `audience` into the revision RLS policy
+**Description.** Audit **D-02**, the most serious of the three structural defects. `revision.audience`
+exists, is indexed, and is correctly commented — and appears **zero times** in `0002_rls.sql`. A
+derived internal revision carries the client's own `organization_id`, so the tenant predicate passes
+it. `AC-14` currently rests on `stripInternalRevisions()`, a `.filter()` in `apps/internal-web` —
+the serializer-filtering pattern §6.3 explicitly rejects.
+
+**Acceptance criteria:**
+- [ ] New migration `0005_revision_audience_rls.sql` — never an edit to an applied migration
+- [ ] `revision` is lifted out of the generic tenant loop and given
+      `USING (organization_id = app.current_org() AND audience = 'client') OR app.is_staff()`,
+      with the matching `WITH CHECK` so a client cannot **write** an internal revision either
+- [ ] `check-rls.mjs` grows an assertion: any table carrying an `audience` or `actor_type` column
+      must name that column in at least one policy. The next sensitivity axis cannot be forgotten
+      silently
+- [ ] `stripInternalRevisions` **stays**. Two independent controls is the design; one of them being
+      the only one is not
+- [ ] New tenancy tests: as a client principal, an internal revision of one's own organization is
+      invisible to `SELECT` and refused on `INSERT`
+
+**Verification:** `pnpm migrate && pnpm test && pnpm check:rls` on Windows (docker), or in CI after
+T-00. Prove it fires: drop the `audience` clause, confirm the new tests go red, revert.
+**Dependencies:** None (T-00 for a runner). **Files:** `packages/db/migrations/0005_*.sql`,
+`tools/check-rls.mjs`, `packages/db/src/tenancy.test.ts`. **Scope:** S.
+
+### T-04: Make the two-person rule require a human spot-check
+**Description.** Audit **D-07**. §10.2 anticipated exactly the current situation: "running an
+extraction script sets the digitiser to a machine identity, which lets one person approve data they
+produced themselves and satisfies the check trivially." The gate today requires only that *a*
+verification path exists with `cells > 0`; the recorded path for 2026-09 is two machine extractions
+reconciled by a machine. §10.2's remedy — a tool-drawn random sample of 20 cells or 5%, whichever is
+greater, recorded as data, any mismatch failing the whole release — is not implemented.
+
+**Acceptance criteria:**
+- [ ] `VerificationPath` gains a `human_spot_check` variant carrying
+      `{ sampledCells[], sampleSize, drawnBy: 'tool', sourceDocument, pageRef, checkedBy, checkedAt, outcome }`
+- [ ] When `digitisedBy` matches a machine-identity pattern, `approvalRefusals` requires a
+      `human_spot_check` **in addition to** the machine path
+- [ ] `sampleSize >= max(20, ceil(0.05 * cells))`, enforced
+- [ ] The **tool draws the sample**, deterministically from a recorded seed so the draw is
+      reproducible and auditable — an approver-chosen sample drifts toward the easy cells
+- [ ] Any mismatch fails the entire release. No partial pass, no "approve with notes"
+- [ ] `interlake-2026-09` is re-approved against a real spot-check, or drops back to DRAFT until it is
+
+**Verification:** `vitest run packages/kernel-catalog` green; prove it fires — remove the
+`human_spot_check`, confirm approval is refused; set `sampleSize` to 19, confirm refusal.
+**Dependencies:** T-01, T-02. **Blocked on Q5** for the actual re-approval, not for the code.
+**Files:** `packages/kernel-catalog/src/release.ts`, a new sampler, `release.test.ts`,
+`data/catalog/interlake-2026-09/manifest.json`. **Scope:** M.
+
+---
+
+## Phase 2 — Kernel and workflow repairs
+
+### T-05: Separate `contentHash` from `manifestHash`
+**Description.** Audit **D-03**. `submit()` computes `manifestHash` at step 4 and passes it to
+`freezeRevision(revisionId, contentHash, at)` at step 5. Two different hashes with two different
+jobs: §7.4's content-only hash exists so identical content hashes identically; §13.2's manifest hash
+deliberately covers lineage, actor, timestamp, pins, derived output and BOM. Conflating them breaks
+"did this edit change anything?", the artifact cache key, and `AC-14`'s assertion. Every test passes,
+because the wrong value is computed reproducibly — which is why no existing gate can see it.
+
+**Acceptance criteria:**
+- [ ] A `contentHash(revision)` effect, computed by `kernel-model`'s canonical serialiser over
+      content only, using the existing documented exclusion list
+- [ ] `freezeRevision` receives the **content** hash; the manifest hash is persisted on the
+      `submission` row where §7.2 puts it
+- [ ] Derived rows are keyed to the content hash
+- [ ] **The test that would have caught this:** two revisions, identical content, different author and
+      timestamp ⇒ *same* `contentHash`, *different* `manifestHash`
+- [ ] The exclusion list is asserted as data, per §7.4
+
+**Verification:** `vitest run packages/kernel-model apps/client-web` green; the new test red against
+the current code first.
+**Dependencies:** None. **Files:** `packages/kernel-model/src/canonical.ts` (likely unchanged),
+`apps/client-web/src/lib/submit.ts`, `submit.test.ts`. **Scope:** S.
+
+### T-06: Actually record the assumption acknowledgement
+**Description.** Audit **D-04**. Step 3 `record_acknowledgement` pushes a label onto `stepsCompleted`
+and performs no effect — there is no `recordAcknowledgement` in `SubmitEffects`. FR-QS-03 requires the
+acknowledgement to be an audit event, and §11.6 requires the assumption register to be a record, not
+a list of strings. Right now nothing is written, so "you accepted a 4-inch overhang assumption" stays
+a recollection rather than becoming a fact.
+
+**Acceptance criteria:**
+- [ ] `Assumption` becomes the §11.6 record: `key`, `assumedValue {value, unit}`, `why`, `scope`,
+      `acknowledgedBy`, `acknowledgedAt` — replacing `readonly string[]`
+- [ ] A `recordAcknowledgement` effect is added and step 3 fails if it does not succeed
+- [ ] The acknowledgement writes an audit event in the same transaction (`AC-15`)
+- [ ] The register appears in the pre-submit confirmation payload and at the top of the internal
+      review package
+- [ ] Submitting with unacknowledged assumptions is refused, and the refusal is one of the reasons
+      `submitRefusals` returns — which it already is; this task makes the recording real
+
+**Verification:** `vitest run apps/client-web` green; prove it fires — make the effect throw, confirm
+the submission does not complete.
+**Dependencies:** T-05. **Files:** `apps/client-web/src/lib/submit.ts`, `preview.ts`,
+`submit.test.ts`, `apps/api/src/audit/chain.ts`. **Scope:** M.
+
+### T-07: Move the submit orchestration into a pure `packages/workflow`
+**Description.** Audit **D-01**. The nine-step transaction, `AC-10`'s refusal, the freeze and the
+audit write all live in `apps/client-web` — by the repository's own definition, "the bundle a client
+downloads." The module itself is good: injected effects, asserted ordering, all reasons returned.
+The package is wrong. OWASP's guidance on multi-step workflows is direct: if the UI is the only
+thing enforcing the sequence, an attacker calling endpoints directly can skip, repeat or reach
+terminal steps without the prerequisites — state lives on the server, in storage the client cannot
+write to. Architecture decision **AD-1** in the plan explains why this becomes a pure package rather
+than moving into `apps/api`.
+
+**This task is a pure move. No logic changes. Its diff must read as "nothing changed except
+location."** Behaviour changes belong in T-05/T-06, which land first.
+
+**Acceptance criteria:**
+- [ ] `packages/workflow` created, subject to `check-boundaries` — no I/O, no clock, no RNG
+- [ ] `submit`, `submitRefusals`, `SUBMIT_STEPS`, `stepsInOrder` and their types move there verbatim
+- [ ] `apps/api` supplies the effects and owns the transaction
+- [ ] `apps/client-web` may import the step vocabulary and refusal types; it may not import `submit`
+- [ ] `check-app-boundaries` gains a rule: `client-web` may not export a symbol named `submit`,
+      `freeze`, `derive*` or `strip*`
+- [ ] Coverage on the new package is 100%, matching every other pure package
+- [ ] The existing 22 submit tests move unchanged and stay green
+
+**Verification:** `pnpm verify`; `check-boundaries` reports 10 pure packages; prove the new
+app-boundary rule fires — re-export `submit` from `client-web`, confirm red, revert.
+**Dependencies:** T-05, T-06. **Files:** new `packages/workflow/*`, `apps/client-web/src/index.ts`,
+`tools/check-app-boundaries.mjs`, `tsconfig.base.json`, `vitest.config.ts`. **Scope:** M.
+
+### T-08: Move internal revision derivation and note handling server-side
+**Description.** Audit **D-01b**. `deriveInternalRevision`, `internalNote` and
+`stripInternalRevisions` live in `apps/internal-web`. Same reasoning as T-07: deriving a revision and
+deciding what a client may see are server authorities. `stripInternalRevisions` remains as the second
+control alongside T-03's RLS predicate — it is not deleted, it is relocated and demoted from sole
+enforcement to defence in depth.
+
+**Acceptance criteria:**
+- [ ] The three functions move to `packages/workflow` (pure) with effects supplied by `apps/api`
+- [ ] `internal-web` keeps the queue **view** logic — ordering, clocks, ages — and the trace panel
+- [ ] `AC-14`'s test is re-pointed at the server-side path
+- [ ] Waivers still do not carry over to a derived revision; the existing proof stays green
+
+**Verification:** `vitest run apps/internal-web packages/workflow`; the two existing deliberate
+breakages (waivers carried over → 1 red; internal items kept → 3 red) must still fire.
+**Dependencies:** T-07. **Files:** `apps/internal-web/src/lib/queue.ts`, `packages/workflow/*`,
+`queue.test.ts`. **Scope:** S.
+
+### T-09: Give `part_revision_id` something to reference
+**Description.** Audit **D-10**. §19.2 names "BOM lines reference a part revision, never a part" as
+one of only two decisions that cannot be retrofitted. The type honours it; the schema does not —
+`bom_line.part_revision_id` is a bare `uuid` with no `REFERENCES`, while its `uncatalogued_part_id`
+sibling **is** constrained. There is no `part`, `part_revision` or `capacity_case` table at all.
+Catalog-as-pinned-file is a defensible MVP-1 choice and this task does not overturn it; it adds the
+registry that makes the reference resolvable, so FR-BM-05 (where-used) and FR-CT-06 (supersede
+impact) stop being unanswerable.
+
+**Acceptance criteria:**
+- [ ] Migration `0006` adds `part` and `part_revision`, populated from the pinned catalog release at
+      load — the files stay the source of truth, the tables are the queryable projection
+- [ ] `bom_line.part_revision_id` gains its foreign key
+- [ ] The projection carries the release id, so a discontinued part stays resolvable and a historical
+      revision still renders (§10.2)
+- [ ] RLS: staff-only, matching the other internal-only tables
+- [ ] A where-used query answers "which revisions and open requests reference this part revision?"
+
+**Verification:** `pnpm migrate && pnpm test && pnpm check:rls`; a test asserting a BOM line cannot be
+inserted against a non-existent part revision.
+**Dependencies:** T-03. **Files:** `packages/db/migrations/0006_*.sql`, `packages/kernel-catalog/src/`,
+new tests. **Scope:** M.
+
+### T-10: Reconcile the documentation and port `check-claims`
+**Description.** Audit **D-19**. Four documents disagree: `TODO.md` RH-05 says both packs are DRAFT
+while the manifest says `APPROVED`; `LATEST.md` says both "336 beam rows" and "378 verified rows
+migrated" for the same release; `docs/CURRENT_STATE.md` §10 still reads "kernel-units is one package
+of the eight" and "3 commits"; the blueprint says Rev C in its masthead and Rev A in its closing
+line. None is a software defect. All four are the same defect in the practice — and in a product
+whose argument is that its record is current, that is not cosmetic.
+
+**Acceptance criteria:**
+- [ ] All four corrected
+- [ ] `tools/check-claims.mjs` ported from `rack-studio` (it is already on the reuse register):
+      counts stated in markdown are derived from the code and drift fails the build
+- [ ] It has a self-test, like every other checker here
+- [ ] Wired into `pnpm verify` and CI
+
+**Verification:** `node tools/selftest-claims.mjs && node tools/check-claims.mjs`; prove it fires —
+change a stated count, confirm red.
+**Dependencies:** None. **Files:** `tools/check-claims.mjs`, `tools/selftest-claims.mjs`,
+`LATEST.md`, `TODO.md`, `docs/CURRENT_STATE.md`, `src/parts/*`, `package.json`, `ci.yml`. **Scope:** M.
+
+### T-11: Add secret scanning to CI
+**Description.** Audit **D-20**. NFR-SEC-06 asks for it explicitly and it is absent. B2 credentials
+arrive at T-24, which is the wrong moment to discover this gap.
+
+**Acceptance criteria:**
+- [ ] A scanning step in `ci.yml` that fails the build on a detected secret
+- [ ] Push protection enabled on the remote if the host supports it
+- [ ] A deliberately planted fake credential is caught, then removed
+
+**Verification:** the failing run recorded, then the passing one.
+**Dependencies:** T-00. **Files:** `.github/workflows/ci.yml`. **Scope:** XS.
+
+### T-12: Update the source-conflict register
+**Description.** Audit **D-21**. §10.8 records the MH16.1 edition conflict as open. Part of it is now
+answerable: IBC 2024 adopted **ANSI MH16.1-2021**; IBC 2021 referenced MH16.1-2012; a 2023 edition of
+the standard exists. This does not resolve which edition an AHJ enforces — that stays open — but the
+register should carry what is now known. The catalog's own `code_basis` of "ANSI MH16.1-2012" is
+correct and unchanged: it is the manufacturer's printed basis, transcribed.
+
+**Acceptance criteria:**
+- [ ] `data/rules/mvp-2026-08/rules.json` conflict entry updated with the IBC adoption facts and
+      their source
+- [ ] Still recorded as **open** — the AHJ-enforcement half is not resolved
+- [ ] `code_basis` in the catalog manifest is untouched
+- [ ] Blueprint §10.8 updated to match
+
+**Verification:** `vitest run packages/kernel-rules`; `python src/build.py` clean.
+**Dependencies:** None. **Files:** `data/rules/mvp-2026-08/rules.json`, `src/parts/*`. **Scope:** XS.
+
+---
+
+## ══ CHECKPOINT A — after T-00 … T-12 ══
+
+- [ ] `pnpm verify` PASS, exit 0, on Windows **and** in CI
+- [ ] All DB-backed tests green in CI for the first time
+- [ ] The approved catalog release resolves both a beam and a frame
+- [ ] A client principal cannot read or write an internal revision — proven at the database
+- [ ] `contentHash` and `manifestHash` are distinct, with the discriminating test green
+- [ ] No orchestration remains in either front-end package
+- [ ] Coverage floors held or raised; every new gate proven to fire and reverted
+- [ ] **Review with EL before Phase 3.** Q1 and Q2 must be answered here
+
+---
+
+## Phase 3 — The contract, then the server  *(needs Q2)*
+
+### T-13a: `packages/contracts` — error envelope, pagination, shared types
+**Acceptance criteria:** the AD-2 error envelope as a closed code enum; AD-4 pagination envelope;
+naming conventions enforced by a test over the schema; `FORBIDDEN_CLIENT_FIELDS` relocated here as
+the single shared source for the test, the log redactor and the response validator.
+**Verification:** `vitest run packages/contracts`. **Dependencies:** Checkpoint A. **Scope:** M.
+
+### T-13b: Per-audience DTOs and the outbound validator
+**Acceptance criteria:** one DTO per (entity × audience), constructed field by field — never
+`exclude([...])`, which is allow-by-default and leaks the next column someone adds. Client response
+types declared `additionalProperties: false`. The validator fails in non-production and alerts in
+production. The positive companion test asserts staff **do** see the fields.
+**Verification:** add `cost` to a client DTO, confirm red, revert. **Dependencies:** T-13a. **Scope:** M.
+
+### T-13c: Input DTOs
+**Acceptance criteria:** `organization_id`, `role`, `audience`, `lifecycle_state` and every price
+field are structurally unreachable from a request body. No mass assignment. A test attempts each and
+is refused.
+**Verification:** `vitest run packages/contracts`. **Dependencies:** T-13a. **Scope:** S.
+
+### T-13d: Idempotency key store
+**Acceptance criteria:** AD-3 in full — atomic claim via a unique constraint on
+`(organization_id, key)`; `request_hash` guard returning `422` on a reused key with a different
+payload; `409` for an in-flight duplicate; the intent row written **before** the effect; 30-day
+retention exceeding the outbox's dead-letter replay window. A concurrency test fires two claims at
+once and asserts exactly one wins.
+**Verification:** DB-backed test in CI. **Dependencies:** T-13a, T-03. **Scope:** M.
+
+### T-14: The server
+**Acceptance criteria:** all 23 §8.2 routes mounted; the boot-time route-coverage assertion runs
+against the **real** router so `AC-06` becomes live; deny-by-default middleware; 404-not-403;
+every deny writes an audit event; scoped fetch only — `currentOrg.revisions.find(id)`, never
+fetch-then-check; all database access through `withTenant`.
+**Verification:** add an unannotated route, confirm the app refuses to boot. **Dependencies:**
+T-13a–d, **Q2**. **Scope:** L — split at implementation into auth routes / client routes / internal routes.
+
+### T-15: Re-assert AC-02, AC-03 and AC-06 against the running system
+**Acceptance criteria:** the contract test enumerates routes from the real router, calls each as a
+client principal, and asserts no forbidden key at any nesting depth. The three acceptance criteria
+move from "enforced against a model" to enforced.
+**Verification:** the enumeration count matches the route table; a planted forbidden field is caught.
+**Dependencies:** T-14. **Scope:** S.
+
+## ══ CHECKPOINT B ══
+- [ ] MVP steps 1, 2, 6, 7 and 8 provable over HTTP
+- [ ] AC-02 / AC-03 / AC-06 enforced live; **17 of 20 criteria** now met against the real system
+- [ ] A submission freezes, hashes, chains and refuses a second edit — end to end
+- [ ] **Review with EL before Phase 4**
+
+---
+
+## Phase 4 — The interface  *(needs Q1)*
+
+Sliced as the eight MVP steps, in the blueprint's order, so `AC-20` is assembled rather than authored.
+
+- **T-16** Design tokens, shared component library, a11y baseline. *M*
+- **T-17** `render-svg` (elevations) and `render-canvas` (plans) from the display list — a renderer
+  consumes, never recomputes. *M*
+- **T-18a** Slice 1–2: invitation acceptance, first sign-in. *M*
+- **T-18b** Slice 3: facility and unit entry, every field markable *not known*. *M*
+- **T-18c** Slice 4: option builder over the controlled vocabulary, incl. demo beat 5 — a 110″ beam
+  refused with both brackets and the no-interpolation reason. *M*
+- **T-18d** Slice 5: plan and elevation preview, findings and assumptions panels. *M*
+- **T-18e** Slice 6–7: pre-submit confirmation, submit, immutability refusal with clone-to-P02. *M*
+- **T-19** Slice 8: internal queue, submission detail, the BOM "show your work" trace, derive. *L → split*
+- **T-20** `render-pdf` + `E-08` watermarked client PDF. **Blocked on Q3.** *M*
+- **T-21** Accessibility audit tool, self-tested against known ratios before reporting. *S*
+
+## ══ CHECKPOINT C ══
+- [ ] `AC-20`: all eight MVP steps as one executable walkthrough, ending in byte-identical BOM
+      regeneration and a frozen, deep-immutable submission
+- [ ] `AC-16` met (if Q3 answered)
+- [ ] WCAG 2.1 AA measured in both themes; keyboard traversal complete
+- [ ] **MVP-1 is done when this checkpoint is green**
+
+---
+
+## Phase 5 — Deploy readiness
+
+- **T-22** Observability: structured logs with a correlation id, and the six NFR-OB-03 day-one
+  alerts. The internal-field-on-a-client-response alert is an incident at a count of one, not a
+  threshold. *M*
+- **T-23** The five §5.4 performance budgets as CI benchmarks, on a fixed 300-bay fixture and a
+  seeded 5,000-submission dataset. Re-run the reference spikes on real hardware (RH-08). *M*
+- **T-24** The live B2 proof: upload, attempt overwrite as account root, attempt `DeleteObject`
+  inside a locked prefix. Governance test bucket first — Compliance is irreversible. **Blocked on Q4.** *S*
+- **T-25** Backup and restore drill producing an artifact (NFR-BK-03), with `SET row_security = off`
+  on dump jobs. *M*
+- **T-26** Deploy checklist and rollback triggers per `tasks/plan.md`; `CHANGELOG.md` started; first
+  version tagged. *S*
+
+---
+
+## Not on this list, deliberately
+
+Everything §19.2 fences: pricing, cost and margin, DXF/DWG, client BOM export, public self-signup,
+impersonation, engineering calculations, multi-manufacturer catalogs, a second runtime in the request
+path, real-time collaboration, client-configurable rules. Phase 2 blueprint items (column and tunnel
+resolution, undo/redo, RFI loop, revision diff, cross-unit comparison, issue register, takeoff
+export, where-used *view*, supersede impact view, per-org defaults, the uncatalogued matcher) stay in
+`TODO.md` P3-006 and are not started.
