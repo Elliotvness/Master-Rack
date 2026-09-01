@@ -42,6 +42,54 @@ const EXEMPTIONS = {
 
 const REQUIRED_COMMANDS = ['SELECT', 'INSERT', 'UPDATE', 'DELETE'];
 
+/**
+ * Columns that carry a SENSITIVITY axis rather than a tenancy one, and must
+ * therefore appear in a policy expression.
+ *
+ * This exists because of audit finding D-02. `app.revision` carried an
+ * `audience` column, NOT NULL, indexed, correctly commented -- and named in no
+ * policy at all, because the table was swept into the generic tenant loop. The
+ * tenant predicate passed internal revisions straight through to the client
+ * who owned them, and the only thing stopping the leak was an Array.filter()
+ * in a front-end package.
+ *
+ * Organization isolation and audience are orthogonal (section 2): one decides
+ * WHICH ROWS, the other decides WHICH AUDIENCE. A table with both columns and
+ * only one of them in its policy is not half-protected, it is unprotected on
+ * the axis that was forgotten -- and nothing about the schema looks wrong.
+ *
+ * So: if the column exists, a policy must mention it. This is deliberately a
+ * blunt check. It cannot tell a correct predicate from a wrong one, and it does
+ * not try; it catches the realistic failure, which is a column nobody wired up.
+ */
+const SENSITIVITY_COLUMNS = ['audience', 'actor_type'];
+
+/**
+ * Sensitivity columns that legitimately need no predicate, each with its reason.
+ *
+ * Same posture as EXEMPTIONS above: an exemption is data with a justification,
+ * never a silent skip. Both entries here rest on the same structural fact --
+ * McMurray Stern is itself an organization with is_internal = true (section
+ * 7.2), so staff rows live in the STAFF organization. A client organization
+ * contains only client principals, and an organization predicate already
+ * separates them. There is no audience to cross.
+ *
+ * If that ever stops being true -- if a staff user is ever given a membership
+ * in a client organization -- both of these become real and must be removed.
+ */
+const SENSITIVITY_EXEMPTIONS = {
+  app_user: {
+    actor_type:
+      'org-scoped, and staff users belong to the staff organization. A client org ' +
+      'contains only client users, so the organization predicate already separates them.',
+  },
+  session: {
+    actor_type:
+      'org-scoped, same reasoning as app_user. Every session reachable inside a client ' +
+      'organization belongs to a client principal.',
+  },
+};
+
 // pg_policy.polcmd: r=SELECT, a=INSERT, w=UPDATE, d=DELETE, *=ALL
 const CMD = { r: 'SELECT', a: 'INSERT', w: 'UPDATE', d: 'DELETE' };
 
@@ -70,6 +118,46 @@ async function main() {
         JOIN pg_namespace n ON n.oid = c.relnamespace
        WHERE n.nspname = 'app'
     `);
+
+    // Which sensitivity columns each table actually has.
+    const { rows: sensitiveColumns } = await client.query(
+      `SELECT table_name, column_name
+         FROM information_schema.columns
+        WHERE table_schema = 'app' AND column_name = ANY($1)`,
+      [SENSITIVITY_COLUMNS],
+    );
+
+    // The full policy expressions, so we can look for the column by name.
+    // pg_get_expr renders USING and WITH CHECK back into readable SQL.
+    const { rows: policyExprs } = await client.query(`
+      SELECT c.relname AS table_name,
+             p.polname AS policy_name,
+             COALESCE(pg_get_expr(p.polqual, p.polrelid), '') AS using_expr,
+             COALESCE(pg_get_expr(p.polwithcheck, p.polrelid), '') AS check_expr
+        FROM pg_policy p
+        JOIN pg_class c ON c.oid = p.polrelid
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'app'
+    `);
+
+    const exprsByTable = new Map();
+    for (const row of policyExprs) {
+      if (!exprsByTable.has(row.table_name)) exprsByTable.set(row.table_name, []);
+      exprsByTable.get(row.table_name).push(`${row.using_expr} ${row.check_expr}`);
+    }
+
+    for (const { table_name, column_name } of sensitiveColumns) {
+      if (SENSITIVITY_EXEMPTIONS[table_name]?.[column_name] !== undefined) continue;
+      const exprs = exprsByTable.get(table_name) ?? [];
+      const mentioned = exprs.some((e) => new RegExp(`\\b${column_name}\\b`).test(e));
+      if (!mentioned) {
+        violations.push(
+          `app.${table_name}: column '${column_name}' is a sensitivity axis and is named in no ` +
+            'policy. Tenancy and audience are orthogonal — an organization predicate alone ' +
+            'returns rows of the wrong audience to the tenant that owns them (D-02).',
+        );
+      }
+    }
 
     const byTable = new Map();
     for (const row of policies) {
@@ -132,7 +220,10 @@ async function main() {
       );
     }
 
-    console.log(`check-rls: inspected ${tableCount} table(s) in schema "app".`);
+    console.log(
+      `check-rls: inspected ${tableCount} table(s) in schema "app", ` +
+        `${sensitiveColumns.length} sensitivity column(s).`,
+    );
 
     if (violations.length > 0) {
       console.error('\ncheck-rls: FAIL');
