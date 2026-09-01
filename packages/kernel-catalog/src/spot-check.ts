@@ -89,7 +89,19 @@ export function drawSpotCheckSample(
   return Object.freeze(drawn);
 }
 
-/** Every reason a recorded spot-check does not satisfy the gate. Empty means it does. */
+/**
+ * Every reason a recorded spot-check does not satisfy the gate. Empty means it does.
+ *
+ * `cellIds` is REQUIRED and is the dataset's own cell ids, in file order. Without
+ * them this function can only check that a sample is the right SIZE — which is
+ * what it did as first shipped, and a review found it accepted twenty cell ids
+ * reading `TOTALLY/FAKE/CELL-0` and up. The seed was recorded so the draw could
+ * be reproduced, and nothing ever reproduced it.
+ *
+ * It is a required parameter rather than an optional one on purpose. An optional
+ * argument that skips the strongest check when omitted is the same hole with a
+ * default value in front of it.
+ */
 export function spotCheckRefusals(
   check: {
     readonly dataset: string;
@@ -101,6 +113,7 @@ export function spotCheckRefusals(
     readonly pageRef: string;
   },
   digitisedBy: string,
+  cellIds: readonly string[],
 ): readonly string[] {
   // NOTE ON SCOPE: this is required of every release, not only of those with a
   // machine digitiser. An earlier draft of this module tried to detect machine
@@ -132,6 +145,41 @@ export function spotCheckRefusals(
   }
   if (check.pageRef.trim() === '') {
     reasons.push(`the spot-check of '${check.dataset}' must name the page it was read from`);
+  }
+
+  // The dataset must be the one the record claims to describe. A shrunken
+  // `cells` shrinks `requiredSampleSize`, so an approver who edits it downward
+  // reads fewer cells and the gate never notices.
+  if (check.cells !== cellIds.length) {
+    reasons.push(
+      `the spot-check of '${check.dataset}' records ${check.cells} cells but the dataset holds ` +
+        `${cellIds.length}; the sample size is derived from that number`,
+    );
+  } else if (new Set(cellIds).size !== cellIds.length) {
+    // Not the approver's fault, but the draw is undefined over a list with a
+    // repeated id, so nothing downstream can be trusted either.
+    reasons.push(
+      `the '${check.dataset}' dataset contains a repeated cell id; a draw over it cannot be verified`,
+    );
+  } else if (check.sampledCells.length >= required) {
+    // THE check. Re-derive the draw and compare in order — the draw records the
+    // order it drew in precisely so this comparison is possible. Skipped when
+    // the sample is already too small, so one defect produces one reason.
+    const expected = drawSpotCheckSample(cellIds, check.seed, required);
+    const same =
+      expected.length === check.sampledCells.length &&
+      expected.every((id, i) => id === check.sampledCells[i]);
+    if (!same) {
+      const strays = check.sampledCells.filter((id) => !cellIds.includes(id));
+      reasons.push(
+        `the spot-check of '${check.dataset}' does not match the draw for seed ${check.seed}; ` +
+          (strays.length > 0
+            ? `${strays.length} of the recorded cells are not in the dataset at all ` +
+              `(e.g. '${strays[0] ?? ''}')`
+            : 'the recorded cells are real but are not the ones the tool drew') +
+          '. A sample the approver chose is not a random sample',
+      );
+    }
   }
   // Any mismatch fails the ENTIRE release. There is no partial pass and no
   // "approve with notes": one wrong cell means a defect of unknown extent.

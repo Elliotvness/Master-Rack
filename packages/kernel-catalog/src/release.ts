@@ -151,6 +151,27 @@ export class ApprovalGateError extends CatalogError {
 }
 
 /**
+ * The manifest fields the approval gate reads, named once.
+ *
+ * `approvedBy` is deliberately absent: the gate decides whether a release MAY be
+ * approved, and the name already on it is not evidence about that. It was in the
+ * parameter type and unread, which reads as a check nobody wrote.
+ */
+export type ApprovalFacts = Pick<
+  CatalogReleaseManifest,
+  'digitisedBy' | 'verificationPaths' | 'datasets' | 'correctedBy' | 'humanSpotChecks'
+>;
+
+/**
+ * Each dataset's cell ids, in file order, keyed by dataset name.
+ *
+ * The gate needs them to re-derive the draw a spot-check claims to have read.
+ * They are DATA, supplied by the caller — the package stays pure; nothing here
+ * opens a file.
+ */
+export type DatasetCells = ReadonlyMap<string, readonly string[]>;
+
+/**
  * Every reason a release may NOT be approved. Empty means it may.
  *
  * This is the gate that keeps a wrong capacity out of a drawing, and it gates on
@@ -159,16 +180,9 @@ export class ApprovalGateError extends CatalogError {
  * one person approve their own work if identity were the only check.
  */
 export function approvalRefusals(
-  manifest: Pick<
-    CatalogReleaseManifest,
-    | 'approvedBy'
-    | 'digitisedBy'
-    | 'verificationPaths'
-    | 'datasets'
-    | 'correctedBy'
-    | 'humanSpotChecks'
-  >,
+  manifest: ApprovalFacts,
   approver: string,
+  datasetCells: DatasetCells,
 ): readonly string[] {
   const reasons: string[] = [];
 
@@ -233,7 +247,18 @@ export function approvalRefusals(
           'the signature must attach to the person who did the reading',
       );
     }
-    reasons.push(...spotCheckRefusals(check, manifest.digitisedBy));
+    // No cell ids means the draw cannot be re-derived, so the record cannot be
+    // verified. That is a refusal, never a skip: a missing input must not make
+    // a control pass quietly.
+    const cellIds = datasetCells.get(dataset);
+    if (cellIds === undefined) {
+      reasons.push(
+        `the '${dataset}' dataset's cell ids were not supplied, so the recorded spot-check ` +
+          'cannot be checked against the draw',
+      );
+      continue;
+    }
+    reasons.push(...spotCheckRefusals(check, manifest.digitisedBy, cellIds));
   }
 
   reasons.push(...completenessRefusals(manifest));
@@ -266,18 +291,11 @@ export function completenessRefusals(
 }
 
 export function canApprove(
-  manifest: Pick<
-    CatalogReleaseManifest,
-    | 'approvedBy'
-    | 'digitisedBy'
-    | 'verificationPaths'
-    | 'datasets'
-    | 'correctedBy'
-    | 'humanSpotChecks'
-  >,
+  manifest: ApprovalFacts,
   approver: string,
+  datasetCells: DatasetCells,
 ): boolean {
-  return approvalRefusals(manifest, approver).length === 0;
+  return approvalRefusals(manifest, approver, datasetCells).length === 0;
 }
 
 /**
@@ -289,6 +307,7 @@ export function approveRelease(
   manifest: CatalogReleaseManifest,
   approver: string,
   approvedAt: string,
+  datasetCells: DatasetCells,
 ): CatalogReleaseManifest {
   if (manifest.status === 'QUARANTINED') {
     throw new ApprovalGateError([
@@ -299,7 +318,7 @@ export function approveRelease(
   if (manifest.status !== 'DRAFT') {
     throw new ApprovalGateError([`only a DRAFT release may be approved; this is ${manifest.status}`]);
   }
-  const reasons = approvalRefusals(manifest, approver);
+  const reasons = approvalRefusals(manifest, approver, datasetCells);
   if (reasons.length > 0) {
     throw new ApprovalGateError(reasons);
   }

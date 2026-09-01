@@ -11,6 +11,9 @@ import {
   loadReleaseManifest,
   loadFrameTables,
   requiredSampleSize,
+  drawSpotCheckSample,
+  cellIdsOf,
+  type DatasetCells,
   FrameCatalog,
 } from './index.js';
 
@@ -40,6 +43,23 @@ function manifestOf(dir: string) {
 }
 
 const DATASET_FILE: Readonly<Record<string, string>> = { beams: 'beams.json', frames: 'frames.json' };
+
+
+/**
+ * Every dataset's cell ids for a release, read off the real files.
+ *
+ * This is the input the gate needs to re-derive a recorded draw. It is derived
+ * HERE — the caller's job — because `kernel-catalog` is pure and opens nothing.
+ */
+function cellsOf(dir: string): DatasetCells {
+  const map = new Map<string, readonly string[]>();
+  for (const [dataset, file] of Object.entries(DATASET_FILE)) {
+    const path = `${CATALOG}${dir}/${file}`;
+    if (!existsSync(path)) continue;
+    map.set(dataset, cellIdsOf(dataset, JSON.parse(readFileSync(path, 'utf8'))));
+  }
+  return map;
+}
 
 describe('every release on disk parses', () => {
   it('finds at least the two known releases', () => {
@@ -74,7 +94,7 @@ describe('AC-18 over the real releases, not over a fixture', () => {
     // the thing the gate is about, so a null here is not a skip, it is a fail.
     expect(m.approvedBy, `${dir} is APPROVED with no approver`).not.toBeNull();
 
-    const reasons = approvalRefusals(m, m.approvedBy ?? '');
+    const reasons = approvalRefusals(m, m.approvedBy ?? '', cellsOf(dir));
     expect(reasons, `${dir} is marked APPROVED but the gate refuses it: ${reasons.join(' | ')}`)
       .toEqual([]);
   });
@@ -97,7 +117,7 @@ describe('AC-18 over the real releases, not over a fixture', () => {
     expect(m.correctedBy).toBe('2026-09');
     expect(m.quarantineReason).not.toBeNull();
 
-    const reasons = approvalRefusals(m, 'Elliott Villacorta');
+    const reasons = approvalRefusals(m, 'Elliott Villacorta', cellsOf('interlake-2026-08'));
     expect(reasons.some((r) => r.includes("corrected by '2026-09'"))).toBe(true);
     expect(canPinForNewRevision(m)).toBe(false);
   });
@@ -205,11 +225,27 @@ describe('the current, honest state of the catalog', () => {
   it('the pinned draw matches what the tool draws for that seed', () => {
     // The pin is only evidence if it is reproducible. If these disagree, the
     // cells in the file were not the cells the tool chose.
+    //
+    // This test carried this name while asserting only that the sample was the
+    // right SIZE, which is how the gate came to check the same thing and no
+    // more. A name that promises more than the body delivers is worse than no
+    // test: it is read as coverage.
     const raw = JSON.parse(
       readFileSync(`${CATALOG}interlake-2026-09/manifest.json`, 'utf8'),
     ) as { pending_spot_checks: { dataset: string; cells: number; sampled_cells: string[]; seed: number }[] };
+    const ids = cellsOf('interlake-2026-09');
     for (const p of raw.pending_spot_checks) {
       expect(p.sampled_cells.length).toBe(requiredSampleSize(p.cells));
+
+      const cellIds = ids.get(p.dataset);
+      expect(cellIds, `no cell ids derived for '${p.dataset}'`).toBeDefined();
+      expect(p.cells, `${p.dataset}: the pinned cell count is not the dataset's size`).toBe(
+        cellIds?.length,
+      );
+      expect(
+        p.sampled_cells,
+        `${p.dataset}: the pinned cells are not the draw for seed ${p.seed}`,
+      ).toEqual([...drawSpotCheckSample(cellIds ?? [], p.seed, requiredSampleSize(p.cells))]);
     }
   });
 });

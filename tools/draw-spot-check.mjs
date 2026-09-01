@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
-function requiredSampleSize(cells) {
+export function requiredSampleSize(cells) {
   return Math.min(cells, Math.max(20, Math.ceil(cells * 0.05)));
 }
 
@@ -41,7 +41,7 @@ function mulberry32(seed) {
   };
 }
 
-function draw(cellIds, seed, size) {
+export function draw(cellIds, seed, size) {
   const pool = [...cellIds];
   const rand = mulberry32(seed);
   const out = [];
@@ -53,8 +53,16 @@ function draw(cellIds, seed, size) {
   return out;
 }
 
-/** Cell identifiers a human can find on a page, not array indices. */
-function cellsOf(dir, dataset) {
+/**
+ * Cell identifiers a human can find on a page, not array indices.
+ *
+ * This duplicates `packages/kernel-catalog/src/cell-ids.ts` in plain JS, because
+ * a `.mjs` tool cannot import the TypeScript package. The duplication is only
+ * permitted because `selftest-spot-check-draw.mjs` asserts the two agree over
+ * the real datasets — if they ever diverge, the tool pins cells the gate will
+ * refuse, and an approver reads twenty cells for nothing.
+ */
+export function cellsOf(dir, dataset) {
   const path = join(ROOT, 'data/catalog', dir, `${dataset}.json`);
   const doc = JSON.parse(readFileSync(path, 'utf8'));
   if (dataset === 'beams') {
@@ -74,6 +82,7 @@ function cellsOf(dir, dataset) {
   throw new Error(`unknown dataset '${dataset}'`);
 }
 
+function main() {
 const dir = process.argv[2];
 if (!dir) {
   console.error('usage: node tools/draw-spot-check.mjs <release-dir> [--seed N]');
@@ -114,3 +123,10 @@ writeFileSync(manifestPath, JSON.stringify(manifest, null, 1));
 console.log(`\nPinned into ${dir}/manifest.json. Read each cell off the named page, then move the`);
 console.log('entry into human_spot_checks with checked_by, checked_at and outcome: MATCHED.');
 console.log('Any mismatch fails the entire release — there is no partial pass.');
+}
+
+// Same guard as check-boundaries.mjs and check-rls.mjs: importing this module
+// for its helpers must not draw a sample or write a manifest.
+if (process.argv[1]?.endsWith('draw-spot-check.mjs')) {
+  main();
+}

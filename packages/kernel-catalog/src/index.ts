@@ -16,6 +16,8 @@ export {
   canPinForNewRevision,
   completenessRefusals,
   quarantineRelease,
+  type ApprovalFacts,
+  type DatasetCells,
   type HumanSpotCheck,
   type CatalogReleaseManifest,
   type DatasetVerificationPath,
@@ -54,3 +56,5 @@ export {
 } from './frames.js';
 
 export { loadFrameTables } from './load-frames.js';
+
+export { CELL_ID_DATASETS, CellIdError, cellIdsOf } from './cell-ids.js';

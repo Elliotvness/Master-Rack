@@ -10,6 +10,7 @@ import {
   REQUIRED_DATASETS,
   drawSpotCheckSample,
   requiredSampleSize,
+  type DatasetCells,
   type HumanSpotCheck,
   type CatalogReleaseManifest,
   type DatasetVerificationPath,
@@ -29,16 +30,29 @@ const framePath: DatasetVerificationPath = {
   note: 'reconciled 435/435 across two independent extraction paths',
 };
 
+
+/**
+ * The cell ids the fixtures draw from, keyed by dataset — what a caller loads
+ * from the dataset files in real life. `spotCheck()` below draws from exactly
+ * this list, so a fixture that has not been tampered with verifies.
+ */
+function cells(beams = 336, frames = 435): DatasetCells {
+  return new Map([
+    ['beams', ids('beams', beams)],
+    ['frames', ids('frames', frames)],
+  ]);
+}
+
+function ids(dataset: string, n: number): readonly string[] {
+  return Array.from({ length: n }, (_, i) => `${dataset}-cell-${i}`);
+}
+
 function spotCheck(dataset: string, cells: number): HumanSpotCheck {
   const size = requiredSampleSize(cells);
   return {
     dataset,
     cells,
-    sampledCells: drawSpotCheckSample(
-      Array.from({ length: cells }, (_, i) => `${dataset}-cell-${i}`),
-      20260901,
-      size,
-    ),
+    sampledCells: drawSpotCheckSample(ids(dataset, cells), 20260901, size),
     seed: 20260901,
     sourceDocument: 'PSG 2025',
     pageRef: 'p.88',
@@ -78,7 +92,7 @@ function manifest(overrides: Partial<CatalogReleaseManifest> = {}): CatalogRelea
 
 describe('AC-18 — the two-person approval gate', () => {
   it('approves a draft with a named approver, not the digitiser, and a verification path', () => {
-    const approved = approveRelease(manifest(), 'Elliott Villacorta', '2026-08-31T00:00:00Z');
+    const approved = approveRelease(manifest(), 'Elliott Villacorta', '2026-08-31T00:00:00Z', cells());
     expect(approved.status).toBe('APPROVED');
     expect(approved.approvedBy).toBe('Elliott Villacorta');
     expect(approved.approvedAt).toBe('2026-08-31T00:00:00Z');
@@ -86,22 +100,22 @@ describe('AC-18 — the two-person approval gate', () => {
 
   it('refuses an approver who is the digitiser', () => {
     const m = manifest();
-    const reasons = approvalRefusals(m, m.digitisedBy);
+    const reasons = approvalRefusals(m, m.digitisedBy, cells());
     expect(reasons).toContain('the approver may not be the digitiser');
-    expect(() => approveRelease(m, m.digitisedBy, '2026-08-31T00:00:00Z')).toThrow(
+    expect(() => approveRelease(m, m.digitisedBy, '2026-08-31T00:00:00Z', cells())).toThrow(
       ApprovalGateError,
     );
   });
 
   it('refuses an empty approver name', () => {
-    expect(approvalRefusals(manifest(), '   ')).toContain('the approver must be a named person');
+    expect(approvalRefusals(manifest(), '   ', cells())).toContain('the approver must be a named person');
   });
 
   it('refuses single-human approval with no recorded verification path', () => {
     const m = manifest({ verificationPaths: [] });
-    const reasons = approvalRefusals(m, 'Elliott Villacorta');
+    const reasons = approvalRefusals(m, 'Elliott Villacorta', cells());
     expect(reasons.some((r) => r.includes('independent verification path'))).toBe(true);
-    expect(() => approveRelease(m, 'Elliott Villacorta', '2026-08-31T00:00:00Z')).toThrow(
+    expect(() => approveRelease(m, 'Elliott Villacorta', '2026-08-31T00:00:00Z', cells())).toThrow(
       ApprovalGateError,
     );
   });
@@ -110,7 +124,7 @@ describe('AC-18 — the two-person approval gate', () => {
     const m = manifest({
       verificationPaths: [{ ...crossCheck, cells: 0 }, framePath],
     });
-    expect(approvalRefusals(m, 'Elliott Villacorta')).toContain(
+    expect(approvalRefusals(m, 'Elliott Villacorta', cells())).toContain(
       "the verification path for 'beams' must cover at least one cell",
     );
   });
@@ -119,7 +133,7 @@ describe('AC-18 — the two-person approval gate', () => {
     // The gap the Rev C audit found, made unrepresentable. One dataset's
     // cross-check is not evidence about another's.
     const m = manifest({ verificationPaths: [crossCheck] });
-    const reasons = approvalRefusals(m, 'Elliott Villacorta');
+    const reasons = approvalRefusals(m, 'Elliott Villacorta', cells());
     expect(reasons.some((r) => r.includes("verification path for 'frames'"))).toBe(true);
   });
 
@@ -128,7 +142,7 @@ describe('AC-18 — the two-person approval gate', () => {
       verificationPaths: [crossCheck, framePath, { ...framePath, dataset: 'decks' }],
       datasets: ['beams', 'frames'],
     });
-    expect(approvalRefusals(m, 'Elliott Villacorta')).toContain(
+    expect(approvalRefusals(m, 'Elliott Villacorta', cells())).toContain(
       "the verification path for 'decks' names a dataset this release does not ship",
     );
   });
@@ -137,18 +151,18 @@ describe('AC-18 — the two-person approval gate', () => {
     const m = manifest({ verificationPaths: [] });
     // Approver is empty AND equals... use empty which is not the digitiser but
     // trips two rules: empty name and missing path.
-    const reasons = approvalRefusals(m, '');
+    const reasons = approvalRefusals(m, '', cells());
     expect(reasons.length).toBeGreaterThanOrEqual(2);
   });
 
   it('canApprove agrees with approvalRefusals', () => {
-    expect(canApprove(manifest(), 'Elliott Villacorta')).toBe(true);
-    expect(canApprove(manifest(), manifest().digitisedBy)).toBe(false);
+    expect(canApprove(manifest(), 'Elliott Villacorta', cells())).toBe(true);
+    expect(canApprove(manifest(), manifest().digitisedBy, cells())).toBe(false);
   });
 
   it('refuses to approve anything not in DRAFT', () => {
     const approved = manifest({ status: 'APPROVED' });
-    expect(() => approveRelease(approved, 'Someone Else', '2026-08-31T00:00:00Z')).toThrow(
+    expect(() => approveRelease(approved, 'Someone Else', '2026-08-31T00:00:00Z', cells())).toThrow(
       /only a DRAFT release/,
     );
   });
@@ -157,7 +171,7 @@ describe('AC-18 — the two-person approval gate', () => {
     const m = manifest({
       verificationPaths: [{ ...crossCheck, kind: 'two_path_reconciliation' }, framePath],
     });
-    expect(canApprove(m, 'Elliott Villacorta')).toBe(true);
+    expect(canApprove(m, 'Elliott Villacorta', cells())).toBe(true);
   });
 });
 
@@ -169,7 +183,7 @@ describe('an APPROVED release must be able to serve the check set', () => {
     expect(completenessRefusals(m)).toContain(
       "an APPROVED release must ship every dataset the check set consumes; 'frames' is missing",
     );
-    expect(canApprove(m, 'Elliott Villacorta')).toBe(false);
+    expect(canApprove(m, 'Elliott Villacorta', cells())).toBe(false);
   });
 
   it('names every missing dataset, not only the first', () => {
@@ -196,7 +210,7 @@ describe('only an APPROVED release may be pinned by a new revision', () => {
 describe('immutability', () => {
   it('approveRelease returns a new frozen manifest and does not mutate the input', () => {
     const draft = manifest();
-    const approved = approveRelease(draft, 'Elliott Villacorta', '2026-08-31T00:00:00Z');
+    const approved = approveRelease(draft, 'Elliott Villacorta', '2026-08-31T00:00:00Z', cells());
     expect(draft.status).toBe('DRAFT');
     expect(Object.isFrozen(approved)).toBe(true);
   });
@@ -217,7 +231,7 @@ describe('QUARANTINED — a release that is wrong, not merely old', () => {
 
   it('never approves a QUARANTINED release, and says why', () => {
     const q = quarantineRelease(manifest(), 'values proven wrong', '2026-09');
-    expect(() => approveRelease(q, 'Elliott Villacorta', '2026-09-01T00:00:00Z')).toThrow(
+    expect(() => approveRelease(q, 'Elliott Villacorta', '2026-09-01T00:00:00Z', cells())).toThrow(
       /may never be approved: values proven wrong/,
     );
   });
@@ -234,9 +248,9 @@ describe('QUARANTINED — a release that is wrong, not merely old', () => {
     // Status is one field one edit away from saying something else. The reason
     // is the second latch, and it is the one that cannot be argued with.
     const m = manifest({ status: 'DRAFT', correctedBy: '2026-09' });
-    const reasons = approvalRefusals(m, 'Elliott Villacorta');
+    const reasons = approvalRefusals(m, 'Elliott Villacorta', cells());
     expect(reasons.some((r) => r.includes("corrected by '2026-09'"))).toBe(true);
-    expect(canApprove(m, 'Elliott Villacorta')).toBe(false);
+    expect(canApprove(m, 'Elliott Villacorta', cells())).toBe(false);
   });
 
   it('leaves a quarantined release pinnable by nobody new', () => {
@@ -251,7 +265,7 @@ describe("the approver's own spot-check — a machine is a tool, not a second pa
     // The state interlake-2026-09 was actually in: two machine extractions
     // reconciled by a machine, marked APPROVED by hand, read by nobody.
     const m = manifest({ humanSpotChecks: [] });
-    const reasons = approvalRefusals(m, 'Elliott Villacorta');
+    const reasons = approvalRefusals(m, 'Elliott Villacorta', cells());
     expect(reasons.some((r) => r.includes("spot-check of 'beams'"))).toBe(true);
     expect(reasons.some((r) => r.includes("spot-check of 'frames'"))).toBe(true);
   });
@@ -259,7 +273,7 @@ describe("the approver's own spot-check — a machine is a tool, not a second pa
   it('refuses a sample smaller than 20 cells or 5%, whichever is greater', () => {
     const short = { ...spotCheck('beams', 336), sampledCells: ['a', 'b', 'c'] };
     const m = manifest({ humanSpotChecks: [short, spotCheck('frames', 435)] });
-    expect(approvalRefusals(m, 'Elliott Villacorta').some((r) => r.includes('20 are required'))).toBe(
+    expect(approvalRefusals(m, 'Elliott Villacorta', cells()).some((r) => r.includes('20 are required'))).toBe(
       true,
     );
   });
@@ -274,7 +288,7 @@ describe("the approver's own spot-check — a machine is a tool, not a second pa
     const self = { ...spotCheck('beams', 336), checkedBy: 'automated extract (Claude)' };
     const m = manifest({ humanSpotChecks: [self, spotCheck('frames', 435)] });
     expect(
-      approvalRefusals(m, 'automated extract (Claude)').some((r) =>
+      approvalRefusals(m, 'automated extract (Claude)', cells()).some((r) =>
         r.includes('a machine is a tool, not an independent party'),
       ),
     ).toBe(true);
@@ -282,7 +296,7 @@ describe("the approver's own spot-check — a machine is a tool, not a second pa
 
   it('refuses when the signature does not attach to the person who read the cells', () => {
     const m = manifest();
-    const reasons = approvalRefusals(m, 'Someone Else');
+    const reasons = approvalRefusals(m, 'Someone Else', cells());
     expect(reasons.some((r) => r.includes('the signature must attach to the person'))).toBe(true);
   });
 
@@ -290,14 +304,14 @@ describe("the approver's own spot-check — a machine is a tool, not a second pa
     const bad = { ...spotCheck('beams', 336), outcome: 'MISMATCH at 65E/48in' };
     const m = manifest({ humanSpotChecks: [bad, spotCheck('frames', 435)] });
     expect(
-      approvalRefusals(m, 'Elliott Villacorta').some((r) =>
+      approvalRefusals(m, 'Elliott Villacorta', cells()).some((r) =>
         r.includes('any mismatch fails the entire release'),
       ),
     ).toBe(true);
   });
 
   it('approves once a real spot-check is on the record', () => {
-    expect(canApprove(manifest(), 'Elliott Villacorta')).toBe(true);
+    expect(canApprove(manifest(), 'Elliott Villacorta', cells())).toBe(true);
   });
 });
 
@@ -320,5 +334,83 @@ describe('the draw is reproducible, and the tool makes it', () => {
     expect(() => drawSpotCheckSample(ids, 1, 999)).toThrow(RangeError);
     expect(() => drawSpotCheckSample(['a', 'a'], 1, 1)).toThrow(/unique/);
     expect(() => drawSpotCheckSample([], 1, 0)).toThrow(RangeError);
+  });
+});
+
+/**
+ * The gate against a fabricated record.
+ *
+ * These are the tests whose absence let the gate ship checking a sample's SIZE
+ * and nothing else. A review fed `approvalRefusals` a manifest whose recorded
+ * cells were `TOTALLY/FAKE/CELL-0` through `-19` — right count, right seed,
+ * `outcome: 'MATCHED'`, approver not the digitiser — and it returned no reasons
+ * at all. The release was approvable on a reading nobody performed.
+ *
+ * That is the same failure D-07 named one layer down: a record of verification
+ * standing in for the verification.
+ */
+describe('§10.2 — the approver read the cells the tool drew', () => {
+  function withSpotCheck(check: Partial<HumanSpotCheck>): CatalogReleaseManifest {
+    const base = spotCheck('beams', 336);
+    return manifest({ humanSpotChecks: [{ ...base, ...check }, spotCheck('frames', 435)] });
+  }
+
+  it('refuses cells that exist in no dataset, however many of them there are', () => {
+    const m = withSpotCheck({
+      sampledCells: Array.from({ length: 20 }, (_, i) => `TOTALLY/FAKE/CELL-${i}`),
+    });
+    const reasons = approvalRefusals(m, 'Elliott Villacorta', cells());
+    expect(reasons.some((r) => r.includes('does not match the draw for seed'))).toBe(true);
+    expect(reasons.some((r) => r.includes('not in the dataset at all'))).toBe(true);
+    expect(canApprove(m, 'Elliott Villacorta', cells())).toBe(false);
+  });
+
+  it('refuses real cells that are not the ones the tool drew', () => {
+    // Every id resolves. They are simply the first twenty, which is what an
+    // approver reaching for the easy ones would record.
+    const m = withSpotCheck({ sampledCells: ids('beams', 336).slice(0, 20) });
+    const reasons = approvalRefusals(m, 'Elliott Villacorta', cells());
+    expect(reasons.some((r) => r.includes('are not the ones the tool drew'))).toBe(true);
+  });
+
+  it('refuses the right cells in the wrong order — the draw records its order', () => {
+    const base = spotCheck('beams', 336);
+    const m = withSpotCheck({ sampledCells: [...base.sampledCells].reverse() });
+    expect(
+      approvalRefusals(m, 'Elliott Villacorta', cells()).some((r) =>
+        r.includes('does not match the draw'),
+      ),
+    ).toBe(true);
+  });
+
+  it('refuses a sample drawn from a different seed', () => {
+    const m = withSpotCheck({
+      sampledCells: drawSpotCheckSample(ids('beams', 336), 999, requiredSampleSize(336)),
+    });
+    expect(
+      approvalRefusals(m, 'Elliott Villacorta', cells()).some((r) => r.includes('seed 20260901')),
+    ).toBe(true);
+  });
+
+  it('refuses a shrunken cell count, which would shrink the required sample', () => {
+    // 336 -> 40 would drop the requirement from 20 cells to 20 (the floor), and
+    // from 5% of 435 to nothing on a larger table. The count must match the data.
+    const m = withSpotCheck({ cells: 40, sampledCells: ids('beams', 40).slice(0, 20) });
+    expect(
+      approvalRefusals(m, 'Elliott Villacorta', cells()).some((r) =>
+        r.includes('but the dataset holds 336'),
+      ),
+    ).toBe(true);
+  });
+
+  it('refuses when the dataset cell ids were not supplied at all', () => {
+    // A missing input must not make a control pass quietly.
+    const reasons = approvalRefusals(manifest(), 'Elliott Villacorta', new Map());
+    expect(reasons.some((r) => r.includes("cell ids were not supplied"))).toBe(true);
+    expect(reasons.some((r) => r.includes("'frames'"))).toBe(true);
+  });
+
+  it('accepts the honest record — the gate is not merely refusing everything', () => {
+    expect(approvalRefusals(manifest(), 'Elliott Villacorta', cells())).toEqual([]);
   });
 });
