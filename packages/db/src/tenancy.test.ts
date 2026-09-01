@@ -286,6 +286,81 @@ describe('D-02 / AC-14 — an internal revision is ABSENT, not filtered', () => 
     expect(rows.every((x) => x['audience'] === 'client')).toBe(true);
   });
 
+  maybe('the rows hanging off the internal revision are absent too', async () => {
+    // F-01. 0005 closed app.revision and left its children on the generic
+    // tenant predicate. A derived internal revision carries the CLIENT'S OWN
+    // organization_id, so a finding attached to it satisfied that predicate and
+    // was fully readable -- code and severity -- while the revision row itself
+    // was correctly absent. Closing one door and leaving the next one open.
+    const FINDING = 'dddddddd-1111-4111-8111-dddddddddddd';
+    await admin(
+      `INSERT INTO app.finding
+         (id, organization_id, revision_id, code, severity, closed_by, revision_hash,
+          engine_version, audience)
+       VALUES ($1, $2, $3, 'INTERNAL-MARGIN-NOTE', 'BLOCKER', 'internal only', 'h', '1', 'internal')
+       ON CONFLICT (id) DO NOTHING`,
+      [FINDING, ORG_A, REV_A_INTERNAL],
+    );
+
+    const asClient = await withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) =>
+      (await tx.query('SELECT id FROM app.finding WHERE id = $1', [FINDING])).rows,
+    );
+    expect(asClient).toHaveLength(0);
+
+    const asStaff = await withTenant(
+      { organizationId: ORG_INTERNAL, actorType: 'staff' },
+      async (tx) => (await tx.query('SELECT id FROM app.finding WHERE id = $1', [FINDING])).rows,
+    );
+    expect(asStaff).toHaveLength(1);
+  });
+
+  maybe('the client still sees its OWN findings — this is not a blanket denial', async () => {
+    // A control that denies everything passes the test above and breaks the
+    // product. The client-audience row must still be readable by its owner.
+    const OWN = 'dddddddd-2222-4222-8222-dddddddddddd';
+    await admin(
+      `INSERT INTO app.finding
+         (id, organization_id, revision_id, code, severity, closed_by, revision_hash,
+          engine_version, audience)
+       VALUES ($1, $2, $3, 'AISLE-TOO-NARROW', 'BLOCKER', 'widen the aisle', 'h', '1', 'client')
+       ON CONFLICT (id) DO NOTHING`,
+      [OWN, ORG_A, REV_A],
+    );
+    const rows = await withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) =>
+      (await tx.query('SELECT code FROM app.finding WHERE id = $1', [OWN])).rows,
+    );
+    expect(rows).toHaveLength(1);
+  });
+
+  maybe('a child row cannot disagree with its parent about the audience', async () => {
+    // The composite foreign key, not a convention. A denormalised copy that can
+    // drift from its parent is a second source of truth and a slower version of
+    // the same bug.
+    await expect(
+      admin(
+        `INSERT INTO app.finding
+           (id, organization_id, revision_id, code, severity, closed_by, revision_hash,
+            engine_version, audience)
+         VALUES (gen_random_uuid(), $1, $2, 'MISMATCH', 'BLOCKER', 'x', 'h', '1', 'client')`,
+        [ORG_A, REV_A_INTERNAL],
+      ),
+    ).rejects.toThrow(/finding_revision_audience_fkey|foreign key/i);
+  });
+
+  maybe('a client cannot WRITE an internal-audience child row into its own org', async () => {
+    await expect(
+      withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) =>
+        tx.query(
+          `INSERT INTO app.finding
+             (id, organization_id, revision_id, code, severity, closed_by, revision_hash,
+              engine_version, audience)
+           VALUES (gen_random_uuid(), $1, $2, 'SNEAK', 'BLOCKER', 'x', 'h', '1', 'internal')`,
+          [ORG_A, REV_A_INTERNAL],
+        ),
+      ),
+    ).rejects.toThrow();
+  });
+
   maybe('staff DO see the internal revision — the asymmetry is the point', async () => {
     const rows = await withTenant(
       { organizationId: ORG_INTERNAL, actorType: 'staff' },

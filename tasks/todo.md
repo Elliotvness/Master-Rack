@@ -259,7 +259,7 @@ registry that makes the reference resolvable, so FR-BM-05 (where-used) and FR-CT
 impact) stop being unanswerable.
 
 **Acceptance criteria:**
-- [ ] Migration `0006` adds `part` and `part_revision`, populated from the pinned catalog release at
+- [ ] Migration `0009` adds `part` and `part_revision`, populated from the pinned catalog release at
       load — the files stay the source of truth, the tables are the queryable projection
 - [ ] `bom_line.part_revision_id` gains its foreign key
 - [ ] The projection carries the release id, so a discontinued part stays resolvable and a historical
@@ -269,7 +269,7 @@ impact) stop being unanswerable.
 
 **Verification:** `pnpm migrate && pnpm test && pnpm check:rls`; a test asserting a BOM line cannot be
 inserted against a non-existent part revision.
-**Dependencies:** T-03. **Files:** `packages/db/migrations/0006_*.sql`, `packages/kernel-catalog/src/`,
+**Dependencies:** T-03. **Files:** `packages/db/migrations/0009_*.sql`, `packages/kernel-catalog/src/`,
 new tests. **Scope:** M.
 
 ### T-10: Reconcile the documentation and port `check-claims`
