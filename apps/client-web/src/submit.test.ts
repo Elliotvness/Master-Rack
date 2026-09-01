@@ -20,7 +20,8 @@ function derivation(over: Partial<Derivation> = {}): Derivation {
   return {
     findings: [],
     assumptions: [],
-    manifestJson: '{"schema_version":1}',
+    contentJson: '{"schema_version":1,"units":"mm"}',
+    manifestJson: '{"schema_version":1,"units":"mm","author":"u","at":"t"}',
     ...over,
   };
 }
@@ -219,7 +220,11 @@ describe('a refused submission does nothing at all', () => {
   });
 
   it('refuses an empty manifest hash rather than freezing against nothing', async () => {
-    const { effects, calls } = recorder({ hash: async () => '   ' });
+    // Since D-03 there are two hashes, so this names which one. An empty
+    // CONTENT hash has its own case in the D-03 block below.
+    const { effects, calls } = recorder({
+      hash: async (json) => (json.includes('author') ? '   ' : 'sha256:content'),
+    });
     await expect(submit(input(), effects)).rejects.toThrow(/manifest hash was empty/);
     expect(calls).not.toContain('freezeRevision');
   });
@@ -252,5 +257,79 @@ describe('the step order is observable, so it can be defended', () => {
     expect(SUBMIT_STEPS).toHaveLength(9);
     expect(SUBMIT_STEPS[0]).toBe('rederive');
     expect(SUBMIT_STEPS[SUBMIT_STEPS.length - 1]).toBe('enqueue_outbox');
+  });
+});
+
+describe('D-03 — the content hash and the manifest hash are two hashes with two jobs', () => {
+  /**
+   * A hash that depends on its input's CONTENT, not its length.
+   *
+   * A length-based stub passed the first draft of the second test below while
+   * hashing two different manifests identically — the stub reproduced the very
+   * defect under test. A test double has to be at least as discriminating as
+   * the thing it stands in for.
+   */
+  const digest = async (json: string): Promise<string> => {
+    let h = 2166136261;
+    for (let i = 0; i < json.length; i++) {
+      h ^= json.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return `sha256:${(h >>> 0).toString(16)}`;
+  };
+
+  it('freezes the revision with the CONTENT hash and puts the MANIFEST hash on the submission', async () => {
+    const seen: Record<string, string> = {};
+    const { effects } = recorder({
+      hash: digest,
+      freezeRevision: async (_id, h) => {
+        seen.frozenWith = h;
+      },
+      persistDerived: async (h) => {
+        seen.derivedWith = h;
+      },
+      createSubmission: async (i) => {
+        seen.submissionWith = i.manifestHash;
+        return 'sha256:submission';
+      },
+    });
+
+    const result = await submit(input(), effects);
+
+    // §7.4's content hash answers "did this edit change anything?"; §13.2's
+    // manifest hash deliberately covers lineage, actor and time. Conflating
+    // them is D-03, and every test passed while it was conflated because the
+    // WRONG value was computed reproducibly.
+    expect(result.contentHash).not.toBe(result.manifestHash);
+    expect(seen.frozenWith).toBe(result.contentHash);
+    expect(seen.derivedWith).toBe(result.contentHash);
+    expect(seen.submissionWith).toBe(result.manifestHash);
+  });
+
+  it('gives two revisions with identical content the SAME content hash and DIFFERENT manifest hashes', async () => {
+    // The test that would have caught this. Same configuration, saved by two
+    // people at two times: the same thing, recorded twice.
+    const content = '{"schema_version":1,"units":"mm","bays":12}';
+    const run = async (author: string, at: string) => {
+      const { effects } = recorder(
+        { hash: digest },
+        derivation({
+          contentJson: content,
+          manifestJson: `{"content":${content},"author":"${author}","at":"${at}"}`,
+        }),
+      );
+      return submit(input({ submittedBy: author, submittedAt: at }), effects);
+    };
+
+    const a = await run('user-1', '2026-08-31T12:00:00Z');
+    const b = await run('user-2', '2026-09-01T09:30:00Z');
+
+    expect(a.contentHash).toBe(b.contentHash);
+    expect(a.manifestHash).not.toBe(b.manifestHash);
+  });
+
+  it('refuses an empty content hash as loudly as an empty manifest hash', async () => {
+    const { effects } = recorder({ hash: async (json) => (json.includes('author') ? 'sha256:m' : '   ') });
+    await expect(submit(input(), effects)).rejects.toThrow(SubmitError);
   });
 });

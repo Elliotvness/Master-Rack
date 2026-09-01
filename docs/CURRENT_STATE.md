@@ -87,6 +87,58 @@ C:\Rack Master\rack-master-studio\
 Every row is a command that was run and its actual result. Nothing is recorded here on the strength
 of looking finished.
 
+**2026-09-01 (session 3) — the suite runs, and `T-05` is the first task verified by running it**
+
+The blocker recorded all day — "the suite cannot be run: `node_modules` is a Windows pnpm store and
+the available shell is Linux" — is **closed**, and it was never really about the store. A clean
+clone in the cloud workspace plus `pnpm install --frozen-lockfile` gives a working runner in about
+ten seconds, and that workspace also carries **native PostgreSQL 16**, which is the major version CI
+pins rather than the 18.4 the embedded-postgres recipe in `LATEST.md` §4 produces.
+
+```bash
+git clone https://github.com/Elliotvness/Master-Rack.git && cd Master-Rack && pnpm install --frozen-lockfile
+su postgres -c "/usr/lib/postgresql/16/bin/initdb -D /tmp/pg16 -U postgres --auth=trust --pwfile=/tmp/pgpw"
+su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /tmp/pg16 -o '-p 55432 -k /tmp/pgsock -c listen_addresses=127.0.0.1' -l /tmp/pg.log start"
+psql -h 127.0.0.1 -p 55432 -U postgres -c 'create database rms;'
+export DATABASE_ADMIN_URL='postgresql://postgres:postgres@127.0.0.1:55432/rms'
+export DATABASE_URL='postgresql://app_user:app_user_dev_only@127.0.0.1:55432/rms'
+node tools/migrate.mjs && pnpm test && node tools/check-rls.mjs
+```
+
+| Check | Result |
+|---|---|
+| `pnpm install --frozen-lockfile` | OK, 10.5 s |
+| `node tools/migrate.mjs` | OK — 8 migrations applied to a real Postgres 16.13 |
+| `pnpm test` (before T-05) | **44 files, 1,081 passed, 0 skipped.** Against no database it is 42 files / 1,014 passed / **67 skipped** — the 67 are `tenancy.test.ts` (41), `auth.db.test.ts` (12), `outbox.db.test.ts` (6) and `chain.db.test.ts` (8) |
+| `node tools/check-rls.mjs` | **PASS** — 19 tables, 8 sensitivity columns |
+| `pnpm typecheck` · `pnpm lint` | exit 0 |
+| Eight self-tests, then seven checkers | all PASS |
+| `pnpm test` (after T-05) | **44 files, 1,084 passed** |
+
+**This corrects a figure the repository has been repeating.** `LATEST.md` and the audit trail say
+**"1,042 tests passing"**. Measured: **1,081** before T-05 and **1,084** after. The scoreboard was
+right to list 1,042 as an unverified repository claim; it is now measured, and it was wrong.
+
+**`T-05` — separate `contentHash` from `manifestHash` (audit D-03).** Test-first, and the red was
+observed rather than assumed:
+
+| Step | Result |
+|---|---|
+| Three new cases added, run against unchanged `submit.ts` | **RED — 3 failed / 135 passed** |
+| `submit.ts` changed | **GREEN — 138 passed** in `apps/client-web` |
+| Whole suite, typecheck, lint, every checker behind its self-test | green |
+
+The schema had it right the whole time — `revision.content_hash` at `0001_init.sql:201`,
+`submission.manifest_hash` at `:338`. The orchestration passed the manifest hash into the content
+hash's place, and **every test passed while it did**, because the wrong value was computed
+reproducibly. A reproducible wrong answer is invisible to every gate that only checks
+reproducibility, which is the fifth time today that shape has been the defect.
+
+**A test-double lesson, recorded because it nearly cost the finding.** The first draft of the
+two-revisions case hashed by string *length*. It passed — while hashing two different manifests
+identically. The stub reproduced the very defect under test. **A double has to be at least as
+discriminating as the thing it stands in for.**
+
 **2026-09-01 (session 3) — `T-00` closes: CI green on the tip, recorded**
 
 `T-00`'s three acceptance criteria are met for the first time. Its verification requirement was
