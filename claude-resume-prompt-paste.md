@@ -103,9 +103,9 @@ repository-claim. Re-date the header; if the denominator changed, say so explici
 ## 4. What to do next, in order
 
 ### Immediate — close the branch out (est. 1 session)
-1. **Push `ff63b87`** (4 commits, from Windows — the bridge shell has no credentials) and confirm
-   CI green *on the tip*.
-2. **R-10 — judge the commits as commits.** 30 commits is a long chain; includes whether two RLS
+1. ~~**Push the tip and confirm CI green.**~~ **Done 2026-09-01 — T-00 closed**, run #10 Success on
+   `efbafbd`. Pushes run from Windows via GitHub Desktop; the bridge shell has no credentials.
+2. **R-10 — judge the commits as commits.** 34+ commits is a long chain; includes whether two RLS
    commits and a perf harness belonged on a branch named for catalog release integrity.
 3. **R-08 — the catalog data reviewed as data**, independently of the test that asserts it.
 4. **Merge PR #1. Delete the branch.**

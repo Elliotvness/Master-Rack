@@ -4,9 +4,13 @@ Derived from `tasks/todo.md`, which stays the source of truth for task detail. T
 only the arithmetic and the ordering. Where a figure was re-measured today it says so; where it is
 the repository's own claim it says that instead.
 
-Measured on branch `fix/catalog-release-integrity` @ **`ff63b87`** — **30 commits ahead of
-`main`**, **4 unpushed**. The session-2 scoreboard measured itself at `6f05043` (27 ahead, 1
-unpushed) and three commits landed after it, so its own tip figures were stale before it was read.
+Measured on branch `fix/catalog-release-integrity`. The session-3 measurement pass ran at
+`ff63b87`; the branch was then **pushed** and its tip, **`efbafbd`**, is green in CI —
+**run #10, Success** (https://github.com/Elliotvness/Master-Rack/actions/runs/33529120263).
+That closes **T-00** and is the first time any commit in this repository has been verified at the
+commit that actually exists. The session-2 scoreboard measured itself at `6f05043` (27 ahead, 1
+unpushed) and three commits landed after it, so its own tip figures were stale before it was read —
+see drift 5, and the rule that replaced the number.
 
 ---
 
@@ -62,13 +66,15 @@ The procedure, so it is reproducible:
 | Measure | Value | Blueprint anchor | What it measures |
 |---|---|---|---|
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
-| Plan-task completion, effort-weighted | 18 of 143 pts — **12.6%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
-| Plan-task completion, task count | 6 of 43 — 14% | Same, unweighted | Same |
+| Plan-task completion, effort-weighted | 19 of 143 pts — **13.3%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
+| Plan-task completion, task count | 7 of 43 — 16% | Same, unweighted | Same |
 | Pre-merge review `R-01…R-11` | 8 of 11 — 73% | **§16.1** review gates | A sub-checklist of one branch, not the project. R-11 is only *partly* closed; the drift items below are its remainder |
 | Route surface vs the blueprint | 19 of 21 MVP-1 routes declared | **§8.2** (23 rows, 2 marked phase 2) | New this session. A *registry* figure, not a served one — nothing mounts it |
 
-These are not competing answers. **0% is the answer**; 12.6% is how much of the written plan has
-been executed. A reader who quotes 12.6% without §15.2 beside it is quoting the wrong number.
+These are not competing answers. **0% is the answer**; 13.3% is how much of the written plan has
+been executed. A reader who quotes 13.3% without §15.2 beside it is quoting the wrong number.
+T-00 closing moved it from 12.6% — one point, and it did not move §15.2 by a step, which is the
+point of keeping the two figures side by side.
 
 **Reconciliation with the older figures.** The Rev C audit's *68%* and `LATEST.md`'s *70%* are
 blueprint-conformance measures — requirements met, and effort remaining — over the whole MVP-1
@@ -93,13 +99,13 @@ neither comparable. The one figure all four agree on is §15.2 at 0 of 8.
 - **R-08 and R-10 appear twice** in the plan (in `tasks/review-todo.md` and again in Phase 3). They
   are counted once, in Phase 3. The other nine R-items are outside the 43.
 
-### Caveat that cuts against the 12.6%
+### Caveat that cuts against the 13.3%
 
 The T-shirt sizes were written **before anyone attempted the server or the interface**. T-14 is
 sized L = 8 points = 5.6% of the project, yet it gates **all eight** §15.2 steps: every one needs
 HTTP. Phase 4 is eight M tasks, one L, and one S in a repo with zero `.tsx` files and no framework
 installed.
-If either is under-sized — and both probably are — the true denominator is larger and **12.6% is
+If either is under-sized — and both probably are — the true denominator is larger and **13.3% is
 an overstatement**. Treat it as a ceiling.
 
 Also outside the denominator, because the plan does not contain them: dependency audit in CI, E2E
@@ -112,41 +118,40 @@ changelog and tags *are* T-26.)
 
 | Phase | Points | Done | % | State |
 |---|---|---|---|---|
-| 0 — Make CI real | 1 | 0 | 0% | T-00 in progress: remote live, CI has run, tip commit unpushed |
+| 0 — Make CI real | 1 | 1 | **100%** | **T-00 complete.** Tip `efbafbd` pushed; CI run #10 **Success** — the first commit in this repo ever verified |
 | 1 — Catalog and schema integrity | 10 | 10 | **100%** | T-01…T-04 complete (verified at `a2f166e` — repository claim, not re-run today) |
 | 2 — Kernel and workflow repairs | 24 | 0 | **0%** | T-05…T-12, T-27 all unstarted |
 | 3 — The contract, then the server | 50 | 8 | 16% | P-00 and T-13a done; T-13b…T-15, P-01…P-05, R-08, R-10 open |
 | 4 — The interface | 42 | 0 | **0%** | Zero `.tsx` files exist |
 | 5 — Deploy readiness | 16 | 0 | 0% | Not started |
-| **Total** | **143** | **18** | **12.6%** | |
+| **Total** | **143** | **19** | **13.3%** | |
 
-**Remaining: 125 points.** T-14 plus all of Phase 4 is 50 of those — 40% of what is left. The other
-**60% is diffuse**: Phase 2 (24), the rest of Phase 3 (34), Phase 5 (16), T-00 (1). The remaining
-work is *not* concentrated in the two big items, and planning as if it were will under-book the
-back half.
+**Remaining: 124 points.** T-14 plus all of Phase 4 is 50 of those — 40% of what is left. The other
+**60% is diffuse**: Phase 2 (24), the rest of Phase 3 (34), Phase 5 (16). The remaining work is
+*not* concentrated in the two big items, and planning as if it were will under-book the back half.
 
 ---
 
-### How soft is 12.6%?
+### How soft is 13.3%?
 
 The caveat above says the figure is a ceiling because T-14 and Phase 4 were sized before anyone
-attempted either. Quantified — 18 done points never move, only the denominator does:
+attempted either. Quantified — 19 done points never move, only the denominator does:
 
 | T-14 | Phase 4 | Denominator | Completion | Scenario |
 |---|---|---|---|---|
-| 8 | 42 | 143 | **12.6%** | as planned — the published figure |
-| 16 | 63 | 172 | 10.5% | T-14 ×2, Phase 4 ×1.5 |
-| 16 | 84 | 193 | 9.3% | T-14 ×2, Phase 4 ×2 |
-| 24 | 84 | 201 | 9.0% | T-14 ×3, Phase 4 ×2 |
-| 24 | 126 | 243 | 7.4% | T-14 ×3, Phase 4 ×3 |
+| 8 | 42 | 143 | **13.3%** | as planned — the published figure |
+| 16 | 63 | 172 | 11.0% | T-14 ×2, Phase 4 ×1.5 |
+| 16 | 84 | 193 | 9.8% | T-14 ×2, Phase 4 ×2 |
+| 24 | 84 | 201 | 9.5% | T-14 ×3, Phase 4 ×2 |
+| 24 | 126 | 243 | 7.8% | T-14 ×3, Phase 4 ×3 |
 
 Even at triple, the figure moves about five points. **The ceiling is real but shallow**, so
-12.6% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
+13.3% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
 is the number to quote and this one is not.
 
-**Where the remaining 125 points sit:** Phase 3's residue 42 (33.6%) · Phase 4 42 (33.6%) ·
-Phase 2 24 (19.2%) · Phase 5 16 (12.8%) · T-00 1 (0.8%). The two largest blocks are equal, and
-neither is a majority.
+**Where the remaining 124 points sit:** Phase 3's residue 42 (33.9%) · Phase 4 42 (33.9%) ·
+Phase 2 24 (19.4%) · Phase 5 16 (12.9%). The two largest blocks are equal, and neither is a
+majority.
 
 ## Verified today
 
@@ -154,8 +159,9 @@ Re-measured by running commands against the working tree:
 
 | | |
 |---|---|
-| Branch | `fix/catalog-release-integrity` @ `ff63b87`, **30 commits ahead of `main`**, **4 commits unpushed** (`6f05043`, `57eb7d4`, `aa4a9e7`, `ff63b87`) |
-| The pair moves as this file is written | Each documentation commit that records this measurement adds one to both counts, so **do not quote ahead/unpushed from this document** — re-run `git rev-list --left-right --count origin/main...HEAD` and `git rev-list --count @{u}..HEAD`. Session 3 added `e488a14`, `c08cca3` and the commit carrying this row. That self-reference is exactly how drift item 5 arose, and naming it is cheaper than chasing it |
+| Branch | `fix/catalog-release-integrity`. Measurement pass at `ff63b87`; **pushed**, and `origin/fix/catalog-release-integrity` @ **`efbafbd`** is green |
+| **CI on the tip** | **Run #10, Success**, 1m 34s — `verify` 1m 10s, `docs` 5s. Read from the PR checks page and the job log in a signed-in browser. Step list and the two Node-20 deprecation warnings in `docs/CURRENT_STATE.md` §4 |
+| The ahead/unpushed pair moves as this file is written | Each documentation commit that records this measurement adds one to both counts, so **do not quote ahead/unpushed from this document** — re-run `git rev-list --left-right --count origin/main...HEAD` and `git rev-list --count @{u}..HEAD`. Session 3 added `e488a14`, `c08cca3` and the commit carrying this row. That self-reference is exactly how drift item 5 arose, and naming it is cheaper than chasing it |
 | `main` | pushed and in sync with `origin/main` @ `0f1e7ac` |
 | Packages | 11 |
 | Test files | 44 (`*.test.ts`) |
@@ -173,15 +179,19 @@ Re-measured by running commands against the working tree:
 - **"1,042 tests passing" and "100% coverage on every pure package."** The suite could not be run:
   `node_modules` holds win32 native binaries and the available shell is Linux. Statically there are
   44 test files and ~875 `it(`/`test(` call sites.
-- **"CI green."** Session 3 could read the Actions page unauthenticated: **nine workflow runs exist**
-  (one push to `main`, eight on PR #1). The per-run *conclusions* are not in the unauthenticated page
-  and the GitHub API returned 403, so **green is still a claim, not a measurement**. Three same-day
-  documents disagree —
+- ~~**"CI green."**~~ **Now measured, not claimed** — see *Verified today*. Run #10 on `efbafbd`
+  reports Success, and the `verify` log lists Postgres containers, migrations, the tenancy tests and
+  the RLS coverage assertion all green, each checker behind its own self-test. What it does **not**
+  settle is the "1,042 tests passing / 100% coverage" figures above: CI reports a green job, not a
+  count this session read. Historical note, because it was the point of the entry: three same-day
+  documents disagreed —
   `review-findings` (07:31) says CI has *never* run; `catalog-release-approved` (09:21) says green
   on the previous head; `state-of-the-build` (10:12) says PR #1 green. The latest is taken as
   current, and it is a claim, not a measurement.
-- **No figure describes `ff63b87`.** Four commits are unpushed, so nothing in CI has ever seen the
-  tip. `git push` from the bridge shell fails — no credentials — so this must run from Windows.
+- ~~**No figure describes the tip.**~~ **Resolved.** `efbafbd` is pushed and green. The bridge shell
+  still holds no git credentials, so every push must run from Windows — GitHub Desktop's *Push
+  origin* is the route that worked, after adding the repo to it (its existing `Master-Rack` entry
+  points at a second, near-empty clone at `C:\Rack Master\Master-Rack`, not at this working tree).
 
 ### Drift found while measuring
 
@@ -231,9 +241,8 @@ rule earns its keep: the blueprint wins, and the scoreboard is what gets fixed.*
 
 ### Immediate — close the branch out (est. 1 session)
 
-1. **Push `ff63b87`** (4 commits) and confirm CI green *on the tip*. Nothing in this repo has been
-   verified at its current commit. The bridge shell has no credentials — run it from Windows:
-   `git push origin fix/catalog-release-integrity`.
+1. ~~**Push the tip and confirm CI green on it.**~~ **Done — T-00 closed.** `efbafbd` pushed,
+   run #10 **Success**. Pushes must run from Windows; the bridge shell has no credentials.
 2. **R-10 — judge the commits as commits.** **30** commits is a long chain to review
    retrospectively and it only gets longer. Includes the fair question of whether two RLS commits and a perf
    harness belonged on a branch named for catalog release integrity.
@@ -277,9 +286,13 @@ report a clean pass forever — the exact failure mode that produced F-06 and F-
 
 Gaps, in priority order:
 
-- **The tip is unverified.** **Four** unpushed commits mean the pipeline's guarantee does not cover
-  the code that exists. Fix first — and note the gap grew from one commit to four in a single
-  session, which is the argument for pushing per task rather than per branch.
+- ~~**The tip is unverified.**~~ **Closed.** The gap had grown from one unpushed commit to eight
+  inside two sessions before it was closed, which is the argument for pushing per task rather than
+  per branch. Keep it closed: push each task's commit as it lands.
+- **The runner is on borrowed time.** Run #10 carries two warnings — Node.js 20 is deprecated, so
+  `actions/checkout@v4`, `actions/setup-node@v4`, `actions/setup-python@v5` and
+  `pnpm/action-setup@v4` are being forced onto Node 24. Pin newer action versions before it becomes
+  an error rather than a warning.
 - **Secret scanning (T-11)** and a **dependency audit** are absent. Both are one CI step each.
 - **No bundle ceiling (P-05).** Agree it *before* the first screen; a ceiling set after the bundle
   exists is one nobody meets.
@@ -334,9 +347,9 @@ Zero `.tsx` files, so every decision here is still free.
 
 - **Merge the branch.** **30** commits, well past short-lived, and the name stopped describing the
   contents around commit 12. It grew by three while sitting unmerged.
-- **Push the tip.**
+- ~~**Push the tip.**~~ Done: `efbafbd`, CI green.
 - From Phase 2 on, **one short-lived branch per task**, merged within a day or two. The tasks are
-  already sized for it.
+  already sized for it — and push each one, rather than letting eight commits accumulate again.
 - **No tags, no `CHANGELOG.md`, version `0.0.0`.** Fine today — nothing consumes this yet. The
   moment the pilot organization touches a deployed build, that stops being true, and a changelog
   reconstructed later is a changelog with half the entries missing. T-26 should land with the first

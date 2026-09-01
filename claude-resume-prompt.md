@@ -42,15 +42,17 @@ answer**; the other percentages are how much of the written plan has been execut
 | Measure | Value | Blueprint anchor |
 |---|---|---|
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | Blueprint §15.2 — the definition of done. This is the answer to "how done is it". |
-| Plan-task completion, effort-weighted | 18 of 143 pts — 12.6% (an upper bound, not the answer) | `tasks/todo.md` phases, sliced from blueprint §15.3 |
-| Plan-task completion, task count | 6 of 43 — 14% | Same, unweighted |
+| Plan-task completion, effort-weighted | 19 of 143 pts — 13.3% (an upper bound, not the answer) | `tasks/todo.md` phases, sliced from blueprint §15.3 |
+| Plan-task completion, task count | 7 of 43 — 16% | Same, unweighted |
 | Pre-merge review `R-01…R-11` | 8 of 11 — 73% (R-11's documentation remainder fixed in session 3) | Blueprint §16.1 review gates |
 | Route surface vs the blueprint | **19 of 21** MVP-1 routes declared | Blueprint §8.2 — 23 rows, 2 marked phase 2. A registry figure; nothing mounts it |
 
-Measured on branch `fix/catalog-release-integrity` @ **`ff63b87`** — **30 commits ahead of `main`**,
-**4 commits unpushed**, and the tip has been **tested by nothing**. (Session 2 measured itself at
-`6f05043`/27/1 and three commits landed after it — its own tip figures were stale before they were
-read. Re-measure this line first, every time.)
+Branch `fix/catalog-release-integrity`, tip **`efbafbd`**, **pushed**, **CI run #10 green**
+(https://github.com/Elliotvness/Master-Rack/actions/runs/33529120263) — **T-00 is closed**, and this
+is the first time any commit in the repo has been verified at the commit that exists. Do **not**
+quote an ahead/unpushed pair from any document: every documentation commit moves it. Re-run
+`git rev-list --left-right --count origin/main...HEAD`. (Session 2 published `6f05043`/27/1 and
+three commits landed after it — its own figures were stale before they were read.)
 
 **Reconciliation with the older figures.** The Rev C audit's *68%* and `LATEST.md`'s *70%* are
 blueprint-conformance measures — requirements met, and effort remaining — over the whole MVP-1
@@ -68,10 +70,13 @@ denominator changed, say so explicitly. Republish to `claude/progress-scoreboard
 
 ### Immediate — close the branch out (est. 1 session)
 
-1. **Push `ff63b87`** (4 commits) and confirm CI green *on the tip*. Nothing in this repo has been
-   verified at its current commit. **Run it from Windows** — the Linux bridge shell holds no
-   credentials (`could not read Username for 'https://github.com'`).
-2. **R-10 — judge the commits as commits.** **30** commits is a long chain to review retrospectively.
+1. ~~**Push the tip and confirm CI green on it.**~~ **Done 2026-09-01 (session 3) — T-00 closed.**
+   Every push must run from **Windows**: the Linux bridge shell holds no credentials
+   (`could not read Username for 'https://github.com'`), and the Terminal app can only be granted in
+   click-only mode. The route that worked is **GitHub Desktop → Push origin**, after adding
+   `C:\Rack Master\rack-master-studio` to it — its pre-existing `Master-Rack` entry points at a
+   second, near-empty clone at `C:\Rack Master\Master-Rack`.
+2. **R-10 — judge the commits as commits.** **34+** commits is a long chain to review retrospectively.
    Includes the fair question of whether two RLS commits and a perf harness belonged on a branch
    named for catalog release integrity.
 3. **R-08 — the catalog data reviewed as data**, independently of the test that asserts it.

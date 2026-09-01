@@ -24,24 +24,32 @@ the DB-backed tests (`*.db.test.ts`, `tenancy.test.ts`, `check-rls`) have no run
 the Linux workspace has no docker.
 
 **Acceptance criteria:**
-- [ ] Remote added; `main` pushed
-- [ ] The `verify` job completes green, including the 6 DB-backed test files and `check-rls`
-- [ ] The `docs` job rebuilds the blueprint and `git diff --exit-code` passes
+- [x] Remote added; `main` pushed
+- [x] The `verify` job completes green, including the 6 DB-backed test files and `check-rls`
+- [x] The `docs` job rebuilds the blueprint and `git diff --exit-code` passes
 
 **Verification:** the CI run URL and its conclusion recorded in `docs/CURRENT_STATE.md` §4.
 **Dependencies:** Q7 (where does this push?). **Files:** none. **Scope:** XS.
+
+**DONE 2026-09-01 (session 3).** The 8 held commits were pushed from Windows via GitHub Desktop —
+the bridge shell has no credentials — taking `origin/fix/catalog-release-integrity` to `efbafbd`.
+**CI run #10 on `efbafbd`: Success**, 1m 34s (`verify` 1m 10s, `docs` 5s):
+https://github.com/Elliotvness/Master-Rack/actions/runs/33529120263 — full step list and the two
+Node-20 deprecation warnings recorded in `docs/CURRENT_STATE.md` §4. The verify log shows Postgres
+containers, migrations, the tenancy tests and the RLS coverage assertion all green, each checker
+behind its own self-test. **This is the first time anything in this repository has been verified at
+its current commit.**
 
 ---
 
 ## Phase 1 — Catalog and schema integrity
 
-**PARTLY UNBLOCKED — re-measured 2026-09-01 (session 3).** Remote added
-(`https://github.com/Elliotvness/Master-Rack.git`). `main` **is pushed** and in sync with
-`origin/main` @ `0f1e7ac`; nine CI runs exist. What is still blocked is the branch **tip**:
-`fix/catalog-release-integrity` is 4 commits ahead of its own remote (`6f05043`, `57eb7d4`,
-`aa4a9e7`, `ff63b87`) and 30 ahead of `main`. The bridge shell still holds no credentials
-(`could not read Username for 'https://github.com'`). Run from Windows:
-`git push origin fix/catalog-release-integrity`.
+**UNBLOCKED 2026-09-01 (session 3).** `main` is in sync with `origin/main` @ `0f1e7ac`, and the
+branch tip is pushed: `origin/fix/catalog-release-integrity` @ `efbafbd`, **CI run #10 green**. The
+bridge shell still holds no git credentials (`could not read Username for 'https://github.com'`), so
+every push has to run from Windows — GitHub Desktop's *Push origin* is the route that worked. Note
+the repo had to be **added** to GitHub Desktop first: its existing `Master-Rack` entry points at a
+second, near-empty clone at `C:\Rack Master\Master-Rack`, not at this working tree.
 **Partly mitigated:** the DB-backed tests no longer need CI to run at all — see `LATEST.md` §4 for
 the portable-Postgres recipe. All 74 of them now pass locally, the first time they have ever run.
 
