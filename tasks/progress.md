@@ -69,19 +69,19 @@ The procedure, so it is reproducible:
 | Measure | Value | Blueprint anchor | What it measures |
 |---|---|---|---|
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
-| Plan-task completion, effort-weighted | 25 of 145 pts — **17.2%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
-| Plan-task completion, task count | 9 of 44 — 20% | Same, unweighted | Same |
+| Plan-task completion, effort-weighted | 29 of 145 pts — **20.0%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
+| Plan-task completion, task count | 10 of 44 — 23% | Same, unweighted | Same |
 | Pre-merge review `R-01…R-11` | 8 of 11 — 73% | **§16.1** review gates | A sub-checklist of one branch, not the project. **Same figure as this morning, different members** — see the correction below. Done: R-01…R-06, **R-08**, **R-11**. Open: R-07 (partly), R-09, R-10 (one criterion) |
 | Route surface vs the blueprint | 19 of 21 MVP-1 routes declared | **§8.2** (23 rows, 2 marked phase 2) | New this session. A *registry* figure, not a served one — nothing mounts it |
 
-These are not competing answers. **0% is the answer**; 17.2% is how much of the written plan has
-been executed. A reader who quotes 17.2% without §15.2 beside it is quoting the wrong number.
+These are not competing answers. **0% is the answer**; 20.0% is how much of the written plan has
+been executed. A reader who quotes 20.0% without §15.2 beside it is quoting the wrong number.
 
 **The numerator moved this session; the denominator did not.** Session 3 moved the denominator twice
 in opposite directions — T-00 closing took the figure from 12.6% to 13.3%, then adding **T-28**
 (S = 2 points) took the denominator from 143 to 145 and the figure back to 13.1%. Session 4 earned
-**six points** at a fixed denominator: **T-05** (S = 2) and **T-06** (M = 4), taking 19 to 25 and
-13.1% to **17.2%**. T-05 was merged in session 3 and the session-3 scoreboard never counted it —
+**six points** at a fixed denominator: **T-05** (S = 2), **T-06** (M = 4) and **T-07** (M = 4), taking 19 to 29 and
+13.1% to **20.0%**. T-05 was merged in session 3 and the session-3 scoreboard never counted it —
 Phase 2 was published as `0 / 26` with T-05 already on `main`. That is drift item 11 below, found by
 re-measuring rather than re-reading, which is the whole reason the standing rule says so. §15.2 sat
 at 0 of 8 through all of it.
@@ -130,38 +130,38 @@ changelog and tags *are* T-26.)
 |---|---|---|---|---|
 | 0 — Make CI real | 1 | 1 | **100%** | **T-00 complete.** Tip `efbafbd` pushed; CI run #10 **Success** — the first commit in this repo ever verified |
 | 1 — Catalog and schema integrity | 10 | 10 | **100%** | T-01…T-04 complete (verified at `a2f166e` — repository claim, not re-run today) |
-| 2 — Kernel and workflow repairs | 26 | 6 | **23%** | **T-05 and T-06 done** (merged / this branch); T-07…T-12, T-27, T-28 open |
+| 2 — Kernel and workflow repairs | 26 | 10 | **38%** | **T-05, T-06 and T-07 done**; T-08…T-12, T-27, T-28 open |
 | 3 — The contract, then the server | 50 | 8 | 16% | P-00 and T-13a done; T-13b…T-15, P-01…P-05, R-08, R-10 open |
 | 4 — The interface | 42 | 0 | **0%** | Zero `.tsx` files exist |
 | 5 — Deploy readiness | 16 | 0 | 0% | Not started |
-| **Total** | **145** | **25** | **17.2%** | |
+| **Total** | **145** | **29** | **20.0%** | |
 
-**Remaining: 120 points.** T-14 plus all of Phase 4 is 50 of those — 42% of what is left. The other
-**58% is diffuse**: Phase 2's residue (20), the rest of Phase 3 (42), Phase 5 (16). The remaining
+**Remaining: 116 points.** T-14 plus all of Phase 4 is 50 of those — 43% of what is left. The other
+**57% is diffuse**: Phase 2's residue (16), the rest of Phase 3 (42), Phase 5 (16). The remaining
 work is *not* concentrated in the two big items, and planning as if it were will under-book the back
 half.
 
 ---
 
-### How soft is 17.2%?
+### How soft is 20.0%?
 
 The caveat above says the figure is a ceiling because T-14 and Phase 4 were sized before anyone
-attempted either. Quantified — 25 done points never move, only the denominator does:
+attempted either. Quantified — 29 done points never move, only the denominator does:
 
 | T-14 | Phase 4 | Denominator | Completion | Scenario |
 |---|---|---|---|---|
-| 8 | 42 | 145 | **17.2%** | as planned — the published figure |
-| 16 | 63 | 174 | 14.4% | T-14 ×2, Phase 4 ×1.5 |
-| 16 | 84 | 195 | 12.8% | T-14 ×2, Phase 4 ×2 |
-| 24 | 84 | 203 | 12.3% | T-14 ×3, Phase 4 ×2 |
-| 24 | 126 | 245 | 10.2% | T-14 ×3, Phase 4 ×3 |
+| 8 | 42 | 145 | **20.0%** | as planned — the published figure |
+| 16 | 63 | 174 | 16.7% | T-14 ×2, Phase 4 ×1.5 |
+| 16 | 84 | 195 | 14.9% | T-14 ×2, Phase 4 ×2 |
+| 24 | 84 | 203 | 14.3% | T-14 ×3, Phase 4 ×2 |
+| 24 | 126 | 245 | 11.8% | T-14 ×3, Phase 4 ×3 |
 
-Even at triple, the figure moves about seven points. **The ceiling is real but shallow**, so
-17.2% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
+Even at triple, the figure moves about eight points. **The ceiling is real but shallow**, so
+20.0% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
 is the number to quote and this one is not.
 
-**Where the remaining 120 points sit:** Phase 3's residue 42 (35.0%) · Phase 4 42 (35.0%) ·
-Phase 2's residue 20 (16.7%) · Phase 5 16 (13.3%). The two largest blocks are equal, and neither is
+**Where the remaining 116 points sit:** Phase 3's residue 42 (36.2%) · Phase 4 42 (36.2%) ·
+Phase 2's residue 16 (13.8%) · Phase 5 16 (13.8%). The two largest blocks are equal, and neither is
 a majority.
 
 ## Verified today
@@ -170,12 +170,12 @@ Re-measured by running commands against the working tree:
 
 | | |
 |---|---|
-| Branch | `task/t-06-acknowledgement`, off `main` @ **`e08a3ac`**. One short-lived branch per task, as the plan requires from Phase 2 on |
+| Branch | `task/t-07-workflow-package`, off `main` @ **`98b0229`**. One short-lived branch per task, as the plan requires from Phase 2 on |
 | **CI on the tip** | **Run #10, Success**, 1m 34s — `verify` 1m 10s, `docs` 5s. Read from the PR checks page and the job log in a signed-in browser. Step list and the two Node-20 deprecation warnings in `docs/CURRENT_STATE.md` §4 |
 | The ahead/unpushed pair moves as this file is written | Each documentation commit that records this measurement adds one to both counts, so **do not quote ahead/unpushed from this document** — re-run `git rev-list --left-right --count origin/main...HEAD` and `git rev-list --count @{u}..HEAD`. Session 3 added `e488a14`, `c08cca3` and the commit carrying this row. That self-reference is exactly how drift item 5 arose, and naming it is cheaper than chasing it |
-| `main` | in sync with `origin/main` @ `e08a3ac` — PR #1 merged and its branch deleted |
-| Packages | 11 |
-| Test files | **46** (`*.test.ts`) — `assumption.db.test.ts` and `review-package.test.ts` added by T-06 |
+| `main` | in sync with `origin/main` @ `98b0229` — PR #1, #2 and #3 merged, every branch deleted |
+| Packages | **12** — `packages/workflow` added by T-07 |
+| Test files | **47** (`*.test.ts`) — T-06 added two, T-07 added `submit-effects.db.test.ts` |
 | Migrations | **9** (`0001`–`0009`) — `0009_assumption_record.sql` applied and its constraints proven to fire |
 | `.tsx` / `.jsx` / `.vue` / `.svelte` / `.astro` files | **0** |
 | Server entry point | **none** — no `fastify`, `express`, `koa`, `hono`, `node:http`, `.listen(` anywhere in `apps/` or `packages/` |
@@ -188,7 +188,7 @@ Re-measured by running commands against the working tree:
 ### Not verified today — the repository's own figures
 
 - ~~**"1,042 tests passing"**~~ **Measured, and the repository's figure was low.** `pnpm vitest run`
-  in a Linux clone against a native PostgreSQL 16.13: **46 files, 1,114 tests, 0 skipped**, and
+  in a Linux clone against a native PostgreSQL 16.13: **47 files, 1,126 tests, 0 skipped**, and
   `pnpm verify` exits 0 with every coverage threshold met. The "1,042" claim in `LATEST.md` was
   replaced in session 3; the count has moved again since, with T-05 and T-06.
 - ~~**"CI green."**~~ **Now measured, not claimed** — see *Verified today*. Run #10 on `efbafbd`
@@ -209,8 +209,9 @@ Re-measured by running commands against the working tree:
 
 Session 2 found four. Session 3 re-measured them, **fixed nine and reclassified one**. Four of the
 nine were found only by reading R-11's own acceptance criteria rather than the scoreboard's drift
-list — including one this scoreboard published about itself. **Session 4 found two more, items 11
-and 12**, and item 11 is again this file describing itself wrongly.
+list — including one this scoreboard published about itself. **Session 4 found four more, items 11
+to 14**; item 11 is again this file describing itself wrongly, and 13 and 14 are stale figures inside
+a task's own verification line — found only because the line was actually re-run.
 
 | # | Item | Status |
 |---|---|---|
@@ -225,6 +226,8 @@ and 12**, and item 11 is again this file describing itself wrongly.
 | 10 | *(new, self-inflicted)* This scoreboard claimed **"R-11 is closed, review 9 of 11"** before R-11's criteria had been read | **Fixed** — corrected in all four copies. The claim was published to every copy before it was checked, which is the defect R-11 exists to catch, committed while closing R-11 |
 | 11 | *(new, session 4)* This scoreboard published **Phase 2 as `0 / 26`** with **T-05 already merged into `main`** — a completed task the arithmetic never counted | **Fixed** — Phase 2 is 6 of 26, the total 25 of 145. Found by re-measuring, not by re-reading: the sentence saying T-05 was done and the table saying Phase 2 was zero sat four screens apart in the same file |
 | 12 | *(new, session 4)* `tasks/todo.md` T-09 reserved migration **`0009`**; T-06 needed a migration first and took that number | **Fixed** — T-09's acceptance criterion and Files line now say `0010`. Migrations apply in filename order, and T-09 comes after T-06 in the dependency order the plan itself sets |
+| 13 | *(new, session 4)* T-07's verification line says `check-boundaries` should report **10 pure packages** | **Corrected** — it reports **11**. The line was written before `packages/contracts` existed; 10 was the pre-task figure, re-measured at `HEAD` to confirm, and a correct T-07 necessarily produces 11 |
+| 14 | *(new, session 4)* T-07's acceptance criterion says **"the existing 22 submit tests"** | **Corrected** — the file holds **37**. T-05 and T-06 grew it and the figure was never updated. The substance of the criterion — moved unchanged, still green — is met: the test file is byte-identical to its previous location |
 | 6 | *(new)* T-04's `DONE` block sat **below** the `## Phase 2` heading, and still said `interlake-2026-09` was back to DRAFT with nothing pinnable — superseded the same day by `eaeb8f0` / `a2f166e` | **Fixed** — moved under T-04, and the re-approval verified against the manifest on disk |
 
 **Drift 4 was not drift.** Both figures were accurate; the *classification* was wrong. Filed beside
@@ -324,7 +327,8 @@ checkpoint, or amend the plan on the record to say the checkpoint moved. Silentl
 third option and it is the one that produces the next audit finding.
 
 Phase 2 in dependency order: ~~**T-05** (contentHash ≠ manifestHash)~~ **done, merged** →
-~~**T-06** (record the acknowledgement)~~ **done, this branch** → **T-07/T-08** (orchestration off the client, into `packages/workflow`) →
+~~**T-06** (record the acknowledgement)~~ **done, merged** → ~~**T-07** (orchestration into
+`packages/workflow`)~~ **done, this branch** → **T-08** (orchestration off the client, into `packages/workflow`) →
 **T-27** (type-check the test files) → **T-09** (`part` / `part_revision`) → **T-10** (docs +
 `check-claims`) → **T-11** (secret scanning) → **T-12** (source-conflict register).
 

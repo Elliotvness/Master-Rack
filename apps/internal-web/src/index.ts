@@ -57,4 +57,4 @@ export {
   type ReviewPackageKey,
 } from './lib/review-package.js';
 
-export type { Acknowledgement, Assumption } from '@rms/contracts';
+export type { Acknowledgement, Assumption } from '@rms/workflow';

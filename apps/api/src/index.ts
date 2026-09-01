@@ -117,3 +117,11 @@ export {
   type DailyAnchor,
   type TimestampToken,
 } from './worm/anchor.js';
+
+export {
+  ENGINE_VERSION,
+  splitOnce,
+  submitEffects,
+  submitRevision,
+  type SubmitContext,
+} from './workflow/submit-effects.js';

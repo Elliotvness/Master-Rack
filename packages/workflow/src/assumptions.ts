@@ -13,6 +13,11 @@
  * "you accepted a 4-inch overhang assumption" becomes arguable again — which
  * is the exact failure §11.6 exists to prevent.
  *
+ * It sits in `@rms/workflow` rather than `@rms/contracts` because the register
+ * is produced by the submit transaction, not carried on the wire, and because
+ * a pure package may not import `@rms/contracts` at all — see
+ * `tools/check-boundaries.mjs`.
+ *
  * Types only: no runtime, no I/O, no clock, no RNG.
  */
 

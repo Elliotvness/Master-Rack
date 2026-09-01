@@ -108,6 +108,16 @@ export default defineConfig({
           lines: 100,
           statements: 100,
         },
+        // The submit transaction, moved off the client bundle by T-07. Pure
+        // orchestration with injected effects, so every refusal is reachable
+        // from its arguments — and every refusal here is one that stops a
+        // submission, which is not a place to carry an unexercised branch.
+        'packages/workflow/src/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
 
         // --- Application and database layers: ratcheted floors, not 100% ---
 
@@ -163,6 +173,24 @@ export default defineConfig({
         },
         'apps/api/src/outbox/**': {
           branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
+        // The submit transaction's server half. Lines, statements and functions
+        // at 100 — every refusal here stops a submission. Branches sit at a
+        // floor of 97 for ONE branch, named rather than waved at: step 8 asks
+        // the chain whether each event this transaction wrote is present, and
+        // the "absent" arm is unreachable because three other controls already
+        // prevent it — the write and the read share a transaction, DELETE on
+        // `app.audit_event` is revoked from the application role, and an
+        // append-only trigger raises besides. Covering it would mean disabling
+        // those to prove this one, which credits one control for another's
+        // work. The check stays because it is what ties AC-15's claim to the
+        // chain; the floor stays because pretending it is covered would be the
+        // false assurance this file's own comment warns about.
+        'apps/api/src/workflow/**': {
+          branches: 97,
           functions: 100,
           lines: 100,
           statements: 100,

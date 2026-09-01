@@ -92,21 +92,30 @@ export {
   type OptionSummary,
 } from './lib/comparison.js';
 
+/**
+ * The submit transaction itself is NOT here, and that is the point of T-07.
+ *
+ * `submit` lives in `@rms/workflow` and runs on the server; this bundle keeps
+ * everything a screen legitimately needs — the step vocabulary, the refusal
+ * type so it can name which step refused and list every reason (`AC-10`),
+ * `submitRefusals` so it can show them BEFORE the round trip, and
+ * `preSubmitConfirmation`, which is by definition what the client is shown
+ * immediately before submitting (§11.6, register first). What it does not get
+ * is the ability to drive the sequence itself. `tools/check-app-boundaries.mjs` asserts
+ * that this file exports no symbol named `submit`, `freeze`, `derive*` or
+ * `strip*`, so the omission is enforced rather than remembered.
+ */
 export {
   SUBMIT_STEPS,
   SubmitError,
   preSubmitConfirmation,
   stepsInOrder,
-  submit,
   submitRefusals,
   type Acknowledgement,
   type Assumption,
   type Derivation,
-  type SubmitEffects,
-  type SubmitInput,
-  type SubmitResult,
   type SubmitStep,
-} from './lib/submit.js';
+} from '@rms/workflow';
 
 export {
   CLOCK_NAMES,
