@@ -11,7 +11,7 @@ esbuild/rollup workaround `LATEST.md` §4 describes — that note is now stale.
 
 ---
 
-## F-01 — **Critical:** the audience boundary stops at `revision`. Its children leak. *(latent)*
+## F-01 — **Critical:** the audience boundary stops at `revision`. Its children leak. *(FIXED — `270631b`)*
 
 **Demonstrated, not argued.** Against the live database, as a client principal of ORG_A:
 
@@ -69,7 +69,7 @@ the audience boundary until it is done.
 
 ---
 
-## F-02 — **Critical:** the approval gate does not enforce the draw it pinned (lead L-1, confirmed)
+## F-02 — **Critical:** the approval gate does not enforce the draw it pinned *(FIXED — `540f4cd`)*
 
 `approvalRefusals()` returns **`[]`** — the release is approvable — for a manifest whose recorded
 spot-check cells are `TOTALLY/FAKE/CELL-0` … `TOTALLY/FAKE/CELL-19`. Reproduced against the real
@@ -112,7 +112,7 @@ count must produce a refusal naming the dataset. Record it failing before the fi
 
 ---
 
-## F-03 — the `actor_type = 'client'` half of 0006 is untested
+## F-03 — the `actor_type = 'client'` half of 0006 is untested *(FIXED — `e6b4784`)*
 
 Removed the clause from the live policy, leaving `actor_organization_id = app.current_org() OR
 app.is_staff()`. **All 35 tenancy tests pass.**
@@ -131,7 +131,7 @@ cannot read it.
 
 ---
 
-## F-04 — `actor_organization_id` is nullable with nothing tying it to `actor_type`
+## F-04 — `actor_organization_id` is nullable with nothing tying it to `actor_type` *(FIXED — `e6b4784`, migration 0007)*
 
 ```
 actor_type              NO   (NOT NULL)   ✓
@@ -198,6 +198,53 @@ locks in the behaviour that exists; it does not widen it.
 
 ---
 
+## F-07 — a test name that promised more than its body delivered *(FIXED — `540f4cd`)*
+
+`release-integrity.test.ts` carried a test called **"the pinned draw matches what the tool draws for
+that seed"** whose body asserted only that the sample was the right SIZE. Nothing compared a cell.
+
+This is most of why F-02 survived. Anyone auditing the test list — including the author of the gate —
+would read that name as coverage of the draw's identity, and write the gate to match what they
+believed was already proven. A name that overstates its body is worse than a missing test: a missing
+test is visibly missing.
+
+It now derives the ids and compares the pinned cells to `drawSpotCheckSample`, and it passes: the pin
+in `interlake-2026-09` is a genuine draw at seed 20260901.
+
+---
+
+## F-08 — the 100% coverage rule has not been enforced by anything *(FIXED — `c6f603e`)*
+
+`pnpm verify` runs `pnpm test`, not `pnpm coverage`. `ci.yml` **does** have a "Kernel coverage gate"
+step — and CI has never executed, because there is still no remote (`T-00`). So blueprint §16.1's
+rule that every pure package sits at 100% has been unchecked since the packages were written.
+
+It was not holding. `kernel-catalog` measured **90.9% lines**: `load-manifest.ts` at 60% and
+`spot-check.ts` at 89%, both added by this branch. **The branch would have failed CI on its first
+push**, on a gate nobody could see.
+
+Fixed by writing the two missing test files — `spot-check.test.ts` (18) and `load-manifest.test.ts`
+(28), for the two modules that shipped without one — and adding `pnpm coverage` to `verify` so it
+matches what CI already runs. kernel-catalog is back to 100% on all four measures across its ten
+files.
+
+One branch was **deleted rather than tested**: `strays[0] ?? ''` inside a `strays.length > 0` guard is
+unreachable. Destructuring the first stray turns two branches into one that the tests exercise.
+
+**Limit, stated plainly:** a full-repo coverage run exceeds this workspace's 180-second shell limit,
+so only `kernel-catalog` has been measured. Whether the other nine packages still meet their
+thresholds is exactly what `T-00`'s first green CI run is for.
+
+---
+
+## F-09 — **FYI** the recorded file count was wrong
+
+`LATEST.md` records "961 tests / 42 files". The branch tip carried **40** test files
+(`git ls-tree -r 0b9fd73`). The current tree carries 43 and **1042 tests, all passing**, DB-backed
+included. The test count is plausible; the file count was not. Corrected under R-11.
+
+---
+
 ## Confirmed sound — recorded so the review is not re-run
 
 These were checked and are correct. Listed because "we looked and it held" is a review output too.
@@ -227,9 +274,20 @@ These were checked and are correct. Listed because "we looked and it held" is a 
 
 | Task | State |
 |---|---|
-| R-01 | **Done** — one Critical (F-01), everything else sound |
-| R-02 | **Done on the technical criteria** (F-03, F-04, F-05); **blocked on EL** for the AC-14 product question |
-| R-03 | **Done** — F-06 fixed on the branch; 7-case self-test wired into `verify` |
-| R-04 | Open |
-| R-05 | **L-1 confirmed** (F-02). Remaining criteria open |
-| R-06 … R-11 | Open |
+| R-01 | **Done** — F-01 found and fixed |
+| R-02 | **Done** — F-03, F-04, F-05 found; F-03/F-04 fixed. AC-14 kept as absence, per EL |
+| R-03 | **Done** — F-06 fixed; 7-case self-test in `verify` and CI |
+| R-04 | **Done** — L-6 (the duplicated `Pick<>`) and L-7 closed in `540f4cd`; the `release.ts` split is **declined**, see below |
+| R-05 | **Done** — F-02 confirmed and fixed, with 7 regression tests |
+| R-06 | **Done** — remedy (b): `selftest-spot-check-draw.mjs`, 24 draws over both releases |
+| R-07 | **Partly** — L-3 pinned as deliberate, L-5/L-2 open, L-4 still EL's scope call |
+| R-08, R-09, R-10 | Open (R-09's measurement partly done: 1042 tests / 43 files) |
+| R-11 | **Partly** — T-09's migration renumbered to 0009; the rest open |
+
+### R-04: the `release.ts` split, answered
+
+**Declined, for now.** 353 lines holding one concept — what a catalog release is and when it may
+change state — is still one coherent module, and the change that grew it also gave it a second file
+(`spot-check.ts`) and now a third (`cell-ids.ts`), which is the decomposition happening in the right
+direction. Revisit when `apps/api` gives it a fourth caller, not before. Recorded so it is a decision
+rather than a deferral.
