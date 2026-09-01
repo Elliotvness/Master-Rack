@@ -100,6 +100,17 @@ jobs:
       - name: Language discipline check
         run: pnpm check:language
 
+      # A catalog release records a content_sha256 that, until 2026-09-01,
+      # nothing recomputed - and whose METHOD silently differed between the two
+      # releases sitting in the same directory (F-19). Each manifest now
+      # declares its method and this recomputes by it, failing closed on any
+      # method it does not implement.
+      - name: Content-hash checker self-test
+        run: pnpm check:contenthash:selftest
+
+      - name: Catalog content hashes match their declared method
+        run: pnpm check:contenthash
+
       # A workspace dependency that never reached the lockfile fails
       # `pnpm install --frozen-lockfile` above — this says WHICH one, and says
       # it in an environment where pnpm may not be installed at all.

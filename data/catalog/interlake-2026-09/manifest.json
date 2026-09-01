@@ -6,7 +6,7 @@
  "changes_from_2026_08": [
   "264 capacity values corrected to the published chart. The 2026-08 extract carried values that were consistently off by 5-25 lbs, none of which appear anywhere in the source document.",
   "42 rows REMOVED: 40E and 40ER under an F3M (6\", 3-tab) end plate. Page 84 publishes F3M for 27E and 36E only, and page 88 groups the 40E column under F4M. Character 13 of those rows' own codes reads 'C' (F3M) on a 40E beam, which the code format does not allow. They were a phantom variant: not published, and reading 3.8-12.2% BELOW the real 40E capacity, so the engine would have quoted a beam that does not exist while appearing conservative.",
-  "No part number, code_18, face height or deflection value was altered. Only capacity was re-sourced, and only unpublished rows were removed.",
+  "No part number, code_18 or deflection value was altered, and no capacity value was invented: 264 capacities were re-sourced to the published chart and 42 unpublished rows were removed. FACE HEIGHT WAS CORRECTED on 168 of the 336 rows - 36E/36ER 3.65 -> 3.65625 (3 21/32), 59E/59ER 5.92 -> 5.9375 (5 15/16), and 65E/65ER/65Q/65QR 6.54 -> 6.5625 (6 9/16) - to the exact fractions printed on p.84. The other eight families were already exact and did not move. See face_height_59e_status, face_height_65_status and face_height_policy for the reasoning and the approver. This sentence previously read 'no face height value was altered', which was false; corrected 2026-09-01 under review finding F-12. A change log that under-reports is the same defect as an extract that over-reports.",
   "frames.json carried forward from 2026-08 UNCHANGED, so the approved release resolves a frame as well as a beam. Previously the three frame tables existed only in the DRAFT 2026-08 release, which canPinForNewRevision correctly refuses - so MVP checks 1 and 2 could not resolve a frame from any pinnable revision. No frame value was altered; the tables SHA-256 is recorded in frames.json and asserted by test."
  ],
  "code_basis": "RMI guidelines and ANSI MH16.1-2012 (p.88 footnote); FY = 55 KSI",
@@ -15,6 +15,10 @@
   "crossbar_required_over_in_when_decked": 90
  },
  "content_sha256": "a137a7f983696ea1b284afd8c67105b1ec4dbe266d99f3ac02178bcb98ef7942",
+ "content_sha256_method": {
+  "id": "rows-canonical-json",
+  "note": "sha256 of json.dumps(beams.json['rows'], sort_keys=True, separators=(',',':')) encoded UTF-8 - the canonical rows array, not the file text. Written by tools/build-2026-09-manifest.py and tools/set-exact-face-heights.py. CAVEAT, recorded under review finding F-19: this digest depends on Python's float formatting. beams.json carries \"face_height_in\": 4.0 for the whole-number families; Python writes 4.0 and every other JSON implementation writes 4, so the same data yields a different digest anywhere but Python unless the original numeric literal is preserved. tools/check-content-hash.mjs preserves it and verifies this hash on every run. Re-basing the digest onto an implementation-independent form would change an APPROVED release, so it is left for the approver to decide rather than done here."
+ },
  "datasets": [
   "beams",
   "frames"
@@ -52,7 +56,7 @@
   "stored": "the exact published fraction (e.g. 5 15/16 = 5.9375)"
  },
  "load_basis": "Uniformly distributed product load plus dead load, PER PAIR of beams (dead load = weight of beams). Static load only. Value is the lesser of strength in bending and L/180 deflection.",
- "approval_record": "Returned to DRAFT 2026-09-01 after approval. The 2026-09-01 approval was made against a 20-cell beam sample that covers only 19 distinct PUBLISHED values: PSG 2025 p.88 prints one column headed 59E / 59ER and the extract carries two rows for it, so the draw landed on both halves of one printed cell. Section 10.2 floor is 20 readings, so the release was approvable on a count the gate was measuring wrongly, not on a fabricated record - the 42 cells recorded were the drawn cells and matched. The gate now counts distinct published values, the pinned draw carries a deterministic one-cell top-up, and the release is DRAFT until that cell is read and the record re-made.",
+ "approval_record": "APPROVED 2026-09-01 by Elliott Villacorta, after one return to DRAFT on the same day. The first approval was made against a 20-cell beam sample that covered only 19 distinct PUBLISHED values: p.88 prints one column per E/ER pair, and the draw landed on both halves of one printed cell. The 42 recorded cells were the drawn cells and every one matched - the gate was measuring the wrong thing, not accepting a fabricated record. The release was returned to DRAFT, the gate was changed to count distinct published values rather than extract rows, the pinned draw gained a deterministic one-cell top-up (65ER/F5M/78in), that cell was read off PSG 2025 p.88 and recorded MATCHED, and the release was re-approved. See human_spot_checks for the completed record. This field previously described the DRAFT state as current; corrected 2026-09-01 under review finding F-13.",
  "manufacturer": "Interlake Mecalux",
  "page_ref": "p.88 'BEAM WITH TAB END PLATE CAPACITY CHART: 27E - 65Q, 48\"-168\"' (Slotted and Unslotted Step Beam Capacities, lbs per pair); p.84 'BEAM PROFILES' (family/gauge table, characters 3-5 of the 18-digit product code); p.83 end-plate models F3M/F4M/F5M",
  "pending_spot_checks": [

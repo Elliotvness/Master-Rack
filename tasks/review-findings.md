@@ -433,6 +433,83 @@ are just written down nowhere, so the next contributor will guess. **Fix:** one 
 `CONTRIBUTING` or the plan listing the seven conventional types plus the three local ones, and
 saying task ids go in the body, not the type.
 
+## F-19 — `content_sha256` had no verifier, and its method changed between releases without saying so
+
+**Found while answering "is it safe to edit an approved manifest?" — the answer was yes, and this
+was underneath it.**
+
+Every catalog manifest records a `content_sha256`. Nothing recomputed it. `load-manifest.ts:179`
+reads it with `str(m, 'content_sha256')` — an opaque string — and the only assertion on it,
+`release-integrity.test.ts:132`, pins the **2026-08** value against a hard-coded literal. That
+assertion is worth keeping: it proves the quarantine commit did not alter the data. It says nothing
+about whether the hash *describes* the data.
+
+Worse, the two releases in the same directory use two different definitions of the field:
+
+| release | method | recomputes to the stored value? |
+|---|---|---|
+| `interlake-2026-09` | `sha256` of the canonical `rows` array — `json.dumps(rows, sort_keys=True, separators=(',',':'))`, per `tools/build-2026-09-manifest.py` | yes |
+| `interlake-2026-08` | `sha256` of the **file text** with the trailing newline stripped, per `tools/extract-catalog.py` | yes |
+
+Cross-applied, they disagree. One field name, two definitions, no verifier, and the method stated
+nowhere — the shape of F-02, F-08 and F-11 again, this time in the field whose entire job is
+integrity.
+
+**And the 2026-09 digest is not implementation-independent.** `beams.json` carries
+`"face_height_in": 4.0` for the whole-number families. Python keeps the float and writes `4.0`;
+every other JSON implementation parses it to `4` and writes `4`. One character, a different digest,
+identical data. The stored hash is reproducible only by something that preserves the original
+numeric literal.
+
+**Closed, mechanically:**
+
+- Each manifest now declares `content_sha256_method` as `{ id, note }`, with the caveat above
+  recorded in the 2026-09 note.
+- `tools/check-content-hash.mjs` recomputes by the declared id and **fails closed**: a manifest with
+  no declared method, an unimplemented method, or a missing hash is a failure, never a skip. It
+  preserves numeric literals through Node 22's source-preserving reviver, and throws rather than
+  hashing a normalised form if the runtime cannot.
+- `tools/selftest-content-hash.mjs` — **11 cases**, run before the checker: the honest pair under
+  both methods; the two methods proven to disagree on identical data; a hash computed by the *other*
+  method caught; one changed capacity value red; the `4.0`-vs-`4` trap; all three fail-closed cases;
+  a vacuous empty-set pass refused; the bare-string method form accepted.
+- **Proven to fire against the real release**, not only fixtures: one character changed in
+  `interlake-2026-09`'s stored hash, `check-content-hash` went red naming both digests, reverted.
+- Wired into `pnpm verify` and CI, self-test first.
+
+**Fixture handling, deliberately different from the other checkers.** This self-test writes to the
+OS temp directory. The others write probe files into the working tree and delete them at the end,
+which on 2026-09-01 stranded four `__*_probe__` folders on a mount that forbids deletion and made
+`check-boundaries` report a **false FAIL against its own leftover fixture**. Worth retrofitting to
+the others.
+
+**Left for the approver, not done here.** Re-basing the 2026-09 digest onto an
+implementation-independent canonical form would change a field on an **APPROVED** release. The
+checker records and verifies what is there; changing it is EL's call.
+
+## F-12 and F-13 — fixed, values untouched
+
+Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.
+Established first, because it governed whether the edit was safe at all: **`content_sha256` covers
+`beams.json` only** — the rows array under 2026-09's method, the file text under 2026-08's — so no
+manifest prose is inside either hash, and the approval gate reads `status`, the approver identity,
+the verification paths and the human spot-checks, none of which this touches. Editing the prose
+neither invalidates the hash nor reopens the gate. Confirmed by recomputing both hashes before and
+after: unchanged.
+
+- **F-12** — `changes_from_2026_08` now names the face-height correction, the three affected family
+  groups with their old and new values, the eight families that did not move, and points at
+  `face_height_59e_status` / `face_height_65_status` / `face_height_policy`. It also records that
+  the sentence previously said the opposite, and why that mattered.
+- **F-13** — `approval_record` is rewritten in the past tense across the whole arc: approved,
+  returned to DRAFT on the 19-distinct-values finding, gate changed to count published values, the
+  one-cell top-up drawn and read, re-approved.
+
+**No capacity, part number, code, face height or deflection value was altered.** The diff is
+1 line in the 2026-08 manifest and 6 in the 2026-09 manifest, all of them prose or the new method
+field.
+
+
 ---
 
 ## R-08 — the catalog data, reviewed as data
@@ -458,7 +535,9 @@ exactly 42 removed, all 40E/40ER under F3M; exactly **264** capacity values chan
 150 + 135 + 150 = **435**; beam `row_count` 336 with no duplicate `(family, series, span)` key.
 
 **Disposition:** the catalog data is in good order and the arithmetic holds everywhere it was
-checked. The four findings are all in the *prose* wrapped around it — F-12 denies a change, F-13
+checked. **F-12 and F-13 are fixed**; F-14, F-15 and F-16 remain open as recorded. F-19 was found
+underneath them and is closed with a checker and its self-test. The findings are all in the *prose*
+wrapped around the data — F-12 denies a change, F-13
 contradicts the status, F-14 duplicates a record, F-15 mis-frames a structural property as a quirk.
 That is the same defect class this branch has been finding all day, arrived at from a fourth
 direction.

@@ -171,7 +171,7 @@ Re-measured by running commands against the working tree:
 | Front-end dependency | **none** — no `react`, no `vite` in any `package.json` |
 | Route table | **20 entries** in `apps/api/src/authz/routes.ts` (11 client, 8 internal, 1 public). Imported only by `authorize.test.ts` and the package index — **no router mounts it**. Diffed against §8.2 both ways this session: short two MVP-1 routes, carrying one phase-2 route — see drift 4 |
 | Git tags · `CHANGELOG.md` · Dependabot | none · none · none. `version` is `0.0.0` |
-| CI gates present | typecheck, lint, migrate, test, 8 self-tested checkers, coverage, bench, docs rebuild + `git diff --exit-code` |
+| CI gates present | typecheck, lint, migrate, test, **10** self-tested checkers, coverage, bench, docs rebuild + `git diff --exit-code`. The tenth landed today: `check-content-hash`, which recomputes each catalog release's `content_sha256` by the method that manifest declares |
 | CI gates absent | secret scanning, dependency audit, bundle-size ceiling, E2E |
 
 ### Not verified today — the repository's own figures
@@ -262,6 +262,14 @@ rule earns its keep: the blueprint wins, and the scoreboard is what gets fixed.*
    face-height change it made to 168 rows), F-13 (the approved manifest still says it is DRAFT),
    F-14 (the draw is recorded twice), F-15 (the E/ER collision is the whole chart, not a 59E quirk,
    so the top-up is the normal case and `cells: 336` counts rows not readings).
+   **F-12 and F-13 are now fixed** — prose only, no value touched, and the hash and approval gate
+   confirmed unaffected before the edit. Underneath them sat **F-19**: `content_sha256` had no
+   verifier at all, and its *method* differed between the two releases in the same directory with
+   the definition written down nowhere. Now declared per manifest, recomputed by
+   `check-content-hash` with an 11-case self-test ahead of it, and **proven to fire against the real
+   release**. The 2026-09 digest also turns out to be reproducible only by Python, because
+   `face_height_in: 4.0` hashes differently once any other JSON implementation renders it `4`;
+   re-basing it would change an APPROVED release, so that is EL's call, recorded not taken.
 4. **Merge PR #1 — and rename it first.** It has lived far past the 1–3 day window a short-lived
    branch is supposed to occupy, and its name stopped describing its contents around commit five.
    **L-12 answered:** the two RLS commits (`73ca8d1`, `75192d0`) did belong on their own branch, and
@@ -320,6 +328,10 @@ Gaps, in priority order:
   `actions/checkout@v4`, `actions/setup-node@v4`, `actions/setup-python@v5` and
   `pnpm/action-setup@v4` are being forced onto Node 24. Pin newer action versions before it becomes
   an error rather than a warning.
+- **A new gate, and a fixture lesson worth retrofitting.** `check-content-hash` writes its
+  self-test fixtures to the OS temp directory. The other checkers write probe files into the working
+  tree and delete them at the end — which on a mount that forbids deletion strands them and makes
+  `check-boundaries` report a **false FAIL against its own leftover fixture**. That happened today.
 - **`verify` can fail without the code being wrong.** Run #11's first attempt died in **12 s** with
   `Docker start fail with exit code 1` — the Postgres service container never came up, on a
   docs-only commit. A re-run was green in 1m 12s. In the checks UI a flake and a regression look
