@@ -164,6 +164,11 @@ describe('AC-14 at the audit log — our actions on their job are not their even
   // event that names it closes one door and leaves the next one open.
   const EV_CLIENT = 'cccccccc-1111-4111-8111-cccccccccccc';
   const EV_STAFF = 'cccccccc-2222-4222-8222-cccccccccccc';
+  // A SERVICE principal acting INSIDE the client's own organization. This is
+  // the case the `actor_type = 'client'` half of the policy exists for, and
+  // nothing tested it: removing that half left all 35 tests green, because
+  // EV_STAFF is already excluded by the organization half alone.
+  const EV_SERVICE = 'cccccccc-3333-4333-8333-cccccccccccc';
 
   beforeAll(async () => {
     if (!available) return;
@@ -172,10 +177,11 @@ describe('AC-14 at the audit log — our actions on their job are not their even
         `INSERT INTO app.audit_event
            (event_id, occurred_at, actor_type, actor_organization_id, subject_organization_id,
             action, resource_type, outcome, hash)
-         VALUES ($1, now(), 'client', $3, $3, 'revision.edited', 'revision', 'success', 'h1'),
-                ($2, now(), 'staff',  $4, $3, 'revision.derived', 'revision', 'success', 'h2')
+         VALUES ($1, now(), 'client',  $4, $4, 'revision.edited', 'revision', 'success', 'h1'),
+                ($2, now(), 'staff',   $5, $4, 'revision.derived', 'revision', 'success', 'h2'),
+                ($3, now(), 'service', $4, $4, 'bom.derived', 'revision', 'success', 'h3')
          ON CONFLICT (event_id) DO NOTHING`,
-        [EV_CLIENT, EV_STAFF, ORG_A, ORG_INTERNAL],
+        [EV_CLIENT, EV_STAFF, EV_SERVICE, ORG_A, ORG_INTERNAL],
       );
     });
   });
@@ -196,13 +202,42 @@ describe('AC-14 at the audit log — our actions on their job are not their even
     expect(rows).toHaveLength(0);
   });
 
-  maybe('staff read both', async () => {
+  maybe('a client cannot read a SERVICE action inside its own organization', async () => {
+    // SERVICE_ENGINE writes derived outputs and audit events. A service
+    // principal acting inside a client organization carries that organization's
+    // id, so the tenancy half of the predicate passes it; only
+    // `actor_type = 'client'` refuses it. Without this test that clause could
+    // be deleted as redundant and the suite would stay green.
+    const rows = await withTenant({ organizationId: ORG_A, actorType: 'client' }, async (tx) =>
+      (await tx.query('SELECT action FROM app.audit_event WHERE event_id = $1', [EV_SERVICE])).rows,
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  maybe('staff read all three', async () => {
     const rows = await withTenant({ organizationId: ORG_INTERNAL, actorType: 'staff' }, async (tx) =>
       (await tx.query('SELECT action FROM app.audit_event WHERE event_id = ANY($1)', [
-        [EV_CLIENT, EV_STAFF],
+        [EV_CLIENT, EV_STAFF, EV_SERVICE],
       ])).rows,
     );
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(3);
+  });
+
+  maybe('a client-actor event cannot be written without an actor organization', async () => {
+    // 0007. The predicate compares a nullable column, so a NULL yields NULL,
+    // not false -- the row is invisible to the organization whose action it
+    // records. It fails CLOSED, so it is not a leak; it is a hole in a client's
+    // own audit trail that nothing would report.
+    await expect(
+      admin(
+        `INSERT INTO app.audit_event
+           (event_id, occurred_at, actor_type, actor_organization_id, subject_organization_id,
+            action, resource_type, outcome, hash)
+         VALUES (gen_random_uuid(), now(), 'client', NULL, $1, 'revision.edited', 'revision',
+                 'success', 'h4')`,
+        [ORG_A],
+      ),
+    ).rejects.toThrow(/audit_event_client_actor_has_org|violates check constraint/i);
   });
 });
 
@@ -476,11 +511,17 @@ describe('AC-11 — a frozen revision is immutable at the database layer', () =>
 
 describe('I-3 — audit events cannot be altered or removed', () => {
   maybe('refuses an UPDATE', async () => {
+    // The actor organization is incidental to what this tests (append-only),
+    // but 0007 requires it: this fixture was writing a client event that no
+    // client could ever read, which is the hole 0007 closes. The constraint
+    // found it on its first run.
     await admin(
       `INSERT INTO app.audit_event
-         (event_id, occurred_at, actor_type, action, resource_type, outcome, hash)
-       VALUES (gen_random_uuid(), now(), 'client', 'revision.frozen', 'revision',
+         (event_id, occurred_at, actor_type, actor_organization_id, action, resource_type,
+          outcome, hash)
+       VALUES (gen_random_uuid(), now(), 'client', $1, 'revision.frozen', 'revision',
                'success', 'h1')`,
+      [ORG_A],
     );
     await expect(
       admin(`UPDATE app.audit_event SET action = 'tampered'`),
