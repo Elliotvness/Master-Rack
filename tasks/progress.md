@@ -293,6 +293,11 @@ Gaps, in priority order:
   `actions/checkout@v4`, `actions/setup-node@v4`, `actions/setup-python@v5` and
   `pnpm/action-setup@v4` are being forced onto Node 24. Pin newer action versions before it becomes
   an error rather than a warning.
+- **`verify` can fail without the code being wrong.** Run #11's first attempt died in **12 s** with
+  `Docker start fail with exit code 1` — the Postgres service container never came up, on a
+  docs-only commit. A re-run was green in 1m 12s. In the checks UI a flake and a regression look
+  identical, so **read the duration first**: a genuine failure gets past *Initialize containers* and
+  dies tens of seconds in; a 12-second failure never reached the code.
 - **Secret scanning (T-11)** and a **dependency audit** are absent. Both are one CI step each.
 - **No bundle ceiling (P-05).** Agree it *before* the first screen; a ceiling set after the bundle
   exists is one nobody meets.

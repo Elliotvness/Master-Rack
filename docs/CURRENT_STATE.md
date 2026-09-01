@@ -115,6 +115,19 @@ performance budgets §5.4 1–2. Every checker ran behind its own self-test, in 
 are being forced onto Node 24. Worth pinning newer action versions before it becomes an error;
 tracked with the other CI gaps (T-11 secret scanning, dependency audit, P-05 bundle ceiling).
 
+**Addendum — run #11 on `a5d9c5b`, and a failure mode worth naming.** The commit that *records* this
+entry is docs-only, and its first CI attempt **failed in 12s** with `Docker start fail with exit
+code 1` — the Postgres **service container** never came up. Nothing in the commit could have caused
+it. Re-running the failed job gave **Success in 1m 12s** (`verify` 1m 5s, `docs` 5s):
+https://github.com/Elliotvness/Master-Rack/actions/runs/33530810806 (attempt 2).
+
+Worth naming because of how it presents: in the PR checks UI an infrastructure flake and a real
+regression look identical — a red ✗ on `verify`. The tell is the **duration**. A genuine failure
+gets past `Initialize containers` and dies at typecheck, lint or a test, tens of seconds in; a
+12-second failure never reached the code. **Read the duration before reading the diff.** The
+project's own habit applies here too: the red mark is a claim about the code until you check which
+step produced it.
+
 **What this does and does not settle.** It settles that the pipeline's guarantee now covers the code
 that exists — before today, nothing in the repository had been verified at its current commit, and
 three same-day documents disagreed about whether CI had ever run. It does **not** move §15.2, which
