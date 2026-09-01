@@ -82,6 +82,22 @@ export function cellsOf(dir, dataset) {
   throw new Error(`unknown dataset '${dataset}'`);
 }
 
+/**
+ * The page an approver should actually turn to for this dataset.
+ *
+ * The manifest's own `page_ref` describes the BEAM chart, and copying it onto
+ * every dataset sent the frames draw to p.88 — a chart with no frame capacities
+ * on it. An approver following that record looks in the wrong place, and the
+ * gate cannot tell: it only checks the reference is non-empty.
+ *
+ * The frame tables each carry their own `page_ref`, so use those.
+ */
+export function pageRefFor(dir, dataset, manifest) {
+  if (dataset !== 'frames') return manifest.page_ref;
+  const doc = JSON.parse(readFileSync(join(ROOT, 'data/catalog', dir, 'frames.json'), 'utf8'));
+  return [...new Set(doc.tables.map((t) => t.page_ref))].join(' | ');
+}
+
 function main() {
 const dir = process.argv[2];
 if (!dir) {
@@ -112,7 +128,7 @@ for (const dataset of manifest.datasets ?? []) {
     seed,
     sampled_cells: draw(ids, seed, size),
     source_document: manifest.source_document,
-    page_ref: manifest.page_ref,
+    page_ref: pageRefFor(dir, dataset, manifest),
   });
   console.log(`\n${dataset}: read ${size} of ${ids.length} cells (seed ${seed})`);
   console.log(draw(ids, seed, size).join('\n'));
