@@ -25,6 +25,28 @@ export type VerificationPath =
   | { readonly kind: 'full_cross_check'; readonly cells: number; readonly note: string }
   | { readonly kind: 'two_path_reconciliation'; readonly cells: number; readonly note: string };
 
+/**
+ * A verification path, bound to the dataset it actually covers.
+ *
+ * Verification is a property of a DATASET, not of a release. The beam rows and
+ * the frame tables in one release reach it by different routes - one re-sourced
+ * from the published PDF, one double-extracted and reconciled - and a single
+ * record cannot honestly describe both. A release reporting the beam
+ * cross-check as though it covered the frames would be claiming a verification
+ * that never happened, which is the exact failure mode the gate exists to stop.
+ */
+export type DatasetVerificationPath = VerificationPath & { readonly dataset: string };
+
+/**
+ * The datasets the MVP-1 check set consumes.
+ *
+ * Check 1 (beam/frame connector compatibility) and check 2 (beam pair capacity)
+ * both need frames; every span lookup needs beams. A release missing either
+ * cannot serve the check set, so it must not be approvable - see
+ * `completenessRefusals`.
+ */
+export const REQUIRED_DATASETS: readonly string[] = Object.freeze(['beams', 'frames']);
+
 export interface CatalogReleaseManifest {
   readonly manufacturer: string;
   readonly rev: string;
@@ -40,7 +62,9 @@ export interface CatalogReleaseManifest {
   readonly digitisedAt: string;
   readonly approvedBy: string | null;
   readonly approvedAt: string | null;
-  readonly verificationPath: VerificationPath | null;
+  readonly verificationPaths: readonly DatasetVerificationPath[];
+  /** Dataset names this release ships, as declared by its manifest. */
+  readonly datasets: readonly string[];
   readonly contentSha256: string;
   /** Manufacturer's own errors, transcribed as published. Reported, never fixed. */
   readonly sourceAnomalies: readonly string[];
@@ -73,7 +97,7 @@ export class ApprovalGateError extends CatalogError {
 export function approvalRefusals(
   manifest: Pick<
     CatalogReleaseManifest,
-    'approvedBy' | 'digitisedBy' | 'verificationPath'
+    'approvedBy' | 'digitisedBy' | 'verificationPaths' | 'datasets'
   >,
   approver: string,
 ): readonly string[] {
@@ -85,22 +109,67 @@ export function approvalRefusals(
   if (approver === manifest.digitisedBy) {
     reasons.push('the approver may not be the digitiser');
   }
+
   // A machine digitiser plus one human approver is NOT two independent parties
-  // unless a recorded verification path establishes independence.
-  if (manifest.verificationPath === null) {
-    reasons.push(
-      'single-human approval requires a recorded independent verification path ' +
-        '(a full cross-check or a two-path reconciliation)',
-    );
-  } else if (manifest.verificationPath.cells <= 0) {
-    reasons.push('the recorded verification path must cover at least one cell');
+  // unless a recorded verification path establishes independence - and the path
+  // must cover the dataset it is claimed for. One path covering one dataset is
+  // not evidence about another.
+  for (const dataset of REQUIRED_DATASETS) {
+    const path = manifest.verificationPaths.find((p) => p.dataset === dataset);
+    if (path === undefined) {
+      reasons.push(
+        `single-human approval requires a recorded independent verification path for '${dataset}' ` +
+          '(a full cross-check or a two-path reconciliation)',
+      );
+    } else if (path.cells <= 0) {
+      reasons.push(`the verification path for '${dataset}' must cover at least one cell`);
+    }
   }
+
+  // A path claiming a dataset the release does not ship is a record of work on
+  // something that is not here.
+  for (const path of manifest.verificationPaths) {
+    if (!manifest.datasets.includes(path.dataset)) {
+      reasons.push(
+        `the verification path for '${path.dataset}' names a dataset this release does not ship`,
+      );
+    }
+  }
+
+  reasons.push(...completenessRefusals(manifest));
 
   return Object.freeze(reasons);
 }
 
+/**
+ * Every reason a release is too incomplete to be APPROVED. Empty means complete.
+ *
+ * An APPROVED release is one a new revision may pin, and pinning it is a promise
+ * that the check set can run against it. `interlake-2026-09` was approved
+ * carrying beams alone while the three frame tables sat in the DRAFT 2026-08
+ * release - so every check needing a frame had nothing to read, and nothing
+ * said so. A release that cannot serve the check set is not approvable, and
+ * that has to be a refusal rather than a convention.
+ */
+export function completenessRefusals(
+  manifest: Pick<CatalogReleaseManifest, 'datasets'>,
+): readonly string[] {
+  const reasons: string[] = [];
+  for (const dataset of REQUIRED_DATASETS) {
+    if (!manifest.datasets.includes(dataset)) {
+      reasons.push(
+        `an APPROVED release must ship every dataset the check set consumes; '${dataset}' is missing`,
+      );
+    }
+  }
+  return Object.freeze(reasons);
+}
+
 export function canApprove(
-  manifest: Pick<CatalogReleaseManifest, 'approvedBy' | 'digitisedBy' | 'verificationPath'>,
+  manifest: Pick<
+    CatalogReleaseManifest,
+    'approvedBy' | 'digitisedBy' | 'verificationPaths' | 'datasets'
+  >,
   approver: string,
 ): boolean {
   return approvalRefusals(manifest, approver).length === 0;

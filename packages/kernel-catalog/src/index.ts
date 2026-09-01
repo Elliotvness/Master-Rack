@@ -9,14 +9,19 @@
 export {
   ApprovalGateError,
   CatalogError,
+  REQUIRED_DATASETS,
   approvalRefusals,
   approveRelease,
   canApprove,
   canPinForNewRevision,
+  completenessRefusals,
   type CatalogReleaseManifest,
+  type DatasetVerificationPath,
   type ReleaseStatus,
   type VerificationPath,
 } from './release.js';
+
+export { ManifestError, loadReleaseManifest } from './load-manifest.js';
 
 export {
   BeamCatalog,

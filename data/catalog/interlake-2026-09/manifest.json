@@ -6,7 +6,8 @@
  "changes_from_2026_08": [
   "264 capacity values corrected to the published chart. The 2026-08 extract carried values that were consistently off by 5-25 lbs, none of which appear anywhere in the source document.",
   "42 rows REMOVED: 40E and 40ER under an F3M (6\", 3-tab) end plate. Page 84 publishes F3M for 27E and 36E only, and page 88 groups the 40E column under F4M. Character 13 of those rows' own codes reads 'C' (F3M) on a 40E beam, which the code format does not allow. They were a phantom variant: not published, and reading 3.8-12.2% BELOW the real 40E capacity, so the engine would have quoted a beam that does not exist while appearing conservative.",
-  "No part number, code_18, face height or deflection value was altered. Only capacity was re-sourced, and only unpublished rows were removed."
+  "No part number, code_18, face height or deflection value was altered. Only capacity was re-sourced, and only unpublished rows were removed.",
+  "frames.json carried forward from 2026-08 UNCHANGED, so the approved release resolves a frame as well as a beam. Previously the three frame tables existed only in the DRAFT 2026-08 release, which canPinForNewRevision correctly refuses - so MVP checks 1 and 2 could not resolve a frame from any pinnable revision. No frame value was altered; the tables SHA-256 is recorded in frames.json and asserted by test."
  ],
  "code_basis": "RMI guidelines and ANSI MH16.1-2012 (p.88 footnote); FY = 55 KSI",
  "constraints": {
@@ -14,6 +15,10 @@
   "crossbar_required_over_in_when_decked": 90
  },
  "content_sha256": "a137a7f983696ea1b284afd8c67105b1ec4dbe266d99f3ac02178bcb98ef7942",
+ "datasets": [
+  "beams",
+  "frames"
+ ],
  "deflection_limit": "L/180 (p.88: 'lesser of strength in bending, or L/180 deflection criteria')",
  "digitised_at": "2026-08-31",
  "digitised_by": "automated extract (Claude)",
@@ -60,9 +65,18 @@
  "source_url": "https://www.interlakemecalux.com/",
  "status": "APPROVED",
  "units": "lbs",
- "verification_path": {
-  "cells": 336,
-  "kind": "full_cross_check",
-  "note": "All 336 capacity cells re-derived from PDF page 88 and compared against the shipped rows by packages/kernel-catalog/src/psg-authority.test.ts, which is wired into the test run. The chart was also parsed directly from the PDF independently of the supplied spreadsheet, and the two agree on every row. End-plate assignment cross-checked against page 84 and character 13 of each 18-digit code."
- }
+ "verification_paths": [
+  {
+   "cells": 336,
+   "dataset": "beams",
+   "kind": "full_cross_check",
+   "note": "All 336 capacity cells re-derived from PDF page 88 and compared against the shipped rows by packages/kernel-catalog/src/psg-authority.test.ts, which is wired into the test run. The chart was also parsed directly from the PDF independently of the supplied spreadsheet, and the two agree on every row. End-plate assignment cross-checked against page 84 and character 13 of each 18-digit code."
+  },
+  {
+   "cells": 435,
+   "dataset": "frames",
+   "kind": "two_path_reconciliation",
+   "note": "Carried forward from interlake-2026-08 unchanged. Every capacity cell was read twice by independent paths - a visual read of the rendered page images and a parse of the PDF embedded text layer - and reconciled 435/435. The 2026-09 re-source read p.88 for beam capacity only; no frame cell was re-read or altered, and a test asserts the tables hash matches 2026-08."
+  }
+ ]
 }

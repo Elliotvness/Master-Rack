@@ -1,0 +1,850 @@
+{
+  "schema_version": 1,
+  "manufacturer": "Interlake Mecalux",
+  "rev": "2026-09",
+  "source_document": "Interlake Mecalux Product Support Guide - Selective Roll Formed Beams and Frames, 2025",
+  "digitised_by": "automated extract (double extraction: page image + embedded text layer)",
+  "digitised_at": "2026-08-21",
+  "verification_path": {
+    "kind": "two_path_reconciliation",
+    "cells": 435,
+    "note": "Every capacity cell read twice by independent paths - a visual read of the rendered page images and a parse of the PDF's embedded text layer - and reconciled exactly. Evidence, not a signature: a named person must still approve."
+  },
+  "quarantined_not_extracted": [
+    "cap_legacy_frames: variants UL_U77 / UL_U80 appear in no published source in this catalog. Requires the legacy catalog it came from, or deletion. Not inferred.",
+    "The synthesised bolted/welded tables previously in rack-app: indexed on overall frame height under an HbL label, overstating capacity by up to 72.4% at HbL 120 in. One-directional and unsafe."
+  ],
+  "tables": [
+    {
+      "table_id": "cap_bolted_frames",
+      "units": "lb",
+      "page_ref": "p.8 - 'Bolted Frame Capacities (lbs)'",
+      "load_basis": "Uniformly distributed load per pair of frames. Static loads only, including product load plus dead load (dead load = 2% of product load). Per RMI guidelines and ANSI MH16.1-2012. Steel FY = 55 KSI. Valid only with Interlake Mecalux published beam sizes.",
+      "independent_variables": [
+        {
+          "name": "height_hbl_in",
+          "label": "Maximum Unsupported Span (HbL)",
+          "definition": "Height between levels: the maximum beam spacing OR the distance between the floor and the top of the first beam, whichever is greater, assuming equally spaced levels.",
+          "values": [
+            36,
+            42,
+            48,
+            54,
+            60,
+            66,
+            72,
+            78,
+            84,
+            90,
+            96,
+            102,
+            108,
+            114,
+            120
+          ]
+        },
+        {
+          "name": "frame_height_band",
+          "label": "Overall frame height band",
+          "definition": "Applies to models 2.314 / 2.313 / 2.312 only, which have two strut patterns. Models 2.101 / 2.102 / 2.122 / UA10 have a single consistent strut pattern and therefore one column.",
+          "values": [
+            "<=21ft",
+            ">21ft"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "model": "2.314",
+          "family": "B2314G",
+          "post": "TD U314",
+          "gauge_in": 0.075,
+          "gauge_ga": 14,
+          "banded": true
+        },
+        {
+          "model": "2.313",
+          "family": "B2313G",
+          "post": "TD U313",
+          "gauge_in": 0.09,
+          "gauge_ga": 13,
+          "banded": true
+        },
+        {
+          "model": "2.312",
+          "family": "B2312G",
+          "post": "TD U312",
+          "gauge_in": 0.105,
+          "gauge_ga": 12,
+          "banded": true
+        },
+        {
+          "model": "2.101",
+          "family": "B2101GGC",
+          "post": "TD U101",
+          "gauge_in": 0.09,
+          "gauge_ga": 13,
+          "banded": false
+        },
+        {
+          "model": "2.102",
+          "family": "B2102GGC",
+          "post": "TD U102",
+          "gauge_in": 0.105,
+          "gauge_ga": 12,
+          "banded": false
+        },
+        {
+          "model": "2.122",
+          "family": "B2122GGC",
+          "post": "TD U122",
+          "gauge_in": 0.105,
+          "gauge_ga": 12,
+          "banded": false
+        },
+        {
+          "model": "UA10",
+          "family": null,
+          "post": "TD UA10",
+          "gauge_in": 0.105,
+          "gauge_ga": 12,
+          "banded": false
+        }
+      ],
+      "column_order": [
+        "2.314@<=21ft",
+        "2.314@>21ft",
+        "2.313@<=21ft",
+        "2.313@>21ft",
+        "2.312@<=21ft",
+        "2.312@>21ft",
+        "2.101",
+        "2.102",
+        "2.122",
+        "UA10"
+      ],
+      "rows": {
+        "36": [
+          24571,
+          25847,
+          29583,
+          31133,
+          34514,
+          36322,
+          40800,
+          47800,
+          55000,
+          86400
+        ],
+        "42": [
+          22807,
+          23924,
+          27531,
+          28900,
+          32120,
+          33717,
+          39000,
+          45800,
+          53200,
+          82200
+        ],
+        "48": [
+          20867,
+          21832,
+          25741,
+          26286,
+          30032,
+          30667,
+          36900,
+          43300,
+          51300,
+          77700
+        ],
+        "54": [
+          18849,
+          19680,
+          22753,
+          23778,
+          26546,
+          27742,
+          34700,
+          40800,
+          49100,
+          72800
+        ],
+        "60": [
+          16849,
+          17563,
+          20288,
+          21166,
+          23670,
+          24694,
+          32400,
+          38100,
+          46800,
+          67700
+        ],
+        "66": [
+          14784,
+          15400,
+          17994,
+          18755,
+          20994,
+          21881,
+          30000,
+          35300,
+          44400,
+          62500
+        ],
+        "72": [
+          12982,
+          13535,
+          15705,
+          16392,
+          18323,
+          19125,
+          27600,
+          32500,
+          41800,
+          57200
+        ],
+        "78": [
+          11156,
+          11571,
+          13584,
+          14104,
+          15849,
+          16455,
+          25200,
+          29700,
+          39200,
+          52000
+        ],
+        "84": [
+          9758,
+          10075,
+          11892,
+          12291,
+          13875,
+          14340,
+          22800,
+          27000,
+          36700,
+          46900
+        ],
+        "90": [
+          8595,
+          8848,
+          10397,
+          10705,
+          12130,
+          12490,
+          20600,
+          24300,
+          34000,
+          42000
+        ],
+        "96": [
+          7597,
+          7795,
+          9174,
+          9414,
+          10703,
+          10984,
+          18300,
+          21700,
+          31500,
+          37200
+        ],
+        "102": [
+          6761,
+          6918,
+          8240,
+          8435,
+          9614,
+          9841,
+          16300,
+          19300,
+          28900,
+          33100
+        ],
+        "108": [
+          6086,
+          6216,
+          7368,
+          7527,
+          8596,
+          8782,
+          14600,
+          17200,
+          26500,
+          29600
+        ],
+        "114": [
+          5496,
+          5601,
+          6562,
+          6690,
+          7656,
+          7805,
+          13100,
+          15500,
+          24000,
+          26600
+        ],
+        "120": [
+          4989,
+          5074,
+          5979,
+          6087,
+          6976,
+          7102,
+          11900,
+          14000,
+          21800,
+          24000
+        ]
+      }
+    },
+    {
+      "table_id": "cap_bolted_reinforced_frames",
+      "units": "lb",
+      "page_ref": "p.25 - 'Reinforced Bolted Frame Capacities (lbs)'",
+      "load_basis": "Per RMI guidelines and ANSI MH16.1-2012. Steel FY = 55 KSI. Static loads only, product load plus dead load (dead load = 2% of product load). Valid only with Interlake Mecalux published beam sizes. Reinforcement runs from the base to just above certain beam levels; reinforced post height rounds up to the next 12in increment; brackets at max 24in spacing; requires R2T bolted seismic foot plate.",
+      "independent_variables": [
+        {
+          "name": "height_hbl_in",
+          "label": "Maximum Unsupported Span (HbL)",
+          "definition": "Height between levels: the maximum beam spacing OR the distance between the floor and the top of the first beam, whichever is greater, assuming equally spaced levels.",
+          "values": [
+            36,
+            42,
+            48,
+            54,
+            60,
+            66,
+            72,
+            78,
+            84,
+            90,
+            96,
+            102,
+            108,
+            114,
+            120
+          ]
+        },
+        {
+          "name": "frame_height_band",
+          "label": "Overall frame height band",
+          "definition": "Applies to 314+314 / 313+313 / 312+312 only. 101+101, 102+102, 122+122 have a single column.",
+          "values": [
+            "<=21ft",
+            ">21ft"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "model": "314+314",
+          "gauge_in": 0.075,
+          "gauge_ga": 14,
+          "banded": true
+        },
+        {
+          "model": "313+313",
+          "gauge_in": 0.09,
+          "gauge_ga": 13,
+          "banded": true
+        },
+        {
+          "model": "312+312",
+          "gauge_in": 0.105,
+          "gauge_ga": 12,
+          "banded": true
+        },
+        {
+          "model": "101+101",
+          "gauge_in": 0.09,
+          "gauge_ga": 13,
+          "banded": false
+        },
+        {
+          "model": "102+102",
+          "gauge_in": 0.105,
+          "gauge_ga": 12,
+          "banded": false
+        },
+        {
+          "model": "122+122",
+          "gauge_in": 0.105,
+          "gauge_ga": 12,
+          "banded": false
+        }
+      ],
+      "column_order": [
+        "314+314@<=21ft",
+        "314+314@>21ft",
+        "313+313@<=21ft",
+        "313+313@>21ft",
+        "312+312@<=21ft",
+        "312+312@>21ft",
+        "101+101",
+        "102+102",
+        "122+122"
+      ],
+      "rows": {
+        "36": [
+          49140,
+          51690,
+          58970,
+          62033,
+          69020,
+          72640,
+          81900,
+          95600,
+          109800
+        ],
+        "42": [
+          45610,
+          47840,
+          54737,
+          57418,
+          64240,
+          67430,
+          78300,
+          91300,
+          106400
+        ],
+        "48": [
+          41730,
+          43660,
+          50081,
+          52397,
+          60060,
+          61330,
+          74200,
+          86600,
+          102500
+        ],
+        "54": [
+          37690,
+          39360,
+          45238,
+          47232,
+          53090,
+          55480,
+          69900,
+          81500,
+          98200
+        ],
+        "60": [
+          33690,
+          35120,
+          40438,
+          42151,
+          47340,
+          49380,
+          65200,
+          76100,
+          93600
+        ],
+        "66": [
+          29560,
+          30800,
+          35482,
+          36960,
+          41980,
+          43760,
+          60400,
+          70700,
+          88700
+        ],
+        "72": [
+          25960,
+          27070,
+          31157,
+          32484,
+          36640,
+          38250,
+          55600,
+          65100,
+          83700
+        ],
+        "78": [
+          22310,
+          23140,
+          26774,
+          27770,
+          31690,
+          32900,
+          50800,
+          59500,
+          78500
+        ],
+        "84": [
+          19510,
+          20150,
+          23419,
+          24180,
+          27750,
+          28680,
+          46000,
+          54000,
+          73300
+        ],
+        "90": [
+          17190,
+          17690,
+          20628,
+          21235,
+          24260,
+          24970,
+          41500,
+          48600,
+          68100
+        ],
+        "96": [
+          15190,
+          15590,
+          18233,
+          18708,
+          21400,
+          21960,
+          36900,
+          43400,
+          62900
+        ],
+        "102": [
+          13520,
+          13830,
+          16226,
+          16603,
+          19220,
+          19680,
+          32800,
+          38600,
+          57800
+        ],
+        "108": [
+          12170,
+          12430,
+          14606,
+          14918,
+          17190,
+          17560,
+          29300,
+          34500,
+          52900
+        ],
+        "114": [
+          10990,
+          11200,
+          13190,
+          13442,
+          15310,
+          15600,
+          26400,
+          31100,
+          48100
+        ],
+        "120": [
+          9970,
+          10140,
+          11974,
+          12178,
+          13950,
+          14200,
+          23800,
+          28000,
+          43500
+        ]
+      }
+    },
+    {
+      "table_id": "cap_welded_frames",
+      "units": "lb",
+      "page_ref": "p.52 - 'Welded Frame Capacities (lbs)'",
+      "load_basis": "Per RMI guidelines and ANSI MH16.1-2012. Frame capacities include product load plus dead load (dead load = 2% of product load). Static load only. Valid only with Interlake Mecalux published beam sizes.",
+      "independent_variables": [
+        {
+          "name": "height_hbl_in",
+          "label": "Maximum Unsupported Span (HbL)",
+          "definition": "Height between levels: the maximum beam spacing OR the distance between the floor and the top of the first beam, whichever is greater.",
+          "values": [
+            36,
+            42,
+            48,
+            54,
+            60,
+            66,
+            72,
+            78,
+            84,
+            90,
+            96,
+            102,
+            108,
+            114,
+            120
+          ]
+        },
+        {
+          "name": "frame_height_band",
+          "label": "Overall frame height band",
+          "definition": "Applies to FR.2.70F / 2.75F / 2.77F / 2.79F only. FR.2.95F and FR.2.99F have a single column.",
+          "values": [
+            "<=21ft",
+            ">21ft"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "model": "FR.2.70F",
+          "post": "IE070F",
+          "profile_in": "3x3",
+          "gauge_in": 0.075,
+          "gauge_ga": 14,
+          "banded": true
+        },
+        {
+          "model": "FR.2.75F",
+          "post": "IE075F",
+          "profile_in": "3x3",
+          "gauge_in": 0.09,
+          "gauge_ga": 13,
+          "banded": true
+        },
+        {
+          "model": "FR.2.77F",
+          "post": "IE077F",
+          "profile_in": "3x3",
+          "gauge_in": 0.105,
+          "gauge_ga": 12,
+          "banded": true
+        },
+        {
+          "model": "FR.2.79F",
+          "post": "IE079F",
+          "profile_in": "3x3",
+          "gauge_in": 0.12,
+          "gauge_ga": 11,
+          "banded": true
+        },
+        {
+          "model": "FR.2.95F",
+          "post": "IE095F",
+          "profile_in": "4x3",
+          "gauge_in": 0.09,
+          "gauge_ga": 13,
+          "banded": false
+        },
+        {
+          "model": "FR.2.99F",
+          "post": "IE099F",
+          "profile_in": "4x3",
+          "gauge_in": 0.12,
+          "gauge_ga": 11,
+          "banded": false
+        }
+      ],
+      "column_order": [
+        "FR.2.70F@<=21ft",
+        "FR.2.70F@>21ft",
+        "FR.2.75F@<=21ft",
+        "FR.2.75F@>21ft",
+        "FR.2.77F@<=21ft",
+        "FR.2.77F@>21ft",
+        "FR.2.79F@<=21ft",
+        "FR.2.79F@>21ft",
+        "FR.2.95F",
+        "FR.2.99F"
+      ],
+      "rows": {
+        "36": [
+          27600,
+          29300,
+          32900,
+          34900,
+          38000,
+          40400,
+          43000,
+          45700,
+          43900,
+          57900
+        ],
+        "42": [
+          25900,
+          27400,
+          30700,
+          32600,
+          35500,
+          37600,
+          40100,
+          42600,
+          42300,
+          55600
+        ],
+        "48": [
+          23900,
+          25300,
+          28400,
+          30000,
+          32700,
+          34700,
+          37000,
+          39200,
+          40400,
+          53100
+        ],
+        "54": [
+          21900,
+          23100,
+          25900,
+          27400,
+          29900,
+          31600,
+          33700,
+          35600,
+          38300,
+          50300
+        ],
+        "60": [
+          19800,
+          20900,
+          23400,
+          24700,
+          26900,
+          28500,
+          30300,
+          32100,
+          36100,
+          47400
+        ],
+        "66": [
+          17700,
+          18700,
+          20900,
+          22100,
+          24000,
+          25400,
+          27000,
+          28500,
+          33900,
+          44300
+        ],
+        "72": [
+          15700,
+          16500,
+          18500,
+          19500,
+          21200,
+          22400,
+          23800,
+          25100,
+          31500,
+          41200
+        ],
+        "78": [
+          13700,
+          14400,
+          16100,
+          17000,
+          18400,
+          19400,
+          20700,
+          21800,
+          29200,
+          38100
+        ],
+        "84": [
+          12000,
+          12600,
+          14100,
+          14800,
+          16100,
+          16900,
+          18100,
+          18900,
+          26900,
+          34900
+        ],
+        "90": [
+          10600,
+          11000,
+          12400,
+          12900,
+          14200,
+          14800,
+          15900,
+          16600,
+          24500,
+          31900
+        ],
+        "96": [
+          9400,
+          9700,
+          11000,
+          11400,
+          12600,
+          13100,
+          14100,
+          14600,
+          22300,
+          28900
+        ],
+        "102": [
+          8400,
+          8600,
+          9800,
+          10200,
+          11300,
+          11600,
+          12600,
+          13000,
+          20100,
+          26000
+        ],
+        "108": [
+          7500,
+          7700,
+          8800,
+          9100,
+          10100,
+          10400,
+          11300,
+          11700,
+          18000,
+          23300
+        ],
+        "114": [
+          6800,
+          6900,
+          8000,
+          8200,
+          9100,
+          9400,
+          10200,
+          10500,
+          16200,
+          20900
+        ],
+        "120": [
+          6100,
+          6300,
+          7200,
+          7400,
+          8300,
+          8500,
+          9300,
+          9500,
+          14700,
+          18900
+        ]
+      }
+    }
+  ],
+  "carried_forward_from": "interlake-2026-08, unchanged. The 2026-09 re-source read PSG 2025 p.88 for beam CAPACITY only; no frame cell, axis or variant was re-read or altered. SHA-256 over the tables array is identical to 2026-08 and is asserted by test.",
+  "tables_sha256": "8895b30674682bc6087c906378d2e2824452bf3c13ea23411d7caa4b57908c8f"
+}

@@ -47,6 +47,7 @@
   "code_18 IB65QT15000RSA400 is 17 chars, expected 18 (65QR/F5M/150in)",
   "face_height_in 5.92 is transcribed verbatim on all 42 rows of families 59E/59ER; a documentation table for the same beam gives 5.928, and the source chart was read by Elliott Villacorta on 2026-08-31 as 5.93. The rows are NOT altered: the published value stays as printed so the extract remains reconcilable against its source. 5.93 corroborates 5.928 (which rounds to 5.93 at two decimals) over 5.92. face_height_in is carried as descriptive data only and is not part of any lookup key (key = family + series + span), so the discrepancy affects no capacity result. Resolve to a single figure with a page reference before face height is ever used dimensionally."
  ],
+ "source_document": "interlakemecalux.com live chart, retrieved 2026-08-19 (field added 2026-09-01 so the release parses into the manifest schema and can be run through the approval gate; the value is catalog_rev verbatim, not new information)",
  "source_pdf": "",
  "source_status_carried": "PENDING_CHECK",
  "source_url": "https://www.interlakemecalux.com/beam-load-capacities",
