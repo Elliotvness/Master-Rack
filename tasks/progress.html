@@ -254,7 +254,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
   <section>
     <div class="head">
       <h2>Drift found while measuring</h2>
-      <p class="lbl">Eighth consecutive session &mdash; session 5's <strong>twelve</strong> are every one of them inside the scoreboard itself, and the last three were found by machinery rather than by reading</p>
+      <p class="lbl">Eighth consecutive session &mdash; session 5's <strong>thirteen</strong> are every one of them inside the scoreboard itself, and the last three were found by machinery rather than by reading</p>
     </div>
     <div class="tw">
       <table>
@@ -286,6 +286,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
           <tr><td><code>progress.md</code> + this page <em>(session 5)</em></td><td>The <strong>sensitivity table&rsquo;s own rows disagreed about how much was done</strong> &mdash; row 1 on the numerator 41, rows 2&ndash;5 still on session 4&rsquo;s 29</td><td>The table exists to show that a <em>done</em> figure is stable while the denominator is not, and four of its five rows were quietly asserting a different done figure. Found by re-deriving each cell rather than reading the column</td><td class="n">Fixed &mdash; all five rows are 45 over their own denominator</td></tr>
           <tr><td>Both copies <em>(session 5)</em></td><td>Published <strong><code>47 test files</code></strong> while the tree held <strong>50</strong></td><td>Stale through T-08 and T-09 with <code>check-scoreboard-sync</code> <strong>green over it the whole time</strong>, because the two copies agreed <em>with each other</em>. Found by <code>check-claims</code> on its first run. <strong>Sync and truth are different properties and only one had a gate</strong></td><td class="n">Fixed &mdash; 50, and now gated</td></tr>
           <tr><td><code>progress.md</code> header <em>(session 5)</em></td><td>Named <code>task/t-07-workflow-package</code> @ <code>e88320f</code> and <code>main</code> @ <code>98b0229</code>, while its own <em>Verified today</em> table named a different branch and a <code>main</code> three merges newer</td><td>The <strong>fourth</strong> time that file has described itself wrongly, and the second in one session. <code>check-scoreboard-sync</code> cannot catch it: both copies carry the same wrong header, and agreeing is all that gate asks of them</td><td class="n">Fixed &mdash; re-derived from the working tree</td></tr>
+          <tr><td><code>progress.md</code> Method <em>(session 5)</em></td><td>Said <strong>37</strong> <code>T-&hellip;</code> tasks in one sentence and &ldquo;inside the <strong>36</strong>&rdquo; in the next; the Claude Project doc said both, plus &ldquo;Counted today: 13 + 4 + 2 + 2 + 5 + 10 = 36&rdquo;</td><td>Drift 20 fixed this same sentence to 36 earlier in this session; the T-10 split moved it again the same day and only one half was updated. Re-derived: T-00&hellip;T-12 is <strong>14</strong> once T-10 is two tasks, so 14 + 4 + 2 + 2 + 5 + 10 = <strong>37</strong>. <strong>This page was already correct</strong> &mdash; <code>check-scoreboard-sync</code> compares numbers, not prose, and says so</td><td class="n">Fixed &mdash; 37 throughout</td></tr>
         </tbody>
       </table>
     </div>

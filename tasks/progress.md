@@ -122,7 +122,7 @@ been executed. A reader who quotes 30.6% without §15.2 beside it is quoting the
 Net: 20.0% → **30.6%**, of which the honest progress is the second bullet alone.
 
 Session 5 opened by landing no commit at all — its first pass was a re-measurement that found nine
-false statements across the four copies and nothing wrong in the code. See *Drift*, items 15–25.
+false statements across the four copies and nothing wrong in the code. See *Drift*, items 15–27.
 
 **The session-4 history, kept because the denominator moved then too.** Session 3 moved the denominator twice
 in opposite directions — T-00 closing took the figure from 12.6% to 13.3%, then adding **T-28**
@@ -145,7 +145,7 @@ neither comparable. The one figure all four agree on is §15.2 at 0 of 8.
 - **Inventory.** The **45** tasks — 43 until T-28 was added in session 3, 44 until **T-10 was split**
   into T-10a and T-10b in session 5: the 37 `T-…` tasks and 6 `P-…` tasks in `tasks/todo.md` (T-13a–d, T-10a–b and
   T-18a–e counted individually), plus R-08 and R-10 counted once. The ten Phase 4 bullets
-  (T-16…T-21) and the five Phase 5 bullets (T-22…T-26) are inside the 36, not additions to it.
+  (T-16…T-21) and the five Phase 5 bullets (T-22…T-26) are inside the 37, not additions to it.
   `tasks/todo.md`'s 110 checkboxes are *sub-criteria inside* those tasks, not tasks; they are also
   stale (T-01…T-04 are complete with unchecked boxes), so they are not counted.
 - **Weights.** The plan's own T-shirt sizes: **XS=1, S=2, M=4, L=8**. P-00 carries no size and is
@@ -329,6 +329,7 @@ sat in **three different states** and the only gate that runs saw none of it.
 | 24 | *(new, session 5)* The **sensitivity table's own rows disagreed about how much was done** — row 1 computed on the numerator 41, rows 2–5 still on session 4's 29 | **Fixed — all five rows are now 45 over their own denominator.** The table exists to show that a *done* figure is stable while the denominator is not, and four of its five rows were quietly asserting a different done figure. Found by re-deriving each cell rather than reading the column |
 | 25 | *(new, session 5)* Both copies published **`47 test files`** while the tree held **50** | **Fixed — 50, and now gated.** Stale through T-08 and T-09 with `check-scoreboard-sync` **green over it the whole time**, because the two copies agreed *with each other*. Found by `check-claims` on its first run, before it was wired into anything. **Sync and truth are different properties and only one had a gate** — see T-10b |
 | 26 | *(new, session 5)* **This file's own header** named `task/t-07-workflow-package` @ `e88320f` and `main` @ `98b0229`, while its *Verified today* table four screens below named a different branch and a `main` three merges newer | **Fixed — re-derived from the working tree.** The **fourth** time this file has described itself wrongly (items 5, 11, 15, 26), and the second time in one session. `check-scoreboard-sync` cannot catch it: both copies carry the same wrong header, and agreeing is all that gate asks of them |
+| 27 | *(new, session 5)* `progress.md`'s Method said **37** `T-…` tasks in one sentence and *"inside the **36**"* in the next; the Claude Project doc said both, and also *"Counted today: 13 + 4 + 2 + 2 + 5 + 10 = 36"* | **Fixed — 37 throughout**, and the arithmetic re-derived: T-00…T-12 is **14** once T-10 is two tasks, so 14 + 4 + 2 + 2 + 5 + 10 = **37**. Drift 20 fixed this same sentence to 36 in this session; the T-10 split moved it again the same day and only one of the two halves was updated. **`progress.html` was already correct**, which is the point of item 27: `check-scoreboard-sync` compares numbers, not prose, and says so |
 
 **Drift 4 was not drift.** Both figures were accurate; the *classification* was wrong. Filed beside
 three doc-vs-reality typos and closed with "all four are R-11 / T-10 work", it read as documentation
