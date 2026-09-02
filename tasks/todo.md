@@ -696,13 +696,26 @@ landed and not one of them is a step a client can take.
 **Description.** Audit **D-20**. NFR-SEC-06 asks for it explicitly and it is absent. B2 credentials
 arrive at T-24, which is the wrong moment to discover this gap.
 
+**Scope grew 2026-09-02: F-32.** T-11 is the open task that touches `ci.yml`, and the workflow's
+`on:` block is now known to be wrong in a way that has mattered for three sessions — it fires on
+`push: branches: [main]`, `pull_request` and a nightly schedule, so **a push to a task branch creates
+no run at all.** Session 4's remedy *"push each task's commit as it lands"* has therefore bought zero
+CI coverage while being applied, recorded and measured. See F-32; the fix is one line plus a
+`concurrency` group, and **it is a deliberate CI change, so it is EL's call, not a drive-by.**
+
 **Acceptance criteria:**
 - [ ] A scanning step in `ci.yml` that fails the build on a detected secret
 - [ ] Push protection enabled on the remote if the host supports it
 - [ ] A deliberately planted fake credential is caught, then removed
+- [ ] **F-32 answered explicitly**, by (a) `push: branches: ['**']` with a `concurrency` group, or
+      (b) a recorded decision to keep the trigger and open a draft PR on each task branch's first
+      commit. Either is acceptable; **leaving the current wording standing is not**
+- [ ] If (a): a push to a throwaway branch is confirmed to produce a run, by URL, before the branch
+      is deleted. A trigger nobody has watched fire is the defect this task exists to close
 
-**Verification:** the failing run recorded, then the passing one.
-**Dependencies:** T-00. **Files:** `.github/workflows/ci.yml`. **Scope:** XS.
+**Verification:** the failing secret-scan run recorded, then the passing one; and for F-32, the run
+URL produced by a branch push that previously produced none.
+**Dependencies:** T-00. **Files:** `.github/workflows/ci.yml`. **Scope:** XS → **S** (F-32 added).
 
 ### T-27: Type-check the test files
 **Description.** Found this session, not in the audit. `packages/*/tsconfig.json` carries
