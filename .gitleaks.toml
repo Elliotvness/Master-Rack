@@ -1,0 +1,17 @@
+# T-11's planted-credential proof (2026-09-02).
+#
+# The default rules scan for real secret formats. This rule exists so the
+# "a deliberately planted fake credential is caught" criterion can be
+# demonstrated with a pattern no real service uses — GitHub push protection
+# does not recognise it, so the push lands and this step is what goes red.
+# The fixture that matched it (tools/secret-scan-fixture.txt) was removed
+# after the failing run was recorded; the rule stays as the record, matching
+# nothing.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "rms-planted-credential"
+description = "Fake credential planted by T-11 to prove the scanner fires"
+regex = '''RMSK_[A-Z0-9]{16,}'''
+secretGroup = 0
