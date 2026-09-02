@@ -27,6 +27,9 @@ import { checkAppBoundaries } from './check-app-boundaries.mjs';
 const TREE = mkdtempSync(join(tmpdir(), 'rms-selftest-app-boundaries-'));
 const PROBE_DIR = join(TREE, 'apps', 'client-web', 'src');
 const PROBE = join(PROBE_DIR, 'probe.ts');
+/** F-36 gave `internal-web` a symbol rule, so it needs its own probe. */
+const INTERNAL_PROBE_DIR = join(TREE, 'apps', 'internal-web', 'src');
+const INTERNAL_PROBE = join(INTERNAL_PROBE_DIR, 'probe.ts');
 
 /**
  * Extensions the scan must not skip.
@@ -163,6 +166,59 @@ const MUST_ALLOW = [
   },
 ];
 
+/**
+ * F-36 — the same four authorities, in the OTHER front-end bundle.
+ *
+ * Checkpoint A asks that no orchestration remain in EITHER front-end package.
+ * Until F-36 the mechanism covered one, and `apps/internal-web` was clean only
+ * because T-08 had moved the three authorities out by hand.
+ */
+const MUST_CATCH_INTERNAL = [
+  {
+    name: 'deriveInternalRevision coming back to the app T-08 removed it from',
+    source: 'export function deriveInternalRevision() { return undefined; }\n',
+  },
+  {
+    name: 'importing stripInternalRevisions so the screen decides the audience',
+    source: "import { stripInternalRevisions } from '@rms/workflow';\nexport const x = stripInternalRevisions;\n",
+  },
+  {
+    name: 'submit, so a reviewer screen can drive the sequence',
+    source: "export { submit } from '@rms/workflow';\n",
+  },
+  {
+    name: 'a freeze* authority declared locally',
+    source: 'const freezeRevision = () => undefined;\nvoid freezeRevision;\n',
+  },
+];
+
+/**
+ * Each must NOT be caught — and these are the point of the rule's shape.
+ *
+ * The internal app's import list is empty ON PURPOSE: a reviewer may see the
+ * database layer, the BOM and the internal API. VISIBILITY and AUTHORITY are
+ * different axes, and if a later edit "tidies" the internal rule by copying the
+ * client's import list, these three go red and say so.
+ */
+const MUST_ALLOW_INTERNAL = [
+  {
+    name: 'the database layer, which an internal tool legitimately reaches',
+    source: "import { whereUsed } from '@rms/db';\nexport const x = whereUsed;\n",
+  },
+  {
+    name: 'the BOM, which an internal reviewer must see and a client never may',
+    source: "import { bomFor } from '@rms/kernel-bom';\nexport const x = bomFor;\n",
+  },
+  {
+    name: 'the internal API package and its internal DTOs',
+    source: "import { InternalRevisionDto } from '@rms/api';\nexport const x = InternalRevisionDto;\n",
+  },
+  {
+    name: 'submittedAt, a field name that merely starts with the forbidden word',
+    source: 'export const submittedAt = new Date().toISOString();\n',
+  },
+];
+
 function writeProbe(source) {
   mkdirSync(PROBE_DIR, { recursive: true });
   writeFileSync(PROBE, source, 'utf8');
@@ -171,6 +227,17 @@ function writeProbe(source) {
 function probeViolations() {
   return checkAppBoundaries(TREE).violations.filter((v) =>
     v.includes('client-web/src/probe.'),
+  );
+}
+
+function writeInternalProbe(source) {
+  mkdirSync(INTERNAL_PROBE_DIR, { recursive: true });
+  writeFileSync(INTERNAL_PROBE, source, 'utf8');
+}
+
+function internalProbeViolations() {
+  return checkAppBoundaries(TREE).violations.filter((v) =>
+    v.includes('internal-web/src/probe.'),
   );
 }
 
@@ -236,6 +303,24 @@ function main() {
       if (hits.length > 0) falsePositives.push(`${name} -> ${hits[0]}`);
       else console.log(`  allowed     ${name}`);
     }
+
+    // F-36 — the second front-end bundle.
+    writeProbe('export const x = 1;\n');
+    writeInternalProbe('export const x = 1;\n');
+    if (internalProbeViolations().length > 0) {
+      missed.push('the internal-web baseline probe is not clean, so its cases prove nothing');
+    }
+    for (const { name, source } of MUST_CATCH_INTERNAL) {
+      writeInternalProbe(source);
+      if (internalProbeViolations().length === 0) missed.push(`[internal-web] ${name}`);
+      else console.log(`  caught      [internal-web] ${name}`);
+    }
+    for (const { name, source } of MUST_ALLOW_INTERNAL) {
+      writeInternalProbe(source);
+      const hits = internalProbeViolations();
+      if (hits.length > 0) falsePositives.push(`[internal-web] ${name} -> ${hits[0]}`);
+      else console.log(`  allowed     [internal-web] ${name}`);
+    }
   } finally {
     rmSync(TREE, { recursive: true, force: true });
   }
@@ -249,8 +334,10 @@ function main() {
   }
 
   console.log(
-    `selftest-app-boundaries: PASS — all ${MUST_CATCH.length} violation types caught, ` +
-      `all ${MUST_ALLOW.length} legal imports allowed; ${baseline.scanned.length} file(s) scanned clean.`,
+    `selftest-app-boundaries: PASS — all ${MUST_CATCH.length + MUST_CATCH_INTERNAL.length} ` +
+      `violation types caught (${MUST_CATCH_INTERNAL.length} of them internal-web), all ` +
+      `${MUST_ALLOW.length + MUST_ALLOW_INTERNAL.length} legal forms allowed; ` +
+      `${baseline.scanned.length} file(s) scanned clean.`,
   );
 }
 
