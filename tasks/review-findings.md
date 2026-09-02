@@ -1025,7 +1025,7 @@ patterns turned it red on exactly those 4 cases, naming each.
 
 `pnpm verify` exit 0 in 71 s, 50 files, 1,143 tests, coverage 99.58%.
 
-## F-37 — the coverage gate's verdict depends on the operating system *(raised 2026-09-02, open — remedy is EL's call)*
+## F-37 — the coverage gate's verdict depends on the operating system *(raised 2026-09-02; **remedy landed the same day — option 1, with the guard**; closes when the Windows run exits 0)*
 
 Found by the Windows `pnpm verify` that F-35 unblocked, at `89e55fa`, Node v24.19.0, pnpm 11.22.0,
 Docker Postgres 16 migrated and healthy. Every step through `check:claims` was green — 50 files,
@@ -1081,6 +1081,37 @@ checkpoint block, so the checkpoint's other criteria do not wait on this.
 
 Whichever is chosen, the Windows run is now cheap to repeat: `_to_delete/verify-windows.cmd` waits
 for the database, migrates, runs verify and writes the log with the exit code.
+
+**Remedy taken: option 1, on `fix/f-37-types-only-coverage`.** One list, `tools/types-only.mjs`,
+read by two consumers: `vitest.config.ts` spreads it into coverage `exclude`, and a new checker,
+`tools/check-types-only.mjs`, asserts on every run that each listed source file's **emitted**
+JavaScript (`src/x.ts` → `dist/x.js`) reduces to nothing but `export {};` once comments and the
+source-map directive are stripped. It reads the emitted file rather than the source on purpose —
+`export interface` is erased by the compiler, so "what survives emit" is exactly "is there anything
+here a test could execute", answered by `tsc` and not by a regex over TypeScript. It refuses to pass
+on an empty list, on a listed file that does not exist, and on a listed file that has not been built.
+
+**Proven to fire against the real file:** `export const planted = 1;` appended to
+`packages/workflow/src/assumptions.ts`, `tsc --build`, then
+
+```
+check-types-only: FAIL
+  packages/workflow/src/assumptions.ts: is no longer types-only — packages/workflow/dist/assumptions.js contains `export const planted = 1`. Remove the path from tools/types-only.mjs so coverage measures it again.
+```
+
+exit 1; restored and rebuilt, `PASS — 2 types-only module(s) still compile to an empty module`,
+exit 0. `selftest-types-only` runs first with eight fixture cases (a runtime export, a bare
+statement, a missing source, an unbuilt file, an unmappable path, an empty list, a genuinely empty
+module, and code-shaped text inside comments) plus two pins and a read-only reachability check
+against the real list. Wired into `pnpm verify` and `ci.yml` immediately before the coverage gate,
+which is the thing it protects. Blind spots stated in its header: it checks the listed paths and
+nothing else (an unlisted types-only file is simply measured, the safe direction), and its comment
+stripper is a small hand-rolled pass rather than a parser — enough, because any residue at all fails.
+
+**What this changes and what it does not.** On Linux the two files were 0/0 and invisible; now they
+are excluded and invisible — the reported 99.58% does not move. On Windows they were 90 uncovered
+lines; now they are excluded. **The finding closes when a Windows `pnpm verify` exits 0**, which is
+the same run Checkpoint A's first criterion needs, and not before.
 
 ## F-12 and F-13 — fixed, values untouched
 
