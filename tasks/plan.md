@@ -428,3 +428,170 @@ No task counts as complete until all of these hold, on top of its own acceptance
 - [ ] No new string overclaims (`check-language`)
 - [ ] The change summary names what was deliberately not touched
 - [ ] `docs/CURRENT_STATE.md` §4 carries the command and its output
+
+---
+
+# Session 5 addendum — the next step, split by who can do it
+
+*Written 2026-09-02, after the re-measurement pass. Appended to the plan of record rather than
+replacing it: AD-1…AD-7, the dependency graph and the git strategy above all stand unchanged.*
+
+## The constraint that shapes everything below
+
+**Verification does not need EL. Pushing does.**
+
+Measured this session, not assumed:
+
+| Capability | Bridge shell (EL's machine) | Cloud container | Consequence |
+|---|---|---|---|
+| Read, edit, search the working tree | ✅ | via staging | Implementation happens on the bridge, in place |
+| `git commit` | ✅ (strands a `.git/index.lock` each time — clear it) | — | Commits land locally |
+| `git push` | ❌ no credentials | ❌ no credentials | **Every task waits on EL** |
+| `pnpm` / `node_modules` | ❌ win32 binaries, Linux shell | ✅ pnpm on PATH | Suite runs in the container |
+| PostgreSQL 16 | ❌ absent | ✅ **verified today** — cluster init'd and accepting connections on `127.0.0.1:55432` | DB-backed tests run in the container |
+| Delete files | ❌ mount refuses | ✅ | Cleanup needs EL |
+
+So the loop per task is: **implement on the bridge → stage to the container → `pnpm verify` against a
+real Postgres → commit on the bridge → EL pushes → CI confirms.** Six steps, one of which is EL's,
+and it is the last one. That single step is the throughput ceiling for the whole of Phase 2.
+
+## Lane A — what lands without EL
+
+Seven tasks, 16 points, taking the plan from **29 / 145 (20.0%)** to **45 / 145 (31.0%)**. Every one
+is already specified in `tasks/todo.md`; none is blocked by an open question. **§15.2 stays at 0 of 8
+throughout** — this is repair work, and no amount of it moves the headline.
+
+Ordered for fail-fast and for tools-before-users, which is **not** the order currently written in the
+plan — see *Proposed plan changes* below.
+
+| # | Task | Size | Why here |
+|---|---|---|---|
+| 1 | **T-27** Type-check the test files | S | **First, because every task after it writes tests.** Landing it now means their fixtures are type-checked as they are written instead of retrofitted. Dependency-free; nothing about it changes if EL rejects everything else in this addendum |
+| 2 | **T-28** Self-tests must not strand their own fixtures | S | **Before T-10, which adds a new checker and a new self-test.** Written in the current style it becomes the fifth offender. This is a real dependency the plan does not record |
+| 3 | **T-08** Internal derivation and notes server-side | S | A pure move, exactly like T-07 — cheapest while T-07's boundary rules and review findings are still fresh |
+| 4 | **T-09** `part` / `part_revision` registry, migration `0010` | M | The last schema change in Phase 2, and the table the internal BOM routes in T-14 will read |
+| 5 | **T-10a** Reconcile the four disagreeing documents | S | *(proposed split)* Content work in four files. No tooling |
+| 6 | **T-10b** Port `check-claims`, and widen `check-scoreboard-sync` | M | *(proposed split)* Tooling work. Carries this session's **drift 18** remedy: the sync gate must parse the measure cards, not only the phase bars |
+| 7 | **T-12** Source-conflict register — IBC/MH16.1 adoption facts | XS | Content only. Last because it is smallest and blocks nothing |
+
+**T-11 (secret scanning, XS) is deliberately not in Lane A.** Its acceptance criteria are *"a planted
+fake credential is caught, then removed"* and *"push protection enabled on the remote"* — both need a
+push and a remote setting. It is a Lane B task wearing an XS badge.
+
+### The one task in Lane A that is not just execution
+
+**T-10b** is where this session's findings turn into a mechanism. The scoreboard's own gate,
+`check-scoreboard-sync`, compares the phase bars and the §15.2 headline **and nothing else** — which
+is why `progress.html` published *"14% — 7 of 44"* against `progress.md`'s *"10 of 44 — 23%"* for a
+full session with a green build. Acceptance criteria to add:
+
+- [ ] The gate parses the four `<div class="m">` measure cards and compares their values to the
+      headline table in `progress.md`
+- [ ] Its self-test plants a card that disagrees and **watches it go red** — a gate never fed a
+      disagreement passes forever, which is the same finding shape as F-02 and F-08
+- [ ] The docstring's stated blind spots are re-derived to match what it now actually covers
+
+## Lane B — what only EL can do
+
+### B1. Blocking, ~15 minutes, before Lane A task 3
+
+Nothing should be built on an unverified tip. This is the gap that reached eight commits last time
+and reopened one commit after being declared closed.
+
+- [ ] **Push `task/t-07-workflow-package`** — 3 commits ahead of `origin/main`, no upstream, never
+      pushed. GitHub Desktop → *Push origin*, after adding `C:\Rack Master\rack-master-studio`
+      (its existing `Master-Rack` entry points at the near-empty clone at `C:\Rack Master\Master-Rack`)
+- [ ] **Confirm CI green**, then merge the PR and delete the branch
+- [ ] **Delete `_to_delete/git-locks/`** — 14 stranded git lock and temp-object files. `git fsck` is
+      clean and none is load-bearing, but a stranded `.git/index.lock` will block GitHub Desktop
+
+T-27 and T-28 can proceed in parallel with this; T-08 should not, because it builds directly on T-07.
+
+### B2. Recurring — one push per task, seven times
+
+This is the real cost of Lane A, and it is worth deciding deliberately rather than discovering.
+
+- **Option 1 (default): EL pushes per task.** Matches the one-branch-per-task rule already in force.
+  Costs seven interruptions of about two minutes each.
+- **Option 2: a fine-scoped GitHub PAT in the cloud container.** Collapses the bottleneck — the
+  container has network and could push and read CI itself, so a task could go from implemented to
+  CI-green without EL. **This is a credential decision, and the tradeoff is real:** the container is
+  ephemeral and Anthropic-hosted, the token would be `contents:write` on one private repo, and it
+  should be revocable in one click. Offered, not recommended — EL's call, and Option 1 is a perfectly
+  good answer.
+
+Batching the pushes into one at the end of Phase 2 is the third option and it is the one that
+produced drift 16. Not offered.
+
+### B3. Checkpoint A — the review the plan requires
+
+After T-12, `tasks/todo.md` requires *"Review with EL before Phase 3"*. Its criteria include
+`pnpm verify` PASS **on Windows** and all DB-backed tests green **in CI** — neither of which a
+container run satisfies. Checkpoint A is structurally EL's.
+
+### B4. Decisions that gate later phases, not Lane A
+
+None of these blocks anything above. Listed so they stop being rediscovered.
+
+| | Needed for | Gates |
+|---|---|---|
+| **Q3** | Standing disclaimer text, company and contact name, document number format | T-20, AC-16 |
+| **Q4** | Backblaze B2 credentials + Governance-bucket permission | T-24 |
+| **Q6 / OD-20b** | External pilot client name | No code. Retires R-01; supplies P-04's real unit sizes |
+| **`content_sha256` re-base** | Whether to re-base the 2026-09 digest, reproducible only by Python because `face_height_in: 4.0` hashes differently once any other JSON implementation renders it `4` | Changes an APPROVED release. Recorded, not taken |
+
+## Proposed plan changes — both need a yes before `tasks/todo.md` moves
+
+Recorded here rather than applied, because silently deviating from the plan is the defect this
+project keeps finding in itself.
+
+1. **Split T-10 into T-10a and T-10b.** Its title already contains an "and", it touches seven files
+   across two unrelated subsystems (document content, checker tooling), and its acceptance criteria
+   do not fit in three bullets. **Denominator: 145 → 147** (T-10 M = 4 becomes S = 2 plus M = 4).
+   A percentage that moves because the denominator moved is not progress, so for the record:
+   29 / 147 is **19.7%**, down from 20.0%, and nothing got worse.
+2. **Re-order to T-27 → T-28 → T-08 → T-09 → T-10a → T-10b → T-12,** from the currently written
+   T-08 → T-27 → T-09 → T-10 → T-11 → T-12 → T-28. Two reasons, both dependencies the plan does not
+   record: T-27 protects the fixtures of every task after it, and T-28 must precede T-10b or T-10b's
+   new self-test is written in the stranding style T-28 exists to remove. Zero point cost.
+
+If both are declined, Lane A runs in the existing order and T-10 stays whole with the
+`check-scoreboard-sync` widening folded into it. Nothing is lost except the two arguments above.
+
+## The tension worth naming, since it is EL's call and not mine
+
+**Phase 2's remaining 16 points move §15.2 by exactly zero.** Five sessions in, the headline has not
+left 0 of 8, and only **T-14** can move it. The honest case for skipping straight to the server is
+that the product's risk is existence, not quality.
+
+The case for finishing Phase 2 first, which is the recommendation:
+
+- **T-08** moves the last orchestration off the client bundle. Wiring routes in T-14 to code sitting
+  in the wrong package means doing T-14's work twice.
+- **T-09**'s `part_revision` registry is what the internal BOM routes read. Without it, T-14 ships
+  routes against a foreign key that does not exist.
+- **T-27** type-checks the fixtures of every test T-14 writes — and T-14 is the largest test surface
+  in the plan.
+- **Checkpoint A was skipped once already.** Skipping it twice stops being a scheduling decision and
+  becomes the plan's actual practice.
+
+At 16 points — one to two focused sessions of Lane A work — the cost of finishing Phase 2 is small
+enough that reaching T-14 two days earlier is not worth reopening the checkpoint a second time.
+
+## Forward risk, flagged now, planned later
+
+**T-14 is sized L = 8 points and will not fit.** The plan's own note already says *"split at
+implementation into auth routes / client routes / internal routes."* It also inherits two extra
+routes and two extra actions from drift 4 — `GET /api/client/v1/documents/:id` and
+`POST /api/internal/v1/revisions/:id/notes`, neither of which has an `Action` in `authorize.ts`.
+Breaking T-14 down is the next planning job, and it should happen at Checkpoint A while Q1 and Q2 are
+being confirmed — not on the morning someone starts writing routes.
+
+## Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| Commits accumulate unpushed again while Lane A runs | High — it is the one gap that has reopened after being closed | One push per task (B2). If a second task finishes before the first is pushed, stop and say so rather than starting a third |
+| Container-verified ≠ Windows-verified | Medium — Checkpoint A requires `pnpm verify` on Windows | Every Lane A task is labelled container-verified in its DONE block, never "verified". Windows confirmation is Checkpoint A's job |
+| T-09's migration `0010` collides again | Low — it already collided once with T-06 (drift 12) | Re-check the highest existing migration number immediately before writing it, not from the task file |
+| The bridge strands a `.git/index.lock` mid-task | Medium — it will block GitHub Desktop silently | Clear locks as the last action of every session; check for one first if a push refuses |
