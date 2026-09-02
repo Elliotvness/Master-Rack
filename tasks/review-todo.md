@@ -247,12 +247,23 @@ does to the manifest file.
 never seen a manifest from disk. Its posture is "throw with the field named" — verify that posture
 holds on every field, especially the ones the gate reads.
 
-**Run 2026-09-02 (Checkpoint A), read-only, against `main` @ `e86d2bf` — 183 lines now.** Every
+**Run 2026-09-02 (Checkpoint A), read-only, against `main` @ `e86d2bf` — 183 lines then.** Every
 "passes"/"throws" below was produced by feeding the shape through `loadReleaseManifest` in the
-container, not by reading the code.
+container, not by reading the code. **Closed later the same day** once L-3 and L-5 were fixed on
+`review/r-07-load-manifest` (module now 213 lines): `pnpm verify` exit 0 in 74 s, 50 files,
+**1,144** tests (one more than before — the L-3 pin became two cases), 0 skipped, coverage 99.58 /
+99.04 / 99.75 / 99.58, `load-manifest.ts` at 100 across all four columns. **R-07 closes on its own
+criteria; the pre-merge review is 11 of 11.**
 
 **Acceptance criteria:**
-- [~] L-3 **dispositioned, not resolved** — `approved_by: 42` → passes, `approvedBy = null`.
+- [x] L-3 **resolved — fixed to throw, 2026-09-02, branch `review/r-07-load-manifest`.** `strOrNull`
+      now refuses any non-string that is not absent, null or blank: `approved_by: 42` →
+      `ManifestError: manifest 2026-09: 'approved_by' must be a string or empty`; same for
+      `corrected_by: {}` and `source_url: ['x']`. Absent, null and blank still mean nobody. Written
+      test-first — the new case was red (*expected function to throw an error, but it didn't*)
+      before the one-line change and green after; the old pin that read a number as nobody is
+      replaced, with its wrong rationale quoted in the test so the reversal is on the record.
+      The disposition that stood until then, kept as lineage: `approved_by: 42` → passes, `approvedBy = null`.
       It is *documented as deliberate*: `load-manifest.test.ts` pins it ("a non-string in an optional
       string field reads as absent, not as a value") with the rationale that the alternative "reads a
       number as a signature". **The reviewer disagrees with the rationale:** the alternative to
@@ -266,7 +277,13 @@ container, not by reading the code.
       validated by `check-spot-check-record` (self-tested, in `pnpm verify`) and by
       `release-integrity.test.ts`. The gate never reads it, so the loader has nothing to validate
       it *for*
-- [~] L-5 **dispositioned, not resolved** — `constraints: {a: "x"}` → passes, `constraints = {a: "x"}`
+- [x] L-5 **resolved — validated, not cast, 2026-09-02, same branch.** `numberRecord()` replaces the
+      cast: absent or null → `{}`; an array or a non-object → `'constraints' must be an object of
+      numbers`; any value that is not a finite number → `'constraints.<name>' must be a finite
+      number` (so `NaN` is refused too); the result is frozen. The real manifests' two numeric
+      constraints load unchanged. Test-first, red then green; `load-manifest.ts` stays at 100%
+      coverage with the new branches exercised. The disposition that stood until then, kept as
+      lineage: `constraints: {a: "x"}` → passes, `constraints = {a: "x"}`
       under a type that says `Record<string, number>`. Still the only unchecked cast. Mitigating fact,
       measured: **nothing outside the loader reads `.constraints` at runtime** (`grep` over
       `packages/` and `apps/`, excluding tests, finds no reader). A lie in a field nobody reads.
