@@ -133,22 +133,22 @@ describe('AC-06 — boot-time route coverage', () => {
 
   it('fails if a route names an action with no rule', () => {
     const broken: RoutePolicy[] = [
-      { method: 'GET', path: '/api/client/v1/x', namespace: 'client', action: 'nope' as Action },
+      { method: 'GET', path: '/api/client/v1/x', namespace: 'client', action: 'nope' as Action, response: 'Project' },
     ];
     expect(() => assertRouteCoverage(broken)).toThrow(/no rule/);
   });
 
   it('fails if an internal-only action is filed on a client route', () => {
     const broken: RoutePolicy[] = [
-      { method: 'GET', path: '/api/client/v1/bom', namespace: 'client', action: 'bom.read' },
+      { method: 'GET', path: '/api/client/v1/bom', namespace: 'client', action: 'bom.read', response: 'Project' },
     ];
     expect(() => assertRouteCoverage(broken)).toThrow(/internal-only/);
   });
 
   it('fails on a duplicate route', () => {
     const broken: RoutePolicy[] = [
-      { method: 'GET', path: '/dup', namespace: 'internal', action: 'audit.read' },
-      { method: 'GET', path: '/dup', namespace: 'internal', action: 'audit.read' },
+      { method: 'GET', path: '/dup', namespace: 'internal', action: 'audit.read', response: 'AuditEvent' },
+      { method: 'GET', path: '/dup', namespace: 'internal', action: 'audit.read', response: 'AuditEvent' },
     ];
     expect(() => assertRouteCoverage(broken)).toThrow(/more than once/);
   });
@@ -159,14 +159,62 @@ describe('AC-06 — boot-time route coverage', () => {
 
   it('permits a null action only on a public route', () => {
     const good: RoutePolicy[] = [
-      { method: 'POST', path: '/api/auth/x', namespace: 'public', action: null },
+      { method: 'POST', path: '/api/auth/x', namespace: 'public', action: null, response: null },
     ];
     expect(() => assertRouteCoverage(good)).not.toThrow();
 
     const bad: RoutePolicy[] = [
-      { method: 'POST', path: '/api/client/v1/x', namespace: 'client', action: null },
+      { method: 'POST', path: '/api/client/v1/x', namespace: 'client', action: null, response: 'Project' },
     ];
-    expect(() => assertRouteCoverage(bad)).toThrow(/only a public route/);
+    expect(() => assertRouteCoverage(bad)).toThrow(/only a public route may have a null action/);
+  });
+
+  // T-13b: every route names the schema it answers with, and the name must
+  // exist. A route that answers with a shape nobody declared is a route the
+  // outbound guard cannot judge — the same failure as a missing action, one
+  // layer out.
+  describe('the response declaration', () => {
+    it('fails to start if a route omits its response declaration', () => {
+      const broken = [
+        { method: 'GET', path: '/api/client/v1/oops', namespace: 'client', action: 'project.read' },
+      ] as unknown as RoutePolicy[];
+      expect(() => assertRouteCoverage(broken)).toThrow(/no 'response' declared/);
+    });
+
+    it('fails if a route names a schema its namespace registry does not hold', () => {
+      const broken: RoutePolicy[] = [
+        { method: 'GET', path: '/api/client/v1/x', namespace: 'client', action: 'project.read', response: 'Nope' },
+      ];
+      expect(() => assertRouteCoverage(broken)).toThrow(/response schema 'Nope' is not in the client registry/);
+    });
+
+    it('fails if a client route names an INTERNAL schema — the registries do not cross', () => {
+      const broken: RoutePolicy[] = [
+        { method: 'GET', path: '/api/client/v1/x', namespace: 'client', action: 'project.read', response: 'QueueEntry' },
+      ];
+      expect(() => assertRouteCoverage(broken)).toThrow(/response schema 'QueueEntry' is not in the client registry/);
+    });
+
+    it('permits a null response only on a public route, and requires it there', () => {
+      const bad: RoutePolicy[] = [
+        { method: 'GET', path: '/api/client/v1/x', namespace: 'client', action: 'project.read', response: null },
+      ];
+      expect(() => assertRouteCoverage(bad)).toThrow(/only a public route may have a null response/);
+      const alsoBad: RoutePolicy[] = [
+        { method: 'POST', path: '/api/auth/x', namespace: 'public', action: null, response: 'Project' },
+      ];
+      expect(() => assertRouteCoverage(alsoBad)).toThrow(/a public route answers with no registered schema/);
+    });
+
+    it('checks against the registries it is given — planting an empty client registry turns the real table red', () => {
+      expect(() => assertRouteCoverage(ROUTES, { client: {}, internal: {} })).toThrow(RouteCoverageError);
+      expect(() => assertRouteCoverage(ROUTES, { client: {}, internal: {} })).toThrow(/response schema 'Project' is not in the client registry/);
+    });
+
+    it('the real table passes against the real registries, and names a schema on every non-public route', () => {
+      expect(() => assertRouteCoverage()).not.toThrow();
+      expect(ROUTES.filter((r) => r.namespace !== 'public').every((r) => typeof r.response === 'string')).toBe(true);
+    });
   });
 });
 

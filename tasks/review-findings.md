@@ -1133,6 +1133,43 @@ what a gate that measures the code rather than the runner looks like. Checkpoint
 criterion — `pnpm verify` PASS on Windows **and** in CI — is met; its record in `tasks/todo.md` is
 ticked in the same commit as this paragraph.
 
+## F-38 — two front-end packages carry a request lifecycle the blueprint does not have *(raised 2026-09-02 by T-13b's adversarial review — **OPEN**, owner T-14c / T-16)*
+
+Found by the fresh-context review of T-13b, which caught the task **copying** the defect rather
+than the defect itself: the first draft of the client `Submission` DTO and the internal `QueueEntry`
+DTO keyed their status tables on `submitted / acknowledged / in_review / rfi_open / quoted /
+declined` and a `draft / submitted / answered` client view. Those six and those three come from
+`apps/client-web/src/lib/status.ts` and `apps/internal-web/src/lib/queue.ts`. **They appear
+nowhere else.** Blueprint §3.4 defines the request status as nine states — `DRAFT, SUBMITTED,
+TRIAGE, NEEDS_INFO, IN_PROGRESS, QUOTED, DECLINED, WITHDRAWN, EXPIRED` — and `app.request_status`
+in `0001_init.sql` is that enum verbatim. OD-12's three-state view is "received / in progress /
+complete only".
+
+Consequence had it shipped: `toSubmissionClientDTO` would have thrown on the first real row
+(`unknown internal status 'SUBMITTED'`), and every real queue row would have failed the internal
+schema's enum. Two controls, each keyed on a lifecycle nothing emits — the hollow shape, one layer
+out. The T-13b DTOs now key on `app.request_status` (exported as `REQUEST_STATUSES`) with an
+exhaustiveness test over the enum minus DRAFT; the collapse is `SUBMITTED → received`, `TRIAGE /
+NEEDS_INFO / IN_PROGRESS → in_progress`, `QUOTED / DECLINED / WITHDRAWN / EXPIRED → complete`
+(the last two are a product call made in code and recorded under T-13b for EL).
+
+**What is still wrong, and owned elsewhere:** the two front-end modules themselves. `status.ts`'s
+`clientStatusFor`, `STATUS_WORDING` and `ClientStatus`, and `queue.ts`'s `InternalStatus`, `QueueEntry`
+and the two clocks, all speak the invented vocabulary; their tests pin it. They are pure library
+code with no route behind them yet, so nothing is live — but T-14c's client status route and T-16's
+screens will consume them, and they must be re-keyed on the DTOs before that (the API's `ClientStatus`
+and `RequestStatus` are the source; the SPA cannot import `@rms/api`, so a shared const in
+`@rms/contracts` is the likely home). Two smaller items of the same class, filed here rather than
+separately: the kernel's `RELEASE_STATUSES` has five values (`QUARANTINED`) while `app.release_status`
+in 0001 has four — the migration is the stale copy; and `COMPARABLE_METRICS` now exists twice
+(client-web camelCase, api snake_case) with nothing asserting they agree.
+
+**Why it was not caught earlier:** the two modules were written in T-08/T-12 against the client
+screens' needs, with the blueprint's §3.4 table three sections away, and their tests test the
+modules. Nothing compared either to the migration's enum, because nothing consumed both until a
+DTO tried to. The lesson is the one CLAUDE.md already states: a vocabulary in code is a claim until
+something re-derives it from the governing document.
+
 ## F-12 and F-13 — fixed, values untouched
 
 Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.
