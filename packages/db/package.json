@@ -10,7 +10,8 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "pg": "^8.13.0"
+    "pg": "^8.13.0",
+    "@rms/kernel-catalog": "workspace:*"
   },
   "devDependencies": {
     "@types/pg": "^8.11.0"

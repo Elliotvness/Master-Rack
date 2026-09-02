@@ -45,6 +45,14 @@ export {
 export { CatalogDataError, loadBeamRows } from './load.js';
 
 export {
+  ProjectionError,
+  projectBeamRelease,
+  type CatalogProjection,
+  type ProjectedPart,
+  type ProjectedPartRevision,
+} from './projection.js';
+
+export {
   FRAME_HEIGHT_BAND_BOUNDARY_IN,
   FrameCatalog,
   FrameCatalogError,

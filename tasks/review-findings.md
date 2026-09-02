@@ -765,6 +765,67 @@ claim was replaced in session 3 for being stale. It is now also, exactly, the co
 database. A figure that means two different things is worth never quoting again without the file
 count beside it — 47 files, 1,126 tests, 0 skipped, is the whole assertion.
 
+## F-30 — `part_number` is not unique in either approved release *(raised in T-09, open — the approver's call)*
+
+Found by measuring the release before keying a table on it, not by reading it.
+
+In **`interlake-2026-09`**, two part numbers each appear on two rows, with different
+spans and different capacities:
+
+| part_number | code_18 | span | capacity |
+|---|---|---|---|
+| `UM005516` | `IB65QT05400RSA400` | 54 in | 24,940 lbs |
+| `UM005516` | `IB65QT06000RSA4000` | 60 in | 22,540 lbs |
+| `UM005517` | `IB65QT06600RSA400` | 66 in | 20,570 lbs |
+| `UM005517` | `IB65QT07200RSA4000` | 72 in | 18,940 lbs |
+
+**The same duplication is present in `interlake-2026-08`**, so it is carried forward from the
+original extraction rather than introduced by the 2026-09 corrections. `code_18` is unique — 336
+distinct codes across 336 rows, in both releases.
+
+**Two of these four rows are already flagged elsewhere.** `IB65QT05400RSA400` and
+`IB65QT06600RSA400` appear in the 2026-08 manifest's own anomaly list as 17-character codes where 18
+were expected. All four are 65QR / F5M, the same family as the `...RRA4000` end-plate-letter
+exemption recorded in the 2026-09 manifest. There is a cluster of oddities in one family.
+
+**Consequence, already handled:** `app.part` is keyed on `(manufacturer, code_18)` and `part_number`
+is carried as an attribute of the revision. A registry keyed on the part number would have refused to
+load the approved catalog on its first run.
+
+**What is NOT decided, and is not mine to decide:** whether one order number genuinely covers two
+spans in the published source, or whether these are transcription slips. It sits inside an APPROVED
+release, so per the standing rule it is EL's call, and **nothing in T-09 alters the release either
+way.** If they are slips, the fix belongs to a future release, not a correction of a signed one.
+
+## F-31 — a new table can pass `check-rls` and still be unusable *(raised in T-09, open, owner T-10b / T-23)*
+
+Migration 0010 created `app.part` and `app.part_revision` with RLS enabled, forced, and a policy for
+every operation. `pnpm check:rls` reported **PASS** over both. The application role could not read or
+write either of them: `permission denied for table part`.
+
+The missing piece was the `GRANT`. `0002_rls.sql` runs
+`GRANT ... ON ALL TABLES IN SCHEMA app`, and **`0003_auth.sql` already records why that is not
+enough** — ON ALL TABLES affects only the tables that existed when it ran, so every migration adding
+a table must grant explicitly. 0003 and 0004 both do. 0010 did not.
+
+**This is the recurring shape at the privilege layer.** `check-rls` does exactly what its docstring
+says and nothing more; the gap is that *nothing at all* checks the other half. A table added with RLS
+and no GRANT is a table CI calls secure and the application cannot use — and the failure appears at
+runtime, in whatever code first touches it, with an error that names permissions rather than the
+migration that forgot them.
+
+Caught here by the T-09 tests failing, which is the expensive way. **Remedy:** extend `check-rls` (or
+add a sibling) to assert that every table in `app` grants SELECT/INSERT/UPDATE/DELETE to the
+application role, with the same exemptions-as-data structure it already uses for policies. That is a
+dozen lines against `information_schema.role_table_grants`, and it belongs with the checker work in
+T-10b.
+
+**Also worth recording:** the FK added by 0010 immediately turned **four existing tests red**. They
+were inserting `bom_line` rows with `gen_random_uuid()` in `part_revision_id` — a reference to
+nothing. That is not a test bug so much as the evidence for D-10: the column had never had a
+referent, so every value in it was unverified by construction. The fixtures now reference a real part
+revision; the constraint was not relaxed.
+
 ## F-12 and F-13 — fixed, values untouched
 
 Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.

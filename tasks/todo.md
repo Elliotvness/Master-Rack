@@ -456,18 +456,76 @@ registry that makes the reference resolvable, so FR-BM-05 (where-used) and FR-CT
 impact) stop being unanswerable.
 
 **Acceptance criteria:**
-- [ ] Migration `0010` adds `part` and `part_revision`, populated from the pinned catalog release at
+- [x] Migration `0010` adds `part` and `part_revision`, populated from the pinned catalog release at
       load — the files stay the source of truth, the tables are the queryable projection
-- [ ] `bom_line.part_revision_id` gains its foreign key
-- [ ] The projection carries the release id, so a discontinued part stays resolvable and a historical
+- [x] `bom_line.part_revision_id` gains its foreign key
+- [x] The projection carries the release id, so a discontinued part stays resolvable and a historical
       revision still renders (§10.2)
-- [ ] RLS: staff-only, matching the other internal-only tables
-- [ ] A where-used query answers "which revisions and open requests reference this part revision?"
+- [x] RLS: staff-only, matching the other internal-only tables
+- [x] A where-used query answers "which revisions and open requests reference this part revision?"
 
 **Verification:** `pnpm migrate && pnpm test && pnpm check:rls`; a test asserting a BOM line cannot be
 inserted against a non-existent part revision.
 **Dependencies:** T-03. **Files:** `packages/db/migrations/0010_*.sql`, `packages/kernel-catalog/src/`,
 new tests. **Scope:** M.
+
+**DONE 2026-09-02 (session 5) — container-verified, not Windows-verified.** `pnpm verify` **exit 0**,
+**50 test files, 1,143 tests, 0 skipped**, against a native PostgreSQL 16.13. `check-rls` PASS over
+**21** tables; `check-boundaries` 47 files across 11 pure packages.
+
+**The identity is `code_18`, not `part_number`, and that was measured before anything was written.**
+`part_number` is **not unique** in either release: `UM005516` appears on two rows (54 in @ 24,940 lbs
+and 60 in @ 22,540 lbs) and `UM005517` on two more, in **both** `interlake-2026-08` and
+`interlake-2026-09`. `code_18` is unique — 336 distinct codes across 336 rows. **A registry keyed on
+the part number would have refused to load the approved catalog on its first run.** Filed as
+**F-30**; whether those four rows are a source fact or an extract defect is the approver's call, and
+nothing here alters the release.
+
+**Two tables, evidenced rather than asserted.** All 336 codes in 2026-09 also exist in 2026-08 (42
+phantom rows removed, none added) — and **288 of those 336 carry a different published row between
+the releases**, from the capacity and face-height corrections. One `part`, two `part_revision` rows,
+different values. That is precisely why a BOM line must reference the *revision*: a line pinned to
+2026-08 still renders 2026-08's capacity after 2026-09 lands, which is §10.2's requirement. Proven
+by a test that writes both releases and asserts one code with two revisions.
+
+**Frames are not projected, and the omission is deliberate.** `frames.json` carries **zero** part
+numbers and zero codes: it holds capacity *tables* indexed by independent variables, not orderable
+parts. A frame row has no part identity to project, and inventing one would put a fabricated key in
+the one table whose entire purpose is resolvable references.
+
+**Ids are stable across reloads, which is what criterion 3 actually needs.** Supplied by the caller
+and preserved by `ON CONFLICT … DO UPDATE`, so re-loading a release does not re-issue ids and a
+`bom_line` written last month still resolves. Proven: load, re-load with a changed capacity, assert
+**the id held and the value moved**. A `DEFAULT gen_random_uuid()` would have been shorter and made
+the id an accident of insert order; every other table in this schema takes its id from the caller.
+
+**Both new controls proven to fire, not just asserted:**
+
+```
+FK dropped                        -> 1 red   (the refusal test)
+RLS SELECT policy widened to true -> 2 red   (client sees rows it must not)
+restored                          -> 8 pass
+```
+
+The FK re-add then **failed**, because the breakage had left an orphan `bom_line` behind — which is
+exactly what 0010's own header predicts and refuses to work around with `NOT VALID`. The orphan was
+deleted and the constraint restored; the episode is the constraint doing its job on its author.
+
+**The FK turned four EXISTING tests red the moment it landed**, and that is the evidence for D-10
+rather than a nuisance: `tenancy.test.ts` was inserting `bom_line` rows with `gen_random_uuid()` in
+`part_revision_id` — a reference to nothing. The column had never had a referent, so every value in
+it was unverified by construction. The fixtures now point at a real part revision; **the constraint
+was not relaxed**.
+
+**F-31, found the expensive way.** 0010 first shipped with RLS enabled, forced and fully policied —
+and `check:rls` reported **PASS** while the application role got `permission denied` on both tables.
+The `GRANT` was missing, and `0003_auth.sql` already records why `ON ALL TABLES` in 0002 does not
+cover later tables. Nothing checks the privilege half. Remedy filed for **T-10b**: assert the grants
+alongside the policies, exemptions-as-data, as `check-rls` already does for commands.
+
+**Also cleaned up:** a failed `tsc --build` (run before the project reference existed) had emitted 51
+stray `.js` / `.d.ts` files *beside their sources* under `packages/*/src/`, because the out-of-rootDir
+fallback emits in place. They broke `pnpm lint` and would otherwise have been committed.
 
 ### T-10a: Reconcile the four disagreeing documents
 **Description.** Audit **D-19**, the content half. Four documents disagree: `TODO.md` RH-05 says both

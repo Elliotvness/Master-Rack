@@ -79,6 +79,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@rms/kernel-catalog':
+        specifier: workspace:*
+        version: link:../kernel-catalog
       pg:
         specifier: ^8.13.0
         version: 8.23.0
