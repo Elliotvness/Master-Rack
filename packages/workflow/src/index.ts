@@ -1,7 +1,8 @@
 /**
  * @rms/workflow
  *
- * The submit transaction (§13.1) and the assumption register (§11.6).
+ * The submit transaction (§13.1), the assumption register (§11.6), and internal
+ * revision derivation (`E-04`, `E-05`, `AC-14`).
  *
  * Audit **D-01**: all of this used to live in `apps/client-web` — by the
  * repository's own definition, "the bundle a client downloads". The module was
@@ -22,6 +23,17 @@
 export type { Acknowledgement, Assumption } from './assumptions.js';
 
 export type { ClientFinding } from './finding.js';
+
+export {
+  DerivationError,
+  deriveInternalRevision,
+  internalNote,
+  stripInternalRevisions,
+  type DeriveResult,
+  type InternalNote,
+  type InternalRevision,
+  type SourceSubmission,
+} from './internal.js';
 
 export {
   SUBMIT_STEPS,

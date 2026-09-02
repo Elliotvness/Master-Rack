@@ -35,6 +35,12 @@ const PROJECT_A = 'ffffffff-6666-4666-8666-666666666666';
 const PROJECT_B = 'ffffffff-7777-4777-8777-777777777777';
 const REV_A = '99999999-8888-4888-8888-888888888888';
 const REV_B = '99999999-9999-4999-8999-999999999999';
+// T-09 added a foreign key from bom_line.part_revision_id to app.part_revision.
+// These fixtures used gen_random_uuid() in that position, which the database now
+// refuses - correctly. The column had never had a referent, so every value in it
+// was unverified by construction; that is the gap D-10 names and 0010 closes.
+const PART = 'dddddddd-4444-4444-8444-4444444444a2';
+const PART_REVISION = 'dddddddd-4444-4444-8444-4444444444a1';
 
 /**
  * Is the database reachable?
@@ -94,10 +100,10 @@ beforeAll(async () => {
 
   // Seed. Truncate first so the suite is repeatable.
   await admin(`
-    TRUNCATE app.bom_line, app.finding_internal_detail, app.finding, app.assumption,
-             app.uncatalogued_part, app.internal_note, app.submission, app.revision,
-             app.project, app.invitation, app.membership, app.app_user,
-             app.catalog_release, app.rule_pack_release, app.organization,
+    TRUNCATE app.bom_line, app.part_revision, app.part, app.finding_internal_detail,
+             app.finding, app.assumption, app.uncatalogued_part, app.internal_note,
+             app.submission, app.revision, app.project, app.invitation, app.membership,
+             app.app_user, app.catalog_release, app.rule_pack_release, app.organization,
              app.audit_event
       RESTART IDENTITY CASCADE
   `);
@@ -147,6 +153,17 @@ beforeAll(async () => {
      VALUES ($1, $3, $5, 'P01', $7, $8, $9, '{"levels":4}'),
             ($2, $4, $6, 'P01', $7, $8, $10, '{"levels":3}')`,
     [REV_A, REV_B, ORG_A, ORG_B, PROJECT_A, PROJECT_B, CATALOG, RULES, USER_A, USER_B],
+  );
+
+  // One real part revision for the BOM fixtures to reference (T-09).
+  await admin(
+    `INSERT INTO app.part (id, manufacturer, code_18) VALUES ($1,'Interlake Mecalux','IB27ET04800RCA2000')`,
+    [PART],
+  );
+  await admin(
+    `INSERT INTO app.part_revision (id, part_id, catalog_release_id, part_number, published_row)
+     VALUES ($1,$2,$3,'U0200310','{}'::jsonb)`,
+    [PART_REVISION, PART, CATALOG],
   );
 
   configureDatabase(APP_URL);
@@ -493,7 +510,7 @@ describe('I-1 — a client principal cannot reach internal tables', () => {
       `INSERT INTO app.bom_line
          (id, organization_id, revision_id, category, part_revision_id, qty, uom,
           rule_text, confirmed, revision_hash, engine_version)
-       VALUES (gen_random_uuid(), $1, $2, 'FRAME', gen_random_uuid(), 24, 'EA',
+       VALUES (gen_random_uuid(), $1, $2, 'FRAME', 'dddddddd-4444-4444-8444-4444444444a1'::uuid, 24, 'EA',
                'frames = (bays + 1) x rows', true, 'hash', '0.0.0')`,
       [ORG_A, REV_A],
     );
@@ -520,7 +537,7 @@ describe('I-1 — a client principal cannot reach internal tables', () => {
           `INSERT INTO app.bom_line
              (id, organization_id, revision_id, category, part_revision_id, qty, uom,
               rule_text, confirmed, revision_hash, engine_version)
-           VALUES (gen_random_uuid(), $1, $2, 'FRAME', gen_random_uuid(), 1, 'EA',
+           VALUES (gen_random_uuid(), $1, $2, 'FRAME', 'dddddddd-4444-4444-8444-4444444444a1'::uuid, 1, 'EA',
                    'x', true, 'h', '0')`,
           [ORG_A, REV_A],
         );
@@ -652,7 +669,7 @@ describe('AC-13 — a BOM line is a quantity or an unresolved reason, never both
         `INSERT INTO app.bom_line
            (id, organization_id, revision_id, category, part_revision_id, uom,
             rule_text, confirmed, revision_hash, engine_version)
-         VALUES (gen_random_uuid(), $1, $2, 'DECK', gen_random_uuid(), 'EA', 'r', false,
+         VALUES (gen_random_uuid(), $1, $2, 'DECK', 'dddddddd-4444-4444-8444-4444444444a1'::uuid, 'EA', 'r', false,
                  'h', '0')`,
         [ORG_B, REV_B],
       ),
@@ -665,7 +682,7 @@ describe('AC-13 — a BOM line is a quantity or an unresolved reason, never both
         `INSERT INTO app.bom_line
            (id, organization_id, revision_id, category, part_revision_id, qty, uom,
             rule_text, confirmed, unresolved_reason, revision_hash, engine_version)
-         VALUES (gen_random_uuid(), $1, $2, 'DECK', gen_random_uuid(), 2, 'EA', 'r', false,
+         VALUES (gen_random_uuid(), $1, $2, 'DECK', 'dddddddd-4444-4444-8444-4444444444a1'::uuid, 2, 'EA', 'r', false,
                  'no support rule published', 'h', '0')`,
         [ORG_B, REV_B],
       ),
@@ -678,7 +695,7 @@ describe('AC-13 — a BOM line is a quantity or an unresolved reason, never both
         `INSERT INTO app.bom_line
            (id, organization_id, revision_id, category, part_revision_id, uom,
             rule_text, confirmed, unresolved_reason, revision_hash, engine_version)
-         VALUES (gen_random_uuid(), $1, $2, 'DECK', gen_random_uuid(), 'EA',
+         VALUES (gen_random_uuid(), $1, $2, 'DECK', 'dddddddd-4444-4444-8444-4444444444a1'::uuid, 'EA',
                  'deck count per level', false,
                  'no published support rule; three conflicting formulas in prior work',
                  'h', '0')`,
@@ -694,7 +711,7 @@ describe('AC-13 — a BOM line is a quantity or an unresolved reason, never both
            (id, organization_id, revision_id, category, part_revision_id,
             uncatalogued_part_id, qty, uom, rule_text, confirmed, revision_hash,
             engine_version)
-         VALUES (gen_random_uuid(), $1, $2, 'BEAM', gen_random_uuid(), gen_random_uuid(),
+         VALUES (gen_random_uuid(), $1, $2, 'BEAM', 'dddddddd-4444-4444-8444-4444444444a1'::uuid, gen_random_uuid(),
                  1, 'EA', 'r', true, 'h', '0')`,
         [ORG_B, REV_B],
       ),

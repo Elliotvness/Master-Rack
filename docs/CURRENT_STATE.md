@@ -3,6 +3,22 @@
 **Assessed 2026-08-31 by repository inspection.** Every claim below is traceable to a file that was
 read or a command that was run. Where something was not verified, it says so.
 
+> **This is a DATED RECORD, not a live status page.** Its figures were measured on the date in its
+> header and are kept as written, because rewriting a dated measurement to match today falsifies the
+> record — the opposite of what this repository is for. **For current figures read
+> `tasks/progress.md`**, which is re-measured every session and carries the §15.2 headline.
+>
+> The editorial rule this file is held to, applied across `LATEST.md`, `docs/CURRENT_STATE.md` and
+> the blueprint by **T-10a** on 2026-09-02: *a dated observation keeps its number and says its date;
+> a present-tense assertion about the product is re-derived or removed.* A number is only wrong if it
+> claims to be current.
+>
+> **Superseded 2026-09-02.** This was written when the kernel was one package and the repository was
+> three commits old. Since then the whole kernel, the contracts package, the workflow package, the
+> database layer and the part registry have landed. The dated verification tables below are kept
+> verbatim as the record of what was true on 2026-08-31; the one paragraph that asserted a
+> *present-tense* fact about the product has been corrected in place, and says so.
+
 Status vocabulary used here, carried from `rack-engine/CLAUDE.md`:
 `CONFIRMED IMPLEMENTED` · `IMPLEMENTED BUT UNVERIFIED` · `PLANNED ONLY` · `BLOCKED`.
 
@@ -1431,10 +1447,22 @@ environment access inside the kernel.
 
 Two things are worth stating plainly.
 
-**What is built is narrow.** `kernel-units` is one package of the eight in the blueprint's kernel,
-and everything with tenancy, authorization or persistence in it — the layers that carry the actual
-commercial risk — is untouched. The 100% coverage figure means the units package is thoroughly
-tested; it does not mean the product is 100% anything.
+**What is built is narrow.** *(Corrected 2026-09-02 under T-10a. This paragraph was written in the
+present tense and so kept asserting a fact about the product rather than recording one about
+2026-08-31 — the distinction the banner above draws. The original read:* "`kernel-units` is one
+package of the eight in the blueprint's kernel, and everything with tenancy, authorization or
+persistence in it — the layers that carry the actual commercial risk — is untouched."*)*
+
+**As re-derived on 2026-09-02:** all **8** `kernel-*` packages exist, plus `contracts`, `db`,
+`display-list` and `workflow` — **12** in total. Tenancy, authorization and persistence are no longer
+untouched: row-level security is enabled and forced over **21** tables across **10** migrations, the
+authorization matrix is asserted against a 20-entry route registry, and the submit transaction lives
+in a pure package with its effects in `apps/api`.
+
+**What is still narrow is the thing that matters**, and it has not moved at all: there is no HTTP
+server and no screen, so **blueprint §15.2 stands at 0 of 8 steps**. The 100% coverage figure means
+the pure packages are thoroughly tested; it does not mean the product is 100% anything, and it never
+did.
 
 **The gates earn their keep.** Two real defects surfaced during this build, one an arithmetic bug in
 `convert()` and one a borrowed number asserted against invented data. The second is the more

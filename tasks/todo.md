@@ -397,15 +397,54 @@ control alongside T-03's RLS predicate — it is not deleted, it is relocated an
 enforcement to defence in depth.
 
 **Acceptance criteria:**
-- [ ] The three functions move to `packages/workflow` (pure) with effects supplied by `apps/api`
-- [ ] `internal-web` keeps the queue **view** logic — ordering, clocks, ages — and the trace panel
-- [ ] `AC-14`'s test is re-pointed at the server-side path
-- [ ] Waivers still do not carry over to a derived revision; the existing proof stays green
+- [x] The three functions move to `packages/workflow` (pure) with effects supplied by `apps/api`
+- [x] `internal-web` keeps the queue **view** logic — ordering, clocks, ages — and the trace panel
+- [x] `AC-14`'s test is re-pointed at the server-side path
+- [x] Waivers still do not carry over to a derived revision; the existing proof stays green
 
 **Verification:** `vitest run apps/internal-web packages/workflow`; the two existing deliberate
 breakages (waivers carried over → 1 red; internal items kept → 3 red) must still fire.
 **Dependencies:** T-07. **Files:** `apps/internal-web/src/lib/queue.ts`, `packages/workflow/*`,
 `queue.test.ts`. **Scope:** S.
+
+**DONE 2026-09-02 (session 5) — container-verified, not Windows-verified.** `pnpm verify` **exit 0**,
+**48 test files, 1,128 tests, 0 skipped**, against a native PostgreSQL 16.13. Landed as **two
+commits**: the move, then F-27, so the move's diff could be reviewed as location-only.
+
+**The move is verbatim, checked programmatically rather than by eye.**
+`packages/workflow/src/internal.ts`'s body is **byte-identical** to the block it came from — 4,252
+bytes on both sides. `queue.ts`'s remainder differs by ten lines, all of them its module doc saying
+what the file now holds.
+
+**`stripInternalRevisions` is not deleted and not weakened** — relocated, and demoted from sole
+enforcement to defence in depth. T-03 put `audience` into the revision RLS policy, so the database
+refuses first and this filter is the second line rather than the only one.
+
+**Both deliberate breakages still fire, against the new location:**
+
+```
+waivers carried over    -> 1 failed | 11 passed     (criterion: 1 red)
+internal items kept     -> 3 failed |  9 passed     (criterion: 3 red)
+reverted                -> 12 passed
+```
+
+**Criterion 1's second clause, recorded rather than faked.** *"…with effects supplied by `apps/api`"*
+— **there are no effects to supply, and inventing a seam would have been the defect this project
+keeps finding.** All three are pure constructors over their arguments, unlike `submit()`, which
+orchestrates a nine-step transaction and needs `SubmitEffects`. Persisting a derived revision or a
+note needs tables that do not exist yet; when they do, `apps/api` supplies the effects and owns the
+transaction exactly as it does for submit. What `apps/api` owns **today** is the surface: it
+re-exports the three, and `apps/internal-web`'s barrel deliberately does **not**, because
+re-exporting would leave every old import path working and make the move cosmetic.
+
+**F-27 closed in the second commit, test-first, and T-27's gate is what caught it.** Two cases using
+the bare shapes — present-but-undefined, and an object literal with no marker — were written
+**before** the fix: `tsc -p tsconfig.tests.json` **exit 2**, four errors; after the fix, **exit 0**.
+The constraint is now `T extends object` with the marker read through an `in` narrowing, so no cast
+is needed at any call site. **The control was re-proven against the rewritten implementation**,
+because a passing test after a rewrite proves nothing on its own: internal-items-kept goes **4 red**
+(up from 3 — the two new cases made the control stronger), and inverting the membership test so
+*absent* counts as internal goes 3 red. Reverted, 14 pass.
 
 ### T-09: Give `part_revision_id` something to reference
 **Description.** Audit **D-10**. §19.2 names "BOM lines reference a part revision, never a part" as
@@ -417,18 +456,76 @@ registry that makes the reference resolvable, so FR-BM-05 (where-used) and FR-CT
 impact) stop being unanswerable.
 
 **Acceptance criteria:**
-- [ ] Migration `0010` adds `part` and `part_revision`, populated from the pinned catalog release at
+- [x] Migration `0010` adds `part` and `part_revision`, populated from the pinned catalog release at
       load — the files stay the source of truth, the tables are the queryable projection
-- [ ] `bom_line.part_revision_id` gains its foreign key
-- [ ] The projection carries the release id, so a discontinued part stays resolvable and a historical
+- [x] `bom_line.part_revision_id` gains its foreign key
+- [x] The projection carries the release id, so a discontinued part stays resolvable and a historical
       revision still renders (§10.2)
-- [ ] RLS: staff-only, matching the other internal-only tables
-- [ ] A where-used query answers "which revisions and open requests reference this part revision?"
+- [x] RLS: staff-only, matching the other internal-only tables
+- [x] A where-used query answers "which revisions and open requests reference this part revision?"
 
 **Verification:** `pnpm migrate && pnpm test && pnpm check:rls`; a test asserting a BOM line cannot be
 inserted against a non-existent part revision.
 **Dependencies:** T-03. **Files:** `packages/db/migrations/0010_*.sql`, `packages/kernel-catalog/src/`,
 new tests. **Scope:** M.
+
+**DONE 2026-09-02 (session 5) — container-verified, not Windows-verified.** `pnpm verify` **exit 0**,
+**50 test files, 1,143 tests, 0 skipped**, against a native PostgreSQL 16.13. `check-rls` PASS over
+**21** tables; `check-boundaries` 47 files across 11 pure packages.
+
+**The identity is `code_18`, not `part_number`, and that was measured before anything was written.**
+`part_number` is **not unique** in either release: `UM005516` appears on two rows (54 in @ 24,940 lbs
+and 60 in @ 22,540 lbs) and `UM005517` on two more, in **both** `interlake-2026-08` and
+`interlake-2026-09`. `code_18` is unique — 336 distinct codes across 336 rows. **A registry keyed on
+the part number would have refused to load the approved catalog on its first run.** Filed as
+**F-30**; whether those four rows are a source fact or an extract defect is the approver's call, and
+nothing here alters the release.
+
+**Two tables, evidenced rather than asserted.** All 336 codes in 2026-09 also exist in 2026-08 (42
+phantom rows removed, none added) — and **288 of those 336 carry a different published row between
+the releases**, from the capacity and face-height corrections. One `part`, two `part_revision` rows,
+different values. That is precisely why a BOM line must reference the *revision*: a line pinned to
+2026-08 still renders 2026-08's capacity after 2026-09 lands, which is §10.2's requirement. Proven
+by a test that writes both releases and asserts one code with two revisions.
+
+**Frames are not projected, and the omission is deliberate.** `frames.json` carries **zero** part
+numbers and zero codes: it holds capacity *tables* indexed by independent variables, not orderable
+parts. A frame row has no part identity to project, and inventing one would put a fabricated key in
+the one table whose entire purpose is resolvable references.
+
+**Ids are stable across reloads, which is what criterion 3 actually needs.** Supplied by the caller
+and preserved by `ON CONFLICT … DO UPDATE`, so re-loading a release does not re-issue ids and a
+`bom_line` written last month still resolves. Proven: load, re-load with a changed capacity, assert
+**the id held and the value moved**. A `DEFAULT gen_random_uuid()` would have been shorter and made
+the id an accident of insert order; every other table in this schema takes its id from the caller.
+
+**Both new controls proven to fire, not just asserted:**
+
+```
+FK dropped                        -> 1 red   (the refusal test)
+RLS SELECT policy widened to true -> 2 red   (client sees rows it must not)
+restored                          -> 8 pass
+```
+
+The FK re-add then **failed**, because the breakage had left an orphan `bom_line` behind — which is
+exactly what 0010's own header predicts and refuses to work around with `NOT VALID`. The orphan was
+deleted and the constraint restored; the episode is the constraint doing its job on its author.
+
+**The FK turned four EXISTING tests red the moment it landed**, and that is the evidence for D-10
+rather than a nuisance: `tenancy.test.ts` was inserting `bom_line` rows with `gen_random_uuid()` in
+`part_revision_id` — a reference to nothing. The column had never had a referent, so every value in
+it was unverified by construction. The fixtures now point at a real part revision; **the constraint
+was not relaxed**.
+
+**F-31, found the expensive way.** 0010 first shipped with RLS enabled, forced and fully policied —
+and `check:rls` reported **PASS** while the application role got `permission denied` on both tables.
+The `GRANT` was missing, and `0003_auth.sql` already records why `ON ALL TABLES` in 0002 does not
+cover later tables. Nothing checks the privilege half. Remedy filed for **T-10b**: assert the grants
+alongside the policies, exemptions-as-data, as `check-rls` already does for commands.
+
+**Also cleaned up:** a failed `tsc --build` (run before the project reference existed) had emitted 51
+stray `.js` / `.d.ts` files *beside their sources* under `packages/*/src/`, because the out-of-rootDir
+fallback emits in place. They broke `pnpm lint` and would otherwise have been committed.
 
 ### T-10a: Reconcile the four disagreeing documents
 **Description.** Audit **D-19**, the content half. Four documents disagree: `TODO.md` RH-05 says both
@@ -443,16 +540,60 @@ is content in four files, T-10b is checker tooling in a different subsystem, and
 state its acceptance criteria in three bullets. Denominator 145 → 147, recorded in the scoreboard.
 
 **Acceptance criteria:**
-- [ ] All four corrected, each against the artifact that settles it — the manifest for the pack
+- [x] All four corrected, each against the artifact that settles it — the manifest for the pack
       status, the catalog file for the row count, the package list for §10, the blueprint source
       for the revision
-- [ ] Every corrected figure is re-derived at the time of the edit, not copied from another document
-- [ ] Where a number cannot be re-derived, it is removed rather than restated
+- [x] Every corrected figure is re-derived at the time of the edit, not copied from another document
+- [x] Where a number cannot be re-derived, it is removed rather than restated
 
 **Verification:** `python src/build.py` clean and `git diff --exit-code` on the built blueprint; each
 corrected figure traceable to the command that produced it, quoted in the commit body.
 **Dependencies:** None. **Files:** `LATEST.md`, `TODO.md`, `docs/CURRENT_STATE.md`, `src/parts/*`.
 **Scope:** S.
+
+**DONE 2026-09-02 (session 5) — container-verified.** `pnpm verify` **exit 0**, 50 test files, 1,143
+tests. `python src/build.py` and `src/verify.py` both clean, all 11 structural checks passing.
+
+**The task turned out to be one editorial rule rather than four corrections, and the rule is the
+deliverable:** *a dated observation keeps its number and says its date; a present-tense assertion
+about the product is re-derived or removed. A number is only wrong if it claims to be current.*
+Rewriting a dated measurement to match today falsifies the record, which is the opposite of what this
+repository is for — so three of the four documents needed **framing**, not new numbers.
+
+**Measured first, against the artifact that settles each:**
+
+| Claim | Settled by | Result |
+|---|---|---|
+| `TODO.md` RH-05 pack status | the manifests | **Already correct.** `interlake-2026-09` `APPROVED` / 336 rows, `2026-08` `QUARANTINED`, `manifest.status` `DRAFT` with `approved_by: ''`, `open_conflicts: 6`, 12 rules — every figure in the row verified |
+| `LATEST.md` "336 vs 378" | the catalog file | **Already fixed** — neither number appears. Session 3's drift-9 work held |
+| `docs/CURRENT_STATE.md` §10 | the package list | **Still wrong.** 8 `kernel-*` packages exist, plus `contracts`, `db`, `display-list`, `workflow` = **12**; tenancy, authorization and persistence are all built |
+| blueprint Rev C vs Rev A | the blueprint's own §18 | **Still wrong**, and worse than a typo — see below |
+
+**`TODO.md` needed no change, and that is a result rather than a skip.** Every figure in it is dated
+inline (*"Run 2026-08-31: PASS"*), which is already the correct form. Applying a banner to it would
+have been the rule fired blindly; the rule discriminating is the point of having one.
+
+**`LATEST.md` and `docs/CURRENT_STATE.md`** are both dated records — *"Written 2026-09-01"* and
+*"Assessed 2026-08-31 by repository inspection"* — that are read as live because of where they sit in
+the handoff trail (`LATEST.md` literally instructs *"read this first"*). Both gained a superseded
+banner stating the rule, naming what has landed since, and pointing at `tasks/progress.md`. Their
+dated tables are untouched.
+
+**One paragraph was a genuine present-tense assertion and was corrected in place**, with the original
+quoted beside it: `docs/CURRENT_STATE.md`'s *"`kernel-units` is one package of the eight … everything
+with tenancy, authorization or persistence in it is untouched."* Re-derived: 12 packages, RLS forced
+over **21** tables across **10** migrations, the authz matrix asserted against a 20-entry registry.
+The correction also says what has **not** moved — §15.2 is still 0 of 8 — because a correction that
+only reports progress is its own kind of drift.
+
+**The blueprint was the real find, and it is not a typo.** The footer read **Rev A** while the
+masthead and §1 both read **Rev C**, *and* it said *"no production implementation has begun and none
+should begin before the blocking decisions in §18 are answered"* — which **§18 contradicts four
+screens above**, recording the decision set as closed, and which ten migrations contradict outright.
+**A governing document that disagrees with itself cannot govern.** The masthead is authoritative on
+the revision and §18 on the decisions, so the footer was corrected to both, with the correction
+stated rather than made silently, and a sentence added putting §15.2's 0 of 8 where a reader reaches
+the end of the document.
 
 ### T-10b: Port `check-claims`, and widen `check-scoreboard-sync`
 **Description.** Audit **D-19**, the mechanism half — plus the remedy for **drift 18**, found in
@@ -467,15 +608,15 @@ green build. The gate ran, passed, and did not cover the thing it is named for �
 documentation layer.
 
 **Acceptance criteria:**
-- [ ] `tools/check-claims.mjs` ported: counts stated in markdown are derived from the code, and drift
+- [x] `tools/check-claims.mjs` ported: counts stated in markdown are derived from the code, and drift
       fails the build. It has a self-test, and the self-test runs first
-- [ ] `check-scoreboard-sync` additionally parses the four `<div class="m">` measure cards in
+- [x] `check-scoreboard-sync` additionally parses the four `<div class="m">` measure cards in
       `progress.html` and compares their values against the headline table in `progress.md`
-- [ ] **Both gates proven to fire:** a planted stale count goes red, and a planted disagreeing
+- [x] **Both gates proven to fire:** a planted stale count goes red, and a planted disagreeing
       measure card goes red. A gate never fed a disagreement passes forever
-- [ ] Each checker's docstring re-states its remaining blind spots, in the same breath as its
+- [x] Each checker's docstring re-states its remaining blind spots, in the same breath as its
       guarantee — the house rule
-- [ ] Both wired into `pnpm verify` and CI, self-test ahead of checker
+- [x] Both wired into `pnpm verify` and CI, self-test ahead of checker
 
 **Verification:** `node tools/selftest-claims.mjs && node tools/check-claims.mjs`; then plant a
 disagreeing measure card and confirm `check:scoreboard` red, revert, confirm green.
@@ -484,6 +625,72 @@ style that self-test plants probe files inside the working tree and becomes the 
 dependency is not in the original plan; it was found in session 5.
 **Files:** `tools/check-claims.mjs`, `tools/selftest-claims.mjs`, `tools/check-scoreboard-sync.mjs`,
 `tools/selftest-scoreboard-sync.mjs`, `package.json`, `ci.yml`. **Scope:** M.
+
+**DONE 2026-09-02 (session 5) — container-verified.** `pnpm verify` **exit 0 in 57 s**, **50 test
+files, 1,143 tests, 0 skipped**, coverage 99.58%, against a native PostgreSQL 16.13 with all 10
+migrations applied. Three gates landed, not two: **F-31** was closed inside `check-rls` in the same
+task, because the finding is checker work and belongs with it.
+
+**`check-claims` found its first defect on its first run**, before it was wired into anything:
+
+```
+check-claims: FAIL
+  progress.md · test files: states 47, the code says 50. Derivation: testFiles.
+  progress.html · test files: states 47, the code says 50. Derivation: testFiles.
+```
+
+Both scoreboard copies had published `47 test files` while the tree held 50, through T-08 and T-09,
+with `check-scoreboard-sync` green over it the whole time — because the two copies *agreed with each
+other*. **Sync and truth are different properties, and only one of them had a gate.** That is the
+gap this task exists to close, and it was live at the moment the checker was written.
+
+**A declared table, not a sweep, and the reason is T-10a's rule.** *A dated observation keeps its
+number and says its date.* A checker that flagged every stale-looking integer would fire on every
+dated record in the repository, be judged noisy, and be switched off inside a week. So a claim is
+checked because someone declared it — file, pattern, derivation — the same exemptions-as-data shape
+`check-rls` uses for policies. **Seven claims declared. The cost of the design is stated in the
+docstring:** a number written into a living document tomorrow is invisible until someone adds a row.
+
+**A pattern that matches nothing is a FAILURE, not "nothing to check."** That is the one way this
+checker refuses to rot quietly: reword the sentence a claim lives in and the build goes red rather
+than silently dropping the claim. Zero matches, more than one match, a missing derivation, an
+unreadable file, and a `checked === 0` vacuous pass are all refusals. `selftest-claims` plants all
+five and the agreeing case, in a temp tree under `os.tmpdir()` per T-28, with `assertRealTreeReachable`.
+
+**The measure cards are now inside the gate (drift 18).** `check-scoreboard-sync` compares each
+card's `.v` value and the FIRST `N of M` in its detail against `progress.md`'s headline section.
+Deliberately only those two: card prose legitimately mentions superseded figures (*"it took 20.0%
+down to 19.7%"*), and a checker that flagged those would be reporting history as drift. A self-test
+case asserts exactly that — history in prose does not fail, a changed card value does.
+
+**Widening the checker made its own self-test go red, which is the ordering working.** The honest-pair
+fixture had no measure cards, so `pnpm verify` stopped at `selftest-scoreboard-sync` before reaching
+the checker. Fixing the fixture surfaced a second, real blind spot: §15.2 is stated **three times in
+`progress.html` and four times in `progress.md`**, and the comparison read only the FIRST occurrence
+in each — so three of four could be edited with nothing going red. `mvpStepsAll` now asserts a file
+agrees with itself before the two files are compared. **Drift 18's shape, one level down.**
+
+**F-31 closed on the axis the finding named.** `grantViolations` asserts, for every table in `app`,
+that `app_user` holds each command the table allows — and, in the other direction, does **not** hold a
+command `EXEMPTIONS` says it disallows. One exemption table now governs both axes, because a command a
+table deliberately does not allow should be absent from policies and privileges alike; two lists can
+disagree, and an exemption honoured on one axis has stopped meaning what it says.
+
+**Proven against the live database, both directions:**
+
+| Planted | Result |
+|---|---|
+| `REVOKE SELECT ON app.part FROM app_user` | **red** — *"no SELECT privilege for app_user … every policy on it is decorative (F-31)"*, exit 1 |
+| `GRANT UPDATE ON app.audit_event TO app_user` | **red** — *"UPDATE is GRANTed … EXEMPTIONS says this table deliberately does not allow it"*, exit 1 |
+| restored | **green**, 82 grants = 21 tables × 4 − the audit table's 2 |
+
+**And the self-test proven against a broken checker:** neutering the missing-privilege branch turned
+`selftest-rls` red on 2 of 13 cases, naming both. Restored, 13 pass (7 sensitivity, 6 privilege).
+
+**What this does not cover, stated rather than implied.** `check-claims` reaches two of the four
+scoreboard copies. The published artifact and the Claude Project doc are not on disk and CI cannot
+read them; they remain hand-verified at update time. §15.2 is unmoved at **0 of 8** — three checkers
+landed and not one of them is a step a client can take.
 
 ### T-11: Add secret scanning to CI
 **Description.** Audit **D-20**. NFR-SEC-06 asks for it explicitly and it is absent. B2 credentials

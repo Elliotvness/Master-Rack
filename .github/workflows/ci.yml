@@ -158,6 +158,17 @@ jobs:
       - name: Scoreboard copies agree
         run: pnpm check:scoreboard
 
+      # Sync proves the two copies agree with each other. It cannot tell whether
+      # either one agrees with the repository, and two copies of a stale number
+      # agree perfectly. check-claims re-derives the declared figures from the
+      # working tree - and refuses to pass if a claim's pattern stopped matching,
+      # because a claim nobody checks reads exactly like a claim that holds.
+      - name: Stated-figure claims self-test
+        run: pnpm check:claims:selftest
+
+      - name: Stated figures match the repository
+        run: pnpm check:claims
+
       - name: Kernel coverage gate
         run: pnpm coverage
 

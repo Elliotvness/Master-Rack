@@ -27,23 +27,15 @@ export {
 } from './lib/trace.js';
 
 export {
-  DerivationError,
   QueueError,
   acknowledgementClock,
   ageHours,
-  deriveInternalRevision,
-  internalNote,
   orderQueue,
   organizationsInQueue,
   quoteDeliveryClock,
-  stripInternalRevisions,
   type ClockReading,
-  type DeriveResult,
-  type InternalNote,
-  type InternalRevision,
   type InternalStatus,
   type QueueEntry,
-  type SourceSubmission,
 } from './lib/queue.js';
 
 export {
@@ -57,4 +49,14 @@ export {
   type ReviewPackageKey,
 } from './lib/review-package.js';
 
+/**
+ * T-08 moved `deriveInternalRevision`, `internalNote` and `stripInternalRevisions`
+ * to `@rms/workflow`, and this barrel deliberately does NOT re-export them.
+ *
+ * Re-exporting would leave the old import path working and the move cosmetic:
+ * every caller would keep reaching a server authority through the app bundle,
+ * which is the thing D-01b is about. `apps/api` owns that surface now. What
+ * stays here is the queue's VIEW logic — ordering, the two OD-11 clocks, ages —
+ * and the trace panel.
+ */
 export type { Acknowledgement, Assumption } from '@rms/workflow';

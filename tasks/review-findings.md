@@ -672,7 +672,7 @@ the `units` pin was re-based with `--update`. Only that one line of the pin move
 `content-hash` and `positions` are unchanged, which is the correct blast radius for a change confined
 to the units case. A digest pinned over `"undefined"` was never a baseline.
 
-## F-27 — `stripInternalRevisions` cannot be called with the shapes its own tests describe *(raised in T-27, deferred to T-08)*
+## F-27 — `stripInternalRevisions` cannot be called with the shapes its own tests describe *(raised in T-27, FIXED in T-08)*
 
 `stripInternalRevisions<T extends { readonly clientVisible?: boolean }>` enforces **AC-14** — an
 internal revision is *absent* from client responses, not locked. Type-checking its test file for the
@@ -690,12 +690,22 @@ first time showed it refuses two shapes it handles perfectly well at runtime:
 hits both of these, and the path of least resistance is a cast. A cast around the function that
 decides what a client may see is how the control silently stops applying — and nothing would go red.
 
-**Not fixed here, deliberately.** The remedy is `clientVisible?: boolean | undefined` on the
-constraint, in `apps/internal-web/src/lib/queue.ts`. **T-08 moves that function to
-`packages/workflow` and is a pure move whose diff must read as "nothing changed except location"** —
-the same rule T-07 held itself to. Folding a signature change into it would break that. T-08 should
-land the move, then the signature, with a test that passes both shapes above without an annotation.
-The two tests are annotated for now, and each annotation carries a comment saying why.
+**FIXED in T-08, 2026-09-02, as the second of two commits** — the move first, then this, so the
+move's diff stayed reviewable as location-only.
+
+The remedy turned out **not** to be `clientVisible?: boolean | undefined`, which fixes the first
+shape and not the second: a constraint with every property optional stays a weak type, and the bare
+object literal still would not compile. The constraint is now **`T extends object`**, with the
+marker read through an `in` narrowing so the implementation needs no cast either.
+
+Written test-first, and **the gate T-27 added is what caught it**: two cases using the bare shapes,
+no annotation and no cast, went in before the fix — `tsc -p tsconfig.tests.json` **exit 2**, four
+errors; after the fix, **exit 0**. Behaviour is unchanged: an item is internal only when it carries
+the marker and the marker is exactly `false`.
+
+**The control was re-proven against the rewritten implementation**, because a passing test after a
+rewrite proves nothing: internal-items-kept goes **4 red** (up from 3 — the two new cases made it
+stronger), and inverting the membership test so *absent* counts as internal goes 3 red.
 
 ## F-28 — the units case still does not test what its comment claims *(raised in T-27, open)*
 
@@ -754,6 +764,67 @@ Historical note, because it is the same number: `LATEST.md`'s long-standing "1,0
 claim was replaced in session 3 for being stale. It is now also, exactly, the count of a run with no
 database. A figure that means two different things is worth never quoting again without the file
 count beside it — 47 files, 1,126 tests, 0 skipped, is the whole assertion.
+
+## F-30 — `part_number` is not unique in either approved release *(raised in T-09, open — the approver's call)*
+
+Found by measuring the release before keying a table on it, not by reading it.
+
+In **`interlake-2026-09`**, two part numbers each appear on two rows, with different
+spans and different capacities:
+
+| part_number | code_18 | span | capacity |
+|---|---|---|---|
+| `UM005516` | `IB65QT05400RSA400` | 54 in | 24,940 lbs |
+| `UM005516` | `IB65QT06000RSA4000` | 60 in | 22,540 lbs |
+| `UM005517` | `IB65QT06600RSA400` | 66 in | 20,570 lbs |
+| `UM005517` | `IB65QT07200RSA4000` | 72 in | 18,940 lbs |
+
+**The same duplication is present in `interlake-2026-08`**, so it is carried forward from the
+original extraction rather than introduced by the 2026-09 corrections. `code_18` is unique — 336
+distinct codes across 336 rows, in both releases.
+
+**Two of these four rows are already flagged elsewhere.** `IB65QT05400RSA400` and
+`IB65QT06600RSA400` appear in the 2026-08 manifest's own anomaly list as 17-character codes where 18
+were expected. All four are 65QR / F5M, the same family as the `...RRA4000` end-plate-letter
+exemption recorded in the 2026-09 manifest. There is a cluster of oddities in one family.
+
+**Consequence, already handled:** `app.part` is keyed on `(manufacturer, code_18)` and `part_number`
+is carried as an attribute of the revision. A registry keyed on the part number would have refused to
+load the approved catalog on its first run.
+
+**What is NOT decided, and is not mine to decide:** whether one order number genuinely covers two
+spans in the published source, or whether these are transcription slips. It sits inside an APPROVED
+release, so per the standing rule it is EL's call, and **nothing in T-09 alters the release either
+way.** If they are slips, the fix belongs to a future release, not a correction of a signed one.
+
+## F-31 — a new table can pass `check-rls` and still be unusable *(raised in T-09, open, owner T-10b / T-23)*
+
+Migration 0010 created `app.part` and `app.part_revision` with RLS enabled, forced, and a policy for
+every operation. `pnpm check:rls` reported **PASS** over both. The application role could not read or
+write either of them: `permission denied for table part`.
+
+The missing piece was the `GRANT`. `0002_rls.sql` runs
+`GRANT ... ON ALL TABLES IN SCHEMA app`, and **`0003_auth.sql` already records why that is not
+enough** — ON ALL TABLES affects only the tables that existed when it ran, so every migration adding
+a table must grant explicitly. 0003 and 0004 both do. 0010 did not.
+
+**This is the recurring shape at the privilege layer.** `check-rls` does exactly what its docstring
+says and nothing more; the gap is that *nothing at all* checks the other half. A table added with RLS
+and no GRANT is a table CI calls secure and the application cannot use — and the failure appears at
+runtime, in whatever code first touches it, with an error that names permissions rather than the
+migration that forgot them.
+
+Caught here by the T-09 tests failing, which is the expensive way. **Remedy:** extend `check-rls` (or
+add a sibling) to assert that every table in `app` grants SELECT/INSERT/UPDATE/DELETE to the
+application role, with the same exemptions-as-data structure it already uses for policies. That is a
+dozen lines against `information_schema.role_table_grants`, and it belongs with the checker work in
+T-10b.
+
+**Also worth recording:** the FK added by 0010 immediately turned **four existing tests red**. They
+were inserting `bom_line` rows with `gen_random_uuid()` in `part_revision_id` — a reference to
+nothing. That is not a test bug so much as the evidence for D-10: the column had never had a
+referent, so every value in it was unverified by construction. The fixtures now reference a real part
+revision; the constraint was not relaxed.
 
 ## F-12 and F-13 — fixed, values untouched
 

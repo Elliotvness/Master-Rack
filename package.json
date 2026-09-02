@@ -39,10 +39,12 @@
     "check:spotrecord": "node tools/check-spot-check-record.mjs",
     "check:spotrecord:selftest": "node tools/selftest-spot-check-record.mjs",
     "check:docs": "python src/build.py",
-    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:boundaries:selftest && pnpm check:boundaries && pnpm check:apps:selftest && pnpm check:apps && pnpm lint:provenance:selftest && pnpm lint:provenance && pnpm check:language:selftest && pnpm check:language && pnpm check:contenthash:selftest && pnpm check:contenthash && pnpm check:spotrecord:selftest && pnpm check:spotrecord && pnpm check:lockfile:selftest && pnpm check:lockfile && pnpm check:draw:selftest && pnpm check:rls:selftest && pnpm check:rls && pnpm check:determinism:selftest && pnpm check:determinism && pnpm check:scoreboard:selftest && pnpm check:scoreboard && pnpm coverage",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm check:boundaries:selftest && pnpm check:boundaries && pnpm check:apps:selftest && pnpm check:apps && pnpm lint:provenance:selftest && pnpm lint:provenance && pnpm check:language:selftest && pnpm check:language && pnpm check:contenthash:selftest && pnpm check:contenthash && pnpm check:spotrecord:selftest && pnpm check:spotrecord && pnpm check:lockfile:selftest && pnpm check:lockfile && pnpm check:draw:selftest && pnpm check:rls:selftest && pnpm check:rls && pnpm check:determinism:selftest && pnpm check:determinism && pnpm check:scoreboard:selftest && pnpm check:scoreboard && pnpm check:claims:selftest && pnpm check:claims && pnpm coverage",
     "clean": "tsc --build --clean",
     "check:scoreboard": "node tools/check-scoreboard-sync.mjs",
-    "check:scoreboard:selftest": "node tools/selftest-scoreboard-sync.mjs"
+    "check:scoreboard:selftest": "node tools/selftest-scoreboard-sync.mjs",
+    "check:claims": "node tools/check-claims.mjs",
+    "check:claims:selftest": "node tools/selftest-claims.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
