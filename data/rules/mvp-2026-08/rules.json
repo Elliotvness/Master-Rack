@@ -11,7 +11,7 @@
     "approved_by": "",
     "approved_at": "",
     "open_conflicts": [
-      "Which edition of ANSI MH16.1 an AHJ enforces has not been established. Known as of 2026-09-02, per the IBC's own referenced-standards lists: IBC 2024 adopted ANSI MH16.1-2021; IBC 2021 referenced MH16.1-2012; a 2023 edition of the standard exists. No rule in this pack cites MH16.1 at PRIMARY tier as a result.",
+      "Which edition of ANSI MH16.1 an AHJ enforces has not been established. Known as of 2026-09-02, per RMI (the standard's sponsor, 2024-07-10) and the ANSI webstore's revision history \u2014 NOT the IBC's referenced-standards lists, which were not read and are paywalled: IBC 2024 adopted ANSI MH16.1-2021; IBC 2021 referenced MH16.1-2012; MH16.1-2023 exists and revises MH16.1-2021. Unresolved second thread: ANSI's own summary states MH16.1-2023 \"is referenced by the International Building Code\" without naming an edition, which contradicts RMI and bears on the Fresno position below. No rule in this pack cites MH16.1 at PRIMARY tier as a result.",
       "The NFPA section for the 18-inch sprinkler clearance rule is not established; the rule is carried at NOT_FOUND and reports measured geometry with no verdict attached.",
       "The load-face aisle measurement convention has no located code basis. ADR-006 fixes the datum for internal consistency; it is not a compliance claim.",
       "Maximum row length before a fire break: no source located.",

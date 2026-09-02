@@ -797,7 +797,7 @@ spans in the published source, or whether these are transcription slips. It sits
 release, so per the standing rule it is EL's call, and **nothing in T-09 alters the release either
 way.** If they are slips, the fix belongs to a future release, not a correction of a signed one.
 
-## F-31 — a new table can pass `check-rls` and still be unusable *(raised in T-09, open, owner T-10b / T-23)*
+## F-31 — a new table can pass `check-rls` and still be unusable *(raised in T-09, **CLOSED in T-10b**)*
 
 Migration 0010 created `app.part` and `app.part_revision` with RLS enabled, forced, and a policy for
 every operation. `pnpm check:rls` reported **PASS** over both. The application role could not read or
@@ -825,6 +825,136 @@ were inserting `bom_line` rows with `gen_random_uuid()` in `part_revision_id` �
 nothing. That is not a test bug so much as the evidence for D-10: the column had never had a
 referent, so every value in it was unverified by construction. The fixtures now reference a real part
 revision; the constraint was not relaxed.
+
+**Closed in T-10b, on the axis the finding named.** `grantViolations` asserts, for every table in
+`app`, that `app_user` holds each command the table allows — and, in the other direction, that it
+does **not** hold a command `EXEMPTIONS` says the table disallows, so the audit table's revoke cannot
+be silently undone by a later migration. One exemption table now governs both axes, because two lists
+can disagree and an exemption honoured on one axis has stopped meaning what it says. Proven against
+the live database: `REVOKE SELECT ON app.part` → red; `GRANT UPDATE ON app.audit_event` → red;
+restored → green at 82 grants. `selftest-rls` gained six privilege cases and was itself proven
+against a deliberately broken checker (2 of 13 red, both named).
+
+## F-32 — "push each task's commit as it lands" has no mechanism behind it *(raised 2026-09-02 by EL, open, owner T-11)*
+
+**The repeating shape, this time in the practice rather than the code.**
+
+Session 4 recorded drift 16 — both scoreboard copies asserted CI covered the tip when it did not —
+and wrote the remedy in the same bullet: *push each task's commit as it lands*. Sessions 4 and 5 then
+applied it, recorded it as applied, and measured the gap it was supposed to close ("T-28 is one
+commit unpushed", "the gap is one task deep by design"). **The remedy buys no CI coverage at all.**
+
+`.github/workflows/ci.yml` fires on `push: branches: [main]`, on `pull_request`, and on a nightly
+schedule. A push to a task branch matches none of them. Re-derived from the file today; EL confirmed
+it independently three ways — `gh run list --commit be78f19` empty, `--branch task/t-09-part-registry`
+empty, and the API's `commits/be78f19/check-runs` returning `total: 0`.
+
+So the honest statement about `be78f19` is not *"pushed, run not read"* — which every copy of the
+scoreboard has said, and which implies a run exists. It is **no run was ever created**. Three
+sessions have been counting a push as a verification event, and a push is not one.
+
+**This is F-01/F-02/F-08/F-11/F-19/F-26/F-31 one layer up:** a control that states its own method,
+is applied conscientiously, is measured — and has nothing behind it. It was invisible because the
+thing it produces (a green tick) is produced by a *different* trigger, so it appeared whenever a PR
+happened to be open and never when one was not.
+
+**What did cover the work:** PR #7, head `b5850fb`, which contains all 12 commits — so `be78f19`'s
+content is judged, but by the PR trigger and only once the PR was opened, days after the push the
+project recorded as the verification.
+
+**Remedy, and it carries a decision.** Either:
+
+- **(a)** add `push: branches: ['**']` to the `on:` block, so every branch push is judged when it
+  lands. Correct, and it makes the existing remedy true. Cost: a PR branch is then built twice per
+  push unless a `concurrency` group with `cancel-in-progress` is added alongside it. That is the
+  version that matches what the practice already claims.
+- **(b)** keep the trigger and change the practice: open a **draft PR with the first commit** of each
+  task branch, so the `pull_request` trigger covers every subsequent push. No workflow change, and it
+  also gets the diff in front of a reviewer earlier.
+
+Not chosen here. **(a) is a CI modification and belongs in T-11**, which is the open task that touches
+`ci.yml`; (b) is a change to how EL works and is EL's to accept. What must not survive either way is
+the current wording, which describes a mechanism that does not exist.
+
+## F-33 — the source-conflict register cites a source that was not read *(raised and **CLOSED** 2026-09-02)*
+
+T-12 landed the IBC/MH16.1 adoption facts into `data/rules/mvp-2026-08/rules.json`, the blueprint and
+`src/parts/09-s10.html`. **The facts are right.** Verified independently today against RMI — the
+standard's own sponsor — which states that the 2024 IBC adopted ANSI MH16.1-2021 and that the 2021
+IBC referenced MH16.1-2012, and against ANSI's webstore, whose Document History for MH16.1-2023 reads
+`Revises: ANSI MH16.1-2021`.
+
+**The attribution is wrong.** All three copies say the facts are known *"per the IBC's own
+referenced-standards lists."* That list was not read. IBC 2024 Chapter 35 sits behind ICC's Premium
+subscription, UpCodes disallows automated access, and California's published Chapter 35 material
+carries only its amendments. Four attempts, no primary text.
+
+**This is F-08's shape at the citation layer, and it is in a governing artifact**, which makes it
+worse than the same defect in a scoreboard: the sentence names a method (reading the code's
+referenced-standards list) that is not the method used (reading the standard sponsor's summary of
+it). A later reader checking the register against the IBC will not find the sentence there.
+
+**One substantive point rides along.** ANSI's own blog states that *"ANSI MH16.1-2023 is referenced by
+the International Building Code"* — naming no edition, and contradicting RMI's specific claim that the
+adopted edition is 2021. That is unresolved, it bears directly on the Fresno half of the conflict
+("City of Fresno cites 2023"), and it is exactly the kind of thing a conflict register exists to
+hold open rather than resolve by picking the more convenient source.
+
+**Remedy (XS):** change *"per the IBC's own referenced-standards lists"* to name what was actually
+read — RMI's 2024-07-10 statement and the ANSI webstore's revision history — and add the ANSI-blog
+contradiction as a second open thread beneath the AHJ-enforcement one. **The register keeps its
+facts; it stops overstating where they came from.**
+
+**Closed the same day.** Both copies now credit RMI and the ANSI revision history and say explicitly
+that the IBC lists *were not read and are paywalled*; the ANSI-blog contradiction is recorded as a
+second unresolved thread against the Fresno position. **Not one figure changed** — the facts were
+right and only the provenance was wrong, which is the whole point of separating the two. Rebuilt with
+`python src/build.py` (all checks passed), `vitest run packages/kernel-rules` 46 passed,
+`pnpm verify` exit 0.
+
+## F-34 — a commit was lost because "pushed" was never checked *(raised 2026-09-02, **recovered**, owner T-11's practice half)*
+
+Commit `97a54d9`, carrying the F-32 finding, drift items 28 and 29, T-11's grown scope and the
+denominator move to 148, **was never pushed**. `task/t-10a-reconcile-documents` was deleted after
+PR #7 merged; the commit survived only as a dangling object, reachable through the reflog and
+scheduled for `gc`. Everything it recorded was absent from `main` for two merges — during which T-11
+was implemented *against* the F-32 write-up and shipped citing it, while the repository contained no
+F-32 at all.
+
+Recovered today: `git branch rescue/f32-record 97a54d9`, then the four files restored from that
+tree onto a branch off `main`. Nothing was lost.
+
+**The mechanism is worth stating precisely, because it is F-32 wearing different clothes.** The
+branch-deletion step was guarded by a check — *tips are ancestors of `main`* — and that check passed,
+because it was asked about a ref that no longer pointed at the last commit. **A verification ran, and
+answered a question adjacent to the one that mattered.** F-32 was a control with no mechanism; this
+is a mechanism aimed slightly to the left of its control.
+
+**Remedy:** before deleting any branch, `git log --oneline @{u}..` must be empty, not merely
+`merge-base --is-ancestor`. Cheap, and it asks the question the deletion actually depends on. Belongs
+with T-11's practice half, which is already the task that owns "does the thing we say we do actually
+happen".
+
+## F-35 — `await import()` of a built path fails on Windows *(raised 2026-09-02 by EL, fix written and uncommitted)*
+
+`tools/selftest-spot-check-draw.mjs` loaded its built modules with `await import(join(DIST, '…js'))`.
+On POSIX an absolute path is an acceptable ESM specifier; **on Windows `C:\…` is not** — Node reads
+the drive letter as a URL scheme and throws `ERR_UNSUPPORTED_ESM_URL_SCHEME`. All three call sites
+now wrap the path in `pathToFileURL`, which is correct and platform-neutral.
+
+**The finding is not the fix, it is what the fix implies:** `pnpm check:draw:selftest` — and therefore
+`pnpm verify` — **has never completed on Windows.** CI is Linux, so every green run in this
+repository's history passed over a step that could not run on the machine Checkpoint A requires it to
+run on. **Checkpoint A's Windows half was blocked by this and nobody knew**, because the Windows half
+had never been attempted.
+
+Re-derived today: `selftest-spot-check-draw.mjs` is the **only** file in `tools/` using dynamic
+import, and all three of its call sites are converted, so the class is closed rather than one instance
+of it.
+
+**The fix is uncommitted in the working tree** and is deliberately left there — it is a code change
+and wants its own commit and its own proof, which is a Windows `pnpm verify` run reaching that step.
+**That run is the evidence Checkpoint A needs anyway.**
 
 ## F-12 and F-13 — fixed, values untouched
 
