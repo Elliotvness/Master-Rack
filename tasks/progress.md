@@ -16,6 +16,20 @@ not — **F-37**). R-08, R-09 and R-10 closed on their own criteria, R-07 dispos
 on the record. **Checkpoint A is held and not green**: one criterion red (Windows verify, F-37), one
 waiting on EL. §15.2 did not move.
 
+**Session 6, close-out (2026-09-02, afternoon UTC) — Checkpoint A is now green on everything that
+can be measured.** Measured on `main` @ `b8d2087`: PR #13 (F-36), #14 (the checkpoint record), #15
+(F-37's remedy) and #16 (R-07 fixed to throw) merged, each on a green run read on its PR page; CI
+**#64** on the merge commit read step by step (`verify` 1m28s, the two new types-only steps present
+and green ahead of the coverage gate). **F-37 was raised, remedied and closed in one day**: the two
+types-only modules leave the coverage gate through a single list that a thirteenth self-tested
+checker, `check-types-only`, re-proves on every run, and the Windows verify script then reached
+**exit 0 at `0df4af5`** — the first complete `pnpm verify` on Windows in this repository's history.
+**R-07 closed** by the recommended fix: `approved_by: 42` and `constraints: {a: "x"}` now throw with
+the field named, test-first (two red, then green), and the review count is **11 of 11**. Container
+verify on `b8d2087`: exit 0, 76 s, **50 files, 1,144 tests, 0 skipped**. Of the checkpoint's eight
+criteria, **seven are ticked on evidence; the eighth is EL's word and the T-14 breakdown**, which
+nothing in this session can supply. §15.2 did not move.
+
 **Two things this session should be read for.** First, a second session was found working the same
 tree at 09:23 UTC (`fix/f-36-internal-web-symbol-rule`, the earlier session still alive) — two
 writers in one working tree, resolved by EL stopping it; the branch was pushed, reviewed as a diff,
@@ -135,7 +149,7 @@ The procedure, so it is reproducible:
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
 | Plan-task completion, effort-weighted | 52 of 148 pts — **35.1%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
 | Plan-task completion, task count | 20 of 45 — 44% | Same, unweighted | Same |
-| Pre-merge review `R-01…R-11` | 10 of 11 — 91% | **§16.1** review gates | A sub-checklist of one merged branch, not the project. Done: R-01…R-06, R-08, **R-09**, **R-10**, R-11 — the last two closed at Checkpoint A, in the container, on their own criteria. Open: **R-07** — L-3 and L-5 dispositioned, not resolved; fix-to-throw recommended, EL's call |
+| Pre-merge review `R-01…R-11` | **11 of 11 — 100%** | **§16.1** review gates | A sub-checklist of one merged branch, not the project. All eleven closed on their own criteria. R-09 and R-10 closed at Checkpoint A in the container; **R-07 closed last**, by fixing L-3 and L-5 to throw (`6696f5f`, PR #16) rather than leaving them dispositioned — the dissent on the record won |
 | Route surface vs the blueprint | 19 of 21 MVP-1 routes declared | **§8.2** (23 rows, 2 marked phase 2) | Re-enumerated today, path by path. A *registry* figure, not a served one — nothing mounts it |
 
 These are not competing answers. **0% is the answer**; 35.1% is how much of the written plan has
@@ -146,12 +160,18 @@ while it happened**, and that is not a paradox: Phase 2 was repairs and controls
 of done is a client getting through eight screens. **The next point earned is the first one that can
 move it.**
 
-**Checkpoint A was held in session 6, and it is not green.** Seven of its eight criteria were
-re-measured (three runs, three machines); five are met, one is met by mechanism only on the F-36
-tree, one is red — *"`pnpm verify` PASS on Windows"* fails at the very last step, coverage, for a
-reason that is neither the code nor the tests (F-37) — and the eighth is the review itself, which
-waits on EL for F-37's remedy, R-07's two dispositions, PR #13's merge and the T-14 breakdown. The
-checkpoint record is in `tasks/todo.md`; it ticks nothing it did not run.
+**Checkpoint A was held in session 6, and by the close of the session every measurable criterion
+is met.** When it was first held, seven of its eight criteria were re-measured (three runs, three
+machines); five were met, one was met by mechanism only on the F-36 tree, and one was red —
+*"`pnpm verify` PASS on Windows"* failed at the very last step, coverage, for a reason that was
+neither the code nor the tests (F-37). By the close-out: F-36 is on `main` (PR #13), so the
+mechanism criterion holds on `main` and not only on a branch; F-37's remedy landed (PR #15) and the
+Windows script re-ran to **exit 0** (`0df4af5`, 1 m 34 s, coverage identical to Linux), so the red
+criterion is ticked on a run and not on a promise; and R-07's two open items were fixed to throw
+(PR #16), so the review that the checkpoint carries is 11 of 11. **Seven of eight ticked, each on
+evidence.** The eighth — *review with EL before Phase 3* — is the word that closes the checkpoint
+and the Phase 3 breakdown of T-14, and it is EL's. The checkpoint record is in `tasks/todo.md`; it
+ticks nothing it did not run.
 
 **Both moved this session, in opposite directions, and the two must not be confused.**
 
@@ -282,6 +302,12 @@ Re-measured by running commands against the working tree:
 
 | | |
 |---|---|
+| **Session 6 close-out · branch · tip** | **`main` @ `b8d2087`**, level with `origin/main`, clean tree, no local branch left in the container — PR #13 (`3caa91d`, F-36), PR #14 (`9296ce1`, the checkpoint record and the previous edition of this file), PR #15 (`d3b2979`, F-37's remedy: `fe8a72a` + `0df4af5`) and PR #16 (`b8d2087`, R-07: `6696f5f`) merged since the row below, remote branches deleted after each tip sha was found in `main`'s log — and `origin/review/r-07-load-manifest` **re-appeared at `6696f5f` between the merge and this update** (something on the Windows side re-published it; its tip is in `main`, so it is deleted again here, and `git ls-remote --heads` is the check that would have caught it). Working branch for this update is `docs/scoreboard-checkpoint-a-close`. **The Windows tree was found on `review/r-07-load-manifest` @ `6696f5f` with its `main` at `9296ce1`** — two merges behind — and is switched and pulled as part of this update. **Re-run `git rev-parse --short HEAD` rather than quoting from this document** |
+| **Session 6 close-out · `pnpm verify` on `b8d2087`** | Container, native PostgreSQL 16 on 55432, 10 migrations. **Exit 0 in 76 s — 50 files, 1,144 tests, 0 skipped**, every one of the **13** checkers green behind its self-test, `check-types-only: PASS — 2 types-only module(s) still compile to an empty module`, `load-manifest.test.ts (32 tests)` where there were 31. The one new test is R-07's; the count moved by one because one pin was replaced by two |
+| **Session 6 close-out · CI #64 read, not reported** | `main` @ `b8d2087`, push, Success 1m35s; `verify` 1m28s, `docs` 6s. Job page opened in the browser and the step list read in order: *Types-only exclusion self-test* (0s) and *Coverage exclusions are still types-only* (1s) sit between *Stated figures match the repository* and *Kernel coverage gate* (19s), exactly where `ci.yml` puts them; `Unit and tenancy tests` 17s with `load-manifest.test.ts (32 tests)` and `tenancy.test.ts (41 tests)` visible in the expanded log. (The viewer still does not render vitest's summary line; the per-file lines are what was read.) The same warning as every run: Node 20 actions forced onto Node 24 |
+| **Session 6 close-out · `pnpm verify` on Windows — exit 0, the first time ever** | `0df4af5`, Node v24.19.0, pnpm 11.22.0, Docker Postgres 16 healthy. `_to_delete/verify-windows.log`: **`=== pnpm verify EXIT CODE 0 at 09/02/2026 4:38:54.90`**, 1 m 34 s, 50 files, 1,143 tests, 0 skipped, coverage 99.58 / 99.03 / 99.75 / 99.58 — the same four figures Linux and CI report. **F-37 closed on the machine that raised it; F-35 proven a third time on that machine.** Checkpoint A's Windows criterion is ticked on this run |
+| **Session 6 close-out · F-37 raised, remedied, closed** | Raised by the second Windows run of the day (coverage exit 1, `packages/workflow/src/**` at 67.85%), reproduced in the container under Node 22 and Node 24 at 100 — OS-specific, not Node. Remedy (option 1, the recommended one): `tools/types-only.mjs` is the single list `vitest.config.ts` excludes and `check-types-only` reads; the checker maps each source to its emitted `dist/*.js`, strips comments, and refuses anything but `export {};`. **Planted-red proof against the real file**: a runtime export added to `assumptions.ts`, built, `check-types-only` red naming the file and the statement; removed, green. `selftest-types-only: PASS — 10 cases, real list reachable`. Wired self-test-first into `verify` and `ci.yml` (the CI step committed through the web editor — the workflow file is protected on the bridge) |
+| **Session 6 close-out · R-07 closed, review 11 of 11** | The dissent recorded at the checkpoint was taken: `strOrNull` throws `'<field>' must be a string or empty` for a non-string that is not absent, null or blank; `constraints` goes through a new `numberRecord` that refuses arrays, non-objects and non-finite values with the entry named. **Test-first**: the two new tests were red — *"expected function to throw an error, but it didn't"*, 2 failed, 30 passed — then green at 32. `review-todo.md` L-3 and L-5 `[x]` with lineage; PR #16 merged on a green run |
 | **Session 6 · branch · tip** | **`main` @ `e86d2bf`**, level with `origin/main`, clean tree — PR #10 (`7afdffc`, F-32 recovery + Phase 2 close + F-33), PR #11 (`1f3d6d5`, F-35), PR #12 (`e86d2bf`, CLAUDE.md + the `rms-engineer` agent) merged this session, each on four green checks read on the PR page; remote and local branches deleted only after each tip sha was found in `main`'s log. `rescue/f32-record` @ `97a54d9` kept, unmerged by design. **PR #13** (`89e55fa`, F-36) open, CI #49 Success 1m27s. Working branch for this update is `review/checkpoint-a`, off `89e55fa`. **Re-run `git rev-parse --short HEAD` rather than quoting from this document** |
 | **Session 6 · Checkpoint A held** | Record in `tasks/todo.md`. Of its eight criteria: five met and evidenced, one met by mechanism only on the F-36 tree, **one red** (Windows verify — F-37), one waiting on EL. Nothing ticked that was not run. *(The first draft of this row wrote the count in digits and `check-scoreboard-sync` refused it as a second §15.2 figure — the gate reading prose it was not written for, and being right.)* |
 | **Session 6 · `pnpm verify` on Windows — the first time** | `89e55fa`, Node v24.19.0, pnpm 11.22.0, Docker Postgres 16 healthy, `pnpm migrate` exit 0. **50 files, 1,143 tests, 0 skipped. `selftest-spot-check-draw: PASS — 48 draws agree` — F-35 proven on the machine it was found on.** Then `pnpm coverage` **exit 1**: `packages/workflow/src/**` at 67.85% because `assumptions.ts` and `finding.ts` (types only) count as 62 + 28 uncovered lines on Windows and 0/0 on Linux. Re-run in the container under Node 22 **and** Node 24: both 100. OS-specific. **F-37.** Run 1, three minutes earlier, is F-29 live: `migrate` raced the container, 92 tests skipped, `pnpm test` ticked green, `check-rls` refused |
@@ -348,9 +374,10 @@ confident that session was. Three figures sit here for session 5, all with the s
   Historical: `LATEST.md`'s "1,042" was replaced in session 3 and was low.
 - ~~**Windows.** Nothing here has been run on Windows this session.~~ **Run in session 6 — moved to
   *Verified today*.** `pnpm verify` executed on Windows for the first time: green through
-  `check:claims`, red at coverage (F-37). Checkpoint A's Windows criterion is therefore measured and
-  **not met**, which is a different state from unmeasured. The CI half is met by a read of CI #48's
-  job log.
+  `check:claims`, red at coverage (F-37). Checkpoint A's Windows criterion was therefore measured and
+  **not met**, which is a different state from unmeasured — and then, after F-37's remedy, **run
+  again at `0df4af5` to exit 0**, so the criterion is met on a run. The CI half is met by a read of
+  CI #48's job log, and again by CI #64's.
 - **"CI green."** True of `efbafbd`, false of `HEAD` — see drift 16. Run #10's `verify` log lists
   Postgres containers, migrations, the tenancy tests and the RLS coverage assertion all green, each
   checker behind its own self-test; it reports a green *job*, not a count this session read, and it
@@ -374,8 +401,10 @@ to 14**; item 11 is again this file describing itself wrongly, and 13 and 14 are
 a task's own verification line — found only because the line was actually re-run.
 
 **Session 5 found fifteen, items 15 to 29, and every one of them is inside the scoreboard itself
-or in the practice that maintains it.** Session 6 found three more, items 30 to 32 — two stale
-figures inside this file and one honest sentence that reads as more than it is. This is the cleanest measurement the project has of how fast
+or in the practice that maintains it.** Session 6 found six, items 30 to 35 — two stale
+figures inside this file, one honest sentence that reads as more than it is, and at the close-out a
+stale branch name in the plan, a Windows tree two merges behind, and **the published page carrying
+drift 30 a full edition after this file fixed it** (item 35). This is the cleanest measurement the project has of how fast
 its own documentation goes stale: **fifteen false statements across the four copies in under a day.**
 
 Three matter most, and they are three different failures of the same kind. **Item 18** — the gate
@@ -427,6 +456,9 @@ denominator moving, which is the only reason anyone looked at that table twice.
 | 30 | *(new, session 6)* The *"Where the remaining points sit"* paragraph said **116** remaining with **Phase 2's residue 16** while the phase table three screens above said **100** and Phase 2 complete | **Fixed — 96, Phase 2's residue 0, re-derived.** Two figures in one file for the same quantity, one updated per session and one not. `check-scoreboard-sync` compares the phase bars and the measure cards, not this paragraph |
 | 31 | *(new, session 6)* The headline's review row counted **R-08 as done** ("Done: R-01…R-06, R-08, R-11") while the phase table's Phase 3 row listed **R-08 as open** and excluded its 2 points | **Fixed — both say done, and it is:** R-08's one unticked line (`pnpm test packages/kernel-catalog`, "NOT RUN HERE") was run this session. Until then the review row was overstating and the phase row was right; binary completion means the file should have said *open* in both places |
 | 32 | *(new, session 6)* Every DONE block, this file's header and the session-5 rows say **"`pnpm verify` … 0 skipped"** as if the count were a property of the code | **Not a false statement, and recorded so it stops being read as one.** The Windows run showed the same commit report **1,051 passed, 92 skipped** with a green `pnpm test` when the database was not yet up. A skip count is a property of the *run*, and F-29's `RMS_REQUIRE_DB=1` remedy is still unowned |
+| 33 | *(new, session 6 close-out)* `tasks/todo.md`'s Checkpoint A review line said R-07's fix was *"on `review/r-07-load-manifest`"* — a branch that no longer existed once PR #16 merged and its remote was deleted — and this file's review row still read **10 of 11** while `tasks/review-todo.md` had said **11 of 11** since the same merge | **Fixed — "PR #16, merged" in the plan, 11 of 11 here.** The same shape as items 5, 11, 15 and 26: a present-tense sentence written at the moment of the commit, true for the twenty minutes until the branch was merged, and nothing to re-derive it. `check-claims` counts figures it was told to; a review count and a branch name are not among them |
+| 34 | *(new, session 6 close-out)* The Windows working tree sat on `review/r-07-load-manifest` @ `6696f5f` with its local `main` at `9296ce1`, two merges behind `origin/main`, while this file's tip row described the container's `main` | **Fixed — switched to `main` and pulled to `b8d2087` as part of this update.** Not a false statement in the file, since the row names the container; recorded because two trees of the same repository at different commits is how a second writer (the *two writers, one tree* row above) goes unnoticed, and because the next Windows verify would have run on the wrong tree |
+| 35 | *(new, session 6 close-out)* `progress.html` still read **"48 done points"** in its sensitivity header, **"100 points remain … Phase 3 (34)"** under the phase table, **"remaining 116 … Phase 2's residue 16"** under the sensitivity table, and its drift table ended at item 29 — three different remainders on one page | **Fixed — 52, 96, 96, rows 30–35 added.** Drift 30 was fixed in this file at the checkpoint edition and the page was republished without it; `check-scoreboard-sync` was green over the whole thing because the header and the paragraph are prose outside the figures it compares. **The fifth time a fix landed in one copy of two** (items 19, 23, 27, 30, and this). The check that would catch it is the cadence's step 7 — read the page, not the gate — and it was not executed |
 | 29 | *(new, session 5 — **mine, found while re-deriving for item 28's commit**)* The sensitivity table's four scenario **denominators** were built on the pre-split base of **145** while its own first row read **147** | **Fixed — all five re-derived from 148.** Item 24 fixed that table's *numerators* earlier the same day and I did not check its denominators, so a table about how the denominator moves was itself carrying a stale one. Two defects in one table in one day, both invisible to `check-scoreboard-sync`, which compares the phase bars and not this |
 
 **Drift 4 was not drift.** Both figures were accurate; the *classification* was wrong. Filed beside
@@ -461,34 +493,24 @@ rule earns its keep: the blueprint wins, and the scoreboard is what gets fixed.*
 
 ## What to do next, in order
 
-*(Rewritten in session 6. The session-5 list — push T-07, T-10b, the rest of Phase 2 — is done and
-is lineage now; it lives in git history at `2bad6d7`.)*
+*(Rewritten at the session-6 close-out. The list written when the checkpoint was first held — F-37's
+remedy, R-07's two items, merge PR #13, merge the checkpoint branch, re-run the Windows script — is
+done in full under EL's standing "continue" and is lineage now; it lives in git history at
+`9296ce1`. The session-5 list before it is at `2bad6d7`.)*
 
-### Immediate — EL's calls, which nothing else can make (est. one conversation)
+### Immediate — EL's, and nothing else can supply it (est. one conversation)
 
-1. **F-37's remedy.** Three options in `tasks/review-findings.md`. The recommended one is an
-   explicit exclusion of the two types-only files **with a guard** that each still compiles to an
-   empty module — an exclusion with no guard is F-08's shape. Until this is chosen, Checkpoint A's
-   Windows criterion stays red and the checkpoint stays open.
-2. **R-07's L-3 and L-5.** Fix-to-throw is recommended for both; each is one line and one test. The
-   dissent is on the record in `tasks/review-todo.md`; either answer closes R-07 and takes the review
-   count to 11 of 11.
-3. **Merge PR #13** (F-36, CI #49 green, reviewed as a diff) and delete the branch. Then `main`
-   carries the two-app symbol rule and the checkpoint's "either front-end package" criterion is met
-   by mechanism on `main`, not only on the branch.
-4. **Merge this branch** (`review/checkpoint-a`: the checkpoint record, F-37, R-07/R-09/R-10, the
-   scoreboard) — it is documentation, and its CI run is the only proof it did not break
-   `check:scoreboard` or `check:claims`.
+1. **Close Checkpoint A on the record.** Seven of its eight lines are ticked on evidence in
+   `tasks/todo.md`; the eighth is *review with EL before Phase 3*. What it needs from EL is the
+   word — and, in the same sitting, the **Phase 3 breakdown of T-14** that `tasks/plan.md` says
+   happens here: T-14 is sized L = 8 for *"the router mounts the registry"* and it gates all eight
+   §15.2 steps, so its sub-tasks are the first thing whose sizes can move the ceiling in *How soft is
+   35.1%*. Nothing in the repository changes until this is said; nothing in the repository is
+   waiting on anything else.
 
-### Then — close Checkpoint A on the record
+### Then — Phase 3, the server, in the container
 
-5. Re-run `_to_delete/verify-windows.cmd` after the F-37 remedy lands: the criterion is **exit 0**,
-   not "green until coverage". Tick it, tick the coverage-floors line, and have EL sign the review
-   line. Break T-14 down at the same sitting, as `tasks/plan.md` says happens here.
-
-### Then — Phase 3, the server
-
-6. **T-13b** (outbound validator — plant a forbidden field and watch it fire; a validator never fed
+2. **T-13b** (outbound validator — plant a forbidden field and watch it fire; a validator never fed
    one passes forever) → **T-13c** → **T-13d** (idempotency: two claims fired concurrently, exactly
    one wins) → **T-14** (the router mounts the registry; the coverage assertion runs against the
    *real* router, not a fixture — and carries the two missing §8.2 routes, drift 4) → **T-15**, with
@@ -499,8 +521,12 @@ is lineage now; it lives in git history at `2bad6d7`.)*
 ### Standing, every session
 
 - Re-run the Windows verify script whenever a gate changes; read the skip count before the tick.
+  It now reaches exit 0 (F-37), so *"green until coverage"* is no longer an acceptable reading.
 - **One writer per working tree.** Before touching the bridge repo, `git log --oneline -3` and
   `git branch -vv`: a branch this session did not make means another session is alive.
+- **Two trees, one `main`.** The Windows tree and the container clone drift apart by one merge
+  every time a PR lands from the container side (drift 34). Before a Windows verify or a commit on
+  the mount, read `.git/HEAD` and `.git/refs/heads/main` there and compare to `origin/main`.
 
 ## The four lenses
 
