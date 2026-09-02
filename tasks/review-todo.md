@@ -247,30 +247,63 @@ does to the manifest file.
 never seen a manifest from disk. Its posture is "throw with the field named" — verify that posture
 holds on every field, especially the ones the gate reads.
 
+**Run 2026-09-02 (Checkpoint A), read-only, against `main` @ `e86d2bf` — 183 lines now.** Every
+"passes"/"throws" below was produced by feeding the shape through `loadReleaseManifest` in the
+container, not by reading the code.
+
 **Acceptance criteria:**
-- [ ] L-3 resolved: `strOrNull` returning `null` for a non-string is either fixed to throw, or
-      documented as deliberate. It currently contradicts the module's own docstring, and it does so
-      on `approved_by` — the field that means "somebody signed this"
-- [ ] L-2 resolved: `pending_spot_checks` is parsed and validated, or its absence from the parser is
-      recorded as deliberate with the reason
-- [ ] L-5 resolved: the `constraints` cast is replaced with validation, or narrowed to `unknown` with
-      a checked coercion. It is the only unchecked cast in the module
-- [ ] L-4 dispositioned: `contentSha256` is verified against the dataset files, or filed as a task
-      against `T-05` (which already owns hashing). **EL decides scope; the review does not silently
-      drop it**
-- [ ] Every field the gate reads is confirmed to be validated here: `datasets`, `verificationPaths`,
-      `humanSpotChecks`, `correctedBy`, `status`, `digitisedBy`
-- [ ] `strArray` returning `[]` for `undefined` is checked against the gate: a manifest omitting
-      `datasets` entirely gets an empty array and a completeness refusal — confirm it refuses rather
-      than passing, and that the message names the real cause
-- [ ] Error messages name the file, the field and the index. Spot-check three by feeding malformed
-      JSON through
+- [~] L-3 **dispositioned, not resolved** — `approved_by: 42` → passes, `approvedBy = null`.
+      It is *documented as deliberate*: `load-manifest.test.ts` pins it ("a non-string in an optional
+      string field reads as absent, not as a value") with the rationale that the alternative "reads a
+      number as a signature". **The reviewer disagrees with the rationale:** the alternative to
+      returning `null` is *throwing*, which reads nothing as a signature and is what the module's own
+      docstring promises. Fails safe today (no signature is seen), silently. **Recommendation:
+      fix to throw** — one line in `strOrNull`, one test flipped. **EL's call at the checkpoint;**
+      the criterion's "documented as deliberate" branch is technically met, and this note is the
+      dissent on the record
+- [x] L-2 resolved — `pending_spot_checks` is *deliberately* outside the loader: it is a tool-side
+      workflow record read by `draw-spot-check`, `record-spot-check`, `spot-check-worksheet` and
+      validated by `check-spot-check-record` (self-tested, in `pnpm verify`) and by
+      `release-integrity.test.ts`. The gate never reads it, so the loader has nothing to validate
+      it *for*
+- [~] L-5 **dispositioned, not resolved** — `constraints: {a: "x"}` → passes, `constraints = {a: "x"}`
+      under a type that says `Record<string, number>`. Still the only unchecked cast. Mitigating fact,
+      measured: **nothing outside the loader reads `.constraints` at runtime** (`grep` over
+      `packages/` and `apps/`, excluding tests, finds no reader). A lie in a field nobody reads.
+      **Recommendation:** validate as `Record<string, number>` and throw on anything else — same
+      size as L-3. **EL's call**
+- [x] L-4 dispositioned — `content_sha256` is **not** verified by the gate or the loader (the loader
+      is pure and cannot hash files). It is verified by `tools/check-content-hash.mjs` (F-19), under
+      the release's own declared `content_sha256_method`, with an 11-case self-test, in `pnpm verify`
+      and CI. Disposition: verified outside the loader by a control that has been proven to fire.
+      Whether the *gate* should also refuse on a hash it was not handed is a T-14 question, not a
+      loader one
+- [x] Every field the gate reads is validated here: `datasets` (`strArray`, throws on a non-array or
+      non-string element), `verificationPaths` (kind ∈ two known values, integer `cells`, non-empty
+      `dataset`/`note`), `humanSpotChecks` (integer `cells` and `seed`, string arrays, five non-empty
+      strings), `correctedBy` (`strOrNull`), `status` (∈ five known values), `digitisedBy` (non-empty
+      string — `digitised_by: 7` throws, measured)
+- [x] Missing `datasets` → `datasets = []` → `completenessRefusals` returns **two** refusals, one per
+      required dataset ("'beams' is missing", "'frames' is missing"); `datasets: ["beams"]` → one.
+      It refuses. The message names the *effect* (which dataset is missing), not the *cause* (the
+      field was absent) — acceptable, since the remedy is the same either way, and noted
+- [x] Error messages name the release (`manifest 2026-09:`), the field and the index
+      (`human_spot_checks[0]: 'seed' must be an integer — the draw must be reproducible`;
+      `verification_paths[0]: 'cells' must be an integer`; `'digitised_by' must be a non-empty
+      string`). They do **not** name the *file* — the loader is pure and never sees a path, and
+      `release-integrity.test.ts:44` does not wrap the call with one. When `rev` itself is missing the
+      message is `manifest: 'rev' must be a non-empty string`, with nothing to identify which
+      manifest. Minor; recorded
 
 **Verification:**
-- [ ] `pnpm test packages/kernel-catalog/src/release-integrity.test.ts` green
-- [ ] Manual: feed each malformed shape (`approved_by: 42`, missing `datasets`, `seed: "20260901"`,
-      `constraints: {a: "x"}`) through `loadReleaseManifest` and record what happens to each
-- [ ] `pnpm typecheck` exit 0
+- [x] `release-integrity.test.ts` green — 19 tests, inside the 1,143 / 50 / 0-skipped container run
+      and the Windows run at `89e55fa`
+- [x] Manual, recorded: `approved_by: 42` → passes (`null`); `approved_by: ""` → passes (`null`);
+      missing `datasets` → passes the loader, refused by completeness (2 reasons);
+      `seed: "20260901"` → throws `ManifestError`; `constraints: {a: "x"}` → passes, value kept;
+      plus `digitised_by: 7`, `status: "approved"`, `verification_paths[0].cells: "336"` → throw,
+      field named
+- [x] `pnpm typecheck` exit 0 — first step of the same verify runs
 
 **Dependencies:** R-04. **Size:** M (1 source + 1 test file). **Files:**
 `packages/kernel-catalog/src/load-manifest.ts`, `release-integrity.test.ts`.
@@ -298,7 +331,7 @@ manifests rewritten. Reviewed as data, against its source, not read as code.
 - [x] The 42 phantom 40E/40ER-F3M rows (D-08) are confirmed still absent
 
 **Verification:**
-- [ ] `pnpm test packages/kernel-catalog` green  — **NOT RUN HERE** (win32 pnpm store, no Linux rollup/esbuild). Covered by CI: green on `efbafbd` and `a5d9c5b`
+- [x] `pnpm test packages/kernel-catalog` green  — was **NOT RUN HERE** (win32 pnpm store, no Linux rollup/esbuild), covered by CI on `efbafbd` and `a5d9c5b`. **Run 2026-09-02** inside the Checkpoint A verify runs: `kernel-catalog`'s nine test files — release 46, release-integrity 19, psg-authority 11, frames 27, lookup 24, spot-check 25, load-manifest 31, cell-ids 10, projection 7 = **200 tests** — green in the container, on Windows and in CI #48. R-08 closes on its own criteria
 - [x] `pnpm lint:provenance` PASS — every value carries its citation
 - [x] `node -e` script confirming every `pending_spot_checks` cell id exists in its dataset
 
@@ -321,22 +354,52 @@ manifests rewritten. Reviewed as data, against its source, not read as code.
 **Description:** Re-run every figure the branch claims, as the reviewer, from a clean checkout. The
 branch's numbers are the branch's own and CI has never executed.
 
+**Run 2026-09-02 (Checkpoint A), from a fresh `git clone` of the public repository into the
+container, `main` @ `e86d2bf`, native Postgres 16 migrated by `pnpm migrate`.** The branch-era
+figures below (961 / 42, 74, "7 gates") are left as written; the measured ones sit beside them.
+
 **Acceptance criteria:**
-- [ ] 961 tests / 42 files confirmed, or the real figure recorded
-- [ ] The 74 DB-backed tests confirmed to have *executed* — not skipped. Record the file list
-- [ ] `pnpm verify` re-run: all 7 gates, output recorded
-- [ ] `pnpm typecheck` and `pnpm lint` at exit 0 from a clean `pnpm clean && pnpm typecheck`
-- [ ] The "eleven deliberate breaks fired and were reverted" claim spot-checked on **three** of them,
-      chosen by the reviewer, not by the author
-- [ ] `packages/*/tsconfig.json` excluding tests from `tsc` (filed as T-27) is confirmed still true
-      and confirmed not to hide a type error in any test file this branch added — run `tsc` over the
-      test files once, by hand
+- [x] ~~961 tests / 42 files~~ → **1,143 tests / 50 files, 0 skipped**, `pnpm verify` exit 0 in
+      84 s. The same figures on Windows at `89e55fa` (one commit further, F-36's checker change —
+      no test files differ), 0 skipped, from the log in `_to_delete/verify-windows.log`
+- [x] ~~74~~ → **100 DB-backed tests executed, 7 files**, none skipped, in both runs:
+      `packages/db/src/tenancy.test.ts` 41 · `apps/api/src/workflow/submit-effects.db.test.ts` 12 ·
+      `apps/api/src/auth/auth.db.test.ts` 12 · `apps/api/src/audit/chain.db.test.ts` 12 ·
+      `packages/db/src/part-registry.db.test.ts` 8 · `apps/api/src/outbox/outbox.db.test.ts` 8 ·
+      `packages/db/src/assumption.db.test.ts` 7. (The Windows run's *first* attempt skipped 92 of
+      them over an unmigrated database and still ticked `pnpm test` — F-29, recorded there)
+- [x] `pnpm verify` re-run — ~~7 gates~~ now typecheck, lint, test, **twelve** self-tested checkers,
+      coverage: all green in the container. On Windows, everything green **except the final
+      coverage step** — F-37, a gate whose verdict depends on the OS
+- [x] `pnpm typecheck` and `pnpm lint` exit 0 — stronger than `pnpm clean`: a fresh clone with a
+      fresh `pnpm install --frozen-lockfile`, no prior `dist/`
+- [x] Three breaks planted by the reviewer, each gate red then green after restore, run as
+      `node tools/<checker>.mjs` directly:
+      **(1)** `apps/client-web/src/__plant__.ts` importing `@rms/kernel-bom` → `check-app-boundaries:
+      FAIL … the BOM, which a client never sees at any depth`, exit 1;
+      **(2)** a shipped string literal `'This ledger is tamper-proof.'` in the same app →
+      `check-language: FAIL … says "This ledger is tamper-proof."`, exit 1;
+      **(3)** `@rms/kernel-geom: workspace:*` added to `apps/api/package.json` with the lockfile
+      untouched → `check-lockfile: FAIL … the lockfile does not record it`, exit 1.
+      **Two lessons from getting it wrong first:** the reviewer's initial plants for (2) and (3)
+      were *outside the gates' stated scope* — "tamper-proof" in `src/parts/*.html` (that is
+      `src/verify.py`'s beat, run by CI's `docs` job, not `check:language`, which scans string
+      literals in `apps/` and `packages/`) and an *external* dependency absent from the lockfile
+      (`check-lockfile` is deliberately workspace-only; `--frozen-lockfile` is the authority for
+      the rest). Both gates stayed green on those plants **and were right to** — each states its
+      blind spot in its own header. A planted failure only proves a gate if it lands inside what the
+      gate claims
+- [x] Superseded by T-27 (done, PR #5): test files are type-checked by `tsc -p tsconfig.tests.json`
+      as the second half of `pnpm typecheck`, in every verify run above
 - [x] Coverage on `kernel-catalog` re-measured; 100% statements/branches or the real figure recorded
 
 **Verification:**
-- [ ] `pnpm verify` output pasted into `tasks/review-findings.md`
+- [x] `pnpm verify` summary recorded under **"Verify runs recorded for R-09 / Checkpoint A"** in
+      `tasks/review-findings.md`; full logs kept outside the repo (container:
+      `/tmp/verify-main-e86d2bf.log`; Windows: `_to_delete/verify-windows.log`, gitignored)
 - [x] `pnpm coverage` output for `kernel-catalog` recorded
-- [ ] `npx tsc --noEmit packages/kernel-catalog/src/*.test.ts` — record what it says
+- [x] ~~`npx tsc --noEmit packages/kernel-catalog/src/*.test.ts`~~ — superseded: `tsconfig.tests.json`
+      covers every `*.test.ts` and runs inside `pnpm typecheck`, exit 0 in every run above
 
 **Dependencies:** Checkpoints A, B, C. **Size:** S (no source changes). **Files:** none — output only.
 
@@ -362,8 +425,37 @@ catalog release integrity, two of which are RLS work on a different subsystem.
 
 **Verification:**
 - [x] `git log --format='%h %s' 0f1e7ac..HEAD` reviewed line by line, judgement recorded per commit
-- [ ] For each of the 7: `git checkout <sha> && pnpm typecheck && pnpm test` — record pass/fail  — **OPEN.** Needs Windows. Partial substitute run instead: every relative import in every `.ts` file touched by each commit resolves at that commit — **0 of 36 unresolved**
-- [ ] `git checkout fix/catalog-release-integrity` to restore  — **OPEN.** Needs Windows. Partial substitute run instead: every relative import in every `.ts` file touched by each commit resolves at that commit — **0 of 36 unresolved**
+- [x] ~~For each of the 7~~ **for each of the 39 commits in `0f1e7ac..0547c78`** (the branch grew
+      after this criterion was written): `git checkout <sha>`, `pnpm install --frozen-lockfile`,
+      a **fresh database migrated at that commit**, `pnpm typecheck && pnpm test` — **run 2026-09-02
+      in the container**, in a detached worktree, oldest first. **36 of 39 green on their own**, 0
+      skipped at every one; test count climbs 926 → 1,081 across the range (dips 1,042 → 1,041 at
+      `eaeb8f0`, the re-approval commit, and stays there for three commits). **3 of 39 are not
+      self-standing under CI semantics:** `e3ef4fa` (the wire contract), `48c7654` (P-00, the
+      bench) and `5c3f17b` (state of the build) all fail `pnpm install --frozen-lockfile` —
+      `e3ef4fa` added `@rms/contracts: workspace:*` to `apps/api/package.json` and the lockfile
+      caught up only at `de399c7`, three commits later. With `--no-frozen-lockfile` all three
+      typecheck and test green (1,081 / 1,081), so the *code* at each stood alone; the *commit* did
+      not, and CI at any of the three would have died at install. That is precisely the defect
+      `check-lockfile` (added at `6f05043`, one commit after the lockfile caught up, self-tested,
+      in `pnpm verify`) now catches before a push — so it is recorded here rather than filed again.
+      Summary table below; the per-commit logs stayed in the session container
+- [x] Restore — the run used a separate worktree; `main` was never checked out away from
+
+| # | sha | install (frozen) | typecheck | test | files / tests |
+|---|---|---|---|---|---|
+| 1 | `d82c5eb` | 0 | 0 | 0 | 39 / 926 |
+| 2–9 | `7559889` … `36881f3` | 0 | 0 | 0 | 40 / 945 → 974 |
+| 10–12 | `540f4cd` … `270631b` | 0 | 0 | 0 | 41 / 987 → 993 |
+| 13–16 | `c6f603e` … `da10b51` | 0 | 0 | 0 | 43 / 1,042 |
+| 17–20 | `eaeb8f0` … `bb9ff14` | 0 | 0 | 0 | 43 / 1,041 |
+| 21–22 | `14d608f`, `a2f166e` | 0 | 0 | 0 | 43 / 1,059 |
+| **23** | **`e3ef4fa`** | **1** — lockfile behind `apps/api/package.json` | (0 with `--no-frozen-lockfile`) | (0) | (44 / 1,081) |
+| **24** | **`48c7654`** | **1** — same | (0) | (0) | (44 / 1,081) |
+| **25** | **`5c3f17b`** | **1** — same | (0) | (0) | (44 / 1,081) |
+| 26–39 | `de399c7` … `0547c78` | 0 | 0 | 0 | 44 / 1,081 |
+
+Every row: a fresh `rms_r10` database created and migrated at that commit, 0 tests skipped.
 
 **Dependencies:** R-09. **Size:** S (no source changes). **Files:** none — output only.
 

@@ -874,14 +874,57 @@ correct and unchanged: it is the manufacturer's printed basis, transcribed.
 
 ## ══ CHECKPOINT A — after T-00 … T-12 ══
 
-- [ ] `pnpm verify` PASS, exit 0, on Windows **and** in CI
-- [ ] All DB-backed tests green in CI for the first time
-- [ ] The approved catalog release resolves both a beam and a frame
-- [ ] A client principal cannot read or write an internal revision — proven at the database
-- [ ] `contentHash` and `manifestHash` are distinct, with the discriminating test green
-- [ ] No orchestration remains in either front-end package
-- [ ] Coverage floors held or raised; every new gate proven to fire and reverted
-- [ ] **Review with EL before Phase 3.** Q1 and Q2 must be answered here
+**Held 2026-09-02, session 6.** Phase 2 closed at 29 of 29 the day before; every criterion below was
+re-measured rather than read, on `main` @ `e86d2bf` (and `89e55fa`, F-36, one commit on). Three
+runs are cited: **container** (fresh clone, native Postgres 16, `pnpm verify` exit 0 in 84 s),
+**CI #48** (`e86d2bf`, push, Success 1m40s, job log read in the browser), and **Windows**
+(`89e55fa`, Node v24.19.0, Docker Postgres, `_to_delete/verify-windows.log`).
+
+- [ ] `pnpm verify` PASS, exit 0, on Windows **and** in CI — **CI: yes**, #48 on `e86d2bf` and #49
+      on `89e55fa`. **Windows: no.** Every step through `check:claims` green — including
+      `selftest-spot-check-draw: PASS`, which is F-35 proven where it matters — and the final
+      `pnpm coverage` step **exit 1** on `packages/workflow/src/**` at 67.85%, because two
+      types-only files count as 90 uncovered lines on Windows and 0/0 on Linux. **F-37.** The
+      criterion stays open until F-37 has a remedy; it is the only Windows step left
+- [x] All DB-backed tests green in CI for the first time — read in CI #48's `Unit and tenancy tests`
+      step (14 s): `tenancy.test.ts (41 tests) 436ms`, `submit-effects.db.test.ts (12) 1408ms`,
+      `auth.db.test.ts (12) 198ms`, `part-registry.db.test.ts (8) 279ms`, `chain.db.test.ts (12)
+      226ms`, `outbox.db.test.ts (8) 166ms`, `assumption.db.test.ts (7) 216ms` — all `✓`, none `↓`,
+      at durations only a real database produces. 100 tests, 7 files. (The viewer did not render the
+      summary line; the per-file lines are what was read.) Same 100 executed in the container and
+      on Windows, 0 skipped
+- [x] The approved catalog release resolves both a beam and a frame —
+      `release-integrity.test.ts` › *"the approved release resolves a frame as well as a beam"*:
+      *ships frames.json and it loads*, *carried the frame tables forward from 2026-08 unchanged
+      after parse*, *holds approval on the release, never on the dataset*, *records a verification
+      path per dataset* — 19 tests green in all three runs, against the releases **on disk**, not a
+      fixture
+- [x] A client principal cannot read or write an internal revision — proven at the database —
+      `packages/db/src/tenancy.test.ts` › *"D-02 / AC-14 — an internal revision is ABSENT, not
+      filtered"* and *"I-1 — a client principal cannot reach internal tables"*, inside the 41 that
+      executed against Postgres in all three runs; `check:rls` green over the migrated schema (and on
+      Windows's first attempt it **refused** to pass over an empty one)
+- [x] `contentHash` and `manifestHash` are distinct, with the discriminating test green —
+      `packages/workflow/src/submit.test.ts:325` `expect(result.contentHash).not.toBe(result.manifestHash)`,
+      and the submission is asserted to carry the manifest hash (`:328`); T-05's three cases were
+      red-then-green at the time (recorded under T-05). Green in all three runs
+- [x] No orchestration remains in either front-end package — **true by mechanism only since F-36**
+      (`89e55fa`, PR #13): `check-app-boundaries` now carries a symbol rule for `internal-web` as
+      well as `client-web` and reports *"20 files across 2 restricted apps"*; before F-36 the
+      internal app was clean by hand (T-08) with nothing holding it. Proven to fire both directions
+      against the real app, recorded in F-36. Ticked on the F-36 tree; on `e86d2bf` alone this
+      criterion is met in state and not in mechanism
+- [~] Coverage floors held or raised; every new gate proven to fire and reverted — **Linux/CI:
+      held** (all files 99.58 / 99.03 / 99.75 / 99.58; every threshold in `vitest.config.ts`
+      passes). **Windows: the same source reads 97.92 overall and fails one threshold — F-37**, a
+      counting artifact on types-only files, not a regression; the tick waits on F-37's remedy.
+      Gates proven to fire: each of the twelve self-tests plants its failures on every run (the
+      `ok … → FAIL` lines), and R-09's three reviewer-chosen plants went red and were restored
+      (`check-app-boundaries`, `check-language`, `check-lockfile`)
+- [ ] **Review with EL before Phase 3.** Q1 (Vite + React Router v7 SPA) and Q2 (Fastify) are
+      answered in `tasks/plan.md`. **Waiting on EL for:** F-37's remedy (three options in the
+      register), R-07's L-3 and L-5 (fix-to-throw recommended, dissent recorded), PR #13's merge, and
+      the Phase 3 breakdown of T-14 that `tasks/plan.md` says happens here
 
 ---
 
