@@ -4,10 +4,17 @@ Derived from `tasks/todo.md`, which stays the source of truth for task detail. T
 only the arithmetic and the ordering. Where a figure was re-measured today it says so; where it is
 the repository's own claim it says that instead.
 
-Measured on branch `task/t-10a-reconcile-documents` @ **`8e9dfd7`**, **8 commits ahead of `main` @
-`3f1ef3b`** (which is level with `origin/main`; PR #1–#6 merged). **This branch has no upstream and
-has never been pushed**, so no CI run covers T-10a or T-10b — the same shape as drift 16, one branch
-along. The tip that IS pushed is `task/t-09-part-registry` @ `be78f19`, and pushed is not green.
+Measured on branch **`task/t-10a-reconcile-documents`**, off `main` @ `3f1ef3b` (level with
+`origin/main`; PR #1–#6 merged). **The branch has no upstream and has never been pushed**, so no CI
+run covers T-08, T-09, T-10a or T-10b — the same shape as drift 16, one branch along. The tip that
+IS pushed is `task/t-09-part-registry` @ `be78f19`, and pushed is not green.
+
+**This header names no sha and no ahead-count on purpose, and that is the remedy for drift 26**
+rather than a gap. Every commit that edits this file changes both, so a sha written here is stale
+before it is read — the same self-reference the *Verified today* table already warns about for the
+ahead/unpushed pair. **Re-run `git rev-parse --short HEAD` and
+`git rev-list --left-right --count origin/main...HEAD`**; a number quoted from this paragraph would
+be a fifth instance of the file describing itself wrongly, not a measurement.
 
 **This header was itself stale until this session and is drift item 26:** it named
 `task/t-07-workflow-package` @ `e88320f` and `main` @ `98b0229` while its own *Verified today* table,
