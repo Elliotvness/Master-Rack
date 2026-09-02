@@ -192,6 +192,18 @@ jobs:
       - name: Stated figures match the repository
         run: pnpm check:claims
 
+      # F-37. The coverage gate below excludes the modules listed in
+      # tools/types-only.mjs, because a types-only file has nothing to cover
+      # and coverage-v8 counted its lines differently on Windows and Linux.
+      # This proves, before the gate runs, that every excluded file STILL
+      # compiles to an empty module — an exclusion nothing re-checks is F-08's
+      # shape. Self-test first, as always.
+      - name: Types-only exclusion self-test
+        run: pnpm check:typesonly:selftest
+
+      - name: Coverage exclusions are still types-only
+        run: pnpm check:typesonly
+
       - name: Kernel coverage gate
         run: pnpm coverage
 
