@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+
+  /*
+   * T-27. Every `tsconfig.json` in this repository excludes `src/**\/*.test.ts`,
+   * so until this file existed NO test file was ever type-checked. A fixture
+   * could drift from a changed type and `tsc --build` stayed green — which is
+   * exactly what happened in T-04, where a required field was added to
+   * `CatalogReleaseManifest` and every fixture silently lacked it until the
+   * tests ran.
+   *
+   * One root project rather than fifteen per-package ones, deliberately: the
+   * include list below mirrors `vitest.config.ts`'s own `test.include`, so the
+   * set of files that RUN and the set that are CHECKED come from the same
+   * shape. Two lists that could drift apart is the defect this repository keeps
+   * finding in itself.
+   *
+   * BLIND SPOTS, stated in the same breath as the guarantee (house rule):
+   *   - This project does not emit. It cannot catch an error that only appears
+   *     in declaration emit; `tsc --build` still owns that.
+   *   - It resolves `@rms/*` through `paths` to SOURCE, not to built `.d.ts`.
+   *     That is what makes fixture drift visible immediately, but it means a
+   *     package's public surface is checked as written rather than as shipped.
+   *   - It checks the files vitest is configured to run. A test file outside
+   *     that glob is invisible to both, and neither would say so.
+   */
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false,
+    "types": ["node"]
+  },
+  "include": [
+    "packages/**/*.test.ts",
+    "apps/**/*.test.ts",
+    "tools/**/*.test.ts",
+    "vitest.alias.ts"
+  ]
+}

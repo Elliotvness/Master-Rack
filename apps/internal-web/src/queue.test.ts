@@ -187,10 +187,18 @@ describe('AC-14 \u2014 an internal revision is ABSENT from client responses, not
   it('removes internal items entirely', () => {
     // "Locked" tells a client something exists that they may not see, which is
     // itself information: it says we are working on a variant of their job.
+    // The marker is OMITTED rather than set to `undefined`:
+    // `stripInternalRevisions<T extends { readonly clientVisible?: boolean }>`
+    // will not accept a present-but-undefined property under
+    // `exactOptionalPropertyTypes`, though it handles that shape perfectly well
+    // at runtime - and a row read back from Postgres with a NULL column is
+    // exactly that shape. The signature should be `boolean | undefined`.
+    // Filed for T-08, which moves this function to `packages/workflow`, rather
+    // than changed here: T-08 is a pure move and its diff must stay one.
     const items = [
-      { id: 'p1', clientVisible: undefined },
+      { id: 'p1' },
       { id: 'c1', clientVisible: false as const },
-      { id: 'p2', clientVisible: undefined },
+      { id: 'p2' },
     ];
     const visible = stripInternalRevisions(items);
     expect(visible.map((i) => i.id)).toEqual(['p1', 'p2']);
@@ -204,7 +212,16 @@ describe('AC-14 \u2014 an internal revision is ABSENT from client responses, not
   });
 
   it('keeps items that carry no visibility marker', () => {
-    const items = [{ id: 'p1' }, { id: 'p2' }];
+    // The annotation is load-bearing, and it is the second half of the same
+    // finding. `{ readonly clientVisible?: boolean }` is a WEAK TYPE - every
+    // property optional - so TypeScript refuses an object literal that shares
+    // no property with it. `stripInternalRevisions([{ id: 'p1' }])` does not
+    // compile, which means the function cannot be called with the exact shape
+    // this test is named for without an annotation or a cast. Filed for T-08.
+    const items: readonly { readonly id: string; readonly clientVisible?: boolean }[] = [
+      { id: 'p1' },
+      { id: 'p2' },
+    ];
     expect(stripInternalRevisions(items)).toHaveLength(2);
   });
 });

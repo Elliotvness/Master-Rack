@@ -301,7 +301,7 @@ describe('D-03 — the content hash and the manifest hash are two hashes with tw
   };
 
   it('freezes the revision with the CONTENT hash and puts the MANIFEST hash on the submission', async () => {
-    const seen: Record<string, string> = {};
+    const seen: { frozenWith?: string; derivedWith?: string; submissionWith?: string } = {};
     const { effects } = recorder({
       hash: digest,
       freezeRevision: async (_id, h) => {
@@ -500,7 +500,7 @@ describe('§11.6 — the assumption register is a record, not a list of strings'
     );
     expect(Object.keys(payload)[0]).toBe('assumptions');
     expect(payload.assumptions).toHaveLength(1);
-    expect(payload.assumptions[0].key).toBe('pallet_overhang');
+    expect(payload.assumptions[0]?.key).toBe('pallet_overhang');
   });
 
   it('says plainly when there is nothing to acknowledge', () => {

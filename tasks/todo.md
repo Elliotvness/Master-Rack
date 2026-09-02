@@ -513,6 +513,49 @@ added to `CatalogReleaseManifest` and every fixture silently lacked it until the
 **Verification:** add a required field to a type, confirm `tsc --build` goes red, revert.
 **Dependencies:** None. **Files:** `packages/*/tsconfig.json`, `tsconfig.base.json`. **Scope:** S.
 
+**DONE 2026-09-02 (session 5) — container-verified, not Windows-verified.** `pnpm verify` **exit 0**
+in **82 s** against a native PostgreSQL 16.13, with a **83 s** baseline measured on the same machine
+immediately before the change: **47 test files, 1,126 tests, 0 skipped**, unchanged from baseline.
+Windows confirmation is Checkpoint A's job, and this block does not claim it.
+
+**One root project, not fifteen per-package ones.** `tsconfig.tests.json` at the repository root,
+`noEmit`, extending `tsconfig.base.json`, wired in by changing the script itself —
+`"typecheck": "tsc --build && tsc -p tsconfig.tests.json"` — so CI picks it up with no `ci.yml`
+change. Its `include` **mirrors `vitest.config.ts`'s own `test.include`** on purpose: the set of
+files that RUN and the set that are CHECKED come from the same shape, and two lists that can drift
+apart is the defect this repository keeps finding in itself. Its blind spots are stated in the file,
+in the same breath as the guarantee: it does not emit, so declaration-emit errors stay `tsc --build`'s;
+it resolves `@rms/*` to **source** rather than built `.d.ts`, which is what makes fixture drift
+visible immediately but checks a package's surface as written rather than as shipped; and a test file
+outside vitest's glob is invisible to both, with neither saying so.
+
+**Proven to fire, and the first attempt was too weak to count.** Adding a required field to
+`CatalogReleaseManifest` turned *both* gates red — but it also broke a source file, so it did not
+show that the new gate covers anything the old one missed. Re-run as the actual T-04 shape: the
+required field added **and the source updated**, leaving the fixture as the only stale thing.
+
+```
+tsc --build                    → EXIT 0     (the gate that existed before T-27)
+tsc -p tsconfig.tests.json     → EXIT 2     packages/kernel-catalog/src/release.test.ts(77,3)
+```
+
+Reverted, both green. That is the T-04 incident reproduced: **the build passes over a stale fixture
+and the new gate does not.**
+
+**Fourteen errors in 47 previously unchecked test files, and one of them was real.** The three cheap
+ones were fixture shapes under `exactOptionalPropertyTypes`, an index-signature access, and an
+unguarded `[0]` under `noUncheckedIndexedAccess`. The fourth is **F-26**: the determinism corpus's
+`units` case read `convert(...).value`, but `convert()` returns a `number`, so the case had been
+digesting the literal string `"undefined|undefined|3812|2451100|3175"` — confirmed at runtime before
+anything was changed. **`check:determinism` would not have gone red if `convert()` had started
+returning a different number.** The case is fixed, and the `units` pin re-based with `--update`;
+only that line moved, which is the correct blast radius. See F-26.
+
+**Two findings left standing rather than quietly fixed.** **F-27** — `stripInternalRevisions` cannot
+be called with either shape its own tests describe, and the remedy belongs in **T-08**, whose diff
+must stay a pure move. **F-28** — the units case still calls a raw-number digest a *formatted* one;
+owner E-09 / T-23. Both tests carry an annotation and a comment saying why.
+
 ### T-28: Self-tests must not be able to strand their own fixtures
 **Description.** Four checker self-tests — `selftest-boundaries`, `selftest-app-boundaries`,
 `selftest-provenance`, `selftest-language` — plant probe files **inside the working tree** and delete

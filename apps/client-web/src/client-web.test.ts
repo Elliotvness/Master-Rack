@@ -125,11 +125,12 @@ describe('the client bundle cannot reach the internal namespace', () => {
   });
 
   it('does not mask a status behind an unparseable error body', async () => {
+    // `throws` and `body` are omitted rather than passed as `undefined`:
+    // under `exactOptionalPropertyTypes` an optional property may be absent but
+    // not explicitly undefined, and omission is what the stub already reads.
     const { fetch: f } = stubFetch({
       ok: false,
       status: 500,
-      throws: undefined,
-      body: undefined,
     });
     const bad = (async () => ({
       ok: false,

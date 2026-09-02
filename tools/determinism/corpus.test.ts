@@ -131,9 +131,19 @@ describe('E-09 determinism corpus', () => {
     // Formatting is where a locale leak shows up first: a tr-TR toLocaleString
     // renders 1.5 as "1,5", and a digest over the formatted string catches it
     // where a digest over the raw number never would.
+    //
+    // T-27, 2026-09-02: the two lines below read `convert(...).value`, but
+    // `convert` returns a `number`, not a `Quantity`. `.value` on a number
+    // primitive is `undefined`, so this case digested the literal string
+    // "undefined|undefined|3812|2451100|3175" and the pinned digest was pinned
+    // over it. The two CONVERSIONS - the only conversions in a case named for
+    // them - contributed nothing, and `check:determinism` would not have gone
+    // red if `convert` had started returning a different number. Confirmed at
+    // runtime before the fix, not inferred from the type error. No test file in
+    // this repository had ever been type-checked; that is what T-27 changed.
     const parts = [
-      String(convert(inches(132), 'ft').value),
-      String(convert(inches(1), 'mm').value),
+      String(convert(inches(132), 'ft')),
+      String(convert(inches(1), 'mm')),
       String(each(3812).value),
       String(inches(96.5).value),
       String(inches(0.125).value),

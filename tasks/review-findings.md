@@ -640,6 +640,82 @@ question.
 pre-existing row can satisfy — with counts compared in both directions, and the test now performs a
 real submission first so the chain is populated when the sabotage runs.
 
+## F-26 — the determinism corpus digested the literal string `"undefined"` *(raised and fixed in T-27)*
+
+`tools/determinism/corpus.test.ts`, case **`units`**, built its digest from:
+
+```
+String(convert(inches(132), 'ft').value)
+String(convert(inches(1),   'mm').value)
+```
+
+`convert(q, to)` returns a **`number`** (`packages/kernel-units/src/quantity.ts:145`), and `.value`
+on a number primitive is `undefined`. Confirmed at runtime before anything was changed, not inferred
+from the type error — the string actually being hashed was:
+
+```
+undefined|undefined|3812|2451100|3175
+```
+
+The two **conversions** — the only conversions in a case named *"unit conversion and formatting"* —
+contributed nothing. `check:determinism` runs the corpus in two hostile environments and pins the
+digest in `fixtures/determinism/digests.txt`, and **none of that machinery would have gone red if
+`convert()` had started returning a different number.** The control ran in CI, passed, and did not
+cover the thing it is named for.
+
+This is the recurring shape once more — *a control that states its own method and has no mechanism
+behind it* — and it survived because **no test file in this repository had ever been type-checked.**
+It is the first thing T-27 found, and the argument for T-27 having gone first.
+
+**Fixed.** The `.value` accesses are removed, the case now digests `11|25.4|3812|2451100|3175`, and
+the `units` pin was re-based with `--update`. Only that one line of the pin moved; `bom`,
+`content-hash` and `positions` are unchanged, which is the correct blast radius for a change confined
+to the units case. A digest pinned over `"undefined"` was never a baseline.
+
+## F-27 — `stripInternalRevisions` cannot be called with the shapes its own tests describe *(raised in T-27, deferred to T-08)*
+
+`stripInternalRevisions<T extends { readonly clientVisible?: boolean }>` enforces **AC-14** — an
+internal revision is *absent* from client responses, not locked. Type-checking its test file for the
+first time showed it refuses two shapes it handles perfectly well at runtime:
+
+1. **Present-but-undefined.** `{ id: 'p1', clientVisible: undefined }` is rejected under
+   `exactOptionalPropertyTypes`. That is exactly the shape a row read back from Postgres with a NULL
+   column produces.
+2. **Absent entirely.** `{ readonly clientVisible?: boolean }` is a **weak type** — every property
+   optional — so TypeScript refuses an object literal sharing no property with it.
+   `stripInternalRevisions([{ id: 'p1' }])` does not compile, and *"keeps items that carry no
+   visibility marker"* is the name of one of its own tests.
+
+**Why this matters more than a type nit.** A caller wiring real rows into AC-14's enforcement point
+hits both of these, and the path of least resistance is a cast. A cast around the function that
+decides what a client may see is how the control silently stops applying — and nothing would go red.
+
+**Not fixed here, deliberately.** The remedy is `clientVisible?: boolean | undefined` on the
+constraint, in `apps/internal-web/src/lib/queue.ts`. **T-08 moves that function to
+`packages/workflow` and is a pure move whose diff must read as "nothing changed except location"** —
+the same rule T-07 held itself to. Folding a signature change into it would break that. T-08 should
+land the move, then the signature, with a test that passes both shapes above without an annotation.
+The two tests are annotated for now, and each annotation carries a comment saying why.
+
+## F-28 — the units case still does not test what its comment claims *(raised in T-27, open)*
+
+With F-26 fixed, the `units` case digests real numbers. Its comment still says:
+
+> Formatting is where a locale leak shows up first: a tr-TR `toLocaleString` renders 1.5 as "1,5",
+> and a digest over the **formatted string** catches it where a digest over the raw number never
+> would.
+
+But `String(11)` is not locale-sensitive; it is the raw number. The case digests raw values and calls
+them formatted. The claim is not backed by the mechanism — a smaller instance of the same shape as
+F-26, left standing rather than fixed inside T-27.
+
+Two honest options, neither of them T-27's to take: route the case through `kernel-units`'
+`format`/`displayText` so a locale leak genuinely shows, or delete the locale sentence and let the
+case be what it is, a digest over derived numbers. Note that `check-determinism`'s own header already
+records that **locale hostility was attempted and removed** because Node ignores `LANG`/`LC_ALL` on
+Windows — so the first option needs the locale to be forced in-process, not by environment.
+**Owner: E-09 / T-23.**
+
 ## F-12 and F-13 — fixed, values untouched
 
 Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.
