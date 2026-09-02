@@ -926,9 +926,10 @@ runs are cited: **container** (fresh clone, native Postgres 16, `pnpm verify` ex
       (`check-app-boundaries`, `check-language`, `check-lockfile`)
 - [ ] **Review with EL before Phase 3.** Q1 (Vite + React Router v7 SPA) and Q2 (Fastify) are
       answered in `tasks/plan.md`. Everything this line waited on has been done under EL's standing
-      "continue": F-37 remedied (option 1) and closed by the Windows run; R-07's L-3 and L-5 fixed
-      to throw on `review/r-07-load-manifest`; PR #13 merged. **Still EL's:** the word that closes
-      the checkpoint, and the Phase 3 breakdown of T-14 that `tasks/plan.md` says happens here
+      "continue": F-37 remedied (option 1, PR #15) and closed by the Windows run; R-07's L-3 and
+      L-5 fixed to throw (`6696f5f`, PR #16, merged — review 11 of 11); PR #13 merged. All four are
+      on `main` @ `b8d2087`, CI #64 green and read. **Still EL's:** the word that closes the
+      checkpoint, and the Phase 3 breakdown of T-14 that `tasks/plan.md` says happens here
 
 ---
 
