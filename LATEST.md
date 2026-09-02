@@ -1,11 +1,26 @@
 # LATEST — Rack Master Studio handoff
 
 **Written 2026-09-01 (second session of the day). Supersedes the earlier 2026-09-01 entry.**
-Read this first, then `tasks/plan.md` for the route forward, `tasks/todo.md` for per-task status,
-`HANDOFF.md` for the original framing, and `docs/CURRENT_STATE.md` for the dated verification log.
 
-Every number here was measured from the repository today, not remembered. Where something is
-unverified, it says so.
+> **This is a DATED RECORD, not a live status page.** Its figures were measured on the date in its
+> header and are kept as written, because rewriting a dated measurement to match today falsifies the
+> record — the opposite of what this repository is for. **For current figures read
+> `tasks/progress.md`**, which is re-measured every session and carries the §15.2 headline.
+>
+> The editorial rule this file is held to, applied across `LATEST.md`, `docs/CURRENT_STATE.md` and
+> the blueprint by **T-10a** on 2026-09-02: *a dated observation keeps its number and says its date;
+> a present-tense assertion about the product is re-derived or removed.* A number is only wrong if it
+> claims to be current.
+>
+> **Superseded 2026-09-02 by sessions 4 and 5.** Since this was written, T-05 through T-09, T-27 and
+> T-28 have landed and `main` has taken PRs #4, #5 and #6. Every figure in *State in one table* below
+> has moved: commits, tests, migrations, checkers and the scoreboard percentage. Do not quote them.
+
+Read `tasks/progress.md` first for where the build actually is, then `tasks/plan.md` for the route
+forward and `tasks/todo.md` for per-task status. `HANDOFF.md` has the original framing.
+
+Every number here was measured from the repository **on 2026-09-01**, not remembered. Where something
+was unverified, it says so.
 
 ---
 

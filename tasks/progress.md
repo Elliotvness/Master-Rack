@@ -94,13 +94,13 @@ The procedure, so it is reproducible:
 | Measure | Value | Blueprint anchor | What it measures |
 |---|---|---|---|
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
-| Plan-task completion, effort-weighted | 39 of 147 pts — **26.5%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
-| Plan-task completion, task count | 14 of 45 — 31% | Same, unweighted | Same |
+| Plan-task completion, effort-weighted | 41 of 147 pts — **27.9%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
+| Plan-task completion, task count | 15 of 45 — 33% | Same, unweighted | Same |
 | Pre-merge review `R-01…R-11` | 8 of 11 — 73% | **§16.1** review gates | A sub-checklist of one merged branch, not the project. Unchanged since session 3. Done: R-01…R-06, **R-08**, **R-11**. Open: R-07 (partly), R-09, R-10 (the per-commit `typecheck && test`, which needs Windows) |
 | Route surface vs the blueprint | 19 of 21 MVP-1 routes declared | **§8.2** (23 rows, 2 marked phase 2) | Re-enumerated today, path by path. A *registry* figure, not a served one — nothing mounts it |
 
-These are not competing answers. **0% is the answer**; 26.5% is how much of the written plan has
-been executed. A reader who quotes 26.5% without §15.2 beside it is quoting the wrong number.
+These are not competing answers. **0% is the answer**; 27.9% is how much of the written plan has
+been executed. A reader who quotes 27.9% without §15.2 beside it is quoting the wrong number.
 
 **Both moved this session, in opposite directions, and the two must not be confused.**
 
@@ -152,13 +152,13 @@ neither comparable. The one figure all four agree on is §15.2 at 0 of 8.
 - **R-08 and R-10 appear twice** in the plan (in `tasks/review-todo.md` and again in Phase 3). They
   are counted once, in Phase 3. The other nine R-items are outside the 43.
 
-### Caveat that cuts against the 26.5%
+### Caveat that cuts against the 27.9%
 
 The T-shirt sizes were written **before anyone attempted the server or the interface**. T-14 is
 sized L = 8 points = 5.6% of the project, yet it gates **all eight** §15.2 steps: every one needs
 HTTP. Phase 4 is eight M tasks, one L, and one S in a repo with zero `.tsx` files and no framework
 installed.
-If either is under-sized — and both probably are — the true denominator is larger and **26.5% is
+If either is under-sized — and both probably are — the true denominator is larger and **27.9% is
 an overstatement**. Treat it as a ceiling.
 
 Also outside the denominator, because the plan does not contain them: dependency audit in CI, E2E
@@ -173,34 +173,34 @@ changelog and tags *are* T-26.)
 |---|---|---|---|---|
 | 0 — Make CI real | 1 | 1 | **100%** | **T-00 complete.** Tip `efbafbd` pushed; CI run #10 **Success** — the first commit in this repo ever verified |
 | 1 — Catalog and schema integrity | 10 | 10 | **100%** | T-01…T-04 complete (verified at `a2f166e` — repository claim, not re-run today) |
-| 2 — Kernel and workflow repairs | 28 | 20 | **71%** | **T-05, T-06, T-07, T-27, T-28, T-08, T-09 done**; T-10a, T-10b, T-11, T-12 open. Points 26 → 28 from the T-10 split |
+| 2 — Kernel and workflow repairs | 28 | 22 | **79%** | **T-05, T-06, T-07, T-27, T-28, T-08, T-09, T-10a done**; T-10b, T-11, T-12 open. Points 26 → 28 from the T-10 split |
 | 3 — The contract, then the server | 50 | 8 | 16% | P-00 and T-13a done; T-13b…T-15, P-01…P-05, R-08, R-10 open |
 | 4 — The interface | 42 | 0 | **0%** | Zero `.tsx` files exist |
 | 5 — Deploy readiness | 16 | 0 | 0% | Not started |
-| **Total** | **147** | **39** | **26.5%** | |
+| **Total** | **147** | **41** | **27.9%** | |
 
-**Remaining: 108 points.** T-14 plus all of Phase 4 is 50 of those — 46% of what is left. The other
+**Remaining: 106 points.** T-14 plus all of Phase 4 is 50 of those — 47% of what is left. The other
 **57% is diffuse**: Phase 2's residue (16), the rest of Phase 3 (42), Phase 5 (16). The remaining
 work is *not* concentrated in the two big items, and planning as if it were will under-book the back
 half.
 
 ---
 
-### How soft is 26.5%?
+### How soft is 27.9%?
 
 The caveat above says the figure is a ceiling because T-14 and Phase 4 were sized before anyone
-attempted either. Quantified — 39 done points never move, only the denominator does:
+attempted either. Quantified — 41 done points never move, only the denominator does:
 
 | T-14 | Phase 4 | Denominator | Completion | Scenario |
 |---|---|---|---|---|
-| 8 | 42 | 147 | **26.5%** | as planned — the published figure |
+| 8 | 42 | 147 | **27.9%** | as planned — the published figure |
 | 16 | 63 | 174 | 16.7% | T-14 ×2, Phase 4 ×1.5 |
 | 16 | 84 | 195 | 14.9% | T-14 ×2, Phase 4 ×2 |
 | 24 | 84 | 203 | 14.3% | T-14 ×3, Phase 4 ×2 |
 | 24 | 126 | 245 | 11.8% | T-14 ×3, Phase 4 ×3 |
 
 Even at triple, the figure moves about eight points. **The ceiling is real but shallow**, so
-26.5% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
+27.9% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
 is the number to quote and this one is not.
 
 **Where the remaining 116 points sit:** Phase 3's residue 42 (36.2%) · Phase 4 42 (36.2%) ·
@@ -214,6 +214,8 @@ Re-measured by running commands against the working tree:
 | | |
 |---|---|
 | Branch · tip | **`task/t-09-part-registry`** @ **`be78f19`**, **pushed** — `origin/task/t-09-part-registry` holds the same sha and the branch is `0 0` against its upstream, verified here rather than taken on report. 6 commits over `main` @ `3f1ef3b`, carrying T-08, the simplification pass and T-09. `main` itself is unchanged: **PR #4 (T-07), #5 (T-27) and #6 (T-28)** are merged, this one is not yet opened. Working tree clean. **Re-run `git rev-list --left-right --count origin/main...HEAD` rather than quoting a number from this document** — the next row says why |
+| **T-10a, container-verified** | The four documents reconciled — and the task turned out to be **one editorial rule** rather than four corrections: *a dated observation keeps its number and says its date; a present-tense assertion about the product is re-derived or removed.* Rewriting a dated measurement to match today falsifies the record. Two of the four were **already correct** (`TODO.md` RH-05, verified figure by figure against the manifests; `LATEST.md`'s 336-vs-378, fixed in session 3), and `TODO.md` needed no banner because every figure in it is already dated inline |
+| **The blueprint disagreed with itself** | Its footer read **Rev A** while the masthead and §1 read **Rev C**, *and* it said *"no production implementation has begun and none should begin before the blocking decisions in §18 are answered"* — which **§18 contradicts four screens above**, recording the decision set as closed, and which 10 migrations contradict outright. **A governing document that disagrees with itself cannot govern.** Corrected to the masthead and §18, with the correction stated rather than made silently; `python src/build.py` and `src/verify.py` clean, 11 structural checks passing |
 | **T-09, container-verified** | Migration **0010**: `part` / `part_revision`, the `bom_line` foreign key, staff-only RLS. **The identity is `code_18`, not `part_number`, and it was measured before anything was written** — `part_number` is not unique in either release (`UM005516` on two rows, `UM005517` on two more, in both 2026-08 and 2026-09), so a registry keyed on it would have refused to load the approved catalog. **Two tables, evidenced:** all 336 codes in 2026-09 exist in 2026-08 and **288 of them changed value between the releases** — one part, two revisions, which is why a BOM line references the revision (§10.2) |
 | **T-09's controls, proven to fire** | FK dropped → **1 red**; RLS SELECT widened to `true` → **2 red**; restored → 8 pass. The FK re-add then **failed**, because the breakage had left an orphan `bom_line` — exactly what 0010's header predicts and refuses to paper over with `NOT VALID`. **The FK also turned four EXISTING tests red on landing:** `tenancy.test.ts` was inserting `part_revision_id` values from `gen_random_uuid()`, references to nothing. That is the evidence for D-10, not a nuisance; the fixtures were repointed and the constraint was not relaxed |
 | **T-08, container-verified** | The three server authorities moved to `packages/workflow`, **byte-identical: 4,252 bytes on both sides**, compared programmatically. Both deliberate breakages still fire at the new location — waivers carried over **1 red**, internal items kept **3 red**, reverted 12 pass. Criterion 1's *"effects supplied by `apps/api`"* is recorded rather than faked: **there are none**, because all three are pure constructors, and a `DeriveEffects` with nothing behind it is the exact defect shape this project hunts |
@@ -361,7 +363,8 @@ rule earns its keep: the blueprint wins, and the scoreboard is what gets fixed.*
    self-test must plant a disagreeing measure card and watch it go red. Until it lands, treat a green
    `check:scoreboard` as covering **two figures, not two files**.
 3. **Then the rest of Phase 2, in the amended order:** ~~**T-28**~~ **done** → ~~**T-08**~~ **done**
-   → ~~**T-09**~~ **done** → **T-10a** → **T-10b** (which now also owns **F-31**, the grant checker)
+   → ~~**T-09**~~ **done** → ~~**T-10a**~~ **done** → **T-10b** (which now owns three things:
+   `check-claims`, drift 18's measure-card widening, and **F-31**'s grant checker)
    → **T-12**, with **T-11** done alongside a
    push rather than in sequence, because "a planted fake credential is caught" and "push protection
    enabled on the remote" both need the remote. Every one of them can be implemented and
@@ -392,7 +395,8 @@ on the record in `tasks/todo.md`'s Phase 2 header**: ~~**T-05**~~ **done, merged
 **done, merged** → ~~**T-07**~~ **done, unpushed** → ~~**T-27** (type-check the test files)~~
 **done, merged (PR #5)** → ~~**T-28** (self-test fixtures)~~ **done, unpushed** →
 ~~**T-08** (orchestration off the client)~~ **done, unpushed** →
-~~**T-09** (`part` / `part_revision`, migration `0010`)~~ **done, unpushed** → **T-10a** (reconcile the four documents) →
+~~**T-09** (`part` / `part_revision`, migration `0010`)~~ **done, pushed** →
+~~**T-10a** (reconcile the four documents)~~ **done** → **T-10a** (reconcile the four documents) →
 **T-10b** (`check-claims` + widen `check-scoreboard-sync`) → **T-12** (source-conflict register),
 with **T-11** alongside a push.
 

@@ -540,16 +540,60 @@ is content in four files, T-10b is checker tooling in a different subsystem, and
 state its acceptance criteria in three bullets. Denominator 145 → 147, recorded in the scoreboard.
 
 **Acceptance criteria:**
-- [ ] All four corrected, each against the artifact that settles it — the manifest for the pack
+- [x] All four corrected, each against the artifact that settles it — the manifest for the pack
       status, the catalog file for the row count, the package list for §10, the blueprint source
       for the revision
-- [ ] Every corrected figure is re-derived at the time of the edit, not copied from another document
-- [ ] Where a number cannot be re-derived, it is removed rather than restated
+- [x] Every corrected figure is re-derived at the time of the edit, not copied from another document
+- [x] Where a number cannot be re-derived, it is removed rather than restated
 
 **Verification:** `python src/build.py` clean and `git diff --exit-code` on the built blueprint; each
 corrected figure traceable to the command that produced it, quoted in the commit body.
 **Dependencies:** None. **Files:** `LATEST.md`, `TODO.md`, `docs/CURRENT_STATE.md`, `src/parts/*`.
 **Scope:** S.
+
+**DONE 2026-09-02 (session 5) — container-verified.** `pnpm verify` **exit 0**, 50 test files, 1,143
+tests. `python src/build.py` and `src/verify.py` both clean, all 11 structural checks passing.
+
+**The task turned out to be one editorial rule rather than four corrections, and the rule is the
+deliverable:** *a dated observation keeps its number and says its date; a present-tense assertion
+about the product is re-derived or removed. A number is only wrong if it claims to be current.*
+Rewriting a dated measurement to match today falsifies the record, which is the opposite of what this
+repository is for — so three of the four documents needed **framing**, not new numbers.
+
+**Measured first, against the artifact that settles each:**
+
+| Claim | Settled by | Result |
+|---|---|---|
+| `TODO.md` RH-05 pack status | the manifests | **Already correct.** `interlake-2026-09` `APPROVED` / 336 rows, `2026-08` `QUARANTINED`, `manifest.status` `DRAFT` with `approved_by: ''`, `open_conflicts: 6`, 12 rules — every figure in the row verified |
+| `LATEST.md` "336 vs 378" | the catalog file | **Already fixed** — neither number appears. Session 3's drift-9 work held |
+| `docs/CURRENT_STATE.md` §10 | the package list | **Still wrong.** 8 `kernel-*` packages exist, plus `contracts`, `db`, `display-list`, `workflow` = **12**; tenancy, authorization and persistence are all built |
+| blueprint Rev C vs Rev A | the blueprint's own §18 | **Still wrong**, and worse than a typo — see below |
+
+**`TODO.md` needed no change, and that is a result rather than a skip.** Every figure in it is dated
+inline (*"Run 2026-08-31: PASS"*), which is already the correct form. Applying a banner to it would
+have been the rule fired blindly; the rule discriminating is the point of having one.
+
+**`LATEST.md` and `docs/CURRENT_STATE.md`** are both dated records — *"Written 2026-09-01"* and
+*"Assessed 2026-08-31 by repository inspection"* — that are read as live because of where they sit in
+the handoff trail (`LATEST.md` literally instructs *"read this first"*). Both gained a superseded
+banner stating the rule, naming what has landed since, and pointing at `tasks/progress.md`. Their
+dated tables are untouched.
+
+**One paragraph was a genuine present-tense assertion and was corrected in place**, with the original
+quoted beside it: `docs/CURRENT_STATE.md`'s *"`kernel-units` is one package of the eight … everything
+with tenancy, authorization or persistence in it is untouched."* Re-derived: 12 packages, RLS forced
+over **21** tables across **10** migrations, the authz matrix asserted against a 20-entry registry.
+The correction also says what has **not** moved — §15.2 is still 0 of 8 — because a correction that
+only reports progress is its own kind of drift.
+
+**The blueprint was the real find, and it is not a typo.** The footer read **Rev A** while the
+masthead and §1 both read **Rev C**, *and* it said *"no production implementation has begun and none
+should begin before the blocking decisions in §18 are answered"* — which **§18 contradicts four
+screens above**, recording the decision set as closed, and which ten migrations contradict outright.
+**A governing document that disagrees with itself cannot govern.** The masthead is authoritative on
+the revision and §18 on the decisions, so the footer was corrected to both, with the correction
+stated rather than made silently, and a sentence added putting §15.2's 0 of 8 where a reader reaches
+the end of the document.
 
 ### T-10b: Port `check-claims`, and widen `check-scoreboard-sync`
 **Description.** Audit **D-19**, the mechanism half — plus the remedy for **drift 18**, found in
