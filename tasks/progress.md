@@ -1,8 +1,27 @@
-# Progress scoreboard — 2026-09-02 (session 6)
+# Progress scoreboard — 2026-09-02 (session 6, Phase 3 opens)
 
 Derived from `tasks/todo.md`, which stays the source of truth for task detail. This file holds
 only the arithmetic and the ordering. Where a figure was re-measured today it says so; where it is
 the repository's own claim it says that instead.
+
+**Session 6, third edition (2026-09-02, evening UTC) — Checkpoint A closed on EL's word, and the
+first Phase 3 task after it landed.** EL's *"lets proceed"* closed the eighth criterion; the
+checkpoint record in `tasks/todo.md` is ticked with the word and the date, and the T-14 breakdown
+the checkpoint owed is written under T-14 as **T-14a–e, five M sub-tasks, proposed and not yet
+confirmed** — so the denominator here is still 148 and T-14 is still L = 8 (PR #18, `584bb6a`).
+Then **T-13b** — per-audience DTOs and the outbound validator — was built test-first in the
+container, put through two rounds of fresh-context adversarial review (both found a BLOCKER, both
+fixed and planted), published from Windows with the container commit's tree and message compared
+byte for byte, and merged as PR #19 (`d6b423d`). Measured on `main` @ **`162d26e`**: `pnpm verify`
+**exit 0 in 74 s — 53 files, 1,238 tests, 0 skipped**, `@rms/contracts` and `apps/api/src/dto` at
+100 / 100 / 100 / 100; **CI #72** on the branch push read from the raw job log — `Test Files 53
+passed (53)`, `Tests 1238 passed (1238)`, no skip line — and #74 / the two PR runs green on their
+PR pages. **The numerator moved 52 → 56 at a fixed denominator: 35.1% → 37.8%.** §15.2 did not
+move — a validator that no route yet feeds cannot get a client through a screen. Three things
+this edition leaves with EL: the guard's both-modes refusal (a recorded deviation from a literal
+§8.3), the T-14a–e sizes, and OD-12's WITHDRAWN / EXPIRED → *complete*; and **F-38** is filed —
+the two front-ends invented a six-state status vocabulary that appears nowhere in §3.4 or the
+database. Drift 36 and 37 below.
 
 **Session 6 (2026-09-02, later the same day) held Checkpoint A.** Measured on `main` @ `e86d2bf`
 (PR #10, #11 and #12 merged this session — the F-32 recovery and Phase 2 close, the F-35 fix, and the
@@ -102,7 +121,7 @@ The procedure, so it is reproducible:
 1. **Re-measure, do not re-read.** Run the commands again against the working tree — branch and
    commit, `git ls-files` for UI files, the server/framework greps, route-table count, tags,
    changelog, CI steps. Figures copied from the previous scoreboard are claims, not measurements.
-2. **Recompute** done-points over the 143-point denominator using the plan's own T-shirt sizes.
+2. **Recompute** done-points over the **148**-point denominator using the plan's own T-shirt sizes — 143 until T-28 was added in session 3, 145 until T-10 was split, 147 until T-11 grew for F-32; read the current figure off the phase table, never off this line.
    Completion stays **binary**: a task counts only when its stated acceptance criteria are met.
 3. **Re-check §15.2** — 8 steps — because that is the headline and it does not move until HTTP and
    a screen exist.
@@ -147,18 +166,30 @@ The procedure, so it is reproducible:
 | Measure | Value | Blueprint anchor | What it measures |
 |---|---|---|---|
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
-| Plan-task completion, effort-weighted | 52 of 148 pts — **35.1%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
-| Plan-task completion, task count | 20 of 45 — 44% | Same, unweighted | Same |
+| Plan-task completion, effort-weighted | 56 of 148 pts — **37.8%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
+| Plan-task completion, task count | 21 of 45 — 47% | Same, unweighted | Same |
 | Pre-merge review `R-01…R-11` | **11 of 11 — 100%** | **§16.1** review gates | A sub-checklist of one merged branch, not the project. All eleven closed on their own criteria. R-09 and R-10 closed at Checkpoint A in the container; **R-07 closed last**, by fixing L-3 and L-5 to throw (`6696f5f`, PR #16) rather than leaving them dispositioned — the dissent on the record won |
-| Route surface vs the blueprint | 19 of 21 MVP-1 routes declared | **§8.2** (23 rows, 2 marked phase 2) | Re-enumerated today, path by path. A *registry* figure, not a served one — nothing mounts it |
+| Route surface vs the blueprint | 19 of 21 MVP-1 routes declared | **§8.2** (23 rows, 2 marked phase 2) | Re-enumerated today, path by path. A *registry* figure, not a served one — nothing mounts it. Since T-13b every entry also names the response schema it answers with, and `assertRouteCoverage` refuses one that does not |
 
-These are not competing answers. **0% is the answer**; 35.1% is how much of the written plan has
-been executed. A reader who quotes 35.1% without §15.2 beside it is quoting the wrong number.
+These are not competing answers. **0% is the answer**; 37.8% is how much of the written plan has
+been executed. A reader who quotes 37.8% without §15.2 beside it is quoting the wrong number.
 
 **Phase 2 is complete** — the first phase to close since Phase 1. **§15.2 did not move by one step
 while it happened**, and that is not a paradox: Phase 2 was repairs and controls, and the definition
-of done is a client getting through eight screens. **The next point earned is the first one that can
-move it.**
+of done is a client getting through eight screens. **Phase 3 has now opened past the checkpoint
+with T-13b, and §15.2 still did not move** — the contract is what a route will answer with, and no
+route answers yet. The first point that can move it is T-14a's.
+
+**Checkpoint A is closed.** Seven criteria were ticked on evidence at the close-out below; the
+eighth — *review with EL before Phase 3* — was closed by EL's word (*"lets proceed"*, 2026-09-02)
+after the seven and the two things still his were put to him in those terms. `tasks/todo.md`
+carries the tick, the word and the date; `tasks/plan.md` B3 records the checkpoint held and closed.
+The T-14 breakdown the checkpoint owed is written as **T-14a–e** — the application and its gate
+against the *registered* router (plus the two §8.2 routes still missing, drift 4), auth and
+organizations, client reads and drafting, submit / clone / status / documents with P-01 in the same
+commit, the internal surface with P-02 in the same commit — **each M, each with the failure it must
+be proven to catch, and none of it confirmed.** If EL confirms: 148 → 160 points and 37.8% → 35.0%
+with nothing getting worse. Until then this file keeps T-14 at L = 8.
 
 **Checkpoint A was held in session 6, and by the close of the session every measurable criterion
 is met.** When it was first held, seven of its eight criteria were re-measured (three runs, three
@@ -200,6 +231,16 @@ Net: 20.0% → **30.4%**, of which the honest progress is the middle bullet alon
   `check-lockfile` now guards). Binary completion cuts both ways: they were not done until the last
   line ran, and once it ran they are. 32.4% → **35.1%**.
 
+- **Session 6, third edition: the numerator moved 52 → 56 at a fixed denominator, and this time it
+  is a task.** **T-13b** (M = 4) landed on its own acceptance criteria — one DTO per
+  (entity × audience) built field by field, client responses closed (`additionalProperties: false`
+  in the emitted JSON Schema), the validator failing in non-production and alerting in production
+  for drift, and the positive companion test asserting staff *do* see the fields — with its
+  verification line run as written: `cost` added to a client DTO, red at module load, reverted.
+  35.1% → **37.8%**. The T-14 split (T-14a–e) is written but **not counted**: a proposed size is
+  not a size until EL says so, and a denominator that moves on a proposal would be this file
+  describing a decision nobody made.
+
 Session 5 opened by landing no commit at all — its first pass was a re-measurement that found nine
 false statements across the four copies and nothing wrong in the code. See *Drift*, items 15–29.
 
@@ -236,14 +277,17 @@ neither comparable. The one figure all four agree on is §15.2 at 0 of 8.
 - **R-08 and R-10 appear twice** in the plan (in `tasks/review-todo.md` and again in Phase 3). They
   are counted once, in Phase 3. The other nine R-items are outside the 43.
 
-### Caveat that cuts against the 32.4%
+### Caveat that cuts against the 37.8%
 
 The T-shirt sizes were written **before anyone attempted the server or the interface**. T-14 is
-sized L = 8 points = 5.6% of the project, yet it gates **all eight** §15.2 steps: every one needs
+sized L = 8 points = 5.4% of the project, yet it gates **all eight** §15.2 steps: every one needs
 HTTP. Phase 4 is eight M tasks, one L, and one S in a repo with zero `.tsx` files and no framework
 installed.
-If either is under-sized — and both probably are — the true denominator is larger and **32.4% is
-an overstatement**. Treat it as a ceiling.
+If either is under-sized — and both probably are — the true denominator is larger and **37.8% is
+an overstatement**. Treat it as a ceiling. **The first re-sizing is now on the table:** T-14a–e,
+five M sub-tasks = 20 points where T-14 carried 8, proposed under T-14 in `tasks/todo.md` and
+waiting on EL. *(This heading and its last sentence read "32.4%" through two editions in which the
+figure was 35.1%, and "5.6%" was 8 over the 143-point denominator of three sessions ago — drift 37.)*
 
 Also outside the denominator, because the plan does not contain them: dependency audit in CI, E2E
 tests, Dependabot, preview deployments. (Secret scanning *is* T-11; bundle gate *is* P-05;
@@ -258,42 +302,45 @@ changelog and tags *are* T-26.)
 | 0 — Make CI real | 1 | 1 | **100%** | **T-00 complete.** Tip `efbafbd` pushed; CI run #10 **Success** — the first commit in this repo ever verified |
 | 1 — Catalog and schema integrity | 10 | 10 | **100%** | T-01…T-04 complete (verified at `a2f166e` — repository claim, not re-run today) |
 | 2 — Kernel and workflow repairs | 29 | 29 | **100%** | **Complete.** T-05, T-06, T-07, T-27, T-28, T-08, T-09, T-10a, T-10b, **T-11**, **T-12**. Points 26 → 28 from the T-10 split, 28 → 29 when T-11 grew XS → S for F-32 |
-| 3 — The contract, then the server | 50 | 12 | 24% | P-00, T-13a, **R-08**, **R-10** done; T-13b…T-15, P-01…P-05 open |
+| 3 — The contract, then the server | 50 | 16 | 32% | P-00, T-13a, **T-13b**, R-08, R-10 done; T-13c, T-13d, T-14 (L = 8 until T-14a–e is confirmed), T-15, P-01…P-05 open |
 | 4 — The interface | 42 | 0 | **0%** | Zero `.tsx` files exist |
 | 5 — Deploy readiness | 16 | 0 | 0% | Not started |
-| **Total** | **148** | **52** | **35.1%** | |
+| **Total** | **148** | **56** | **37.8%** | |
 
-**Remaining: 96 points, and Phase 2's residue is zero.** T-14 plus all of Phase 4 is **50 of the 96
-— just over half**; the other 46 is the rest of Phase 3 (30, T-14 excluded) and Phase 5 (16). The
+**Remaining: 92 points, and Phase 2's residue is zero.** T-14 plus all of Phase 4 is **50 of the 92
+— just over half**; the other 42 is the rest of Phase 3 (26, T-14 excluded) and Phase 5 (16). The
 remaining work is *not* concentrated in the two big items, and planning as if it were will under-book
 the back half.
 
 ---
 
-### How soft is 35.1%?
+### How soft is 37.8%?
 
 The caveat above says the figure is a ceiling because T-14 and Phase 4 were sized before anyone
-attempted either. Quantified — 52 done points never move, only the denominator does.
-**Every row here is 52 over its own denominator, and every denominator is derived from 148 rather
-than carried forward** (re-derived again in session 6 when the numerator moved to 52). This table has now been wrong twice in one day in two different ways: four
+attempted either. Quantified — 56 done points never move, only the denominator does.
+**Every row here is 56 over its own denominator, and every denominator is derived from 148 rather
+than carried forward** (re-derived again in session 6 when the numerator moved to 52, and again in
+this edition at 56). This table has now been wrong twice in one day in two different ways: four
 of five rows were still computed on session 4's numerator of 29 while the first row read 41 (item
 24), and — found only when T-11 changed the base — **all four scenario denominators were built on
 the pre-split base of 145 while the row above them said 147** (item 29). Re-derived, not adjusted:
 
 | T-14 | Phase 4 | Denominator | Completion | Scenario |
 |---|---|---|---|---|
-| 8 | 42 | 148 | **35.1%** | as planned — the published figure |
-| 16 | 63 | 177 | 29.4% | T-14 ×2, Phase 4 ×1.5 |
-| 16 | 84 | 198 | 26.3% | T-14 ×2, Phase 4 ×2 |
-| 24 | 84 | 206 | 25.2% | T-14 ×3, Phase 4 ×2 |
-| 24 | 126 | 248 | 21.0% | T-14 ×3, Phase 4 ×3 |
+| 8 | 42 | 148 | **37.8%** | as planned — the published figure |
+| 20 | 42 | 160 | 35.0% | **T-14a–e as proposed** (five M), Phase 4 as planned |
+| 16 | 63 | 177 | 31.6% | T-14 ×2, Phase 4 ×1.5 |
+| 16 | 84 | 198 | 28.3% | T-14 ×2, Phase 4 ×2 |
+| 24 | 84 | 206 | 27.2% | T-14 ×3, Phase 4 ×2 |
+| 24 | 126 | 248 | 22.6% | T-14 ×3, Phase 4 ×3 |
 
-Even at triple, the figure moves about fourteen points. **The ceiling is real but shallow**, so
-35.1% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
-is the number to quote and this one is not.
+Even at triple, the figure moves about fifteen points. **The ceiling is real but shallow**, so
+37.8% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
+is the number to quote and this one is not. The second row is new and is not a scenario: it is the
+breakdown actually on the table, and it is what this file publishes the day EL confirms it.
 
-**Where the remaining 96 points sit:** Phase 4 42 (43.8%) · Phase 3's residue 38 (39.6%) ·
-Phase 5 16 (16.7%) · Phase 2's residue 0. Neither large block is a majority. *(This paragraph read
+**Where the remaining 92 points sit:** Phase 4 42 (45.7%) · Phase 3's residue 34 (37.0%) ·
+Phase 5 16 (17.4%) · Phase 2's residue 0. Neither large block is a majority. *(This paragraph read
 "116 … Phase 2's residue 16" until session 6 while the table above it said 100 — drift 30.)*
 
 ## Verified today
@@ -302,6 +349,13 @@ Re-measured by running commands against the working tree:
 
 | | |
 |---|---|
+| **Session 6, third edition · branch · tip** | **`main` @ `162d26e`**, level with `origin/main`, clean tree, no local branch left in the container. PR #18 (`6a96ccd` — `584bb6a`, Checkpoint A closed and the T-14a–e proposal) and PR #19 (`162d26e` — `d6b423d`, T-13b) merged this edition, each on **4 successful checks** read on its PR page; both remote branches deleted and `git fetch --prune` confirms only `origin/main` remains. **Both commits were made on Windows from files written over the bridge and md5-compared on both sides (2 of 2, then 16 of 16), and each published tree was compared to the container's own commit before anything was merged**: `origin/task/t-13b-outbound-validator^{tree}` = `f7494cf^{tree}` = `d81e80c`, the commit message `diff` empty, the parent `584bb6a`. After the merge, `origin/main^{tree}` is that same `d81e80c` — the container's f7494cf and GitHub's `main` are one tree. The Windows tree is on `task/t-13b-outbound-validator` @ `d6b423d` and its `main` is two merges behind; **switching and pulling it is the next bridge action** (drift 34's shape, and the standing rule below). **Re-run `git rev-parse --short HEAD` rather than quoting from this document** |
+| **Session 6, third edition · `pnpm verify` on `162d26e`** | Container, native PostgreSQL 16 on 55432, 10 migrations, run *after* the merge on the fast-forwarded `main`, not carried from the branch. **Exit 0 in 74 s — 53 files, 1,238 tests, 0 skipped**, every one of the **13** checkers green behind its self-test (`check-claims: PASS — 7 declared claim(s) match the code`, `check-scoreboard-sync PASS`, `check-types-only: PASS — 2 types-only module(s)`), coverage **all files 99.64 / 99.16 / 99.78 / 99.64**, `apps/api/src/dto` and `packages/contracts/src` **100 / 100 / 100 / 100**. The three files new since the close-out's 50 are all T-13b's — `schema.test.ts`, `outbound.test.ts`, `dto/audiences.test.ts` — and of the 94 new tests (1,144 → 1,238), **88** are in those three files (30 / 42 / 16, read from the run) and the rest are in `authorize.test.ts`'s new response-declaration block and `client.test.ts` |
+| **Session 6, third edition · CI #72 read from the raw log, not the viewer** | Branch push of `d6b423d`, event `push`, **Success 1m18s**; `verify` 1m14s, `docs` 8s. The viewer truncates the test step ("This step has been truncated due to its large size"), so the **raw job log** was opened and searched: `Test Files  53 passed (53)`, `Tests  1238 passed (1238)`, `Duration 15.98s`, **no `skipped` in the summary** — the first CI run in this repository whose vitest summary line was actually read rather than inferred from per-file lines. `Apply migrations` 1s and `Initialize containers` 7s ahead of it, `tenancy.test.ts (41 tests)`, `submit-effects.db.test.ts (12)`, `auth.db.test.ts (12)` in the per-file list, so the DB suites ran against the service container. All 13 checker pairs present in the step list in `ci.yml`'s order. Same Node 20 → 24 warning as every run |
+| **T-13b, container-verified** | `packages/contracts` gains **`schema.ts`** — a closed JSON-Schema subset held as a value that both `validate` and `toJsonSchema` read, so the runtime check and the emitted OpenAPI cannot disagree — and **`outbound.ts`**, the guard that stands where a response leaves the process. `clientResponse()` refuses a `FORBIDDEN_CLIENT_FIELDS` name or an embedded internal schema **at declaration**, so a leak cannot even be written down. `apps/api` gains **9 client and 10 internal DTOs** (`dto/client.ts`, `dto/internal.ts`), each built field by field under its schema; every `ROUTES` entry now names its response schema and `assertRouteCoverage` refuses a missing key, `null` on a non-public route, a name on the public one, or a name the namespace's registry lacks. `apps/api/src/index.ts` is now 15 re-export blocks, still no HTTP |
+| **T-13b's controls, proven to fire** | Three plants against the real files, each restored and md5-compared: **`cost: number()`** on the Project client DTO → `SchemaError: Project: 'cost' is on FORBIDDEN_CLIENT_FIELDS and cannot be declared on a client response`, **both DTO suites red at module load** (the task's own verification line, run as written); **`response: 'Comparisonn'`** in `ROUTES` → `RouteCoverageError: … response schema 'Comparisonn' is not in the client registry`; **a display item carrying `created_by`**, alert mode, through the guard → `OutboundLeakError: Preview: response to a client carries undeclared fields: views[0].items[0].created_by`. The third is the one review round two demanded — see the next row |
+| **T-13b's two review rounds, both red** | Fresh-context adversarial review (AD-7) twice before the commit stood. **Round one, BLOCKER:** both status tables were keyed on **six states invented by `apps/client-web` and `apps/internal-web`** that appear nowhere in §3.4, `app.request_status` or OD-12 — every real row would have been refused by the validator it was written for. Re-keyed on the nine-state enum with an exhaustiveness test; the front-end drift is **F-38**, filed in `tasks/review-findings.md`. **Round two, BLOCKER:** an undeclared key inside a `oneOf` position (the display list, the finding parameters) was swallowed into a union summary the guard read as *drift* and **shipped in alert mode** — a leak path through the leak guard. The closest variant's problems are now hoisted with their real kinds; the `created_by` plant above is the proof. Also from review: own-key lookups and a null-prototype property map (`constructor` / `__proto__` off `JSON.parse` are strays, tested); absence-encoded unions so the contract pins what the type pins; the internal Finding a strict superset of the client one with the waiver fields; DRAFT excluded from the queue and the package; `nullable(oneOf)` refused and empty `required` omitted for OAS 3.0; `paginatedResponse()` so a list wrapper goes through `clientResponse` too |
+| **T-13b's decisions, recorded and not made** | Two are EL's and sit in `tasks/todo.md` under T-13b. **(1)** The guard refuses — in **both** modes, on a **client** response only — any forbidden field and any undeclared field at any depth; only *drift* (a declared field wrong-typed or missing) follows the fail / alert mode. That is a deviation from a literal reading of §8.3 (*"alert in production"*), argued from AC-02 and R-02: a production alert that ships the cost figure it is alerting about is not a control. **(2)** OD-12's rows made in code: `WITHDRAWN` and `EXPIRED` → *complete* on the client. And three **blind spots stated in the code and owned by T-14a**: the guard judges the object graph it is handed (`toJSON` / `Map`), so T-14a hands it the parsed serialized payload; the env → mode binding does not exist yet; the two §8.2 routes still absent from `ROUTES` leave `Document` and `InternalNote` as the registry's only orphans, on an allowlist that can only shrink |
 | **Session 6 close-out · branch · tip** | **`main` @ `b8d2087`**, level with `origin/main`, clean tree, no local branch left in the container — PR #13 (`3caa91d`, F-36), PR #14 (`9296ce1`, the checkpoint record and the previous edition of this file), PR #15 (`d3b2979`, F-37's remedy: `fe8a72a` + `0df4af5`) and PR #16 (`b8d2087`, R-07: `6696f5f`) merged since the row below, remote branches deleted after each tip sha was found in `main`'s log — and `origin/review/r-07-load-manifest` **re-appeared at `6696f5f` between the merge and this update** (something on the Windows side re-published it; its tip is in `main`, so it is deleted again here, and `git ls-remote --heads` is the check that would have caught it). Working branch for this update is `docs/scoreboard-checkpoint-a-close`. **The Windows tree was found on `review/r-07-load-manifest` @ `6696f5f` with its `main` at `9296ce1`** — two merges behind — and is switched and pulled as part of this update. **Re-run `git rev-parse --short HEAD` rather than quoting from this document** |
 | **Session 6 close-out · `pnpm verify` on `b8d2087`** | Container, native PostgreSQL 16 on 55432, 10 migrations. **Exit 0 in 76 s — 50 files, 1,144 tests, 0 skipped**, every one of the **13** checkers green behind its self-test, `check-types-only: PASS — 2 types-only module(s) still compile to an empty module`, `load-manifest.test.ts (32 tests)` where there were 31. The one new test is R-07's; the count moved by one because one pin was replaced by two |
 | **Session 6 close-out · CI #64 read, not reported** | `main` @ `b8d2087`, push, Success 1m35s; `verify` 1m28s, `docs` 6s. Job page opened in the browser and the step list read in order: *Types-only exclusion self-test* (0s) and *Coverage exclusions are still types-only* (1s) sit between *Stated figures match the repository* and *Kernel coverage gate* (19s), exactly where `ci.yml` puts them; `Unit and tenancy tests` 17s with `load-manifest.test.ts (32 tests)` and `tenancy.test.ts (41 tests)` visible in the expanded log. (The viewer still does not render vitest's summary line; the per-file lines are what was read.) The same warning as every run: Node 20 actions forced onto Node 24 |
@@ -348,7 +402,7 @@ Re-measured by running commands against the working tree:
 | **What did cover the work: PR #7, and it is green** | Head `b5850fb`, all 12 commits — `verify` **1m30s** (typecheck, lint, migrations, unit and tenancy tests, every checker with its self-test, the kernel coverage gate, the performance budgets) plus `docs` **7s**, with only the known Node 20 deprecation annotations. **Reported by EL from the run itself; this session did not open it**, which is a stronger source than a repository claim and still not a measurement taken here. **This satisfies the CI half of Checkpoint A** for T-08, T-09, T-10a and T-10b; the Windows half is untouched |
 | Re-run from the bridge today | `node tools/check-scoreboard-sync.mjs` → **PASS**; `node tools/selftest-scoreboard-sync.mjs` → **PASS** (both pure node, no dependencies, and the self-test writes nothing into the working tree). These are the only two gates this shell can execute — and the first one passed *while the two files it compares disagreed*, which is drift 18 |
 | The ahead/unpushed pair moves as this file is written | Each documentation commit that records this measurement adds one to both counts, so **do not quote ahead/unpushed from this document** — re-run `git rev-list --left-right --count origin/main...HEAD` and `git rev-list --count @{u}..HEAD`. Session 3 added `e488a14`, `c08cca3` and the commit carrying this row. That self-reference is exactly how drift item 5 arose, and naming it is cheaper than chasing it |
-| `main` | in sync with `origin/main` @ `e86d2bf` — PR #1 … #12 merged, every task branch deleted; PR #13 open *(session 5's row read `98b0229`, PR #1–#3)* |
+| `main` | in sync with `origin/main` @ `162d26e` — PR #1 … #19 merged, every task branch deleted, `git branch -r` lists `origin/main` alone *(this row read `e86d2bf` / "PR #13 open" through the close-out edition while the tip row above it said `b8d2087` — drift 36's shape, fixed here)* |
 | Packages | **12** — `packages/workflow` added by T-07 |
 | Test files | **53** (`*.test.ts`) — T-08 added `internal.test.ts`, T-09 added `projection.test.ts` and `part-registry.db.test.ts`, T-13b added `schema.test.ts`, `outbound.test.ts` and `dto/audiences.test.ts`. Re-derived by `check:claims`, not typed |
 | Migrations | **10** (`0001`–`0010`) — `0010_part_registry.sql` adds `part` / `part_revision`, the `bom_line` foreign key, staff-only RLS and the GRANT. **F-31 is closed**: `check-rls` now asserts the privilege half in both directions (T-10b) |
@@ -356,7 +410,7 @@ Re-measured by running commands against the working tree:
 | Server entry point | **none** — no `fastify`, `express`, `koa`, `hono`, `node:http`, `.listen(` anywhere in `apps/` or `packages/` |
 | Front-end dependency | **none** — no `react`, no `vite` in any `package.json` |
 | Route table | **20 entries** in `apps/api/src/authz/routes.ts` — **11 client, 8 internal, 1 public, each path enumerated and counted today**. Imported by `authorize.test.ts` (twice) and re-exported by `apps/api/src/index.ts` — **a barrel re-export is not a consumer, and no router mounts it**. Re-diffed against §8.2 today: `GET /api/client/v1/documents/:id` and `POST /api/internal/v1/revisions/:id/notes` are still absent and `GET /api/internal/v1/audit` (phase 2) is still carried. **19 of 21** — see drift 4 |
-| `apps/api/src/index.ts` | Its own header calls it "The HTTP layer". It is a barrel of 8 re-export blocks and **no HTTP**. Not filed as drift — the file says "and (later) authorization and DTOs" — but it is the sentence a future reader will misread as a server |
+| `apps/api/src/index.ts` | Its own header calls it "The HTTP layer". It is a barrel of **15** re-export blocks (8 until T-13b) and **no HTTP**. Not filed as drift — the file says "and (later) authorization and DTOs" — but it is the sentence a future reader will misread as a server |
 | Git tags · `CHANGELOG.md` · Dependabot | none · none · none, all re-checked today. `version` is `0.0.0`. Expected — `CHANGELOG.md` is T-26's, unstarted — but the house rule is to write the entry **in the commit that makes the change**, and 4 commits have landed since that rule was written down |
 | CI gates present | typecheck, lint, migrate, test, **13** self-tested checkers (the thirteenth, `check-types-only`, landed with F-37), coverage, bench, docs rebuild + `git diff --exit-code`. Two landed today: `check-content-hash` (recomputes each release's `content_sha256` by the method that manifest declares) and `check-spot-check-record` (asserts every signed spot-check covers the draw that was pinned before it) |
 | CI gates absent | secret scanning, dependency audit, bundle-size ceiling, E2E |
@@ -401,10 +455,12 @@ to 14**; item 11 is again this file describing itself wrongly, and 13 and 14 are
 a task's own verification line — found only because the line was actually re-run.
 
 **Session 5 found fifteen, items 15 to 29, and every one of them is inside the scoreboard itself
-or in the practice that maintains it.** Session 6 found six, items 30 to 35 — two stale
-figures inside this file, one honest sentence that reads as more than it is, and at the close-out a
+or in the practice that maintains it.** Session 6 found eight, items 30 to 37 — two stale
+figures inside this file, one honest sentence that reads as more than it is, at the close-out a
 stale branch name in the plan, a Windows tree two merges behind, and **the published page carrying
-drift 30 a full edition after this file fixed it** (item 35). This is the cleanest measurement the project has of how fast
+drift 30 a full edition after this file fixed it** (item 35); and at the third edition a test count
+in T-13b's own DONE block that the commit carrying it contradicts (item 36) and a caveat heading
+still quoting a percentage two editions old (item 37). This is the cleanest measurement the project has of how fast
 its own documentation goes stale: **fifteen false statements across the four copies in under a day.**
 
 Three matter most, and they are three different failures of the same kind. **Item 18** — the gate
@@ -459,6 +515,8 @@ denominator moving, which is the only reason anyone looked at that table twice.
 | 33 | *(new, session 6 close-out)* `tasks/todo.md`'s Checkpoint A review line said R-07's fix was *"on `review/r-07-load-manifest`"* — a branch that no longer existed once PR #16 merged and its remote was deleted — and this file's review row still read **10 of 11** while `tasks/review-todo.md` had said **11 of 11** since the same merge | **Fixed — "PR #16, merged" in the plan, 11 of 11 here.** The same shape as items 5, 11, 15 and 26: a present-tense sentence written at the moment of the commit, true for the twenty minutes until the branch was merged, and nothing to re-derive it. `check-claims` counts figures it was told to; a review count and a branch name are not among them |
 | 34 | *(new, session 6 close-out)* The Windows working tree sat on `review/r-07-load-manifest` @ `6696f5f` with its local `main` at `9296ce1`, two merges behind `origin/main`, while this file's tip row described the container's `main` | **Fixed — switched to `main` and pulled to `b8d2087` as part of this update.** Not a false statement in the file, since the row names the container; recorded because two trees of the same repository at different commits is how a second writer (the *two writers, one tree* row above) goes unnoticed, and because the next Windows verify would have run on the wrong tree |
 | 35 | *(new, session 6 close-out)* `progress.html` still read **"48 done points"** in its sensitivity header, **"100 points remain … Phase 3 (34)"** under the phase table, **"remaining 116 … Phase 2's residue 16"** under the sensitivity table, and its drift table ended at item 29 — three different remainders on one page | **Fixed — 52, 96, 96, rows 30–35 added.** Drift 30 was fixed in this file at the checkpoint edition and the page was republished without it; `check-scoreboard-sync` was green over the whole thing because the header and the paragraph are prose outside the figures it compares. **The fifth time a fix landed in one copy of two** (items 19, 23, 27, 30, and this). The check that would catch it is the cadence's step 7 — read the page, not the gate — and it was not executed |
+| 36 | *(new, session 6, third edition)* `tasks/todo.md`'s T-13b DONE block said **"53 files, 1,232 tests, 0 skipped"** while the commit that carries it (`d6b423d`) says **1,238** in its own body, and today's run says 1,238 | **Fixed — 1,238 in the plan.** The block was written after the second review round and before the last coverage-driven tests went in, and nothing re-derived it: `check-claims` reads seven figures from `progress.md` and none from `todo.md`. Items 13 and 14's shape — a stale figure inside a task's own verification line — a third time. Also fixed in the same commit: this file's `main` row, which read `e86d2bf` / "PR #13 open" two editions after the tip row above it moved |
+| 37 | *(new, session 6, third edition)* The *Caveat that cuts against …* heading and its closing sentence read **32.4%** through the checkpoint and close-out editions in which the published figure was **35.1%**, and its "T-14 … 5.6% of the project" was 8 over the **143**-point denominator of session 3. **`progress.html` was staler still**: its same paragraph read *"Why **20.0%** is an overstatement … larger than **143**"* — a figure three sessions old | **Fixed — 37.8% and 5.4% over 148, in both copies.** Drift 19 fixed this exact heading once (13.1% → 20.0%) and it went stale again the next session, because it is prose: two editions rewrote the figure everywhere the sync gate looks and nowhere it does not. Item 30's shape, one section up. `check-scoreboard-sync` compares the phase bars, the measure cards and the §15.2 statements — a percentage quoted inside a heading is outside its reach, and it was green over both copies the whole time. Same fix, same commit: the *Update cadence* step 2 said "over the **143**-point denominator" here and "**145**" on the page — the instruction for re-deriving the figure was itself carrying two stale ones |
 | 29 | *(new, session 5 — **mine, found while re-deriving for item 28's commit**)* The sensitivity table's four scenario **denominators** were built on the pre-split base of **145** while its own first row read **147** | **Fixed — all five re-derived from 148.** Item 24 fixed that table's *numerators* earlier the same day and I did not check its denominators, so a table about how the denominator moves was itself carrying a stale one. Two defects in one table in one day, both invisible to `check-scoreboard-sync`, which compares the phase bars and not this |
 
 **Drift 4 was not drift.** Both figures were accurate; the *classification* was wrong. Filed beside
@@ -493,30 +551,34 @@ rule earns its keep: the blueprint wins, and the scoreboard is what gets fixed.*
 
 ## What to do next, in order
 
-*(Rewritten at the session-6 close-out. The list written when the checkpoint was first held — F-37's
-remedy, R-07's two items, merge PR #13, merge the checkpoint branch, re-run the Windows script — is
-done in full under EL's standing "continue" and is lineage now; it lives in git history at
-`9296ce1`. The session-5 list before it is at `2bad6d7`.)*
+*(Rewritten at the session-6 third edition. The close-out's list — close Checkpoint A on EL's
+word, then T-13b — is done: the word was given, T-13b is on `main`. That list lives in git history
+at `0b0e97b`; the checkpoint list before it at `9296ce1`; session 5's at `2bad6d7`.)*
 
-### Immediate — EL's, and nothing else can supply it (est. one conversation)
+### EL's — three decisions, none of which blocks the next task (est. one reply)
 
-1. **Close Checkpoint A on the record.** Seven of its eight lines are ticked on evidence in
-   `tasks/todo.md`; the eighth is *review with EL before Phase 3*. What it needs from EL is the
-   word — and, in the same sitting, the **Phase 3 breakdown of T-14** that `tasks/plan.md` says
-   happens here: T-14 is sized L = 8 for *"the router mounts the registry"* and it gates all eight
-   §15.2 steps, so its sub-tasks are the first thing whose sizes can move the ceiling in *How soft is
-   35.1%*. Nothing in the repository changes until this is said; nothing in the repository is
-   waiting on anything else.
+1. **Confirm or resize T-14a–e.** Five M sub-tasks under T-14 in `tasks/todo.md`, each with the
+   failure it must be proven to catch. Confirmed, the denominator moves 148 → 160 and this file
+   publishes 35.0%; the second row of *How soft* is already that arithmetic. T-14a is next after
+   T-13d either way — its scope does not depend on its size.
+2. **Confirm the guard's both-modes refusal** or reverse it. As built, a forbidden or undeclared
+   field on a client response is refused in production too, not alerted; only type drift follows
+   the mode. The argument is in `tasks/todo.md` under T-13b; a literal §8.3 reads the other way.
+3. **OD-12: WITHDRAWN and EXPIRED → *complete*** on the client status, as the code now has it.
+
+**F-38** is filed and needs no decision yet: the two front-ends' six-state vocabulary is replaced,
+not reconciled, when T-14c and T-14e give them a real API to read from.
 
 ### Then — Phase 3, the server, in the container
 
-2. **T-13b** (outbound validator — plant a forbidden field and watch it fire; a validator never fed
-   one passes forever) → **T-13c** → **T-13d** (idempotency: two claims fired concurrently, exactly
-   one wins) → **T-14** (the router mounts the registry; the coverage assertion runs against the
-   *real* router, not a fixture — and carries the two missing §8.2 routes, drift 4) → **T-15**, with
-   **P-01 and P-02 landing in the same commits as the routes they measure.** Every one of these can
-   be implemented and verified in the container; the Windows lane is one push and one verify per
-   task.
+4. **T-13c** (input DTOs — the inbound half of what T-13b did outbound; a body with an extra key
+   is refused, planted) → **T-13d** (idempotency: two claims fired concurrently, exactly one wins —
+   the concurrency test is the control, the constraint alone is not) → **T-14a** (the application
+   and its boot-time gate against the *real* registered router, plus the two §8.2 routes drift 4 has
+   carried since session 3, and the guard wired to the serialized payload — the blind spot T-13b
+   states) → **T-14b → T-14c → T-14d + P-01 → T-14e + P-02 → T-15.** Every one of these can be
+   implemented and verified in the container; the Windows lane is one publish and one verify per
+   task, and the tree comparison after each publish is not optional.
 
 ### Standing, every session
 
@@ -599,12 +661,19 @@ The pattern has a name worth keeping in front of the next three tasks: **a contr
 own method and has no mechanism behind it.** F-01, F-02, F-08, F-11 and all five §5.4 budgets were
 that shape. So are the next three:
 
-- **T-13b, the outbound validator** — a validator that is never fed a forbidden field passes
-  forever. The acceptance test must plant one and watch it go red.
+- ~~**T-13b, the outbound validator** — a validator that is never fed a forbidden field passes
+  forever. The acceptance test must plant one and watch it go red.~~ **Done, and the pattern
+  showed up inside it twice**: review round two found the guard *shipping* an undeclared key in
+  alert mode because a union summary had swallowed it — a leak guard with a leak path — and round
+  one found both status tables keyed on states that do not exist, which would have refused every
+  real row while every test passed. Both were found by adversarial review, not by the suite.
+- **T-13c, input DTOs** — the same shape inbound: a body schema that is never fed an extra key
+  never refuses one.
 - **T-13d, idempotency** — a uniqueness constraint nothing races is untested. The concurrency test
   is the control; the constraint alone is not.
-- **T-14, deny-by-default** — a boot-time route-coverage assertion run against a fixture instead of
-  the real router is F-02 again, one layer up.
+- **T-14a, deny-by-default** — a boot-time route-coverage assertion run against a fixture instead of
+  the real router is F-02 again, one layer up. T-13b's `assertRouteCoverage` still runs against
+  `ROUTES`, the model; T-14a is what turns it on the router.
 
 And the standing one: **AC-06 is still enforced against a model.** The 20-entry route table is
 asserted against no router because no router exists. T-15 is what converts it — and session 3 found
