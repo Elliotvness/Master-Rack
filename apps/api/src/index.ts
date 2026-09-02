@@ -125,3 +125,26 @@ export {
   submitRevision,
   type SubmitContext,
 } from './workflow/submit-effects.js';
+
+/**
+ * T-08 (audit D-01b). Internal revision derivation, internal notes and AC-14's
+ * strip live in `@rms/workflow` and are surfaced HERE rather than from
+ * `apps/internal-web`, because deciding what a client may see is a server
+ * authority. Re-exported rather than re-implemented: `@rms/workflow` is where
+ * the rule is, and two copies of a rule is one copy too many.
+ *
+ * There are no effects to supply for these three — all are pure constructors.
+ * `submitEffects` above exists because `submit()` orchestrates a transaction;
+ * these do not. When a derived revision needs persisting, the effects arrive
+ * with the table, not before it.
+ */
+export {
+  DerivationError,
+  deriveInternalRevision,
+  internalNote,
+  stripInternalRevisions,
+  type DeriveResult,
+  type InternalNote,
+  type InternalRevision,
+  type SourceSubmission,
+} from '@rms/workflow';
