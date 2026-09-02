@@ -18,7 +18,6 @@ import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const PACKAGES_DIR = join(ROOT, 'packages');
 
 /** Packages matching this prefix are held to the purity rules. */
 const KERNEL_PREFIX = 'kernel-';
@@ -71,16 +70,16 @@ function listFiles(dir) {
   return out;
 }
 
-function purePackages() {
+function purePackages(packagesDir) {
   let entries;
   try {
-    entries = readdirSync(PACKAGES_DIR);
+    entries = readdirSync(packagesDir);
   } catch {
     return [];
   }
   return entries
     .filter((name) => name.startsWith(KERNEL_PREFIX) || ALSO_PURE.includes(name))
-    .filter((name) => statSync(join(PACKAGES_DIR, name)).isDirectory());
+    .filter((name) => statSync(join(packagesDir, name)).isDirectory());
 }
 
 /** Strip comments and string literals so a mention in prose is not a violation. */
@@ -93,15 +92,27 @@ function stripNonCode(source) {
     .replace(/`(?:[^`\\]|\\.)*`/g, '``');
 }
 
-export function checkBoundaries() {
+
+/**
+ * T-28. Every scan is rooted at `root`, which defaults to the repository. The
+ * self-test passes a temp tree instead, so it never writes a probe file inside
+ * the working copy — on a filesystem that refuses deletion a stranded probe
+ * makes the NEXT run fail against the self-test's own leftover fixture, and a
+ * false red trains people to re-run until it passes.
+ *
+ * The rules themselves are module constants, not files, so a temp tree exercises
+ * the REAL configuration rather than a simplified copy of it.
+ */
+export function checkBoundaries(root = ROOT) {
   const violations = [];
-  const packages = purePackages();
+  const packagesDir = join(root, 'packages');
+  const packages = purePackages(packagesDir);
   const scanned = [];
 
   for (const pkg of packages) {
-    const files = listFiles(join(PACKAGES_DIR, pkg, 'src'));
+    const files = listFiles(join(packagesDir, pkg, 'src'));
     for (const file of files) {
-      const rel = relative(ROOT, file).split(sep).join('/');
+      const rel = relative(root, file).split(sep).join('/');
       scanned.push(rel);
       const raw = readFileSync(file, 'utf8');
 

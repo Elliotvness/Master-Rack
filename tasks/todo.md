@@ -569,13 +569,13 @@ added the same day (`check-content-hash`, `check-spot-check-record`) write their
 temp directory instead and cannot strand anything.
 
 **Acceptance criteria:**
-- [ ] Each of the four checkers takes an optional root, defaulting to the repository root, so its
+- [x] Each of the four checkers takes an optional root, defaulting to the repository root, so its
       self-test can point it at a temp tree
-- [ ] Each of the four self-tests builds its probe tree under `os.tmpdir()` and never writes inside
+- [x] Each of the four self-tests builds its probe tree under `os.tmpdir()` and never writes inside
       the repository
-- [ ] Proven: with the repository mounted read-only for deletion, all four self-tests still pass and
+- [x] Proven: with the repository mounted read-only for deletion, all four self-tests still pass and
       leave `git status` clean
-- [ ] The self-tests still exercise the **real** configuration, not a simplified copy — if a temp
+- [x] The self-tests still exercise the **real** configuration, not a simplified copy — if a temp
       tree cannot reproduce the package-purity rules, say so and keep the in-tree probe with a
       guard that fails with the reason rather than a confusing checker error
 
@@ -583,10 +583,53 @@ temp directory instead and cannot strand anything.
 must pass. **Dependencies:** none. **Files:** `tools/{check,selftest}-{boundaries,app-boundaries,
 provenance,language}.mjs`. **Scope:** S.
 
-**Why it is not done on this branch.** It refactors four working checkers on a branch already
-36+ commits long and about to merge, and the test suite cannot be run from the bridge to confirm
-nothing else depends on their signatures. Recorded as its own task, per the one-branch-per-task rule
-that starts at Phase 2.
+**DONE 2026-09-02 (session 5) — container-verified, and criterion 3 proven on the real thing.**
+`pnpm verify` **exit 0** in **80 s** (baseline 83 s, T-27 82 s), 47 test files, 1,126 tests, 0 skipped.
+
+`checkBoundaries`, `checkAppBoundaries`, `lintProvenance` and `checkLanguage` each take
+`root = ROOT`. The four self-tests build their probe trees with `mkdtempSync` under `os.tmpdir()`
+and pass that root; **no probe is ever written inside the working copy.**
+
+**Criterion 4 needed no fallback, and the reason is worth writing down.** All four checkers'
+rules — `KERNEL_PREFIX`, `ALSO_PURE`, `FORBIDDEN_IMPORTS`, `FORBIDDEN_GLOBALS`, `RULES`,
+`FORMATTERS`, `SCANNED`, `DENYLIST_FILES` — are **module constants, not files on disk**. A temp tree
+therefore exercises the real configuration rather than a simplified copy of it. `check-language`'s
+denylist is keyed on a repository-relative path, so the exemption reproduces exactly in the temp
+tree and the lib probe is still checked against the **real** rule.
+
+**The blind spot this opens, closed in the same change.** A temp-tree self-test can no longer notice
+that a checker has lost its grip on the real repository: rename `packages/` and every probe would
+still be caught while the real scan quietly matched nothing. Three of the four now call
+`assertRealTreeReachable()` — read-only, writing nothing — which asserts the checker still finds a
+non-empty scan in the actual repository. It is the checker's own vacuous-pass guard, asserted by the
+self-test rather than only by `main()`. `selftest-language` needed no addition: its `baseline`
+already runs against the real tree, both to prove it clean and to prove `status.ts` is listed at all.
+Stating the blind spot beside the guarantee is the house rule; this one had a mechanism to go with it.
+
+**Criterion 3 was proven on the real hostile filesystem, not simulated.** Run from the bridge mount,
+where deletion genuinely fails:
+
+```
+rm: cannot remove '_delete_probe_5': Operation not permitted   <- the filesystem, confirmed first
+
+selftest-boundaries       run1=0 run2=0      check-boundaries       PASS
+selftest-app-boundaries   run1=0 run2=0      check-app-boundaries   PASS
+selftest-provenance       run1=0 run2=0      lint-provenance        PASS
+selftest-language         run1=0 run2=0      check-language         PASS
+
+find . -name '*probe*'  ->  (nothing)
+```
+
+Twice each with no cleanup between, the checkers green immediately after, and `git status` showing
+only the eight intended file modifications. Before this change the second run of any of the four
+would have failed against its own leftover fixture. Also run twice in the Linux container, with a
+before/after `md5sum` over every file in `packages apps tools fixtures` — **identical**, so the
+self-tests demonstrably write nothing into the tree on either filesystem.
+
+**One thing found while proving it, filed as F-29:** with no database reachable, the DB-backed suites
+**skip rather than fail**, and `pnpm test` reports a green *1,042 passed* — the exact figure this
+repository spent two sessions correcting. The coverage gate caught it and `verify` went red, so the
+build is safe; the *test step alone* is not.
 
 ---
 

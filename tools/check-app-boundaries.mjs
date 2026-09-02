@@ -24,7 +24,6 @@ import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const APPS_DIR = join(ROOT, 'apps');
 
 /**
  * What each app may NOT import.
@@ -153,19 +152,30 @@ function listFiles(dir) {
   return out;
 }
 
-export function checkAppBoundaries() {
+
+/**
+ * T-28. Every scan is rooted at `root`, which defaults to the repository. The
+ * self-test passes a temp tree instead, so it never writes a probe file inside
+ * the working copy — on a filesystem that refuses deletion a stranded probe
+ * makes the NEXT run fail against the self-test's own leftover fixture, and a
+ * false red trains people to re-run until it passes.
+ *
+ * The rules themselves are module constants, not files, so a temp tree exercises
+ * the REAL configuration rather than a simplified copy of it.
+ */
+export function checkAppBoundaries(root = ROOT) {
   const violations = [];
   const scanned = [];
   const appsChecked = [];
 
   for (const rule of RULES) {
-    const appDir = join(APPS_DIR, rule.app, 'src');
+    const appDir = join(root, 'apps', rule.app, 'src');
     const files = listFiles(appDir);
     if (files.length === 0) continue;
     appsChecked.push(rule.app);
 
     for (const file of files) {
-      const rel = relative(ROOT, file).split(sep).join('/');
+      const rel = relative(root, file).split(sep).join('/');
       scanned.push(rel);
       const raw = readFileSync(file, 'utf8');
 

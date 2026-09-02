@@ -13,14 +13,25 @@
  * ignore, which is the same failure by a slower route.
  */
 
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { lintProvenance } from './lint-provenance.mjs';
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const PROBE_DIR = join(ROOT, 'packages', 'display-list', 'src', '__provenance_probe__');
+/**
+ * T-28. The probe tree lives under `os.tmpdir()`, never inside the repository:
+ * on a filesystem that refuses deletion the probe survived and the NEXT run of
+ * the linter failed against this self-test's own leftover fixture. A false red
+ * is as corrosive as a false green.
+ *
+ * The linter's rules are module constants, not files, so the temp tree exercises
+ * the REAL configuration. The blind spot that introduces — a linter that has
+ * lost its grip on the real repository would still pass every probe below — is
+ * closed, read-only, by `assertRealTreeReachable`.
+ */
+const TREE = mkdtempSync(join(tmpdir(), 'rms-selftest-provenance-'));
+const PROBE_DIR = join(TREE, 'packages', 'display-list', 'src');
 const PROBE = join(PROBE_DIR, 'probe.ts');
 
 const HEADER = "import { formatLength, displayText } from '@rms/kernel-units';\n";
@@ -98,15 +109,36 @@ function writeProbe(source) {
 }
 
 function cleanup() {
-  rmSync(PROBE_DIR, { recursive: true, force: true });
+  rmSync(TREE, { recursive: true, force: true });
 }
 
 function probeViolations() {
-  return lintProvenance().violations.filter((v) => v.includes('__provenance_probe__'));
+  return lintProvenance(TREE).violations.filter((v) => v.includes('display-list/src/probe.ts'));
+}
+
+/** Read-only. See the note on TREE: this is the blind spot the temp tree opens. */
+function assertRealTreeReachable() {
+  const real = lintProvenance();
+  if (real.scanned.length === 0) {
+    console.error('selftest-provenance: the linter scanned nothing in the REAL repository. The');
+    console.error('probes below would still pass against a temp tree while the real scan');
+    console.error('matched nothing.');
+    return false;
+  }
+  console.log(`  reachable   real tree: ${real.scanned.length} file(s)`);
+  return true;
 }
 
 function main() {
-  const baseline = lintProvenance();
+  if (!assertRealTreeReachable()) {
+    process.exitCode = 1;
+    return;
+  }
+
+  mkdirSync(PROBE_DIR, { recursive: true });
+  writeFileSync(join(PROBE_DIR, 'clean.ts'), 'export const clean = 1;\n', 'utf8');
+
+  const baseline = lintProvenance(TREE);
   if (baseline.violations.length > 0) {
     console.error(
       'selftest-provenance: the tree already has violations, so the self-test\n' +

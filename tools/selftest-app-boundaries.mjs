@@ -7,14 +7,25 @@
  * invariant rots. A renamed app directory would do it, and nobody would notice.
  */
 
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { checkAppBoundaries } from './check-app-boundaries.mjs';
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const PROBE_DIR = join(ROOT, 'apps', 'client-web', 'src', '__app_probe__');
+/**
+ * T-28. The probe tree lives under `os.tmpdir()`, never inside the repository:
+ * on a filesystem that refuses deletion the probe survived and the NEXT run of
+ * the checker failed against this self-test's own leftover fixture. A false red
+ * is as corrosive as a false green.
+ *
+ * The checker's rules are module constants, not files, so the temp tree exercises
+ * the REAL configuration. The blind spot that introduces — a checker that has
+ * lost its grip on the real repository would still pass every probe below — is
+ * closed, read-only, by `assertRealTreeReachable`.
+ */
+const TREE = mkdtempSync(join(tmpdir(), 'rms-selftest-app-boundaries-'));
+const PROBE_DIR = join(TREE, 'apps', 'client-web', 'src');
 const PROBE = join(PROBE_DIR, 'probe.ts');
 
 /**
@@ -158,11 +169,32 @@ function writeProbe(source) {
 }
 
 function probeViolations() {
-  return checkAppBoundaries().violations.filter((v) => v.includes('__app_probe__'));
+  return checkAppBoundaries(TREE).violations.filter((v) =>
+    v.includes('client-web/src/probe.'),
+  );
+}
+
+/** Read-only. See the note on TREE: this is the blind spot the temp tree opens. */
+function assertRealTreeReachable() {
+  const real = checkAppBoundaries();
+  if (real.scanned.length === 0) {
+    console.error('selftest-app-boundaries: the checker scanned nothing in the REAL repository.');
+    console.error('The probes below would still pass against a temp tree while the real scan');
+    console.error('matched nothing.');
+    return false;
+  }
+  console.log(`  reachable   real tree: ${real.scanned.length} file(s)`);
+  return true;
 }
 
 function main() {
-  const baseline = checkAppBoundaries();
+  if (!assertRealTreeReachable()) {
+    process.exitCode = 1;
+    return;
+  }
+
+  writeProbe('export const x = 1;\n');
+  const baseline = checkAppBoundaries(TREE);
   if (baseline.violations.length > 0) {
     console.error(
       'selftest-app-boundaries: the tree already has violations, so the self-test\n' +
@@ -205,7 +237,7 @@ function main() {
       else console.log(`  allowed     ${name}`);
     }
   } finally {
-    rmSync(PROBE_DIR, { recursive: true, force: true });
+    rmSync(TREE, { recursive: true, force: true });
   }
 
   if (missed.length > 0 || falsePositives.length > 0) {

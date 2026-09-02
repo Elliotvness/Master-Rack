@@ -716,6 +716,45 @@ records that **locale hostility was attempted and removed** because Node ignores
 Windows — so the first option needs the locale to be forced in-process, not by environment.
 **Owner: E-09 / T-23.**
 
+## F-29 — with no database, the DB suites skip and `pnpm test` reports a green 1,042 *(raised in T-28, open)*
+
+Found while proving T-28, not by looking for it. The container's Postgres stopped between two runs,
+and `pnpm test` reported:
+
+```
+Test Files  44 passed | 3 skipped (47)
+     Tests  1042 passed | 84 skipped (1126)
+```
+
+**1,042 is the exact figure this repository spent two sessions correcting.** It is what the suite
+reports when the entire database layer is absent — tenancy, auth, audit chain, outbox, submit
+effects — because each of those suites calls `describe.skip` with a console note rather than failing:
+
+```
+SKIPPING tenancy tests: no migrated database at postgresql://…/rms
+```
+
+**The build was safe, and the reason matters.** `pnpm verify` went red — the coverage gate cannot
+meet its floors with those suites absent, so the run failed at exit 1. The control held. But the
+control that held was **coverage**, not the test step; `pnpm test` on its own was green over a
+missing database, and CI runs `pnpm test` as its own named step whose green tick a human reads.
+
+**Why this is the recurring shape rather than a convenience.** Skipping is right for a developer
+without Docker. It is wrong in CI, where "no database" is a broken pipeline and not a preference,
+and where the skip is reported as a pass. The `pnpm migrate` step ahead of it is what makes CI safe
+today — a silent no-op there, or a service container that starts but is never migrated, and the
+tests would skip and the step would still tick.
+
+**Remedy, when someone owns it:** honour an explicit `RMS_REQUIRE_DB=1` (set in CI) that turns every
+one of those skips into a failure, so the pipeline distinguishes "no database" from "database fine".
+That is a one-line guard per suite plus one line in `ci.yml`. Not taken inside T-28: T-28 is about
+self-test fixtures, and this belongs with the CI hardening in **T-11 / T-23**.
+
+Historical note, because it is the same number: `LATEST.md`'s long-standing "1,042 tests passing"
+claim was replaced in session 3 for being stale. It is now also, exactly, the count of a run with no
+database. A figure that means two different things is worth never quoting again without the file
+count beside it — 47 files, 1,126 tests, 0 skipped, is the whole assertion.
+
 ## F-12 and F-13 — fixed, values untouched
 
 Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.

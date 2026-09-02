@@ -175,13 +175,24 @@ function listFiles(dir) {
   return out;
 }
 
-export function checkLanguage() {
+
+/**
+ * T-28. Every scan is rooted at `root`, which defaults to the repository. The
+ * self-test passes a temp tree instead, so it never writes a probe file inside
+ * the working copy — on a filesystem that refuses deletion a stranded probe
+ * makes the NEXT run fail against the self-test's own leftover fixture, and a
+ * false red trains people to re-run until it passes.
+ *
+ * The rules themselves are module constants, not files, so a temp tree exercises
+ * the REAL configuration rather than a simplified copy of it.
+ */
+export function checkLanguage(root = ROOT) {
   const violations = [];
   const scanned = [];
 
   for (const base of SCANNED) {
-    for (const file of listFiles(join(ROOT, base))) {
-      const rel = relative(ROOT, file).split(sep).join('/');
+    for (const file of listFiles(join(root, base))) {
+      const rel = relative(root, file).split(sep).join('/');
 
       /**
        * Test files are excluded, for the same reason check-boundaries excludes
