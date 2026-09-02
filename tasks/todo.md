@@ -608,15 +608,15 @@ green build. The gate ran, passed, and did not cover the thing it is named for �
 documentation layer.
 
 **Acceptance criteria:**
-- [ ] `tools/check-claims.mjs` ported: counts stated in markdown are derived from the code, and drift
+- [x] `tools/check-claims.mjs` ported: counts stated in markdown are derived from the code, and drift
       fails the build. It has a self-test, and the self-test runs first
-- [ ] `check-scoreboard-sync` additionally parses the four `<div class="m">` measure cards in
+- [x] `check-scoreboard-sync` additionally parses the four `<div class="m">` measure cards in
       `progress.html` and compares their values against the headline table in `progress.md`
-- [ ] **Both gates proven to fire:** a planted stale count goes red, and a planted disagreeing
+- [x] **Both gates proven to fire:** a planted stale count goes red, and a planted disagreeing
       measure card goes red. A gate never fed a disagreement passes forever
-- [ ] Each checker's docstring re-states its remaining blind spots, in the same breath as its
+- [x] Each checker's docstring re-states its remaining blind spots, in the same breath as its
       guarantee — the house rule
-- [ ] Both wired into `pnpm verify` and CI, self-test ahead of checker
+- [x] Both wired into `pnpm verify` and CI, self-test ahead of checker
 
 **Verification:** `node tools/selftest-claims.mjs && node tools/check-claims.mjs`; then plant a
 disagreeing measure card and confirm `check:scoreboard` red, revert, confirm green.
@@ -625,6 +625,72 @@ style that self-test plants probe files inside the working tree and becomes the 
 dependency is not in the original plan; it was found in session 5.
 **Files:** `tools/check-claims.mjs`, `tools/selftest-claims.mjs`, `tools/check-scoreboard-sync.mjs`,
 `tools/selftest-scoreboard-sync.mjs`, `package.json`, `ci.yml`. **Scope:** M.
+
+**DONE 2026-09-02 (session 5) — container-verified.** `pnpm verify` **exit 0 in 57 s**, **50 test
+files, 1,143 tests, 0 skipped**, coverage 99.58%, against a native PostgreSQL 16.13 with all 10
+migrations applied. Three gates landed, not two: **F-31** was closed inside `check-rls` in the same
+task, because the finding is checker work and belongs with it.
+
+**`check-claims` found its first defect on its first run**, before it was wired into anything:
+
+```
+check-claims: FAIL
+  progress.md · test files: states 47, the code says 50. Derivation: testFiles.
+  progress.html · test files: states 47, the code says 50. Derivation: testFiles.
+```
+
+Both scoreboard copies had published `47 test files` while the tree held 50, through T-08 and T-09,
+with `check-scoreboard-sync` green over it the whole time — because the two copies *agreed with each
+other*. **Sync and truth are different properties, and only one of them had a gate.** That is the
+gap this task exists to close, and it was live at the moment the checker was written.
+
+**A declared table, not a sweep, and the reason is T-10a's rule.** *A dated observation keeps its
+number and says its date.* A checker that flagged every stale-looking integer would fire on every
+dated record in the repository, be judged noisy, and be switched off inside a week. So a claim is
+checked because someone declared it — file, pattern, derivation — the same exemptions-as-data shape
+`check-rls` uses for policies. **Seven claims declared. The cost of the design is stated in the
+docstring:** a number written into a living document tomorrow is invisible until someone adds a row.
+
+**A pattern that matches nothing is a FAILURE, not "nothing to check."** That is the one way this
+checker refuses to rot quietly: reword the sentence a claim lives in and the build goes red rather
+than silently dropping the claim. Zero matches, more than one match, a missing derivation, an
+unreadable file, and a `checked === 0` vacuous pass are all refusals. `selftest-claims` plants all
+five and the agreeing case, in a temp tree under `os.tmpdir()` per T-28, with `assertRealTreeReachable`.
+
+**The measure cards are now inside the gate (drift 18).** `check-scoreboard-sync` compares each
+card's `.v` value and the FIRST `N of M` in its detail against `progress.md`'s headline section.
+Deliberately only those two: card prose legitimately mentions superseded figures (*"it took 20.0%
+down to 19.7%"*), and a checker that flagged those would be reporting history as drift. A self-test
+case asserts exactly that — history in prose does not fail, a changed card value does.
+
+**Widening the checker made its own self-test go red, which is the ordering working.** The honest-pair
+fixture had no measure cards, so `pnpm verify` stopped at `selftest-scoreboard-sync` before reaching
+the checker. Fixing the fixture surfaced a second, real blind spot: §15.2 is stated **three times in
+`progress.html` and four times in `progress.md`**, and the comparison read only the FIRST occurrence
+in each — so three of four could be edited with nothing going red. `mvpStepsAll` now asserts a file
+agrees with itself before the two files are compared. **Drift 18's shape, one level down.**
+
+**F-31 closed on the axis the finding named.** `grantViolations` asserts, for every table in `app`,
+that `app_user` holds each command the table allows — and, in the other direction, does **not** hold a
+command `EXEMPTIONS` says it disallows. One exemption table now governs both axes, because a command a
+table deliberately does not allow should be absent from policies and privileges alike; two lists can
+disagree, and an exemption honoured on one axis has stopped meaning what it says.
+
+**Proven against the live database, both directions:**
+
+| Planted | Result |
+|---|---|
+| `REVOKE SELECT ON app.part FROM app_user` | **red** — *"no SELECT privilege for app_user … every policy on it is decorative (F-31)"*, exit 1 |
+| `GRANT UPDATE ON app.audit_event TO app_user` | **red** — *"UPDATE is GRANTed … EXEMPTIONS says this table deliberately does not allow it"*, exit 1 |
+| restored | **green**, 82 grants = 21 tables × 4 − the audit table's 2 |
+
+**And the self-test proven against a broken checker:** neutering the missing-privilege branch turned
+`selftest-rls` red on 2 of 13 cases, naming both. Restored, 13 pass (7 sensitivity, 6 privilege).
+
+**What this does not cover, stated rather than implied.** `check-claims` reaches two of the four
+scoreboard copies. The published artifact and the Claude Project doc are not on disk and CI cannot
+read them; they remain hand-verified at update time. §15.2 is unmoved at **0 of 8** — three checkers
+landed and not one of them is a step a client can take.
 
 ### T-11: Add secret scanning to CI
 **Description.** Audit **D-20**. NFR-SEC-06 asks for it explicitly and it is absent. B2 credentials

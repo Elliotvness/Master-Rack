@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * selftest-rls — prove the sensitivity-column assertion actually catches things.
+ * selftest-rls — prove the two assertions in check-rls actually catch things:
+ * the sensitivity-column one (D-02) and the privilege one (F-31).
  *
  * `check-rls` gained a real control in 0005: if a table carries a column that
  * is a SENSITIVITY axis rather than a tenancy one, some policy on that table
@@ -13,13 +14,13 @@
  * worse than having no checker, because the build stays green while the
  * invariant rots.
  *
- * No database. `sensitivityViolations` is pure, so the fixtures below are the
- * rows Postgres would have returned. Each case asserts the checker goes RED;
+ * No database. `sensitivityViolations` and `grantViolations` are pure, so the
+ * fixtures below are the rows Postgres would have returned. Each case asserts the checker goes RED;
  * the last asserts it stays GREEN, because a checker that fails on everything
  * is no more use than one that fails on nothing.
  */
 
-import { sensitivityViolations } from './check-rls.mjs';
+import { grantViolations, sensitivityViolations } from './check-rls.mjs';
 
 /** The shape `information_schema.columns` returns. */
 const COL = (table_name, column_name) => ({ table_name, column_name });
@@ -102,7 +103,87 @@ const CASES = [
   },
 ];
 
+/**
+ * The privilege axis (F-31). `grantViolations` is pure for the same reason
+ * `sensitivityViolations` is: the fixtures below are the rows Postgres would
+ * have returned, so this runs with no database — and F-31 is precisely a
+ * defect that a policy-shaped check reported PASS on.
+ */
+const TBL = (table_name) => ({ table_name });
+const GRANT = (table_name, privilege_type) => ({ table_name, privilege_type });
+const ALL = (table_name) =>
+  ['SELECT', 'INSERT', 'UPDATE', 'DELETE'].map((p) => GRANT(table_name, p));
+
+const GRANT_CASES = [
+  {
+    name: 'F-31 itself: a table with policies and no grant at all',
+    meaning: 'migration 0010 ships again, check-rls says PASS, the app says permission denied',
+    tables: [TBL('part'), TBL('organization')],
+    grants: [...ALL('organization')],
+    exemptions: {},
+    expect: 'FAIL',
+  },
+  {
+    name: 'a table granted SELECT but not INSERT',
+    meaning: 'a partial GRANT reads as a grant, and fails only on the write path in production',
+    tables: [TBL('part')],
+    grants: [GRANT('part', 'SELECT'), GRANT('part', 'UPDATE'), GRANT('part', 'DELETE')],
+    exemptions: {},
+    expect: 'FAIL',
+  },
+  {
+    name: 'the audit table with UPDATE granted back',
+    meaning: 'the revoke that makes audit events immutable is undone and the policy side still reads correct',
+    tables: [TBL('audit_event')],
+    grants: [GRANT('audit_event', 'SELECT'), GRANT('audit_event', 'INSERT'), GRANT('audit_event', 'UPDATE')],
+    exemptions: { audit_event: ['UPDATE', 'DELETE'] },
+    expect: 'FAIL',
+  },
+  {
+    name: 'a stale exemption for a table that no longer exists',
+    meaning: 'a justification outlives the thing it justified, silently',
+    tables: [TBL('part')],
+    grants: [...ALL('part')],
+    exemptions: { draft_note: ['DELETE'] },
+    expect: 'FAIL',
+  },
+  {
+    name: 'privileges granted on something that is not a table in the schema',
+    meaning: 'the two queries disagree about what exists and nothing says so',
+    tables: [TBL('part')],
+    grants: [...ALL('part'), GRANT('legacy_part', 'SELECT')],
+    exemptions: {},
+    expect: 'FAIL',
+  },
+  {
+    name: 'the schema as 0010 leaves it, audit exemption honoured',
+    meaning: 'a checker that fails on everything is no more use than one that fails on nothing',
+    tables: [TBL('part'), TBL('part_revision'), TBL('audit_event')],
+    grants: [
+      ...ALL('part'),
+      ...ALL('part_revision'),
+      GRANT('audit_event', 'SELECT'),
+      GRANT('audit_event', 'INSERT'),
+    ],
+    exemptions: { audit_event: ['UPDATE', 'DELETE'] },
+    expect: 'PASS',
+  },
+];
+
 let failures = 0;
+for (const c of GRANT_CASES) {
+  const violations = grantViolations(c.tables, c.grants, c.exemptions);
+  const got = violations.length > 0 ? 'FAIL' : 'PASS';
+  if (got === c.expect) {
+    console.log(`  ok    [grants] ${c.name} → ${got}`);
+  } else {
+    failures += 1;
+    console.error(`  MISS  [grants] ${c.name}: expected ${c.expect}, got ${got}`);
+    console.error(`        if this is wrong: ${c.meaning}`);
+    for (const v of violations) console.error(`        ${v}`);
+  }
+}
+
 for (const c of CASES) {
   const violations = sensitivityViolations(c.columns, c.policies, c.exemptions);
   const got = violations.length > 0 ? 'FAIL' : 'PASS';
@@ -116,9 +197,14 @@ for (const c of CASES) {
   }
 }
 
+const TOTAL = CASES.length + GRANT_CASES.length;
+
 if (failures > 0) {
-  console.error(`\nselftest-rls: FAIL — ${failures} of ${CASES.length} case(s) not caught.`);
+  console.error(`\nselftest-rls: FAIL — ${failures} of ${TOTAL} case(s) not caught.`);
   process.exitCode = 1;
 } else {
-  console.log(`\nselftest-rls: PASS — ${CASES.length} cases.`);
+  console.log(
+    `\nselftest-rls: PASS — ${TOTAL} cases ` +
+      `(${CASES.length} sensitivity, ${GRANT_CASES.length} privilege).`,
+  );
 }

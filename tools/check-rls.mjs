@@ -34,6 +34,11 @@ const CONNECTION =
 /**
  * Tables permitted to lack a policy for a given command, each with the reason.
  * An exemption is data with a justification, never a silent skip.
+ *
+ * The same table governs GRANTs (F-31). A command a table deliberately does not
+ * allow should be absent from BOTH axes, and one exemption saying so is truer
+ * than two lists that can disagree: an exemption honoured for policies but not
+ * for privileges is an exemption that stopped meaning what it says.
  */
 const EXEMPTIONS = {
   // With RLS enabled, an absent policy means DENIED. The audit table has no
@@ -150,6 +155,94 @@ export function sensitivityViolations(sensitiveColumns, policyExprs, exemptions)
   return violations;
 }
 
+/**
+ * Every table whose privileges for the application role disagree with the
+ * commands it is supposed to allow.
+ *
+ * This exists because of F-31, which is the same defect shape as D-02 one axis
+ * over. Migration 0010 shipped `app.part` with RLS enabled, forced, and a
+ * policy for every operation; `check-rls` reported PASS; the application role
+ * got `permission denied for table part`. The GRANT was missing, and nothing
+ * looked at the privilege half at all.
+ *
+ * Policies and privileges are orthogonal in exactly the way section 2 describes
+ * for tenancy and audience. A policy decides WHICH ROWS a role may touch; a
+ * GRANT decides WHETHER IT MAY TOUCH THE TABLE. A table with perfect policies
+ * and no grant is not half-secured, it is broken — and 0003_auth.sql already
+ * writes down why this recurs: `GRANT ... ON ALL TABLES` in 0002 applies to the
+ * tables that existed when it ran, so every table added later needs its own.
+ *
+ * Both directions are asserted. A missing privilege is F-31. A privilege that
+ * IS granted where an exemption says the command is disallowed is the audit
+ * table becoming mutable — the revoke undone by a later migration, with the
+ * policy side still reading as correct.
+ *
+ * Exported and PURE, for the reason `sensitivityViolations` states above.
+ *
+ * @param {{table_name: string}[]} tables
+ * @param {{table_name: string, privilege_type: string}[]} grants
+ * @param {Record<string, string[]>} exemptions
+ * @returns {string[]}
+ */
+export function grantViolations(tables, grants, exemptions) {
+  const violations = [];
+
+  const granted = new Map();
+  for (const { table_name, privilege_type } of grants) {
+    if (!granted.has(table_name)) granted.set(table_name, new Set());
+    granted.get(table_name).add(privilege_type);
+  }
+
+  const present = new Set(tables.map((t) => t.table_name));
+
+  for (const { table_name } of tables) {
+    const have = granted.get(table_name) ?? new Set();
+    const exempt = exemptions[table_name] ?? [];
+
+    for (const command of REQUIRED_COMMANDS) {
+      if (exempt.includes(command)) {
+        if (have.has(command)) {
+          violations.push(
+            `app.${table_name}: ${command} is GRANTed to app_user, but EXEMPTIONS says this ` +
+              'table deliberately does not allow it. The privilege was revoked for a reason ' +
+              'and has been granted back — the policy side still reads as correct.',
+          );
+        }
+        continue;
+      }
+      if (!have.has(command)) {
+        violations.push(
+          `app.${table_name}: no ${command} privilege for app_user. Row-level security can ` +
+            'only narrow what a GRANT allows; with no grant the table is unreachable and ' +
+            'every policy on it is decorative (F-31).',
+        );
+      }
+    }
+  }
+
+  // A grant recorded against a table that is not in the schema means the two
+  // queries disagree about what exists. Silence there would hide a typo'd
+  // exemption or a dropped table whose privileges outlived it.
+  for (const table of granted.keys()) {
+    if (!present.has(table)) {
+      violations.push(
+        `privileges are granted on app.${table}, which is not a table in the schema.`,
+      );
+    }
+  }
+
+  for (const table of Object.keys(exemptions)) {
+    if (!present.has(table)) {
+      violations.push(
+        `EXEMPTIONS names app.${table}, which no longer exists. Remove the exemption — a ` +
+          'justification for a table that is gone is not evidence about the schema as it stands.',
+      );
+    }
+  }
+
+  return violations;
+}
+
 async function main() {
   const client = new pg.Client({ connectionString: CONNECTION });
   await client.connect();
@@ -197,9 +290,20 @@ async function main() {
        WHERE n.nspname = 'app'
     `);
 
+    // The privilege half. information_schema.role_table_grants only reports
+    // grants the current role can see, and it reports them per grantee, so this
+    // is scoped to app_user explicitly rather than aggregated.
+    const { rows: grants } = await client.query(`
+      SELECT table_name, privilege_type
+        FROM information_schema.role_table_grants
+       WHERE table_schema = 'app' AND grantee = 'app_user'
+         AND privilege_type = ANY(ARRAY['SELECT','INSERT','UPDATE','DELETE'])
+    `);
+
     violations.push(
       ...sensitivityViolations(sensitiveColumns, policyExprs, SENSITIVITY_EXEMPTIONS),
     );
+    violations.push(...grantViolations(tables, grants, EXEMPTIONS));
 
     const byTable = new Map();
     for (const row of policies) {
@@ -264,7 +368,8 @@ async function main() {
 
     console.log(
       `check-rls: inspected ${tableCount} table(s) in schema "app", ` +
-        `${sensitiveColumns.length} sensitivity column(s).`,
+        `${sensitiveColumns.length} sensitivity column(s), ` +
+        `${grants.length} privilege grant(s) to app_user.`,
     );
 
     if (violations.length > 0) {
