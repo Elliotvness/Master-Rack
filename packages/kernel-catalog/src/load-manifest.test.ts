@@ -139,12 +139,41 @@ describe('a malformed manifest names the field, and does not half-load', () => {
     expect(() => loadReleaseManifest(raw({ units: undefined }))).toThrow(/manifest 2026-09/);
   });
 
-  it('a non-string in an optional string field reads as absent, not as a value', () => {
-    // Deliberate and narrow: `approved_by: 42` is nobody, not "42". Flagged in
-    // review as a silent fallback in a module that otherwise throws; kept
-    // because the alternative reads a number as a signature, and pinned here so
-    // the choice is visible rather than incidental.
-    expect(loadReleaseManifest(raw({ approved_by: 42 })).approvedBy).toBeNull();
-    expect(loadReleaseManifest(raw({ corrected_by: {} })).correctedBy).toBeNull();
+  it('a non-string in an optional string field is refused, not read as absent (R-07 L-3)', () => {
+    // Until Checkpoint A this pinned the opposite: `approved_by: 42` read as
+    // nobody, on the reasoning that the alternative "reads a number as a
+    // signature". It does not — the alternative is THROWING, which reads
+    // nothing as anything and is what the module's own docstring promises. A
+    // manifest that says its approver is 42 is malformed, and a loader that
+    // quietly turns that into "unapproved" has decided something on the
+    // author's behalf. Absent, null and blank still mean nobody; anything
+    // else that is not a string names the field and stops.
+    expect(() => loadReleaseManifest(raw({ approved_by: 42 }))).toThrow(ManifestError);
+    expect(() => loadReleaseManifest(raw({ approved_by: 42 }))).toThrow(/'approved_by' must be a string or empty/);
+    expect(() => loadReleaseManifest(raw({ corrected_by: {} }))).toThrow(/'corrected_by' must be a string or empty/);
+    expect(() => loadReleaseManifest(raw({ source_url: ['x'] }))).toThrow(/'source_url' must be a string or empty/);
+    // The three spellings of "nobody" are unchanged.
+    expect(loadReleaseManifest(raw({ approved_by: null })).approvedBy).toBeNull();
+    expect(loadReleaseManifest(raw({ approved_by: undefined })).approvedBy).toBeNull();
+    expect(loadReleaseManifest(raw({ approved_by: '  ' })).approvedBy).toBeNull();
+  });
+
+  it('constraints are validated as numbers, not cast (R-07 L-5)', () => {
+    // The only unchecked cast in the module, and the type it asserted —
+    // Record<string, number> — was a lie for any value that was not a number.
+    // Nothing reads `constraints` at runtime yet, which is exactly when a lie
+    // in a field is cheapest to stop telling.
+    expect(() => loadReleaseManifest(raw({ constraints: { a: 'x' } }))).toThrow(ManifestError);
+    expect(() => loadReleaseManifest(raw({ constraints: { a: 'x' } }))).toThrow(/'constraints\.a' must be a finite number/);
+    expect(() => loadReleaseManifest(raw({ constraints: { a: NaN } }))).toThrow(/'constraints\.a' must be a finite number/);
+    expect(() => loadReleaseManifest(raw({ constraints: [126] }))).toThrow(/'constraints' must be an object of numbers/);
+    expect(() => loadReleaseManifest(raw({ constraints: 126 }))).toThrow(/'constraints' must be an object of numbers/);
+    // The real shape, and the two spellings of "no constraints", still load.
+    expect(loadReleaseManifest(raw({ constraints: { brace_required_over_in: 126, crossbar_required_over_in_when_decked: 90 } })).constraints).toEqual({
+      brace_required_over_in: 126,
+      crossbar_required_over_in_when_decked: 90,
+    });
+    expect(loadReleaseManifest(raw({ constraints: null })).constraints).toEqual({});
+    expect(Object.isFrozen(loadReleaseManifest(raw()).constraints)).toBe(true);
   });
 });

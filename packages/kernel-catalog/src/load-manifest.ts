@@ -39,13 +39,43 @@ function str(raw: Record<string, unknown>, key: string, where: string): string {
   return v;
 }
 
-function strOrNull(raw: Record<string, unknown>, key: string): string | null {
+function strOrNull(raw: Record<string, unknown>, key: string, where: string): string | null {
   const v = raw[key];
   // An empty string is how a hand-edited manifest spells "nobody has approved
   // this". It must read as null, not as a name, or the gate sees a signature.
   if (v === undefined || v === null || (typeof v === 'string' && v.trim() === '')) return null;
-  if (typeof v !== 'string') return null;
+  // Anything else that is not a string is malformed, and this module's posture
+  // is to say so with the field named — not to read `approved_by: 42` as
+  // "unapproved" on the author's behalf (R-07, L-3).
+  if (typeof v !== 'string') {
+    throw new ManifestError(`${where}: '${key}' must be a string or empty`);
+  }
   return v;
+}
+
+/**
+ * `constraints` is a flat map of named numbers (e.g. `brace_required_over_in`).
+ * Validated rather than cast: the type this returns is only true if every value
+ * is checked, and a cast asserted it for whatever the file held (R-07, L-5).
+ */
+function numberRecord(
+  raw: Record<string, unknown>,
+  key: string,
+  where: string,
+): Readonly<Record<string, number>> {
+  const v = raw[key];
+  if (v === undefined || v === null) return Object.freeze({});
+  if (typeof v !== 'object' || Array.isArray(v)) {
+    throw new ManifestError(`${where}: '${key}' must be an object of numbers`);
+  }
+  const out: Record<string, number> = {};
+  for (const [name, value] of Object.entries(v as Record<string, unknown>)) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      throw new ManifestError(`${where}: '${key}.${name}' must be a finite number`);
+    }
+    out[name] = value;
+  }
+  return Object.freeze(out);
 }
 
 function strArray(raw: Record<string, unknown>, key: string, where: string): readonly string[] {
@@ -161,23 +191,23 @@ export function loadReleaseManifest(raw: unknown): CatalogReleaseManifest {
     rev,
     status: status as ReleaseStatus,
     sourceDocument: str(m, 'source_document', where),
-    sourceUrl: strOrNull(m, 'source_url'),
-    pageRef: strOrNull(m, 'page_ref'),
+    sourceUrl: strOrNull(m, 'source_url', where),
+    pageRef: strOrNull(m, 'page_ref', where),
     units: str(m, 'units', where),
     loadBasis: str(m, 'load_basis', where),
     deflectionLimit: str(m, 'deflection_limit', where),
     codeBasis: str(m, 'code_basis', where),
     digitisedBy: str(m, 'digitised_by', where),
     digitisedAt: str(m, 'digitised_at', where),
-    approvedBy: strOrNull(m, 'approved_by'),
-    approvedAt: strOrNull(m, 'approved_at'),
+    approvedBy: strOrNull(m, 'approved_by', where),
+    approvedAt: strOrNull(m, 'approved_at', where),
     verificationPaths: verificationPaths(m, where),
     humanSpotChecks: humanSpotChecks(m, where),
-    correctedBy: strOrNull(m, 'corrected_by'),
-    quarantineReason: strOrNull(m, 'quarantine_reason'),
+    correctedBy: strOrNull(m, 'corrected_by', where),
+    quarantineReason: strOrNull(m, 'quarantine_reason', where),
     datasets: strArray(m, 'datasets', where),
     contentSha256: str(m, 'content_sha256', where),
     sourceAnomalies: strArray(m, 'source_anomalies', where),
-    constraints: Object.freeze({ ...((m['constraints'] as Record<string, number>) ?? {}) }),
+    constraints: numberRecord(m, 'constraints', where),
   });
 }
