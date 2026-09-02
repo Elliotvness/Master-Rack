@@ -17,6 +17,15 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PROBE_DIR = join(ROOT, 'apps', 'client-web', 'src', '__app_probe__');
 const PROBE = join(PROBE_DIR, 'probe.ts');
 
+/**
+ * Extensions the scan must not skip.
+ *
+ * `.jsx`, `.cts` and `.cjs` were absent from the file filter, so the same
+ * forbidden source in one of them was never read. A rule that depends on a
+ * filename is a rule with an escape hatch.
+ */
+const MUST_SCAN_EXTENSIONS = ['tsx', 'mts', 'cts', 'js', 'jsx', 'mjs', 'cjs'];
+
 /** Each must be caught. The name is what a miss would mean in production. */
 const MUST_CATCH = [
   {
@@ -43,6 +52,64 @@ const MUST_CATCH = [
     name: 'the internal API by relative path',
     source: "import { authorize } from '../../api/src/index.js';\nexport const x = authorize;\n",
   },
+  {
+    name: 'RE-EXPORTING submit — T-07 moved it; this is moving it back',
+    source: "export { submit } from '@rms/workflow';\n",
+  },
+  {
+    name: 'submit re-exported under another name, which is the same leak renamed',
+    source: "export { submit as send } from '@rms/workflow';\n",
+  },
+  {
+    name: 'a local name aliased TO submit, which is what a caller looks for',
+    source: "const send = 1;\nexport { send as submit };\n",
+  },
+  {
+    name: 'IMPORTING submit, so the bundle can drive the sequence itself',
+    source: "import { submit } from '@rms/workflow';\nexport const x = () => submit;\n",
+  },
+  {
+    name: 'declaring a deriveBom of its own — a client re-deriving its own answer',
+    source: "export function deriveBom() { return []; }\n",
+  },
+  {
+    name: 'a stripInternalRevisions the client decides for itself',
+    source: "export const stripInternalRevisions = (r) => r;\n",
+  },
+  {
+    name: 'freezeRevision, a server authority',
+    source: "export async function freezeRevision() { return undefined; }\n",
+  },
+  {
+    name: 'export * — the scan cannot see which names cross',
+    source: "export * from '@rms/workflow';\n",
+  },
+  // Every case below walked past the first version of this rule. An adversarial
+  // review wrote them, ran them, and reported PASS on all six.
+  {
+    name: 'a NAMESPACE import, then re-exporting the member — two lines, both gates green',
+    source: "import * as wf from '@rms/workflow';\nexport const drive = wf.submit;\n",
+  },
+  {
+    name: 'a namespace import with the member reached by string index',
+    source: "import * as wf from '@rms/workflow';\nexport const go = wf['submit'];\n",
+  },
+  {
+    name: 'a namespace import destructured, so no clause ever names the symbol',
+    source: "import * as wf from '@rms/workflow';\nconst { submit: go } = wf;\nexport const drive = go;\n",
+  },
+  {
+    name: 'a local binding named submit, exported as default so no clause names it',
+    source: "const submit = () => undefined;\nexport default submit;\n",
+  },
+  {
+    name: 'CommonJS, which none of the ES-module regexes can see',
+    source: "module.exports = { submit: 1 };\n",
+  },
+  {
+    name: 'a top-level deriveBom binding that is never exported at all',
+    source: "const deriveBom = () => [];\nexport const x = 1;\nvoid deriveBom;\n",
+  },
 ];
 
 /** Each must NOT be caught, or the checker becomes noise people route around. */
@@ -66,6 +133,22 @@ const MUST_ALLOW = [
   {
     name: 'the word api appearing in a comment',
     source: "// do not import @rms/api here\nexport const x = 1;\n",
+  },
+  {
+    name: 'the step vocabulary and refusal type, which a screen legitimately needs',
+    source: "export { SUBMIT_STEPS, SubmitError, stepsInOrder, type SubmitStep } from '@rms/workflow';\n",
+  },
+  {
+    name: 'submitRefusals — a prefix match here would ban the reasons list itself',
+    source: "export { submitRefusals } from '@rms/workflow';\n",
+  },
+  {
+    name: 'readyToSubmit and canSubmit, which contain the word and are not it',
+    source: "export const readyToSubmit = () => true;\nexport const canSubmit = () => true;\n",
+  },
+  {
+    name: 'the Derivation TYPE, which starts with Deriv and is not derive*',
+    source: "export type { Derivation } from '@rms/workflow';\n",
   },
 ];
 
@@ -104,6 +187,17 @@ function main() {
       if (probeViolations().length === 0) missed.push(name);
       else console.log(`  caught      ${name}`);
     }
+    for (const ext of MUST_SCAN_EXTENSIONS) {
+      const path = join(PROBE_DIR, `probe.${ext}`);
+      mkdirSync(PROBE_DIR, { recursive: true });
+      writeFileSync(path, "export { submit } from '@rms/workflow';\n", 'utf8');
+      const seen = probeViolations().length > 0;
+      rmSync(path, { force: true });
+      if (!seen) missed.push(`a forbidden export in a .${ext} file`);
+      else console.log(`  scanned     .${ext}`);
+    }
+    writeProbe('export const x = 1;\n');
+
     for (const { name, source } of MUST_ALLOW) {
       writeProbe(source);
       const hits = probeViolations();

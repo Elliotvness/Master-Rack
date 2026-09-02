@@ -299,19 +299,74 @@ than moving into `apps/api`.
 location."** Behaviour changes belong in T-05/T-06, which land first.
 
 **Acceptance criteria:**
-- [ ] `packages/workflow` created, subject to `check-boundaries` — no I/O, no clock, no RNG
-- [ ] `submit`, `submitRefusals`, `SUBMIT_STEPS`, `stepsInOrder` and their types move there verbatim
-- [ ] `apps/api` supplies the effects and owns the transaction
-- [ ] `apps/client-web` may import the step vocabulary and refusal types; it may not import `submit`
-- [ ] `check-app-boundaries` gains a rule: `client-web` may not export a symbol named `submit`,
+- [x] `packages/workflow` created, subject to `check-boundaries` — no I/O, no clock, no RNG
+- [x] `submit`, `submitRefusals`, `SUBMIT_STEPS`, `stepsInOrder` and their types move there verbatim
+- [x] `apps/api` supplies the effects and owns the transaction
+- [x] `apps/client-web` may import the step vocabulary and refusal types; it may not import `submit`
+- [x] `check-app-boundaries` gains a rule: `client-web` may not export a symbol named `submit`,
       `freeze`, `derive*` or `strip*`
-- [ ] Coverage on the new package is 100%, matching every other pure package
-- [ ] The existing 22 submit tests move unchanged and stay green
+- [x] Coverage on the new package is 100%, matching every other pure package
+- [x] The existing ~~22~~ **37** submit tests move unchanged and stay green — the file grew in
+      T-05 and T-06 and the figure was never updated (drift 14)
 
 **Verification:** `pnpm verify`; `check-boundaries` reports 10 pure packages; prove the new
 app-boundary rule fires — re-export `submit` from `client-web`, confirm red, revert.
 **Dependencies:** T-05, T-06. **Files:** new `packages/workflow/*`, `apps/client-web/src/index.ts`,
 `tools/check-app-boundaries.mjs`, `tsconfig.base.json`, `vitest.config.ts`. **Scope:** M.
+
+**DONE 2026-09-01 (session 4).** `pnpm verify` **exit 0** — **47 test files, 1,126 tests, 0 skipped**
+against a native PostgreSQL 16.13.
+
+- **The move is verbatim.** `packages/workflow/src/submit.ts` differs from
+  `HEAD:apps/client-web/src/lib/submit.ts` in two `import type` specifiers and one `export type`
+  specifier — all erased at runtime. `submit.test.ts` is **byte-identical**.
+- **`check-boundaries` reports 11 pure packages, not the 10 the verification line asks for.** The
+  line was written before `packages/contracts` existed; 10 was the pre-task figure and a correct
+  T-07 necessarily produces 11. Re-measured at `HEAD` to confirm: 10 there, 11 here. Drift 13.
+- **`ClientFinding` moved to `packages/workflow`** and is re-exported from `preview.ts`; a pure
+  package cannot import from an app, and the submit transaction has to be able to name the findings
+  it refuses on. **`Assumption`/`Acknowledgement` moved from `@rms/contracts` to `packages/workflow`**
+  for a harder reason: `check-boundaries` forbids a pure package from importing `@rms/contracts` at
+  all. The alternative was relaxing that rule; moving the types respects it and puts the §11.6
+  register with the module that produces it.
+- **The new symbol rule caught six bypasses only after an adversarial review wrote them.** The first
+  version matched brace clauses and declarations; the review got `submit` into the client bundle in
+  two lines — `import * as wf from '@rms/workflow'; export const drive = wf.submit;` — with both
+  `check-app-boundaries` and `tsc` green. It also walked past `.jsx`, `.cts` and `.cjs` (absent from
+  the file filter), `module.exports`, a local `const submit` exported as default, and `wf['submit']`.
+  Now: namespace imports and CommonJS are refused outright in a restricted app, top-level bindings of
+  a forbidden name are caught exported or not, and the scan reads seven extensions. **20 violation
+  types caught, 9 legal forms allowed, 7 extensions proven scanned.**
+- **`apps/api` owns the transaction in shipping code, not only in a fixture.** `submitRevision()`
+  opens `withTenant` and runs the nine steps; `submitEffects()` supplies the SQL. The review's point
+  stands and is why the function exists: before it, `withTenant` appeared nowhere outside
+  `packages/db` and its tests, which made "owns the transaction" a description of intent.
+- **Three silent-write defects, found by the review and closed.** `freezeRevision`, `persistDerived`
+  and `createSubmission` all wrote with a `WHERE` that can match nothing and none looked at
+  `rowCount`: submitting an absent revision id **committed** two audit events asserting a freeze and
+  a submission, plus three outbox messages telling a worker to generate a PDF for a submission that
+  was never written. Every write now asserts exactly one row.
+- **Step 8's reconciliation was comparing the wrong thing.** It matched on `action` name, so after
+  the first submission there is always a `revision.frozen` row and a transaction that skipped its own
+  event still passed. It went green for the worst possible reason — the fixture truncated
+  `app.audit_event` before every case, so the control was only ever exercised against an empty table.
+  **That test proved the fixture, not the control.** It now reconciles by **event id** — a primary
+  key this transaction generated, which no pre-existing row can satisfy — and compares counts in both
+  directions. The test submits once for real first, so the chain is populated when the sabotage runs.
+- **Two sources for one revision id, closed.** `persistDerived` receives no revision id, so it read
+  a context field while every other step used `SubmitInput`'s. The review pointed them at different
+  revisions: the transaction deleted a third party's findings, wrote this submission's onto that
+  revision, left the frozen one empty, and reported all nine steps complete. The id is now a required
+  parameter of `submitEffects`, `rederive` refuses a mismatch, and `submitRevision` passes both from
+  the same object.
+- **Coverage:** `packages/workflow/src/**` at 100/100/100/100. `apps/api/src/workflow/**` at 100 on
+  lines, statements and functions with a **branch floor of 97** for one branch, named in
+  `vitest.config.ts`: step 8's "event absent from the chain" arm is unreachable because three other
+  controls already prevent it (one transaction, DELETE revoked, append-only trigger). Covering it
+  would mean disabling those to prove this one.
+- **A literal NUL byte was found in the source** while fixing the above — `join('\0')` written as a
+  raw control character rather than an escape, which made `grep` report the file as binary. Replaced
+  with `'\u0000'`, matching `chainHash`'s field-separator convention.
 
 ### T-08: Move internal revision derivation and note handling server-side
 **Description.** Audit **D-01b**. `deriveInternalRevision`, `internalNote` and

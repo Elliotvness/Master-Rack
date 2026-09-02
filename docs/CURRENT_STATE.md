@@ -1273,6 +1273,43 @@ nothing noticeable.
 
 Still not verified: `verify-visual.py` (`P0-003`), and CI on a real runner.
 
+**2026-09-01 (session 4) — `T-07`, and what an adversarial review is worth in numbers**
+
+| Command | Result |
+|---|---|
+| `pnpm verify` after the move | exit 0 — 47 files, 1,122 tests |
+| `pnpm verify` after the review's repairs | **exit 0 — 47 files, 1,126 tests** |
+| `check-boundaries` | 11 pure package(s), 45 files — **not the 10 the task's verification line asks for**; 10 was the pre-task figure, re-measured at `HEAD` to confirm |
+| `selftest-app-boundaries` | **20 violation types caught, 9 legal forms allowed, 7 extensions proven scanned** |
+| `diff packages/workflow/src/submit.test.ts` vs `HEAD:apps/client-web/src/submit.test.ts` | byte-identical |
+| coverage `packages/workflow/src/**` | 100 / 100 / 100 / 100 |
+| coverage `apps/api/src/workflow/**` | 100 lines · 100 statements · 100 functions · **97.14 branches** (one named, unreachable arm) |
+
+The review found four things the task's own tests could not, and each is worth carrying:
+
+**A control fires on exactly the cases its author imagined.** The new symbol rule had eight
+self-test cases that genuinely go red when the rule is removed — and every one was a brace clause or
+a declaration, because that is what the regexes matched. Six two-line files walked past it, the
+shortest being `import * as wf from '@rms/workflow'; export const drive = wf.submit;`. Filed as
+**F-23**.
+
+**Three writes matched no row and reported success.** Submitting a revision id that does not exist
+committed two audit events and three outbox messages for a submission that was never written — every
+gate green. **F-24**.
+
+**A reconciliation that proved its fixture.** Step 8 compared audit `action` names, and its test
+passed only because the fixture truncates `app.audit_event` before every case. After the first real
+submission the check is satisfied by any earlier row. **F-25**.
+
+**Two sources for one revision id.** `persistDerived` read a context field while every other step
+used `SubmitInput`'s; pointed at different revisions, the transaction deleted a third party's
+findings, wrote this submission's onto that revision, and reported nine steps complete.
+
+Also found in passing: a **literal NUL byte** in `submit-effects.ts`, from writing `join('\0')` as a
+raw control character rather than an escape. `grep` reported the file as binary, which is how it
+surfaced.
+
+
 
 
 

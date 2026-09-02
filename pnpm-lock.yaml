@@ -50,12 +50,12 @@ importers:
       '@rms/kernel-model':
         specifier: workspace:*
         version: link:../../packages/kernel-model
+      '@rms/workflow':
+        specifier: workspace:*
+        version: link:../../packages/workflow
 
   apps/client-web:
     dependencies:
-      '@rms/contracts':
-        specifier: workspace:*
-        version: link:../../packages/contracts
       '@rms/display-list':
         specifier: workspace:*
         version: link:../../packages/display-list
@@ -65,12 +65,15 @@ importers:
       '@rms/kernel-units':
         specifier: workspace:*
         version: link:../../packages/kernel-units
+      '@rms/workflow':
+        specifier: workspace:*
+        version: link:../../packages/workflow
 
   apps/internal-web:
     dependencies:
-      '@rms/contracts':
+      '@rms/workflow':
         specifier: workspace:*
-        version: link:../../packages/contracts
+        version: link:../../packages/workflow
 
   packages/contracts: {}
 
@@ -132,6 +135,8 @@ importers:
   packages/kernel-rules: {}
 
   packages/kernel-units: {}
+
+  packages/workflow: {}
 
 packages:
 

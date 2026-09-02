@@ -1,0 +1,12 @@
+{
+  "name": "@rms/workflow",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The submit transaction and the §11.6 assumption register. Pure orchestration: every effect is injected, so the ordering can be asserted without a database. No I/O, no clock, no RNG.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

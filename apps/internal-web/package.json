@@ -10,6 +10,6 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@rms/contracts": "workspace:*"
+    "@rms/workflow": "workspace:*"
   }
 }

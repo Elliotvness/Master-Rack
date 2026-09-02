@@ -36,8 +36,6 @@ export {
   type Pagination,
 } from './pagination.js';
 
-export type { Acknowledgement, Assumption } from './assumptions.js';
-
 export {
   FORBIDDEN_CLIENT_FIELDS,
   findForbiddenFields,

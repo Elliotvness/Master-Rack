@@ -35,9 +35,8 @@
  * Pure: no I/O, no clock, no RNG. Time and identifiers arrive as arguments.
  */
 
-import type { Acknowledgement, Assumption } from '@rms/contracts';
-
-import type { ClientFinding } from './preview.js';
+import type { Acknowledgement, Assumption } from './assumptions.js';
+import type { ClientFinding } from './finding.js';
 
 /** The nine steps, in the only order they may occur. */
 export const SUBMIT_STEPS = Object.freeze([
@@ -78,15 +77,15 @@ export interface SubmitInput {
 }
 
 /**
- * The §11.6 register and its acknowledgement live in `@rms/contracts`.
+ * The §11.6 register and its acknowledgement are declared alongside this module.
  *
- * Re-exported here because this module is where they are produced and checked,
- * and a caller should not have to know which package a type is declared in to
- * use the function that returns it. The declaration is shared because the same
- * record has to appear in the pre-submit confirmation, the client PDF and the
- * top of the internal review package — three audiences, one contract.
+ * Re-exported here because this is where they are produced and checked, and a
+ * caller should not have to know which file a type is declared in to use the
+ * function that returns it. The declaration is shared because the same record
+ * has to appear in the pre-submit confirmation, the client PDF and the top of
+ * the internal review package — three audiences, one contract.
  */
-export type { Acknowledgement, Assumption } from '@rms/contracts';
+export type { Acknowledgement, Assumption } from './assumptions.js';
 
 export interface Derivation {
   readonly findings: readonly ClientFinding[];

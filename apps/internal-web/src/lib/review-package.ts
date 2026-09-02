@@ -23,7 +23,7 @@
  * Pure: no I/O, no clock, no RNG.
  */
 
-import type { Acknowledgement, Assumption } from '@rms/contracts';
+import type { Acknowledgement, Assumption } from '@rms/workflow';
 
 /**
  * The package's top-level keys, in the order it presents them.

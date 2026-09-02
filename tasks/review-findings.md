@@ -576,6 +576,70 @@ blocklist is a list of *names to refuse*, not internal data. The observation wor
 `forbidden-fields` behind its own entry point that the client rule forbids, or add a rule that
 `client-web` may import `@rms/contracts` for types only.
 
+## F-23 — a symbol-level rule that six two-line files walked past *(raised and fixed in T-07)*
+
+Recorded because the SHAPE recurs, not because it is open.
+
+T-07 added `check-app-boundaries`'s first symbol rule: the client bundle may not export or import
+`submit`, `freeze`, `derive*` or `strip*`. It was written against brace clauses and declarations. An
+adversarial review put `submit` into the client bundle in **two lines**, with both the checker and
+`tsc` reporting success:
+
+```ts
+import * as wf from '@rms/workflow';
+export const driveSubmission = wf.submit;
+```
+
+Five more followed: `wf['submit']`, a destructured namespace, `const submit = …; export default
+submit;`, `module.exports = { submit }`, and the same forbidden source in a `.jsx`, `.cts` or `.cjs`
+file — three extensions the scan's own file filter did not list.
+
+**The lesson is not "regexes are hard".** The eight self-test cases written alongside the rule were
+real tests: remove the rule and they go red. But every one of them was a brace-clause or declaration
+form. **The self-test tested the regexes that were written, not the rule that was stated** — which is
+this project's recurring defect wearing its most convincing disguise, because the control does fire,
+and fires on exactly the cases its author imagined.
+
+**Fixed:** namespace imports and CommonJS are refused outright in a restricted app (a namespace
+import binds every symbol under one name, so no symbol-level rule can see through it); top-level
+bindings of a forbidden name are caught whether exported or not; the scan reads seven extensions.
+20 violation types, 9 legal forms, and the extension list itself proven.
+
+**Carry forward:** when a control's self-test is written by the same person in the same hour as the
+control, the cases it contains are the cases the control already handles. The check that pays is
+someone else trying to get past it.
+
+## F-24 — three writes that matched no row and reported success *(raised and fixed in T-07)*
+
+`apps/api/src/workflow/submit-effects.ts`, as first written: `freezeRevision`'s `UPDATE … WHERE id`,
+`persistDerived`'s `INSERT … SELECT … WHERE r.id`, and `createSubmission`'s `INSERT … SELECT …
+WHERE r.id` all wrote with a predicate that can match nothing, and none of the three looked at
+`rowCount`.
+
+Demonstrated against the live database with a revision id that does not exist: `submit()` **resolved
+with all nine steps complete**, and the transaction **committed** two audit events asserting that a
+revision was frozen and a submission created, plus three outbox messages instructing a worker to
+generate a PDF and notify a client about a submission that was never written.
+
+This is the project's own named shape — *a reproducible wrong answer is invisible to every gate that
+only checks reproducibility*. Every gate passed. **Fixed:** every write asserts exactly one row.
+
+## F-25 — a reconciliation that proved its fixture *(raised and fixed in T-07)*
+
+Step 8 of the submit transaction was written to check that every audit event the workflow claims is
+actually in the chain. It compared **action name only** (`WHERE action = $1`), so after the first
+submission there is always a `revision.frozen` row and a transaction that froze a revision while
+skipping its event still passed.
+
+It had a test, and the test went red on demand — because the fixture `TRUNCATE`s `app.audit_event`
+before every case. **The control was only ever exercised against an empty table, a state production
+occupies exactly once.** A green test proving a fixture is worse than no test, because it retires the
+question.
+
+**Fixed:** the reconciliation is by **event id** — a primary key the transaction generated, which no
+pre-existing row can satisfy — with counts compared in both directions, and the test now performs a
+real submission first so the chain is populated when the sabotage runs.
+
 ## F-12 and F-13 — fixed, values untouched
 
 Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.

@@ -25,22 +25,17 @@
  */
 
 import type { DisplayList } from '@rms/display-list';
+import type { ClientFinding } from '@rms/workflow';
 
-/** A finding as the CLIENT sees it. No citation, no rule id, no tier. */
-export interface ClientFinding {
-  readonly code: string;
-  readonly severity:
-    | 'PASS'
-    | 'BLOCKER'
-    | 'WARNING'
-    | 'MISSING_INPUT'
-    | 'ASSUMPTION'
-    | 'ENGINEERING_REVIEW_REQUIRED'
-    | 'NOT_EVALUATED';
-  /** Plain-English statement of what would resolve this. Never empty. */
-  readonly closedBy: string;
-  readonly subjectObjectIds: readonly string[];
-}
+/**
+ * A finding as the CLIENT sees it. No citation, no rule id, no tier.
+ *
+ * Declared in `@rms/workflow` and re-exported here. It is a derivation OUTPUT,
+ * so it has to be nameable by the submit transaction — which, since T-07, is a
+ * pure package rather than part of this bundle. Re-exported rather than moved
+ * out of sight because every caller in this app reads it from `preview.ts`.
+ */
+export type { ClientFinding } from '@rms/workflow';
 
 export interface PreviewResult {
   readonly plan: DisplayList;

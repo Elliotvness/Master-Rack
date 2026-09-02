@@ -16,6 +16,9 @@ export const alias = {
   '@rms/kernel-model': fileURLToPath(
     new URL('./packages/kernel-model/src/index.ts', import.meta.url),
   ),
+  '@rms/workflow': fileURLToPath(
+    new URL('./packages/workflow/src/index.ts', import.meta.url),
+  ),
   '@rms/kernel-catalog': fileURLToPath(
     new URL('./packages/kernel-catalog/src/index.ts', import.meta.url),
   ),

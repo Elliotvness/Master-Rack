@@ -12,6 +12,7 @@
   "dependencies": {
     "@rms/db": "workspace:*",
     "@rms/kernel-model": "workspace:*",
-    "@rms/contracts": "workspace:*"
+    "@rms/contracts": "workspace:*",
+    "@rms/workflow": "workspace:*"
   }
 }
