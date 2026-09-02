@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
+import { TYPES_ONLY } from './tools/types-only.mjs';
 import { alias } from './vitest.alias.js';
-
 
 export default defineConfig({
   resolve: { alias },
@@ -26,6 +26,16 @@ export default defineConfig({
         'packages/*/src/index.ts',
         'apps/*/src/**/*.test.ts',
         'apps/*/src/index.ts',
+        /**
+         * F-37. Modules that hold types and nothing else compile to `export {};`
+         * and have no coverage to measure — but coverage-v8 counted their LINES
+         * as uncovered on Windows and as 0/0 on Linux, so the 100% threshold on
+         * `packages/workflow/src/**` passed on one machine and failed on the
+         * other for identical source. The list lives in `tools/types-only.mjs`
+         * and `check-types-only` proves on every run that each entry still
+         * compiles to an empty module; the exclusion cannot outlive the fact.
+         */
+        ...TYPES_ONLY,
       ],
       reporter: ['text', 'json-summary'],
       /**

@@ -63,7 +63,7 @@ a branch, because `merge-base --is-ancestor` asks about a ref, not about your wo
 
 ## Verify before you claim
 
-`pnpm verify` — typecheck, lint, tests, 12 self-tested checkers, coverage, bench. Exit 0 or it did
+`pnpm verify` — typecheck, lint, tests, 13 self-tested checkers, coverage, bench. Exit 0 or it did
 not pass. With no Postgres the DB suites **skip rather than fail** and report a green count (F-29),
 so check for skips.
 

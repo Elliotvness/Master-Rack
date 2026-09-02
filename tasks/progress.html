@@ -249,7 +249,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
           <li>No server anywhere: no <code>fastify</code>, <code>express</code>, <code>koa</code>, <code>hono</code>, <code>node:http</code>, or <code>.listen(</code></li>
           <li>No <code>react</code>, no <code>vite</code> in any <code>package.json</code></li>
           <li>Route table holds <strong>20</strong> entries (11 client · 8 internal · 1 public), imported only by a test and the package index — <strong>no router mounts it</strong>. Diffed against §8.2 both ways: short two MVP-1 routes, carrying one phase-2 route</li>
-          <li><strong>12</strong> self-tested checkers in CI &mdash; two landed today, both proven to fire against the real release: <code>check-content-hash</code> recomputes each release's <code>content_sha256</code> by the method its manifest declares, and <code>check-spot-check-record</code> asserts every signed spot-check covers the draw that was pinned before it</li>
+          <li><strong>13</strong> self-tested checkers in CI (the thirteenth, <code>check-types-only</code>, landed with F-37) &mdash; two landed in session 3, both proven to fire against the real release: <code>check-content-hash</code> recomputes each release's <code>content_sha256</code> by the method its manifest declares, and <code>check-spot-check-record</code> asserts every signed spot-check covers the draw that was pinned before it</li>
           <li>No git tags · no <code>CHANGELOG.md</code> · no Dependabot · version <code>0.0.0</code></li>
         </ul>
       </div>

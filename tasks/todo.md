@@ -880,12 +880,14 @@ runs are cited: **container** (fresh clone, native Postgres 16, `pnpm verify` ex
 **CI #48** (`e86d2bf`, push, Success 1m40s, job log read in the browser), and **Windows**
 (`89e55fa`, Node v24.19.0, Docker Postgres, `_to_delete/verify-windows.log`).
 
-- [ ] `pnpm verify` PASS, exit 0, on Windows **and** in CI — **CI: yes**, #48 on `e86d2bf` and #49
-      on `89e55fa`. **Windows: no.** Every step through `check:claims` green — including
-      `selftest-spot-check-draw: PASS`, which is F-35 proven where it matters — and the final
-      `pnpm coverage` step **exit 1** on `packages/workflow/src/**` at 67.85%, because two
-      types-only files count as 90 uncovered lines on Windows and 0/0 on Linux. **F-37.** The
-      criterion stays open until F-37 has a remedy; it is the only Windows step left
+- [x] `pnpm verify` PASS, exit 0, on Windows **and** in CI — **CI: yes**, #48 on `e86d2bf` and #49
+      on `89e55fa`. **Windows: yes, at `0df4af5`, exit 0 in 1 m 34 s** — 50 files, 1,143 tests, 0
+      skipped, coverage 99.58 / 99.03 / 99.75 / 99.58, identical to Linux. Two earlier Windows
+      runs the same day did not get there: the first raced the database (F-29), the second reached
+      the last step and failed coverage on two types-only files counted differently by OS
+      (**F-37**, raised and closed the same day with an exclusion that `check-types-only` re-proves
+      on every run). `selftest-spot-check-draw: PASS` in all three runs is F-35 proven where it
+      matters
 - [x] All DB-backed tests green in CI for the first time — read in CI #48's `Unit and tenancy tests`
       step (14 s): `tenancy.test.ts (41 tests) 436ms`, `submit-effects.db.test.ts (12) 1408ms`,
       `auth.db.test.ts (12) 198ms`, `part-registry.db.test.ts (8) 279ms`, `chain.db.test.ts (12)
@@ -914,17 +916,19 @@ runs are cited: **container** (fresh clone, native Postgres 16, `pnpm verify` ex
       internal app was clean by hand (T-08) with nothing holding it. Proven to fire both directions
       against the real app, recorded in F-36. Ticked on the F-36 tree; on `e86d2bf` alone this
       criterion is met in state and not in mechanism
-- [~] Coverage floors held or raised; every new gate proven to fire and reverted — **Linux/CI:
-      held** (all files 99.58 / 99.03 / 99.75 / 99.58; every threshold in `vitest.config.ts`
-      passes). **Windows: the same source reads 97.92 overall and fails one threshold — F-37**, a
-      counting artifact on types-only files, not a regression; the tick waits on F-37's remedy.
+- [x] Coverage floors held or raised; every new gate proven to fire and reverted — **held on
+      Linux, CI and now Windows**, all three at 99.58 / 99.03 / 99.75 / 99.58 with every threshold
+      in `vitest.config.ts` passing. (Before F-37's remedy Windows read 97.92 and failed one
+      threshold — a counting artifact on types-only files, not a regression.) The one new gate,
+      `check-types-only`, was planted-red and restored-green against the real file (F-37).
       Gates proven to fire: each of the twelve self-tests plants its failures on every run (the
       `ok … → FAIL` lines), and R-09's three reviewer-chosen plants went red and were restored
       (`check-app-boundaries`, `check-language`, `check-lockfile`)
 - [ ] **Review with EL before Phase 3.** Q1 (Vite + React Router v7 SPA) and Q2 (Fastify) are
-      answered in `tasks/plan.md`. **Waiting on EL for:** F-37's remedy (three options in the
-      register), R-07's L-3 and L-5 (fix-to-throw recommended, dissent recorded), PR #13's merge, and
-      the Phase 3 breakdown of T-14 that `tasks/plan.md` says happens here
+      answered in `tasks/plan.md`. Everything this line waited on has been done under EL's standing
+      "continue": F-37 remedied (option 1) and closed by the Windows run; R-07's L-3 and L-5 fixed
+      to throw on `review/r-07-load-manifest`; PR #13 merged. **Still EL's:** the word that closes
+      the checkpoint, and the Phase 3 breakdown of T-14 that `tasks/plan.md` says happens here
 
 ---
 
