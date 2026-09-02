@@ -31,3 +31,8 @@ Thumbs.db
 # Scratch
 _*.txt
 _scratch/
+
+# Bridge transfer staging area. The Linux session stages task archives here
+# for the Windows session to apply; it is never repository content. Committed
+# once by accident (T-11, 2026-09-02) and removed; this keeps it out.
+_to_delete/

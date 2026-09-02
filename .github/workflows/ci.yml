@@ -1,8 +1,13 @@
 name: CI
 
 on:
+  # F-32 (2026-09-02): a task-branch push must produce a run. `branches: [main]`
+  # meant "push each task's commit as it lands" bought zero CI coverage for three
+  # sessions — be78f19 had no run at all, not an unread one. Every push is now
+  # judged; the concurrency group below keeps a stack of pushes to the same
+  # branch from piling up runs.
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
   # E-09 asks for a NIGHTLY re-render. It also runs on every PR, which is
   # strictly stronger, but the schedule is kept: a nightly run catches drift
@@ -11,6 +16,13 @@ on:
   # nobody pushed anything.
   schedule:
     - cron: '17 6 * * *'
+
+# Only the latest push to a branch matters; older runs for the same ref are
+# cancelled rather than queued. The nightly schedule shares one group and never
+# collides with itself.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   verify:
@@ -40,6 +52,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      # D-20 / NFR-SEC-06. A pinned gitleaks binary, checksum-verified against
+      # the release's own checksums file, scanning the working tree. Fails the
+      # build on a detected secret. Proven to fire by T-11: a planted fake
+      # credential turned this step red, and its removal turned it green.
+      - name: Secret scanning (gitleaks)
+        run: |
+          curl -sSfL -o gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks detect --source . --redact
 
       # Version comes from "packageManager" in package.json (pnpm@11.22.0).
       # Pinning "version: 11" here made the action fail with
