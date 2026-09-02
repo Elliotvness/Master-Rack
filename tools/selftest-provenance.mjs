@@ -108,7 +108,8 @@ function writeProbe(source) {
   writeFileSync(PROBE, source, 'utf8');
 }
 
-function cleanup() {
+/** Removes the whole temp tree, not a probe. Called once, from the `finally`. */
+function removeTree() {
   rmSync(TREE, { recursive: true, force: true });
 }
 
@@ -170,7 +171,7 @@ function main() {
       else console.log(`  allowed     ${name}`);
     }
   } finally {
-    cleanup();
+    removeTree();
   }
 
   if (missed.length > 0 || falsePositives.length > 0) {

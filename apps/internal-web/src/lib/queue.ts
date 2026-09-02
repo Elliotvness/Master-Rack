@@ -1,30 +1,20 @@
 /**
  * The submission queue's VIEW logic (`E-01`, `E-02`).
  *
- * **T-08 moved derivation, internal notes and `stripInternalRevisions` out of
- * this file** and into `@rms/workflow` — they are server authorities, and this
- * is an app bundle. What remains is what a screen legitimately computes:
- * ordering, the two OD-11 clocks, and ages. Rules 2 and 3 below are recorded
- * here because they are why the split exists, and are enforced in
- * `packages/workflow/src/internal.ts`.
- *
- * Three rules govern this side of the product, and each is the mirror image of
- * a client-side refusal.
- *
- * **1. The queue spans every organization.** The client app is org-scoped by
- * RLS; the internal app is not, and that asymmetry is the reason the two are
- * separate bundles. A staff principal seeing every tenant is correct here and
+ * **The queue spans every organization.** The client app is org-scoped by RLS;
+ * the internal app is not, and that asymmetry is the reason the two are separate
+ * bundles. A staff principal seeing every tenant is correct here and
  * catastrophic there.
  *
- * **2. A derived internal revision is ABSENT from every client response** \u2014
- * not shown as locked (`AC-14`). "Locked" tells a client that something exists
- * which they may not see, which is itself information: it says we are working
- * on a variant of their job. Absence says nothing.
+ * **T-08 moved derivation, internal notes and `stripInternalRevisions` to
+ * `@rms/workflow`** — they are server authorities, and this is an app bundle.
+ * The rules they carry (`AC-14`'s absence-not-locking, and waivers not carrying
+ * over) are documented **at the point that enforces them**, in
+ * `packages/workflow/src/internal.ts`, and deliberately not restated here: a
+ * rule written where nothing implements it is a rule that drifts.
  *
- * **3. Deriving leaves the source submission's `content_hash` unchanged**, and
- * **waivers do not carry over**. A waiver is a judgement about one specific
- * configuration; carrying it into a derived revision would silently apply a
- * decision to a configuration nobody made it about.
+ * What remains is what a screen legitimately computes: ordering, the two OD-11
+ * clocks, and ages.
  *
  * Pure: no I/O, no clock, no RNG. Ages are computed from supplied instants.
  */

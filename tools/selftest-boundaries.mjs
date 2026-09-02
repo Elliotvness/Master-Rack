@@ -85,8 +85,14 @@ const CASES = [
   },
 ];
 
-function cleanup() {
+/** Removes the probe file only; `removeTree` below removes the whole temp tree. */
+function removeProbe() {
   rmSync(PROBE, { force: true });
+}
+
+/** Removes the whole temp tree. Called from the `finally` in `main`. */
+function removeTree() {
+  rmSync(TREE, { recursive: true, force: true });
 }
 
 /**
@@ -125,7 +131,7 @@ function run() {
 
   // 1. The probe tree must be clean before we start, or the test proves nothing.
   buildTree();
-  cleanup();
+  removeProbe();
   const baseline = checkBoundaries(TREE);
   if (baseline.violations.length > 0) {
     console.error('selftest-boundaries: the tree already has violations, so the');
@@ -144,7 +150,7 @@ function run() {
     writeFileSync(PROBE, testCase.source, 'utf8');
 
     const { violations } = checkBoundaries(TREE);
-    cleanup();
+    removeProbe();
 
     if (violations.length === 0) {
       failures.push(testCase.name);
@@ -175,9 +181,14 @@ function run() {
   return 0;
 }
 
-process.exitCode = run();
-
-// The temp tree is removed on the way out. If the platform refuses, that is the
-// operating system's problem and not the repository's — which is the whole point
-// of it not being in the repository.
-rmSync(TREE, { recursive: true, force: true });
+// The temp tree is removed on the way out, from a `finally` so that a throw in
+// `run()` cannot leak it — which is how the other three self-tests do it, and
+// this one did not until the simplification pass caught the inconsistency. If
+// the platform refuses the removal, that is the operating system's problem and
+// not the repository's, which is the whole point of it not being in the
+// repository.
+try {
+  process.exitCode = run();
+} finally {
+  removeTree();
+}
