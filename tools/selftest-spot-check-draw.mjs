@@ -25,7 +25,7 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import * as tool from './draw-spot-check.mjs';
 
@@ -41,11 +41,11 @@ if (!existsSync(join(DIST, 'cell-ids.js'))) {
   process.exit(1);
 }
 
-const { cellIdsOf } = await import(join(DIST, 'cell-ids.js'));
+const { cellIdsOf } = await import(pathToFileURL(join(DIST, 'cell-ids.js')));
 const { drawSpotCheckSample, drawSupplementarySample, requiredSampleSize } = await import(
-  join(DIST, 'spot-check.js'),
+  pathToFileURL(join(DIST, 'spot-check.js')),
 );
-const { publishedKeyOf } = await import(join(DIST, 'cell-ids.js'));
+const { publishedKeyOf } = await import(pathToFileURL(join(DIST, 'cell-ids.js')));
 
 /** Seeds to compare on. The pinned one, plus values that stress the shuffle. */
 const SEEDS = [20260901, 0, 1, 7, 4294967295, 123456789];
