@@ -924,12 +924,17 @@ runs are cited: **container** (fresh clone, native Postgres 16, `pnpm verify` ex
       Gates proven to fire: each of the twelve self-tests plants its failures on every run (the
       `ok … → FAIL` lines), and R-09's three reviewer-chosen plants went red and were restored
       (`check-app-boundaries`, `check-language`, `check-lockfile`)
-- [ ] **Review with EL before Phase 3.** Q1 (Vite + React Router v7 SPA) and Q2 (Fastify) are
-      answered in `tasks/plan.md`. Everything this line waited on has been done under EL's standing
+- [x] **Review with EL before Phase 3.** Q1 (Vite + React Router v7 SPA) and Q2 (Fastify) are
+      answered in `tasks/plan.md`. Everything this line waited on was done under EL's standing
       "continue": F-37 remedied (option 1, PR #15) and closed by the Windows run; R-07's L-3 and
       L-5 fixed to throw (`6696f5f`, PR #16, merged — review 11 of 11); PR #13 merged. All four are
-      on `main` @ `b8d2087`, CI #64 green and read. **Still EL's:** the word that closes the
-      checkpoint, and the Phase 3 breakdown of T-14 that `tasks/plan.md` says happens here
+      on `main` @ `b8d2087`, CI #64 green and read. **Closed 2026-09-02 by EL — "lets proceed"** —
+      given after the seven lines above and the two things still his (this word, and the T-14
+      breakdown) were put to him in those terms. The T-14 breakdown is written under T-14 below as a
+      **proposal with sizes**; it enters the scoreboard's denominator when EL confirms the sizes,
+      not before
+
+**Checkpoint A is closed.** Phase 3 starts at T-13b.
 
 ---
 
@@ -997,6 +1002,60 @@ Neither missing route has an `Action` in `authorize.ts` either. Consequence beyo
 documents route is absent from `ROUTES`, `AC-02`'s leakage walk does not enumerate the one client
 route that hands out a document URL — it is outside the contract test even at model level. Add both
 routes and their actions as part of T-14; do not close the gap by editing 21 down to 20.
+
+**Breakdown, written at Checkpoint A's close (2026-09-02) — PROPOSED, sizes not yet confirmed by
+EL.** The plan said T-14 splits "at implementation into auth routes / client routes / internal
+routes"; measured against what exists (`authz/` with 20 policies and 15 actions, `auth/` with
+sessions, invitations and the password policy, `db` with `withTenant`, `workflow/submit-effects`,
+`outbox`, `audit/chain`, `worm`), three slices is one too few — the client surface is twelve routes
+and carries submit, which drags T-13d, P-01 and the document pipeline with it. Five sub-tasks, each
+M, each leaving the app bootable:
+
+- **T-14a — the application and its gate** *(M, files: `apps/api/src/app.ts`, `server.ts`,
+  `authz/routes.ts`, `authz/authorize.ts`, `plugins/*`)*. `createApp()` builds the Fastify instance
+  with no handlers of its own; a route module pairs every `RoutePolicy` with its handler. The
+  boot-time assertion walks the **registered** router (an `onRoute` hook collecting `method + path`)
+  and refuses to start on a mounted route absent from `ROUTES`, a `ROUTES` entry left unmounted, or
+  any entry the existing `assertRouteCoverage` already rejects — so AC-06 is enforced against the
+  router, not the table. Deny-by-default `preHandler`: namespace by `actor_type`, `authorize()` per
+  action, cross-tenant deny as **404**, every deny an audit event through `audit/chain`. Error
+  envelope from `@rms/contracts`; the T-13b outbound guard as an `onSend` hook keyed on namespace;
+  T-13c input DTOs as the only body binding. Adds `document.read` and `note.create` to `Action` and
+  the two missing routes to `ROUTES` (table → 21 MVP-1 rows; the phase-2 audit row moves to a
+  separate `PHASE_2_ROUTES` list so the registry and §8.2 agree). **Proof:** register a route with no
+  `ROUTES` entry → boot refused, naming it; remove a mounted route's handler → boot refused; a
+  client principal on any `/api/internal` path → 404 and an audit row.
+- **T-14b — auth and organizations** *(M)*. `POST /api/auth/invite/accept` (single-use token →
+  credential → session, refusing a reused or expired token), the session `preHandler` that turns a
+  cookie into the principal `authorize()` consumes, `POST /api/client/v1/invitations` (own org
+  enforced server-side, client_admin only), `POST /api/internal/v1/invitations`,
+  `POST /api/internal/v1/organizations`. Idempotency (T-13d) on both invitation routes. **Proof:**
+  a second accept of the same token → refused; a client_admin inviting into another org → 404 and
+  an audit row.
+- **T-14c — client reads and drafting** *(M)*. `GET projects`, `GET projects/:id/revisions`
+  (`audience='client'` only — `stripInternalRevisions` is the pure half, the query is the other),
+  `POST facility` / `units` / `options` (DRAFT only; T-13c input DTOs; the kernel derive on write),
+  `GET preview`, `GET compare`. Every read through `withTenant`; scoped fetch only. **Proof:** an
+  internal derived revision planted in the same project is absent from the client's list, not
+  filtered by the serializer but never selected; a POST to a frozen revision → refused with the
+  envelope.
+- **T-14d — submit, clone, status and documents** *(M; P-01 lands in the same commit)*.
+  `POST submit` (T-13d key required; `workflow/submit-effects` behind it; the preliminary PDF issued
+  at submit per OD-10 and registered per FR-DC-03), `POST clone`, `GET submissions/:id` (coarse
+  three-state status, OD-12 wording), `GET documents/:id` (signed short-lived URL; the access is an
+  audit event). **Proof:** two submits with one key → one submission; the 300-bay fixture through
+  the real route timed against §5.4 budget 3 (P-01); the document URL expires.
+- **T-14e — internal surface** *(M; P-02 lands in the same commit)*. `GET queue` (paginated via
+  `@rms/contracts`, no N+1, RLS on — P-02's seeded 5,000), `GET submissions/:id` (full package),
+  `GET revisions/:id/bom`, `POST submissions/:id/derive` (idempotent; `deriveInternalRevision`),
+  `POST revisions/:id/notes`, `POST catalog/releases/:id/approve` (re-auth, checker ≠ digitiser,
+  the T-04 gate behind it). **Proof:** a client principal on every one of these → 404; the queue at
+  5,000 rows issues a constant number of statements.
+
+**Arithmetic if confirmed:** T-14 goes from L = 8 to 5 × M = 20; the denominator moves 148 → 160
+and the published figure 35.1% → **32.5%** with nothing getting worse — the sensitivity table's
+"T-14 ×2.5" row, roughly. **Until EL confirms the sizes, the scoreboard keeps T-14 at L = 8 and
+says so.** T-15 is unchanged and still follows T-14e.
 
 ### T-15: Re-assert AC-02, AC-03 and AC-06 against the running system
 **Acceptance criteria:** the contract test enumerates routes from the real router, calls each as a

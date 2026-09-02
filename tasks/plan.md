@@ -529,6 +529,12 @@ After T-12, `tasks/todo.md` requires *"Review with EL before Phase 3"*. Its crit
 `pnpm verify` PASS **on Windows** and all DB-backed tests green **in CI** — neither of which a
 container run satisfies. Checkpoint A is structurally EL's.
 
+**Held 2026-09-02 and closed the same day.** Windows `pnpm verify` reached exit 0 (after F-37),
+the DB suites were read green in CI #48 and #64, review 11 of 11, and EL closed it with "lets
+proceed". The T-14 breakdown this checkpoint owed is written under T-14 in `tasks/todo.md` as a
+proposal — five M sub-tasks, T-14a–e — with the sizes awaiting EL's confirmation before the
+scoreboard's denominator moves.
+
 ### B4. Decisions that gate later phases, not Lane A
 
 None of these blocks anything above. Listed so they stop being rediscovered.
