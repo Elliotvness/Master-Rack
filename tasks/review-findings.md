@@ -765,6 +765,15 @@ claim was replaced in session 3 for being stale. It is now also, exactly, the co
 database. A figure that means two different things is worth never quoting again without the file
 count beside it — 47 files, 1,126 tests, 0 skipped, is the whole assertion.
 
+**Seen a third time, on Windows, 2026-09-02.** The first Windows `pnpm verify` ran `pnpm migrate`
+immediately after `docker compose up -d`, before the container was healthy; migrate died on
+*"Connection terminated unexpectedly"*, and `pnpm test` then reported **46 passed | 4 skipped (50)
+files, 1,051 passed | 92 skipped (1,143)** — green ticks over an unmigrated database, exactly this
+finding. The run was saved by `check-rls`, which refused: *"found no tables in schema 'app'.
+Refusing to report a pass for a check that inspected nothing."* The second run used
+`docker compose up -d --wait` and skipped nothing. The `RMS_REQUIRE_DB=1` remedy above is still
+unowned; the skip count is now the first thing to read in any verify log, before the tick.
+
 ## F-30 — `part_number` is not unique in either approved release *(raised in T-09, open — the approver's call)*
 
 Found by measuring the release before keying a table on it, not by reading it.
@@ -935,7 +944,7 @@ is a mechanism aimed slightly to the left of its control.
 with T-11's practice half, which is already the task that owns "does the thing we say we do actually
 happen".
 
-## F-35 — `await import()` of a built path fails on Windows *(raised 2026-09-02 by EL, fix written and uncommitted)*
+## F-35 — `await import()` of a built path fails on Windows *(raised 2026-09-02 by EL, **CLOSED** 2026-09-02 — merged as PR #11, proven on Windows)*
 
 `tools/selftest-spot-check-draw.mjs` loaded its built modules with `await import(join(DIST, '…js'))`.
 On POSIX an absolute path is an acceptable ESM specifier; **on Windows `C:\…` is not** — Node reads
@@ -955,6 +964,19 @@ of it.
 **The fix is uncommitted in the working tree** and is deliberately left there — it is a code change
 and wants its own commit and its own proof, which is a Windows `pnpm verify` run reaching that step.
 **That run is the evidence Checkpoint A needs anyway.**
+
+**Closed 2026-09-02, later the same day.** Committed as `fe68172`, CI #42 green (which, as the commit
+body says, proves nothing about F-35), merged as PR #11 → `1f3d6d5`. **Then the run that could prove
+it was made:** `pnpm verify` on Windows (Node v24.19.0, pnpm 11.22.0, Docker Postgres 16) at
+`89e55fa`, launched from Explorer under computer control, output captured to
+`_to_delete/verify-windows.log`. The step reached and passed:
+
+```
+selftest-spot-check-draw: PASS — 48 draws agree.
+```
+
+That is the first time `check:draw:selftest` has executed on Windows. The same run went on to fail
+one step later, at coverage, for an unrelated reason — see **F-37**. F-35 itself is closed.
 
 ## F-36 — "either front-end package" was enforced on one of them *(raised and **CLOSED** 2026-09-02, found while executing Checkpoint A)*
 
@@ -1002,6 +1024,63 @@ patterns turned it red on exactly those 4 cases, naming each.
   because a control that misdescribes which rule it is enforcing is this project's whole subject.
 
 `pnpm verify` exit 0 in 71 s, 50 files, 1,143 tests, coverage 99.58%.
+
+## F-37 — the coverage gate's verdict depends on the operating system *(raised 2026-09-02, open — remedy is EL's call)*
+
+Found by the Windows `pnpm verify` that F-35 unblocked, at `89e55fa`, Node v24.19.0, pnpm 11.22.0,
+Docker Postgres 16 migrated and healthy. Every step through `check:claims` was green — 50 files,
+1,143 tests, 0 skipped, all twelve self-tested checkers, `selftest-spot-check-draw: PASS`. The
+**last** step, `pnpm coverage`, exited 1:
+
+```
+ERROR: Coverage for lines (67.85%) does not meet "packages/workflow/src/**" threshold (100%)
+ERROR: Coverage for functions (84.61%) does not meet "packages/workflow/src/**" threshold (100%)
+ERROR: Coverage for statements (67.85%) does not meet "packages/workflow/src/**" threshold (100%)
+ERROR: Coverage for branches (96.82%) does not meet "packages/workflow/src/**" threshold (100%)
+```
+
+The two files responsible are `packages/workflow/src/assumptions.ts` (62 lines) and `finding.ts`
+(28 lines). **Both are types only** — interfaces, no runtime, nothing a test could execute. On
+Windows the coverage table lists them as `0 | 0 | 0 | 0 | 1-62` and `1-28`: every line uncovered.
+On Linux the same files show `0 | 0 | 0 | 0` with **no** uncovered lines — zero of zero — and the
+package aggregate reads 100.
+
+**Isolated to the OS, not the Node version.** The same commit's coverage was re-run in the container
+under Node 22.22.2 and under Node 24.19.0 (the Windows machine's version): both exit 0, both report
+`packages/workflow/src` at 100 with the two files at 0/0. So it is vitest's coverage-v8 handling of
+a never-loaded, types-only module on Windows — most likely the "uncovered file" pass counting raw
+source lines where the Linux path finds an empty transform. The mechanism is not confirmed and does
+not need to be for the finding to stand.
+
+**Why it is a finding and not an annoyance.** The `packages/workflow/src/**` threshold is a
+control, and its answer is *"pass"* on one machine and *"fail"* on another for identical source and
+identical tests. A gate whose verdict is a property of the runner is not measuring the code. And the
+Linux 100% is partly hollow: two files that cannot be covered are inside a rule that says everything
+in the directory must be — on Linux they satisfy it by being invisible, on Windows they break it by
+being counted. Neither reading is the one the threshold's docstring promises (*"a refusal that is
+never exercised is a refusal nobody knows is broken"* — these files contain no refusals).
+
+**Consequence for Checkpoint A.** Its first criterion, *"`pnpm verify` PASS, exit 0, on Windows and
+in CI"*, is **red on Windows** — one step later than F-35 left it, and for a different reason. It
+cannot be ticked. Everything above coverage is Windows-green and recorded in `tasks/todo.md`'s
+checkpoint block, so the checkpoint's other criteria do not wait on this.
+
+**Remedy options, not taken here (EL's call — it changes a gate):**
+
+1. Exclude the two files from coverage `include` by name, with a comment stating they are types
+   only — **and a guard that keeps that true**: a small check that each excluded file compiles to an
+   empty JavaScript module (its emitted `.js` in `dist/` contains no statement), so a runtime export
+   added later drags the file back under the threshold instead of hiding behind the exclusion. An
+   exclusion with no guard is F-08's shape.
+2. Move the two type definitions into files whose exclusion is already structural — the package's
+   `index.ts` is excluded from coverage today — or into a `*.types.ts` convention that the coverage
+   config excludes and the guard in (1) polices.
+3. Keep the gate as is and accept that Windows `pnpm verify` stays red at the final step. Honest,
+   but it leaves Checkpoint A's Windows criterion permanently unmeetable on the machine the plan
+   names, which is what F-35 was found guilty of.
+
+Whichever is chosen, the Windows run is now cheap to repeat: `_to_delete/verify-windows.cmd` waits
+for the database, migrates, runs verify and writes the log with the exit code.
 
 ## F-12 and F-13 — fixed, values untouched
 
@@ -1120,3 +1199,43 @@ change state — is still one coherent module, and the change that grew it also 
 (`spot-check.ts`) and now a third (`cell-ids.ts`), which is the decomposition happening in the right
 direction. Revisit when `apps/api` gives it a fourth caller, not before. Recorded so it is a decision
 rather than a deferral.
+
+## Verify runs recorded for R-09 / Checkpoint A (2026-09-02)
+
+Three runs, all read this session rather than reported. Full logs are outside the repository
+(container `/tmp/verify-main-e86d2bf.log`; Windows `_to_delete/verify-windows.log`, gitignored);
+these are the lines that carry the claims.
+
+**Container — fresh clone, `main` @ `e86d2bf`, Node 22.22.2, pnpm 11.22.0, native PostgreSQL 16,
+`pnpm migrate` → `migrate: OK — 10 migration(s) present.`**
+
+```
+verify exit=0 in 84s
+ Test Files  50 passed (50)
+      Tests  1143 passed (1143)
+selftest-spot-check-draw: PASS — 48 draws agree.
+All files          |   99.58 |    99.03 |   99.75 |   99.58 |
+```
+
+**Windows — `C:\Rack Master\rack-master-studio`, `89e55fa`, Node v24.19.0, pnpm 11.22.0,
+Docker Postgres 16 (`docker compose up -d --wait` → `Container rms-db Healthy`),
+`pnpm migrate` exit 0.**
+
+```
+ Test Files  50 passed (50)
+      Tests  1143 passed (1143)
+selftest-spot-check-draw: PASS — 48 draws agree.
+All files          |   97.92 |    98.91 |   99.27 |   97.92 |
+ERROR: Coverage for lines (67.85%) does not meet "packages/workflow/src/**" threshold (100%)
+=== pnpm verify EXIT CODE 1 at 09/02/2026  2:45:16.37
+```
+
+Run time 1 m 40 s wall. Every step before coverage green; the coverage failure is F-37. The first
+Windows attempt, three minutes earlier, is the F-29 record (92 skipped over an unmigrated database,
+`check-rls` refused, exit 1).
+
+**CI #48 — `main` @ `e86d2bf`, push, Success 1m40s; `verify` job 1m22s, `docs` job green.** Read in
+the browser, per step: `Apply migrations` 0s · `Unit and tenancy tests` 14s with all seven DB suites
+`✓` at database durations (tenancy 436ms, submit-effects 1408ms, auth 198ms, part-registry 279ms,
+chain 226ms, outbox 166ms, assumption 216ms) · twelve checker self-tests and checks green ·
+`Kernel coverage gate` 16s green · `Performance budgets` 1s green.

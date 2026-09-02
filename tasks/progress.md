@@ -1,8 +1,29 @@
-# Progress scoreboard — 2026-09-02 (session 5)
+# Progress scoreboard — 2026-09-02 (session 6)
 
 Derived from `tasks/todo.md`, which stays the source of truth for task detail. This file holds
 only the arithmetic and the ordering. Where a figure was re-measured today it says so; where it is
 the repository's own claim it says that instead.
+
+**Session 6 (2026-09-02, later the same day) held Checkpoint A.** Measured on `main` @ `e86d2bf`
+(PR #10, #11 and #12 merged this session — the F-32 recovery and Phase 2 close, the F-35 fix, and the
+working agreement) and on `89e55fa` (F-36, PR #13 open, CI #49 green). Three verify runs are the
+evidence: a **fresh clone in the container** (exit 0, 84 s, 1,143 / 50 / 0 skipped), **CI #48**
+(job log read in the browser, all seven DB suites `✓` at database durations), and — for the first
+time in this repository's history — **Windows** (`_to_delete/verify-windows.log`: every step green
+through `check:claims`, `selftest-spot-check-draw: PASS` so **F-35 is proven where it matters**, and
+then the final coverage step **exit 1** on two types-only files that Windows counts and Linux does
+not — **F-37**). R-08, R-09 and R-10 closed on their own criteria, R-07 dispositioned with a dissent
+on the record. **Checkpoint A is held and not green**: one criterion red (Windows verify, F-37), one
+waiting on EL. §15.2 did not move.
+
+**Two things this session should be read for.** First, a second session was found working the same
+tree at 09:23 UTC (`fix/f-36-internal-web-symbol-rule`, the earlier session still alive) — two
+writers in one working tree, resolved by EL stopping it; the branch was pushed, reviewed as a diff,
+and is PR #13. Second, the numerator moved by **four points with no task landing**: R-08 and R-10
+were review items whose last verification lines said *needs Windows* or *not run here*, and this
+session ran them. Bookkeeping that was owed, not progress.
+
+The session-5 lineage follows unchanged.
 
 Measured on branch **`task/t-10a-reconcile-documents`**, off `main` @ `3f1ef3b` (level with
 `origin/main`; PR #1–#6 merged). The branch is now **pushed with its upstream set, and PR #7 is open
@@ -112,18 +133,25 @@ The procedure, so it is reproducible:
 | Measure | Value | Blueprint anchor | What it measures |
 |---|---|---|---|
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
-| Plan-task completion, effort-weighted | 48 of 148 pts — **32.4%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
-| Plan-task completion, task count | 18 of 45 — 40% | Same, unweighted | Same |
-| Pre-merge review `R-01…R-11` | 8 of 11 — 73% | **§16.1** review gates | A sub-checklist of one merged branch, not the project. Unchanged since session 3. Done: R-01…R-06, **R-08**, **R-11**. Open: R-07 (partly), R-09, R-10 (the per-commit `typecheck && test`, which needs Windows) |
+| Plan-task completion, effort-weighted | 52 of 148 pts — **35.1%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
+| Plan-task completion, task count | 20 of 45 — 44% | Same, unweighted | Same |
+| Pre-merge review `R-01…R-11` | 10 of 11 — 91% | **§16.1** review gates | A sub-checklist of one merged branch, not the project. Done: R-01…R-06, R-08, **R-09**, **R-10**, R-11 — the last two closed at Checkpoint A, in the container, on their own criteria. Open: **R-07** — L-3 and L-5 dispositioned, not resolved; fix-to-throw recommended, EL's call |
 | Route surface vs the blueprint | 19 of 21 MVP-1 routes declared | **§8.2** (23 rows, 2 marked phase 2) | Re-enumerated today, path by path. A *registry* figure, not a served one — nothing mounts it |
 
-These are not competing answers. **0% is the answer**; 32.4% is how much of the written plan has
-been executed. A reader who quotes 32.4% without §15.2 beside it is quoting the wrong number.
+These are not competing answers. **0% is the answer**; 35.1% is how much of the written plan has
+been executed. A reader who quotes 35.1% without §15.2 beside it is quoting the wrong number.
 
 **Phase 2 is complete** — the first phase to close since Phase 1. **§15.2 did not move by one step
 while it happened**, and that is not a paradox: Phase 2 was repairs and controls, and the definition
 of done is a client getting through eight screens. **The next point earned is the first one that can
 move it.**
+
+**Checkpoint A was held in session 6, and it is not green.** Seven of its eight criteria were
+re-measured (three runs, three machines); five are met, one is met by mechanism only on the F-36
+tree, one is red — *"`pnpm verify` PASS on Windows"* fails at the very last step, coverage, for a
+reason that is neither the code nor the tests (F-37) — and the eighth is the review itself, which
+waits on EL for F-37's remedy, R-07's two dispositions, PR #13's merge and the T-14 breakdown. The
+checkpoint record is in `tasks/todo.md`; it ticks nothing it did not run.
 
 **Both moved this session, in opposite directions, and the two must not be confused.**
 
@@ -142,6 +170,15 @@ move it.**
   while nothing got worse.
 
 Net: 20.0% → **30.4%**, of which the honest progress is the middle bullet alone.
+
+- **Session 6: the numerator moved 48 → 52 at a fixed denominator**, and none of it is a task.
+  **R-08** (S) and **R-10** (S) are counted once each in Phase 3; both had every acceptance box ticked
+  in earlier sessions and one verification line left open — *"NOT RUN HERE"* for R-08's
+  `pnpm test packages/kernel-catalog`, *"needs Windows"* for R-10's per-commit
+  `typecheck && test`. Both lines were run this session (200 catalog tests green in three runs;
+  39 commits checked out alone, 36 self-standing, 3 blocked by a lagging lockfile that
+  `check-lockfile` now guards). Binary completion cuts both ways: they were not done until the last
+  line ran, and once it ran they are. 32.4% → **35.1%**.
 
 Session 5 opened by landing no commit at all — its first pass was a re-measurement that found nine
 false statements across the four copies and nothing wrong in the code. See *Drift*, items 15–29.
@@ -201,43 +238,43 @@ changelog and tags *are* T-26.)
 | 0 — Make CI real | 1 | 1 | **100%** | **T-00 complete.** Tip `efbafbd` pushed; CI run #10 **Success** — the first commit in this repo ever verified |
 | 1 — Catalog and schema integrity | 10 | 10 | **100%** | T-01…T-04 complete (verified at `a2f166e` — repository claim, not re-run today) |
 | 2 — Kernel and workflow repairs | 29 | 29 | **100%** | **Complete.** T-05, T-06, T-07, T-27, T-28, T-08, T-09, T-10a, T-10b, **T-11**, **T-12**. Points 26 → 28 from the T-10 split, 28 → 29 when T-11 grew XS → S for F-32 |
-| 3 — The contract, then the server | 50 | 8 | 16% | P-00 and T-13a done; T-13b…T-15, P-01…P-05, R-08, R-10 open |
+| 3 — The contract, then the server | 50 | 12 | 24% | P-00, T-13a, **R-08**, **R-10** done; T-13b…T-15, P-01…P-05 open |
 | 4 — The interface | 42 | 0 | **0%** | Zero `.tsx` files exist |
 | 5 — Deploy readiness | 16 | 0 | 0% | Not started |
-| **Total** | **148** | **48** | **32.4%** | |
+| **Total** | **148** | **52** | **35.1%** | |
 
-**Remaining: 100 points, and Phase 2's residue is now zero.** T-14 plus all of Phase 4 is **exactly
-half** of what is left; the other half is the rest of Phase 3 (34) and Phase 5 (16). The remaining
-work is *not* concentrated in the two big items, and planning as if it were will under-book the back
-half.
+**Remaining: 96 points, and Phase 2's residue is zero.** T-14 plus all of Phase 4 is **50 of the 96
+— just over half**; the other 46 is the rest of Phase 3 (30, T-14 excluded) and Phase 5 (16). The
+remaining work is *not* concentrated in the two big items, and planning as if it were will under-book
+the back half.
 
 ---
 
-### How soft is 32.4%?
+### How soft is 35.1%?
 
 The caveat above says the figure is a ceiling because T-14 and Phase 4 were sized before anyone
-attempted either. Quantified — 48 done points never move, only the denominator does.
-**Every row here is 45 over its own denominator, and every denominator is derived from 148 rather
-than carried forward.** This table has now been wrong twice in one day in two different ways: four
+attempted either. Quantified — 52 done points never move, only the denominator does.
+**Every row here is 52 over its own denominator, and every denominator is derived from 148 rather
+than carried forward** (re-derived again in session 6 when the numerator moved to 52). This table has now been wrong twice in one day in two different ways: four
 of five rows were still computed on session 4's numerator of 29 while the first row read 41 (item
 24), and — found only when T-11 changed the base — **all four scenario denominators were built on
 the pre-split base of 145 while the row above them said 147** (item 29). Re-derived, not adjusted:
 
 | T-14 | Phase 4 | Denominator | Completion | Scenario |
 |---|---|---|---|---|
-| 8 | 42 | 148 | **32.4%** | as planned — the published figure |
-| 16 | 63 | 177 | 27.1% | T-14 ×2, Phase 4 ×1.5 |
-| 16 | 84 | 198 | 24.2% | T-14 ×2, Phase 4 ×2 |
-| 24 | 84 | 206 | 23.3% | T-14 ×3, Phase 4 ×2 |
-| 24 | 126 | 248 | 19.4% | T-14 ×3, Phase 4 ×3 |
+| 8 | 42 | 148 | **35.1%** | as planned — the published figure |
+| 16 | 63 | 177 | 29.4% | T-14 ×2, Phase 4 ×1.5 |
+| 16 | 84 | 198 | 26.3% | T-14 ×2, Phase 4 ×2 |
+| 24 | 84 | 206 | 25.2% | T-14 ×3, Phase 4 ×2 |
+| 24 | 126 | 248 | 21.0% | T-14 ×3, Phase 4 ×3 |
 
-Even at triple, the figure moves about eight points. **The ceiling is real but shallow**, so
-32.4% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
+Even at triple, the figure moves about fourteen points. **The ceiling is real but shallow**, so
+35.1% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
 is the number to quote and this one is not.
 
-**Where the remaining 116 points sit:** Phase 3's residue 42 (36.2%) · Phase 4 42 (36.2%) ·
-Phase 2's residue 16 (13.8%) · Phase 5 16 (13.8%). The two largest blocks are equal, and neither is
-a majority.
+**Where the remaining 96 points sit:** Phase 4 42 (43.8%) · Phase 3's residue 38 (39.6%) ·
+Phase 5 16 (16.7%) · Phase 2's residue 0. Neither large block is a majority. *(This paragraph read
+"116 … Phase 2's residue 16" until session 6 while the table above it said 100 — drift 30.)*
 
 ## Verified today
 
@@ -245,7 +282,18 @@ Re-measured by running commands against the working tree:
 
 | | |
 |---|---|
-| Branch · tip | **`main` @ `3a3c917`**, PR #7, #8 and #9 merged, every task branch deleted. **Phase 2 is closed.** Working branch for this update is `docs/recover-f32-and-close-phase-2`. **Re-run `git rev-parse --short HEAD` rather than quoting from this document** |
+| **Session 6 · branch · tip** | **`main` @ `e86d2bf`**, level with `origin/main`, clean tree — PR #10 (`7afdffc`, F-32 recovery + Phase 2 close + F-33), PR #11 (`1f3d6d5`, F-35), PR #12 (`e86d2bf`, CLAUDE.md + the `rms-engineer` agent) merged this session, each on four green checks read on the PR page; remote and local branches deleted only after each tip sha was found in `main`'s log. `rescue/f32-record` @ `97a54d9` kept, unmerged by design. **PR #13** (`89e55fa`, F-36) open, CI #49 Success 1m27s. Working branch for this update is `review/checkpoint-a`, off `89e55fa`. **Re-run `git rev-parse --short HEAD` rather than quoting from this document** |
+| **Session 6 · Checkpoint A held** | Record in `tasks/todo.md`. Of its eight criteria: five met and evidenced, one met by mechanism only on the F-36 tree, **one red** (Windows verify — F-37), one waiting on EL. Nothing ticked that was not run. *(The first draft of this row wrote the count in digits and `check-scoreboard-sync` refused it as a second §15.2 figure — the gate reading prose it was not written for, and being right.)* |
+| **Session 6 · `pnpm verify` on Windows — the first time** | `89e55fa`, Node v24.19.0, pnpm 11.22.0, Docker Postgres 16 healthy, `pnpm migrate` exit 0. **50 files, 1,143 tests, 0 skipped. `selftest-spot-check-draw: PASS — 48 draws agree` — F-35 proven on the machine it was found on.** Then `pnpm coverage` **exit 1**: `packages/workflow/src/**` at 67.85% because `assumptions.ts` and `finding.ts` (types only) count as 62 + 28 uncovered lines on Windows and 0/0 on Linux. Re-run in the container under Node 22 **and** Node 24: both 100. OS-specific. **F-37.** Run 1, three minutes earlier, is F-29 live: `migrate` raced the container, 92 tests skipped, `pnpm test` ticked green, `check-rls` refused |
+| **Session 6 · the suite, fresh clone** | `git clone` of the public repository into the container, `pnpm install --frozen-lockfile`, native PostgreSQL 16 on 55432, 10 migrations. **`pnpm verify` exit 0 in 84 s — 50 files, 1,143 tests, 0 skipped, coverage 99.58 / 99.03 / 99.75 / 99.58.** 100 DB-backed tests executed across 7 files |
+| **Session 6 · CI #48 read, not reported** | `main` @ `e86d2bf`, push, Success 1m40s; `verify` 1m22s. Job log opened in the browser: `Unit and tenancy tests` 14 s with `tenancy.test.ts (41) 436ms`, `submit-effects.db (12) 1408ms`, `auth.db (12) 198ms`, `part-registry.db (8) 279ms`, `chain.db (12) 226ms`, `outbox.db (8) 166ms`, `assumption.db (7) 216ms` — all `✓`. **Checkpoint A's "DB-backed tests green in CI" criterion is met by a read, for the first time** |
+| **Session 6 · R-10 closed** | 39 commits of `0f1e7ac..0547c78` each checked out alone in a worktree, fresh database migrated at that commit, `pnpm typecheck && pnpm test`: **36 of 39 self-standing**, 0 skipped anywhere, tests 926 → 1,081 across the range. **3 fail `pnpm install --frozen-lockfile`** (`e3ef4fa`, `48c7654`, `5c3f17b` — the lockfile lagged `@rms/contracts` until `de399c7`); with `--no-frozen-lockfile` all three green at 1,081. `check-lockfile` (`6f05043`) guards exactly this. Table in `tasks/review-todo.md` |
+| **Session 6 · R-09 closed** | Figures re-measured (1,143 / 50 / 0 skipped; 100 DB tests, 7 files listed); three breaks **chosen by the reviewer** planted and each gate red then green — `check-app-boundaries`, `check-language`, `check-lockfile`. Two first attempts landed **outside** the gates' stated scope and stayed green — correctly; both gates state that blind spot in their own headers |
+| **Session 6 · R-08 closed** | Its one open line, `pnpm test packages/kernel-catalog` *"NOT RUN HERE"*, ran: 9 files, 200 tests, green in three runs |
+| **Session 6 · R-07 run, dispositioned** | Malformed manifests fed through `loadReleaseManifest`: `approved_by: 42` → passes as `null` (L-3, pinned as deliberate; **dissent recorded** — the alternative is throwing, not "reading a number as a signature"); `constraints: {a: "x"}` → passes through (L-5; nothing reads `constraints` at runtime, measured); missing `datasets` → refused by `completenessRefusals`, both datasets named; `seed: "…"`, `digitised_by: 7`, lowercase status → throw, field named. L-2 and L-4 dispositioned (tool-side record; `check-content-hash`). **Not closed**: two criteria are `[~]` |
+| **Session 6 · two writers, one tree** | At 09:23 UTC the earlier session (`session_01V1LYgX…`) was still working `C:\Rack Master\rack-master-studio` and committed `89e55fa` on top of this session's fast-forward. Found by GitHub Desktop showing a branch this session had not made; confirmed by the commit trailer. EL stopped it. **No work lost, and the reason is only luck**: the two sessions touched disjoint files. Hazard recorded under *Standing, every session* below |
+| **Session 6 · deletion enabled on the mount** | `device_request_delete_permission` granted for the repo folder, so git can clear its own `index.lock`, `packed-refs.lock` and `tmp_obj_*`. The stranded-lock hazard is closed for sessions that ask; the bridge VM then failed to start mid-session (the desktop app was restarted), and the Windows verify was launched from Explorer under computer control instead |
+| Branch · tip *(session 5)* | **`main` @ `3a3c917`**, PR #7, #8 and #9 merged, every task branch deleted. **Phase 2 is closed.** Working branch for this update is `docs/recover-f32-and-close-phase-2`. **Re-run `git rev-parse --short HEAD` rather than quoting from this document** |
 | **F-32 answered, and the trigger was watched firing** | EL took option **(a)**: `push: branches: ['**']` plus a `concurrency` group with `cancel-in-progress`. The acceptance criterion was that somebody sees it fire, and somebody did — a throwaway `ci/trigger-probe` push produced **run 33601314332, event `push`**, on a branch with no PR. **That is the first branch push in this repository's history to be judged by CI.** Probe branch deleted afterwards |
 | **F-32's remedy proven on real work, and the run was read** | The push of `docs/recover-f32-and-close-phase-2` produced **CI #38 — event `push`, Success, 1m07s** — on a branch with **no PR open**. Not a probe this time: a commit that mattered, judged when it landed. **And this session opened the run itself** rather than reporting that one exists. Drift 28 had two halves — a push that produced nothing, and a run nobody read. **Both are closed**, and the second only because the repository is public, which is what makes its runs readable from here at all |
 | **F-33 closed — the register keeps its facts and stops overstating their source** | Both copies now credit **RMI (2024-07-10)** and the **ANSI webstore's revision history**, and say plainly that the IBC's referenced-standards lists **were not read and are paywalled**. The ANSI-blog contradiction — MH16.1-2023 *"is referenced by the IBC"*, no edition named — is recorded as a **second unresolved thread** against the Fresno position rather than resolved by preferring one source. **Not one figure changed:** the facts were right, only the provenance was wrong |
@@ -274,7 +322,7 @@ Re-measured by running commands against the working tree:
 | **What did cover the work: PR #7, and it is green** | Head `b5850fb`, all 12 commits — `verify` **1m30s** (typecheck, lint, migrations, unit and tenancy tests, every checker with its self-test, the kernel coverage gate, the performance budgets) plus `docs` **7s**, with only the known Node 20 deprecation annotations. **Reported by EL from the run itself; this session did not open it**, which is a stronger source than a repository claim and still not a measurement taken here. **This satisfies the CI half of Checkpoint A** for T-08, T-09, T-10a and T-10b; the Windows half is untouched |
 | Re-run from the bridge today | `node tools/check-scoreboard-sync.mjs` → **PASS**; `node tools/selftest-scoreboard-sync.mjs` → **PASS** (both pure node, no dependencies, and the self-test writes nothing into the working tree). These are the only two gates this shell can execute — and the first one passed *while the two files it compares disagreed*, which is drift 18 |
 | The ahead/unpushed pair moves as this file is written | Each documentation commit that records this measurement adds one to both counts, so **do not quote ahead/unpushed from this document** — re-run `git rev-list --left-right --count origin/main...HEAD` and `git rev-list --count @{u}..HEAD`. Session 3 added `e488a14`, `c08cca3` and the commit carrying this row. That self-reference is exactly how drift item 5 arose, and naming it is cheaper than chasing it |
-| `main` | in sync with `origin/main` @ `98b0229` — PR #1, #2 and #3 merged, every branch deleted |
+| `main` | in sync with `origin/main` @ `e86d2bf` — PR #1 … #12 merged, every task branch deleted; PR #13 open *(session 5's row read `98b0229`, PR #1–#3)* |
 | Packages | **12** — `packages/workflow` added by T-07 |
 | Test files | **50** (`*.test.ts`) — T-08 added `internal.test.ts`, T-09 added `projection.test.ts` and `part-registry.db.test.ts`. Re-derived by `check:claims`, not typed |
 | Migrations | **10** (`0001`–`0010`) — `0010_part_registry.sql` adds `part` / `part_revision`, the `bom_line` foreign key, staff-only RLS and the GRANT. **F-31 is closed**: `check-rls` now asserts the privilege half in both directions (T-10b) |
@@ -298,9 +346,11 @@ confident that session was. Three figures sit here for session 5, all with the s
   EL's own tree: win32 binaries against a Linux bridge shell with no `pnpm` and no `psql`. What
   changed is that the container is a third place to run it, needing neither Windows nor a push.
   Historical: `LATEST.md`'s "1,042" was replaced in session 3 and was low.
-- **Windows.** Nothing here has been run on Windows this session. Checkpoint A requires `pnpm verify`
-  PASS **on Windows** and DB-backed tests green **in CI**; a container run satisfies neither, and
-  every DONE block from session 5 says *container-verified* rather than *verified* for that reason.
+- ~~**Windows.** Nothing here has been run on Windows this session.~~ **Run in session 6 — moved to
+  *Verified today*.** `pnpm verify` executed on Windows for the first time: green through
+  `check:claims`, red at coverage (F-37). Checkpoint A's Windows criterion is therefore measured and
+  **not met**, which is a different state from unmeasured. The CI half is met by a read of CI #48's
+  job log.
 - **"CI green."** True of `efbafbd`, false of `HEAD` — see drift 16. Run #10's `verify` log lists
   Postgres containers, migrations, the tenancy tests and the RLS coverage assertion all green, each
   checker behind its own self-test; it reports a green *job*, not a count this session read, and it
@@ -324,7 +374,8 @@ to 14**; item 11 is again this file describing itself wrongly, and 13 and 14 are
 a task's own verification line — found only because the line was actually re-run.
 
 **Session 5 found fifteen, items 15 to 29, and every one of them is inside the scoreboard itself
-or in the practice that maintains it.** This is the cleanest measurement the project has of how fast
+or in the practice that maintains it.** Session 6 found three more, items 30 to 32 — two stale
+figures inside this file and one honest sentence that reads as more than it is. This is the cleanest measurement the project has of how fast
 its own documentation goes stale: **fifteen false statements across the four copies in under a day.**
 
 Three matter most, and they are three different failures of the same kind. **Item 18** — the gate
@@ -373,6 +424,9 @@ denominator moving, which is the only reason anyone looked at that table twice.
 | 26 | *(new, session 5)* **This file's own header** named `task/t-07-workflow-package` @ `e88320f` and `main` @ `98b0229`, while its *Verified today* table four screens below named a different branch and a `main` three merges newer | **Fixed — re-derived from the working tree.** The **fourth** time this file has described itself wrongly (items 5, 11, 15, 26), and the second time in one session. `check-scoreboard-sync` cannot catch it: both copies carry the same wrong header, and agreeing is all that gate asks of them |
 | 27 | *(new, session 5)* `progress.md`'s Method said **37** `T-…` tasks in one sentence and *"inside the **36**"* in the next; the Claude Project doc said both, and also *"Counted today: 13 + 4 + 2 + 2 + 5 + 10 = 36"* | **Fixed — 37 throughout**, and the arithmetic re-derived: T-00…T-12 is **14** once T-10 is two tasks, so 14 + 4 + 2 + 2 + 5 + 10 = **37**. Drift 20 fixed this same sentence to 36 in this session; the T-10 split moved it again the same day and only one of the two halves was updated. **`progress.html` was already correct**, which is the point of item 27: `check-scoreboard-sync` compares numbers, not prose, and says so |
 | 28 | *(new, session 5 — **found by EL, and the most consequential of the twenty-nine**)* All four copies said of a pushed branch *"pushed, result not yet read"* / *"pushed is not green"*, which asserts a run exists | **Fixed — no run existed.** `ci.yml` fires on `push: branches: [main]`, `pull_request` and a nightly schedule; a task-branch push matches none. `be78f19` has **zero** check-runs. **Session 4's remedy — *push each task's commit as it lands* — has been applied, recorded and measured for three sessions while buying no coverage at all.** Filed as **F-32**, owner T-11. The wording is corrected in all four copies; the workflow is not changed here, because that is a deliberate CI decision and EL's |
+| 30 | *(new, session 6)* The *"Where the remaining points sit"* paragraph said **116** remaining with **Phase 2's residue 16** while the phase table three screens above said **100** and Phase 2 complete | **Fixed — 96, Phase 2's residue 0, re-derived.** Two figures in one file for the same quantity, one updated per session and one not. `check-scoreboard-sync` compares the phase bars and the measure cards, not this paragraph |
+| 31 | *(new, session 6)* The headline's review row counted **R-08 as done** ("Done: R-01…R-06, R-08, R-11") while the phase table's Phase 3 row listed **R-08 as open** and excluded its 2 points | **Fixed — both say done, and it is:** R-08's one unticked line (`pnpm test packages/kernel-catalog`, "NOT RUN HERE") was run this session. Until then the review row was overstating and the phase row was right; binary completion means the file should have said *open* in both places |
+| 32 | *(new, session 6)* Every DONE block, this file's header and the session-5 rows say **"`pnpm verify` … 0 skipped"** as if the count were a property of the code | **Not a false statement, and recorded so it stops being read as one.** The Windows run showed the same commit report **1,051 passed, 92 skipped** with a green `pnpm test` when the database was not yet up. A skip count is a property of the *run*, and F-29's `RMS_REQUIRE_DB=1` remedy is still unowned |
 | 29 | *(new, session 5 — **mine, found while re-deriving for item 28's commit**)* The sensitivity table's four scenario **denominators** were built on the pre-split base of **145** while its own first row read **147** | **Fixed — all five re-derived from 148.** Item 24 fixed that table's *numerators* earlier the same day and I did not check its denominators, so a table about how the denominator moves was itself carrying a stale one. Two defects in one table in one day, both invisible to `check-scoreboard-sync`, which compares the phase bars and not this |
 
 **Drift 4 was not drift.** Both figures were accurate; the *classification* was wrong. Filed beside
@@ -407,71 +461,46 @@ rule earns its keep: the blueprint wins, and the scoreboard is what gets fixed.*
 
 ## What to do next, in order
 
-### Immediate — the tip, before anything else (est. 15 minutes)
+*(Rewritten in session 6. The session-5 list — push T-07, T-10b, the rest of Phase 2 — is done and
+is lineage now; it lives in git history at `2bad6d7`.)*
 
-1. **Push `task/t-07-workflow-package` and confirm CI green on `e88320f`.** It is one commit, it has
-   no upstream, and it carries T-07 — the largest single change since the merge, including three
-   silent-write defects closed and a rewritten step-8 reconciliation. **No CI run has ever seen it.**
-   Pushes must run from Windows; the bridge shell holds no git credentials. GitHub Desktop →
-   *Push origin*, after adding `C:\Rack Master\rack-master-studio` to it — its pre-existing
-   `Master-Rack` entry points at a second, near-empty clone at `C:\Rack Master\Master-Rack`.
-   Then open and merge the PR, and delete the branch.
-   **`task/t-27-typecheck-tests` now sits on top of it**, carrying the plan amendment and T-27, so
-   push and merge that too. Two branches, three tasks' worth of work, and no CI run has seen any of
-   it.
-2. ~~**Then widen `check-scoreboard-sync`.**~~ **Scheduled as T-10b**, which is where drift 18's
-   remedy now lives with acceptance criteria of its own — including the one that matters: the
-   self-test must plant a disagreeing measure card and watch it go red. Until it lands, treat a green
-   `check:scoreboard` as covering **two figures, not two files**.
-3. **Then the rest of Phase 2, in the amended order:** ~~**T-28**~~ **done** → ~~**T-08**~~ **done**
-   → ~~**T-09**~~ **done** → ~~**T-10a**~~ **done** → **T-10b** (which now owns three things:
-   `check-claims`, drift 18's measure-card widening, and **F-31**'s grant checker)
-   → **T-12**, with **T-11** done alongside a
-   push rather than in sequence, because "a planted fake credential is caught" and "push protection
-   enabled on the remote" both need the remote. Every one of them can be implemented and
-   container-verified without EL; only the push cannot.
+### Immediate — EL's calls, which nothing else can make (est. one conversation)
 
-**Closed in earlier sessions, kept only as lineage:** T-00 (tip pushed, run #10 Success);
-R-08 (catalog reviewed as data — 378 → 336 rows, 42 phantom rows gone, 264 capacity corrections,
-43 of 43 pinned cell ids resolve; findings F-12…F-16 and F-19 raised, F-12/F-13/F-16 fixed, F-14
-withdrawn as filed, F-15 recorded, F-19 given `check-content-hash` with an 11-case self-test);
-R-10 (all 36 commit subjects judged, 35 clear the standard, `36881f3` stops mid-clause — **open:**
-the per-commit `typecheck && test`, which needs Windows); PR #1 merged at `dab5a8e` and retitled;
-drift 1, 2, 3, 5 and 6 fixed, drift 4 reclassified as T-14 implementation. The one open F-item for
-EL, not for code: whether to re-base the 2026-09 `content_sha256`, reproducible only by Python
-because `face_height_in: 4.0` hashes differently once any other JSON implementation renders it `4`.
-Re-basing changes an APPROVED release, so it is recorded, not taken.
+1. **F-37's remedy.** Three options in `tasks/review-findings.md`. The recommended one is an
+   explicit exclusion of the two types-only files **with a guard** that each still compiles to an
+   empty module — an exclusion with no guard is F-08's shape. Until this is chosen, Checkpoint A's
+   Windows criterion stays red and the checkpoint stays open.
+2. **R-07's L-3 and L-5.** Fix-to-throw is recommended for both; each is one line and one test. The
+   dissent is on the record in `tasks/review-todo.md`; either answer closes R-07 and takes the review
+   count to 11 of 11.
+3. **Merge PR #13** (F-36, CI #49 green, reviewed as a diff) and delete the branch. Then `main`
+   carries the two-app symbol rule and the checkpoint's "either front-end package" criterion is met
+   by mechanism on `main`, not only on the branch.
+4. **Merge this branch** (`review/checkpoint-a`: the checkpoint record, F-37, R-07/R-09/R-10, the
+   scoreboard) — it is documentation, and its CI run is the only proof it did not break
+   `check:scoreboard` or `check:claims`.
 
+### Then — close Checkpoint A on the record
 
-### Then — Checkpoint A, which was skipped
-
-`tasks/todo.md` puts Checkpoint A after T-00…T-12 and requires *"Review with EL before Phase 3"*.
-Phase 3 started anyway: P-00 and T-13a are done while **T-05…T-12 and T-27 are untouched**. The
-checkpoint can no longer go green in sequence. Two honest options: run Phase 2 now and hold the
-checkpoint, or amend the plan on the record to say the checkpoint moved. Silently leaving it is the
-third option and it is the one that produces the next audit finding.
-
-Phase 2 in the amended dependency order — **the order changed in session 5, with EL's approval and
-on the record in `tasks/todo.md`'s Phase 2 header**: ~~**T-05**~~ **done, merged** → ~~**T-06**~~
-**done, merged** → ~~**T-07**~~ **done, unpushed** → ~~**T-27** (type-check the test files)~~
-**done, merged (PR #5)** → ~~**T-28** (self-test fixtures)~~ **done, unpushed** →
-~~**T-08** (orchestration off the client)~~ **done, unpushed** →
-~~**T-09** (`part` / `part_revision`, migration `0010`)~~ **done, pushed** →
-~~**T-10a** (reconcile the four documents)~~ **done** → **T-10a** (reconcile the four documents) →
-**T-10b** (`check-claims` + widen `check-scoreboard-sync`) → **T-12** (source-conflict register),
-with **T-11** alongside a push.
-
-Two dependencies the original plan did not record and this order does: **T-27 went first** because
-every task after it writes tests, and **T-28 precedes T-10b** because T-10b adds a checker and a
-self-test, which written in the current style would become the fifth offender of the thing T-28
-exists to remove.
+5. Re-run `_to_delete/verify-windows.cmd` after the F-37 remedy lands: the criterion is **exit 0**,
+   not "green until coverage". Tick it, tick the coverage-floors line, and have EL sign the review
+   line. Break T-14 down at the same sitting, as `tasks/plan.md` says happens here.
 
 ### Then — Phase 3, the server
 
-T-13b → T-13c → T-13d → **T-14** → T-15, with P-01 and P-02 landing *in the same commits* as the
-routes they measure.
+6. **T-13b** (outbound validator — plant a forbidden field and watch it fire; a validator never fed
+   one passes forever) → **T-13c** → **T-13d** (idempotency: two claims fired concurrently, exactly
+   one wins) → **T-14** (the router mounts the registry; the coverage assertion runs against the
+   *real* router, not a fixture — and carries the two missing §8.2 routes, drift 4) → **T-15**, with
+   **P-01 and P-02 landing in the same commits as the routes they measure.** Every one of these can
+   be implemented and verified in the container; the Windows lane is one push and one verify per
+   task.
 
----
+### Standing, every session
+
+- Re-run the Windows verify script whenever a gate changes; read the skip count before the tick.
+- **One writer per working tree.** Before touching the bridge repo, `git log --oneline -3` and
+  `git branch -vv`: a branch this session did not make means another session is alive.
 
 ## The four lenses
 

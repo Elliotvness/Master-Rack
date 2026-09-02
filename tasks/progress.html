@@ -131,7 +131,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
   <header class="mast">
     <div class="meta">
       <span class="lbl">Rack Master Studio</span>
-      <span class="lbl">2026-09-02 &middot; session 5</span>
+      <span class="lbl">2026-09-02 &middot; session 6</span>
       <span class="lbl">main &middot; PR #7, #8, #9 merged &middot; <strong>Phase 2 complete</strong> &middot; working branch docs/recover-f32-and-close-phase-2 &middot; <strong>no sha or ahead-count quoted here &mdash; re-run it</strong></span>
     </div>
     <h1>The foundations are strong.<br>The product does not exist yet.</h1>
@@ -153,9 +153,9 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
     </div>
     <div class="measures">
       <div class="m primary"><span class="lbl">Definition of done</span><span class="v">0%</span><span class="d">§15.2, 0 of 8 steps. Quote this one.</span></div>
-      <div class="m"><span class="lbl">Plan executed · weighted</span><span class="v">32.4%</span><span class="d">48 of <strong>148</strong> effort points. A ceiling, not a measure. Both figures moved this session and must not be confused: the <strong>denominator</strong> went 145&rarr;147 when T-10 was split (bookkeeping &mdash; on its own it took 20.0% <em>down</em> to 19.7%), and the <strong>numerator</strong> went 29&rarr;45 when T-27, T-28, T-08, T-09, T-10a and T-10b landed, and the denominator then went <strong>147&rarr;148</strong> when T-11 grew XS&rarr;S to carry <strong>F-32</strong>, and the numerator reached <strong>48</strong> when T-11 and T-12 landed. <strong>Phase 2 is complete &mdash; the first phase to close since Phase 1, and &sect;15.2 did not move by one step while it happened.</strong></span></div>
-      <div class="m"><span class="lbl">Plan executed · task count</span><span class="v">40%</span><span class="d">18 of 45 tasks complete. This card read <em>14% &mdash; 7 of 44</em> for a full session while <code>check:scoreboard</code> stayed green: the gate compared the phase bars and the &sect;15.2 headline, not these cards. Drift 18 &mdash; and <strong>T-10b closed it: this card is inside the gate now.</strong></span></div>
-      <div class="m"><span class="lbl">Pre-merge review</span><span class="v">73%</span><span class="d">R-01…R-11, 8 of 11. Unchanged since session 3: done R-01…R-06, <strong>R-08</strong>, <strong>R-11</strong>; open R-07 (partly), R-09, R-10 (the per-commit <code>typecheck &amp;&amp; test</code>, which needs Windows). One merged branch's checklist &mdash; not the project.</span></div>
+      <div class="m"><span class="lbl">Plan executed · weighted</span><span class="v">35.1%</span><span class="d">52 of <strong>148</strong> effort points. A ceiling, not a measure. <strong>Session 6: 48&rarr;52 at a fixed denominator with no task landing</strong> &mdash; R-08 and R-10 (S each) closed when their last verification lines were finally run. Earlier movement, kept: Both figures moved this session and must not be confused: the <strong>denominator</strong> went 145&rarr;147 when T-10 was split (bookkeeping &mdash; on its own it took 20.0% <em>down</em> to 19.7%), and the <strong>numerator</strong> went 29&rarr;45 when T-27, T-28, T-08, T-09, T-10a and T-10b landed, and the denominator then went <strong>147&rarr;148</strong> when T-11 grew XS&rarr;S to carry <strong>F-32</strong>, and the numerator reached <strong>48</strong> when T-11 and T-12 landed. <strong>Phase 2 is complete &mdash; the first phase to close since Phase 1, and &sect;15.2 did not move by one step while it happened.</strong></span></div>
+      <div class="m"><span class="lbl">Plan executed · task count</span><span class="v">44%</span><span class="d">20 of 45 tasks complete. This card read <em>14% &mdash; 7 of 44</em> for a full session while <code>check:scoreboard</code> stayed green: the gate compared the phase bars and the &sect;15.2 headline, not these cards. Drift 18 &mdash; and <strong>T-10b closed it: this card is inside the gate now.</strong></span></div>
+      <div class="m"><span class="lbl">Pre-merge review</span><span class="v">91%</span><span class="d">R-01…R-11, 10 of 11. Done R-01…R-06, R-08, <strong>R-09</strong>, <strong>R-10</strong>, R-11 &mdash; the last two closed at Checkpoint A in session 6, on their own criteria (39 commits checked out alone: 36 self-standing, 3 blocked by a lagging lockfile). Open: <strong>R-07</strong> &mdash; L-3 and L-5 dispositioned, not resolved; fix-to-throw recommended, EL's call. One merged branch's checklist &mdash; not the project.</span></div>
       <div class="m"><span class="lbl">Route surface vs &sect;8.2</span><span class="v">19/21</span><span class="d">Re-enumerated today, path by path. &sect;8.2 lists 23 rows, 2 marked phase 2. The registry declares 19 of the 21 &mdash; and nothing mounts it.</span></div>
     </div>
     <div class="prose">
@@ -173,10 +173,10 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
       <div class="ph"><div class="nm"><b>0 — Make CI real</b><span><strong>T-00 complete.</strong> Tip <code>efbafbd</code> pushed; CI run #10 <strong>Success</strong> &mdash; the first commit in this repo ever verified</span></div><div class="bar"><i style="width:100%"></i></div><div class="pct">1 / 1</div></div>
       <div class="ph"><div class="nm"><b>1 — Catalog &amp; schema integrity</b><span>T-01…T-04 complete — verified at <code>a2f166e</code>, a repository claim, not re-run today</span></div><div class="bar"><i style="width:100%"></i></div><div class="pct">10 / 10</div></div>
       <div class="ph"><div class="nm"><b>2 — Kernel &amp; workflow repairs</b><span><strong>Complete.</strong> T-05, T-06, T-07, T-27, T-28, T-08, T-09, T-10a, T-10b, <strong>T-11</strong>, <strong>T-12</strong>. Points 26&rarr;28 from the T-10 split, 28&rarr;29 when T-11 grew XS&rarr;S for F-32</span></div><div class="bar"><i style="width:100%"></i></div><div class="pct">29 / 29</div></div>
-      <div class="ph"><div class="nm"><b>3 — The contract, then the server</b><span>P-00 and T-13a done; T-13b…T-15, P-01…P-05, R-08, R-10 open</span></div><div class="bar"><i style="width:16%"></i></div><div class="pct">8 / 50</div></div>
+      <div class="ph"><div class="nm"><b>3 — The contract, then the server</b><span>P-00, T-13a, <strong>R-08</strong>, <strong>R-10</strong> done; T-13b…T-15, P-01…P-05 open</span></div><div class="bar"><i style="width:24%"></i></div><div class="pct">12 / 50</div></div>
       <div class="ph"><div class="nm"><b>4 — The interface</b><span>Zero <code>.tsx</code> files exist</span></div><div class="bar zero"><i style="width:0%"></i></div><div class="pct">0 / 42</div></div>
       <div class="ph"><div class="nm"><b>5 — Deploy readiness</b><span>Not started</span></div><div class="bar zero"><i style="width:0%"></i></div><div class="pct">0 / 16</div></div>
-      <div class="ph total"><div class="nm"><b>Total</b><span>32.4% of the written plan executed &mdash; <strong>denominator 145&rarr;147&rarr;148, numerator 29&rarr;48</strong>. Only the numerator is progress</span></div><div class="bar"><i style="width:32.4%"></i></div><div class="pct">48 / 148</div></div>
+      <div class="ph total"><div class="nm"><b>Total</b><span>35.1% of the written plan executed &mdash; <strong>denominator 145&rarr;147&rarr;148, numerator 29&rarr;48&rarr;52</strong>. Only the numerator is progress, and session 6's four points were owed bookkeeping</span></div><div class="bar"><i style="width:35.1%"></i></div><div class="pct">52 / 148</div></div>
     </div>
     <div class="prose">
       <p><strong>100 points remain, and Phase 2’s residue is now zero.</strong> The server plus all of Phase 4 is <strong>exactly half</strong> of them; the other half is the rest of Phase 3 (34) and Phase 5 (16). Planning as though the remainder is two big items will under-book the back half.</p>
@@ -185,23 +185,23 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
 
   <section>
     <div class="head">
-      <h2>How soft is 32.4%?</h2>
+      <h2>How soft is 35.1%?</h2>
       <p class="lbl">Sensitivity &mdash; 48 done points never move, only the denominator does (147 when T-10 was split, 148 when T-11 grew). <strong>Every denominator here is derived from 148, not carried forward.</strong> This table has been wrong twice in one day: its numerators were stale (drift 24) and then its four scenario denominators turned out to be built on the pre-split base of 145 (drift 29)</p>
     </div>
     <div class="tw">
       <table>
         <thead><tr><th class="n">T-14</th><th class="n">Phase 4</th><th class="n">Denominator</th><th class="n">Completion</th><th>Scenario</th></tr></thead>
         <tbody>
-          <tr><td class="n">8</td><td class="n">42</td><td class="n">148</td><td class="n"><b>32.4%</b></td><td>as planned &mdash; the published figure</td></tr>
-          <tr><td class="n">16</td><td class="n">63</td><td class="n">177</td><td class="n">27.1%</td><td>T-14 &times;2, Phase 4 &times;1.5</td></tr>
-          <tr><td class="n">16</td><td class="n">84</td><td class="n">198</td><td class="n">24.2%</td><td>T-14 &times;2, Phase 4 &times;2</td></tr>
-          <tr><td class="n">24</td><td class="n">84</td><td class="n">206</td><td class="n">23.3%</td><td>T-14 &times;3, Phase 4 &times;2</td></tr>
-          <tr><td class="n">24</td><td class="n">126</td><td class="n">248</td><td class="n">19.4%</td><td>T-14 &times;3, Phase 4 &times;3</td></tr>
+          <tr><td class="n">8</td><td class="n">42</td><td class="n">148</td><td class="n"><b>35.1%</b></td><td>as planned &mdash; the published figure</td></tr>
+          <tr><td class="n">16</td><td class="n">63</td><td class="n">177</td><td class="n">29.4%</td><td>T-14 &times;2, Phase 4 &times;1.5</td></tr>
+          <tr><td class="n">16</td><td class="n">84</td><td class="n">198</td><td class="n">26.3%</td><td>T-14 &times;2, Phase 4 &times;2</td></tr>
+          <tr><td class="n">24</td><td class="n">84</td><td class="n">206</td><td class="n">25.2%</td><td>T-14 &times;3, Phase 4 &times;2</td></tr>
+          <tr><td class="n">24</td><td class="n">126</td><td class="n">248</td><td class="n">21.0%</td><td>T-14 &times;3, Phase 4 &times;3</td></tr>
         </tbody>
       </table>
     </div>
     <div class="prose">
-      <p>Even at triple, the figure moves about eight points. <strong>The ceiling is real but shallow</strong>, so 20.0% is not worth re-deriving — and §15.2 stays <strong>0 of 8</strong> in every scenario. That is why §15.2 is the number to quote and this one is not.</p>
+      <p>Even at triple, the figure moves about fourteen points. <strong>The ceiling is real but shallow</strong>, so 35.1% is not worth re-deriving — and §15.2 stays <strong>0 of 8</strong> in every scenario. That is why §15.2 is the number to quote and this one is not.</p>
       <p><strong>Where the remaining 116 points sit:</strong> Phase 3’s residue 42 (36.2%) · Phase 4 42 (36.2%) · Phase 2’s residue 16 (13.8%) · Phase 5 16 (13.8%). The two largest blocks are exactly equal, and neither is a majority.</p>
     </div>
   </section>
@@ -424,7 +424,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
   </section>
 
   <div class="foot">
-    <p><strong style="color:var(--ink)">Source of truth:</strong> <code>tasks/todo.md</code> for task detail, <code>tasks/progress.md</code> in the repo for this arithmetic. This page is a rendering of that file, dated 2026-09-02 (session 5).</p>
+    <p><strong style="color:var(--ink)">Source of truth:</strong> <code>tasks/todo.md</code> for task detail, <code>tasks/progress.md</code> in the repo for this arithmetic. This page is a rendering of that file, dated 2026-09-02 (session 6).</p>
     <p><strong style="color:var(--ink)">Method:</strong> The <strong>45</strong> tasks &mdash; 43 until T-28 was added in session 3, 44 until <strong>T-10 was split</strong> into T-10a and T-10b in session 5 &mdash; are the 37 <code>T-…</code> and 6 <code>P-…</code> tasks in <code>tasks/todo.md</code> (T-13a–d and T-18a–e counted individually), plus R-08 and R-10. The Phase 4 and Phase 5 bullets are <em>inside</em> the 37, not additions to it. Weights are the plan's own T-shirt sizes. Completion is strictly binary — no partial credit, including T-00 (sized XS by the plan) and R-11. Status came from commit subjects, <code>✅</code> markers and file-existence checks, not from the file's checkboxes. (Session 3 ticked the 20 stale T-01&hellip;T-04 boxes so the file stops contradicting its own header; they remain sub-criteria and are still not what the count derives from.) R-08 and R-10 appear in two task files and are counted once.</p>
   </div>
 
