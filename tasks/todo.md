@@ -175,6 +175,27 @@ and a `human_spot_check` — so the last acceptance criterion is met and the rel
 
 ## Phase 2 — Kernel and workflow repairs
 
+> **Execution order, amended on the record 2026-09-02 (session 5), approved by EL.**
+> The blocks below sit in the order they were written, which has never been the execution order.
+> The order to work in is:
+>
+> ~~T-05~~ → ~~T-06~~ → ~~T-07~~ → **T-27 → T-28 → T-08 → T-09 → T-10a → T-10b → T-12**,
+> with **T-11** moved out of this lane — see below.
+>
+> Two dependencies the original plan did not record, and the reason for the change:
+> - **T-27 goes first** because every task after it writes tests. Landing it now means their
+>   fixtures are type-checked as they are written, rather than retrofitted later.
+> - **T-28 must precede T-10b**, which adds a new checker and a new self-test. Written in the
+>   current style that self-test plants probe files inside the working tree and becomes the fifth
+>   offender of the thing T-28 exists to remove.
+>
+> **T-11 is not a task that can be finished without a push.** Its criteria are "a planted fake
+> credential is caught, then removed" and "push protection enabled on the remote" — both need the
+> remote. It stays in Phase 2's point total and is done alongside a push, not in sequence here.
+>
+> **Denominator: 145 → 147**, from splitting T-10 into T-10a (S) and T-10b (M). A percentage that
+> moves because the denominator moved is not progress: 29 / 147 is **19.7%**, and nothing got worse.
+
 ### T-05: Separate `contentHash` from `manifestHash`
 **Description.** Audit **D-03**. `submit()` computes `manifestHash` at step 4 and passes it to
 `freezeRevision(revisionId, contentHash, at)` at step 5. Two different hashes with two different
@@ -409,25 +430,60 @@ inserted against a non-existent part revision.
 **Dependencies:** T-03. **Files:** `packages/db/migrations/0010_*.sql`, `packages/kernel-catalog/src/`,
 new tests. **Scope:** M.
 
-### T-10: Reconcile the documentation and port `check-claims`
-**Description.** Audit **D-19**. Four documents disagree: `TODO.md` RH-05 says both packs are DRAFT
-while the manifest says `APPROVED`; `LATEST.md` says both "336 beam rows" and "378 verified rows
-migrated" for the same release; `docs/CURRENT_STATE.md` §10 still reads "kernel-units is one package
-of the eight" and "3 commits"; the blueprint says Rev C in its masthead and Rev A in its closing
-line. None is a software defect. All four are the same defect in the practice — and in a product
-whose argument is that its record is current, that is not cosmetic.
+### T-10a: Reconcile the four disagreeing documents
+**Description.** Audit **D-19**, the content half. Four documents disagree: `TODO.md` RH-05 says both
+packs are DRAFT while the manifest says `APPROVED`; `LATEST.md` says both "336 beam rows" and "378
+verified rows migrated" for the same release; `docs/CURRENT_STATE.md` §10 still reads "kernel-units is
+one package of the eight" and "3 commits"; the blueprint says Rev C in its masthead and Rev A in its
+closing line. None is a software defect. All four are the same defect in the practice — and in a
+product whose argument is that its record is current, that is not cosmetic.
+
+**Split from T-10 in session 5** (2026-09-02), because the task's own title contained an "and": this
+is content in four files, T-10b is checker tooling in a different subsystem, and the pair could not
+state its acceptance criteria in three bullets. Denominator 145 → 147, recorded in the scoreboard.
 
 **Acceptance criteria:**
-- [ ] All four corrected
-- [ ] `tools/check-claims.mjs` ported from `rack-studio` (it is already on the reuse register):
-      counts stated in markdown are derived from the code and drift fails the build
-- [ ] It has a self-test, like every other checker here
-- [ ] Wired into `pnpm verify` and CI
+- [ ] All four corrected, each against the artifact that settles it — the manifest for the pack
+      status, the catalog file for the row count, the package list for §10, the blueprint source
+      for the revision
+- [ ] Every corrected figure is re-derived at the time of the edit, not copied from another document
+- [ ] Where a number cannot be re-derived, it is removed rather than restated
 
-**Verification:** `node tools/selftest-claims.mjs && node tools/check-claims.mjs`; prove it fires —
-change a stated count, confirm red.
-**Dependencies:** None. **Files:** `tools/check-claims.mjs`, `tools/selftest-claims.mjs`,
-`LATEST.md`, `TODO.md`, `docs/CURRENT_STATE.md`, `src/parts/*`, `package.json`, `ci.yml`. **Scope:** M.
+**Verification:** `python src/build.py` clean and `git diff --exit-code` on the built blueprint; each
+corrected figure traceable to the command that produced it, quoted in the commit body.
+**Dependencies:** None. **Files:** `LATEST.md`, `TODO.md`, `docs/CURRENT_STATE.md`, `src/parts/*`.
+**Scope:** S.
+
+### T-10b: Port `check-claims`, and widen `check-scoreboard-sync`
+**Description.** Audit **D-19**, the mechanism half — plus the remedy for **drift 18**, found in
+session 5. Correcting four documents by hand fixes today and nothing else; the reason the same four
+drifted is that no gate derives a stated count from the code. `check-claims.mjs` already exists in
+`rack-studio` and is on the reuse register.
+
+**And the scoreboard's own gate is narrower than its name.** `check-scoreboard-sync` compares the
+phase bars and the §15.2 headline **and nothing else**, so `progress.html` published
+*"task count 14% — 7 of 44"* against `progress.md`'s *"10 of 44 — 23%"* for a full session with a
+green build. The gate ran, passed, and did not cover the thing it is named for — F-08's shape at the
+documentation layer.
+
+**Acceptance criteria:**
+- [ ] `tools/check-claims.mjs` ported: counts stated in markdown are derived from the code, and drift
+      fails the build. It has a self-test, and the self-test runs first
+- [ ] `check-scoreboard-sync` additionally parses the four `<div class="m">` measure cards in
+      `progress.html` and compares their values against the headline table in `progress.md`
+- [ ] **Both gates proven to fire:** a planted stale count goes red, and a planted disagreeing
+      measure card goes red. A gate never fed a disagreement passes forever
+- [ ] Each checker's docstring re-states its remaining blind spots, in the same breath as its
+      guarantee — the house rule
+- [ ] Both wired into `pnpm verify` and CI, self-test ahead of checker
+
+**Verification:** `node tools/selftest-claims.mjs && node tools/check-claims.mjs`; then plant a
+disagreeing measure card and confirm `check:scoreboard` red, revert, confirm green.
+**Dependencies:** **T-28** — T-10b adds a new checker and a new self-test, and written in the current
+style that self-test plants probe files inside the working tree and becomes the fifth offender. This
+dependency is not in the original plan; it was found in session 5.
+**Files:** `tools/check-claims.mjs`, `tools/selftest-claims.mjs`, `tools/check-scoreboard-sync.mjs`,
+`tools/selftest-scoreboard-sync.mjs`, `package.json`, `ci.yml`. **Scope:** M.
 
 ### T-11: Add secret scanning to CI
 **Description.** Audit **D-20**. NFR-SEC-06 asks for it explicitly and it is absent. B2 credentials
@@ -448,11 +504,11 @@ changed type and `tsc --build` stays green — which happened during T-04, where
 added to `CatalogReleaseManifest` and every fixture silently lacked it until the tests ran.
 
 **Acceptance criteria:**
-- [ ] Test files are type-checked, via a separate `tsconfig.test.json` per package or by removing
+- [x] Test files are type-checked, via a separate `tsconfig.test.json` per package or by removing
       the exclusion and accepting the vitest globals
-- [ ] Adding a required field to a shared type fails `tsc` on stale fixtures, proven by deliberate
+- [x] Adding a required field to a shared type fails `tsc` on stale fixtures, proven by deliberate
       breakage
-- [ ] `pnpm verify` still passes and does not slow materially
+- [x] `pnpm verify` still passes and does not slow materially
 
 **Verification:** add a required field to a type, confirm `tsc --build` goes red, revert.
 **Dependencies:** None. **Files:** `packages/*/tsconfig.json`, `tsconfig.base.json`. **Scope:** S.
