@@ -8,14 +8,29 @@
  * below are what distinguish "found nothing" from "looked nowhere".
  */
 
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import { checkLanguage, stringLiterals } from './check-language.mjs';
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const PROBE_DIR = join(ROOT, 'packages', 'kernel-units', 'src', '__language_probe__');
+/**
+ * T-28. Both probe trees live under `os.tmpdir()`, never inside the repository:
+ * on a filesystem that refuses deletion the probe survived and the NEXT run of
+ * the checker failed against this self-test's own leftover fixture. A false red
+ * is as corrosive as a false green.
+ *
+ * This self-test needs no separate reachability assertion, unlike the other
+ * three: its `baseline` below is already run against the REAL repository, both
+ * to prove the tree is clean and to prove `status.ts` is being listed at all.
+ * Only the probes moved.
+ *
+ * `DENYLIST_FILES` is keyed on a repository-relative path, so the exemption is
+ * reproduced exactly in the temp tree — the lib probe below is checked against
+ * the REAL rule, not a simplified copy of it.
+ */
+const TREE = mkdtempSync(join(tmpdir(), 'rms-selftest-language-'));
+const PROBE_DIR = join(TREE, 'packages', 'kernel-units', 'src');
 const PROBE = join(PROBE_DIR, 'probe.ts');
 
 /**
@@ -29,7 +44,7 @@ const PROBE = join(PROBE_DIR, 'probe.ts');
  * if its exact width is asserted — so the probe now sits where a widened
  * exemption would swallow it.
  */
-const LIB_PROBE_DIR = join(ROOT, 'apps', 'client-web', 'src', 'lib', '__language_probe__');
+const LIB_PROBE_DIR = join(TREE, 'apps', 'client-web', 'src', 'lib');
 const LIB_PROBE = join(LIB_PROBE_DIR, 'probe.ts');
 
 /** Each must be caught. The name is what a miss would mean in front of a client. */
@@ -99,7 +114,9 @@ function writeProbe(source) {
 }
 
 function probeViolations() {
-  return checkLanguage().violations.filter((v) => v.includes('__language_probe__'));
+  return checkLanguage(TREE).violations.filter((v) =>
+    v.includes('kernel-units/src/probe.ts'),
+  );
 }
 
 /**
@@ -176,19 +193,20 @@ function main() {
       console.log('  verified    the exemption does not leak to other packages');
     }
 
-    // Removed before the next case: both probes share a directory name, so
-    // leaving this one in place would satisfy a filter meant for the other and
-    // report a pass the lib probe never earned. That mistake was made here
-    // first, and a gate proof caught it.
-    rmSync(PROBE_DIR, { recursive: true, force: true });
+    // Removed before the next case. The two filters are now distinct paths
+    // rather than a shared directory name, so this is belt and braces — but the
+    // mistake it guards against was made here first (a filter meant for one
+    // probe satisfied by the other, reporting a pass the lib probe never
+    // earned), and a gate proof caught it. Keeping the order costs nothing.
+    rmSync(PROBE, { force: true });
 
     // And a file INSIDE the exempt file's own directory must still be caught.
     // This is the case that matters: the exemption is one exact path, and
     // anything looser silences a whole directory.
     mkdirSync(LIB_PROBE_DIR, { recursive: true });
     writeFileSync(LIB_PROBE, "export const label = 'A tamper-proof audit trail.';\n", 'utf8');
-    const libHits = checkLanguage().violations.filter((v) =>
-      v.includes('src/lib/__language_probe__'),
+    const libHits = checkLanguage(TREE).violations.filter((v) =>
+      v.includes('client-web/src/lib/probe.ts'),
     );
     if (libHits.length === 0) {
       exemptionProblems.push(
@@ -199,8 +217,8 @@ function main() {
       console.log('  verified    the exemption is one exact path, not the whole lib directory');
     }
   } finally {
-    rmSync(PROBE_DIR, { recursive: true, force: true });
-    rmSync(LIB_PROBE_DIR, { recursive: true, force: true });
+    rmSync(PROBE, { force: true });
+    rmSync(LIB_PROBE, { force: true });
   }
 
   const missed = [];
@@ -219,7 +237,7 @@ function main() {
       else console.log(`  allowed     ${name}`);
     }
   } finally {
-    rmSync(PROBE_DIR, { recursive: true, force: true });
+    rmSync(TREE, { recursive: true, force: true });
   }
 
   if (

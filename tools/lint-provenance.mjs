@@ -137,13 +137,25 @@ function lineOf(source, index) {
   return source.slice(0, index).split('\n').length;
 }
 
-export function lintProvenance() {
+
+/**
+ * T-28. Every scan is rooted at `root`, which defaults to the repository. The
+ * self-test passes a temp tree instead, so it never writes a probe file inside
+ * the working copy — on a filesystem that refuses deletion a stranded probe
+ * makes the NEXT run fail against the self-test's own leftover fixture, and a
+ * false red trains people to re-run until it passes.
+ *
+ * The rules themselves are module constants, not files, so a temp tree exercises
+ * the REAL configuration rather than a simplified copy of it.
+ */
+export function lintProvenance(root = ROOT) {
   const violations = [];
   const scanned = [];
 
-  for (const root of SCAN_ROOTS) {
-    for (const file of listFiles(join(ROOT, root))) {
-      const rel = relative(ROOT, file).split(sep).join('/');
+  // `base` was named `root` before T-28 gave this function a root parameter.
+  for (const base of SCAN_ROOTS) {
+    for (const file of listFiles(join(root, base))) {
+      const rel = relative(root, file).split(sep).join('/');
       // The formatters' own package defines and tests them; scanning it would
       // flag every unit test of the formatter itself.
       if (rel.startsWith('packages/kernel-units/')) continue;

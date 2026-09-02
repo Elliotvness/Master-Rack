@@ -132,7 +132,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
     <div class="meta">
       <span class="lbl">Rack Master Studio</span>
       <span class="lbl">2026-09-02 &middot; session 5</span>
-      <span class="lbl">branch task/t-27-typecheck-tests &middot; <strong>unpushed, no CI</strong> &middot; main 98b0229</span>
+      <span class="lbl">branch task/t-28-selftest-fixtures &middot; 1 unpushed &middot; main 0cc97d1 &middot; PR #4, #5 merged</span>
     </div>
     <h1>The foundations are strong.<br>The product does not exist yet.</h1>
     <p class="sub">A scoreboard measured against the repository, not against the plan documents. Where a figure was re-run today it says so; where it is the repo's own claim, it says that instead.</p>
@@ -153,8 +153,8 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
     </div>
     <div class="measures">
       <div class="m primary"><span class="lbl">Definition of done</span><span class="v">0%</span><span class="d">§15.2, 0 of 8 steps. Quote this one.</span></div>
-      <div class="m"><span class="lbl">Plan executed · weighted</span><span class="v">21.1%</span><span class="d">31 of <strong>147</strong> effort points. A ceiling, not a measure. Both figures moved this session and must not be confused: the <strong>denominator</strong> went 145&rarr;147 when T-10 was split (bookkeeping &mdash; on its own it took 20.0% <em>down</em> to 19.7%), and the <strong>numerator</strong> went 29&rarr;31 when T-27 landed. Only the second is progress.</span></div>
-      <div class="m"><span class="lbl">Plan executed · task count</span><span class="v">24%</span><span class="d">11 of 45 tasks complete. This card read <em>14% &mdash; 7 of 44</em> for a full session while <code>check:scoreboard</code> stayed green: the gate compares the phase bars and the &sect;15.2 headline, not these cards. Drift 18, and the remedy is now T-10b.</span></div>
+      <div class="m"><span class="lbl">Plan executed · weighted</span><span class="v">22.4%</span><span class="d">33 of <strong>147</strong> effort points. A ceiling, not a measure. Both figures moved this session and must not be confused: the <strong>denominator</strong> went 145&rarr;147 when T-10 was split (bookkeeping &mdash; on its own it took 20.0% <em>down</em> to 19.7%), and the <strong>numerator</strong> went 29&rarr;33 when T-27 and T-28 landed. Only the second is progress.</span></div>
+      <div class="m"><span class="lbl">Plan executed · task count</span><span class="v">27%</span><span class="d">12 of 45 tasks complete. This card read <em>14% &mdash; 7 of 44</em> for a full session while <code>check:scoreboard</code> stayed green: the gate compares the phase bars and the &sect;15.2 headline, not these cards. Drift 18, and the remedy is now T-10b.</span></div>
       <div class="m"><span class="lbl">Pre-merge review</span><span class="v">73%</span><span class="d">R-01…R-11, 8 of 11. Unchanged since session 3: done R-01…R-06, <strong>R-08</strong>, <strong>R-11</strong>; open R-07 (partly), R-09, R-10 (the per-commit <code>typecheck &amp;&amp; test</code>, which needs Windows). One merged branch's checklist &mdash; not the project.</span></div>
       <div class="m"><span class="lbl">Route surface vs &sect;8.2</span><span class="v">19/21</span><span class="d">Re-enumerated today, path by path. &sect;8.2 lists 23 rows, 2 marked phase 2. The registry declares 19 of the 21 &mdash; and nothing mounts it.</span></div>
     </div>
@@ -172,11 +172,11 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
     <div class="phases">
       <div class="ph"><div class="nm"><b>0 — Make CI real</b><span><strong>T-00 complete.</strong> Tip <code>efbafbd</code> pushed; CI run #10 <strong>Success</strong> &mdash; the first commit in this repo ever verified</span></div><div class="bar"><i style="width:100%"></i></div><div class="pct">1 / 1</div></div>
       <div class="ph"><div class="nm"><b>1 — Catalog &amp; schema integrity</b><span>T-01…T-04 complete — verified at <code>a2f166e</code>, a repository claim, not re-run today</span></div><div class="bar"><i style="width:100%"></i></div><div class="pct">10 / 10</div></div>
-      <div class="ph"><div class="nm"><b>2 — Kernel &amp; workflow repairs</b><span><strong>T-05, T-06, T-07 and T-27 done</strong>; T-08, T-09, T-10a, T-10b, T-11, T-12, T-28 open. Points 26&rarr;28 from the T-10 split</span></div><div class="bar"><i style="width:43%"></i></div><div class="pct">12 / 28</div></div>
+      <div class="ph"><div class="nm"><b>2 — Kernel &amp; workflow repairs</b><span><strong>T-05, T-06, T-07, T-27, T-28 done</strong>; T-08, T-09, T-10a, T-10b, T-11, T-12 open. Points 26&rarr;28 from the T-10 split</span></div><div class="bar"><i style="width:50%"></i></div><div class="pct">14 / 28</div></div>
       <div class="ph"><div class="nm"><b>3 — The contract, then the server</b><span>P-00 and T-13a done; T-13b…T-15, P-01…P-05, R-08, R-10 open</span></div><div class="bar"><i style="width:16%"></i></div><div class="pct">8 / 50</div></div>
       <div class="ph"><div class="nm"><b>4 — The interface</b><span>Zero <code>.tsx</code> files exist</span></div><div class="bar zero"><i style="width:0%"></i></div><div class="pct">0 / 42</div></div>
       <div class="ph"><div class="nm"><b>5 — Deploy readiness</b><span>Not started</span></div><div class="bar zero"><i style="width:0%"></i></div><div class="pct">0 / 16</div></div>
-      <div class="ph total"><div class="nm"><b>Total</b><span>21.1% of the written plan executed &mdash; <strong>denominator 145&rarr;147 (T-10 split), numerator 29&rarr;31 (T-27 done)</strong>. Only the second is progress</span></div><div class="bar"><i style="width:21.1%"></i></div><div class="pct">31 / 147</div></div>
+      <div class="ph total"><div class="nm"><b>Total</b><span>22.4% of the written plan executed &mdash; <strong>denominator 145&rarr;147 (T-10 split), numerator 29&rarr;33 (T-27 and T-28 done)</strong>. Only the second is progress</span></div><div class="bar"><i style="width:22.4%"></i></div><div class="pct">33 / 147</div></div>
     </div>
     <div class="prose">
       <p><strong>116 points remain.</strong> The server plus all of Phase 4 is 50 of them — 43% of what is left. The other 57% is diffuse: Phase 2’s residue (16), the rest of Phase 3 (42), Phase 5 (16). Planning as though the remainder is two big items will under-book the back half.</p>
@@ -185,14 +185,14 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
 
   <section>
     <div class="head">
-      <h2>How soft is 21.1%?</h2>
-      <p class="lbl">Sensitivity &mdash; 31 done points never move, only the denominator does (it moved to 147 in session 5, splitting T-10)</p>
+      <h2>How soft is 22.4%?</h2>
+      <p class="lbl">Sensitivity &mdash; 33 done points never move, only the denominator does (it moved to 147 in session 5, splitting T-10)</p>
     </div>
     <div class="tw">
       <table>
         <thead><tr><th class="n">T-14</th><th class="n">Phase 4</th><th class="n">Denominator</th><th class="n">Completion</th><th>Scenario</th></tr></thead>
         <tbody>
-          <tr><td class="n">8</td><td class="n">42</td><td class="n">147</td><td class="n"><b>21.1%</b></td><td>as planned &mdash; the published figure</td></tr>
+          <tr><td class="n">8</td><td class="n">42</td><td class="n">147</td><td class="n"><b>22.4%</b></td><td>as planned &mdash; the published figure</td></tr>
           <tr><td class="n">16</td><td class="n">63</td><td class="n">174</td><td class="n">16.7%</td><td>T-14 &times;2, Phase 4 &times;1.5</td></tr>
           <tr><td class="n">16</td><td class="n">84</td><td class="n">195</td><td class="n">14.9%</td><td>T-14 &times;2, Phase 4 &times;2</td></tr>
           <tr><td class="n">24</td><td class="n">84</td><td class="n">203</td><td class="n">14.3%</td><td>T-14 &times;3, Phase 4 &times;2</td></tr>
@@ -219,6 +219,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
           <li><strong>The pair moves as this page is written.</strong> Each documentation commit recording this measurement adds one to both counts, so <strong>do not quote ahead/unpushed from this page</strong> &mdash; re-run <code>git rev-list --left-right --count origin/main...HEAD</code>. Session 3 added <code>e488a14</code>, <code>c08cca3</code> and the commit carrying this line. That self-reference is exactly how drift item 5 arose; naming it is cheaper than chasing it</li>
           <li><strong>12</strong> packages (<code>packages/workflow</code> added by T-07) · <strong>47</strong> test files · <strong>9</strong> migrations</li>
           <li><strong>The suite ran, and it is a measurement now.</strong> <code>pnpm verify</code> <strong>exit 0</strong> &mdash; 47 files, <strong>1,126 tests</strong>, 0 skipped &mdash; against a <strong>native PostgreSQL 16.13</strong> in a Linux container rebuilt from this tree, with a <strong>baseline measured first: 83&nbsp;s</strong>. T-27's run was 82&nbsp;s, so "does not slow materially" is a comparison and not an assertion. Needs neither Windows nor a push.</li>
+          <li><strong>T-28, criterion 3 proven on the real hostile filesystem.</strong> The four checkers take an optional <code>root</code>; the four self-tests build probes with <code>mkdtempSync</code> under <code>os.tmpdir()</code>. Run from the bridge mount where <code>rm</code> is genuinely refused (<em>Operation not permitted</em>, confirmed first): all four pass <strong>twice in succession with no cleanup between</strong>, the checkers pass immediately after, and <code>find . -name '*probe*'</code> returns nothing. The blind spot a temp tree opens &mdash; a checker that has lost its grip on the real repository &mdash; is closed in the same change by a read-only reachability assertion.</li>
           <li><strong>T-27 proven to fire against the real T-04 shape</strong> &mdash; required field added <em>and</em> the source updated, leaving the fixture the only stale thing: <code>tsc --build</code> <strong>exit 0</strong>, <code>tsc -p tsconfig.tests.json</code> <strong>exit 2</strong>. Reverted, both green.</li>
           <li><strong>F-26, and it is why T-27 went first.</strong> 14 errors surfaced in 47 files never type-checked before, and one was real: the determinism corpus digested the literal string <code>undefined|undefined|3812|2451100|3175</code>, because <code>convert()</code> returns a <code>number</code> and the case read <code>.value</code> off it. Confirmed at runtime before anything changed. <strong><code>check:determinism</code> would not have gone red if <code>convert()</code> had started returning a different number.</strong> Fixed; the <code>units</code> pin re-based, and only that line moved.</li>
           <li><strong>0</strong> <code>.tsx</code>/<code>.jsx</code>/<code>.vue</code>/<code>.svelte</code>/<code>.astro</code> files</li>
