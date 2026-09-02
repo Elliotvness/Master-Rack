@@ -22,8 +22,9 @@ its own tip figures were stale before it was read — drift 5.
 **Session 5 moved no task figure, and that is the finding.** No commit landed between session 4's
 update and this pass: the working tree is clean and `HEAD` is the same `e88320f` that carried that
 update. What the re-measurement found instead is the scoreboard's **two repo copies contradicting
-each other on a published percentage while `pnpm check:scoreboard` stays green** — drift 18 — plus
-six other stale statements inside the two files. Eight new drift items, none of them in the code.
+each other on a published percentage while `pnpm check:scoreboard` stays green** (drift 18), and the
+**two copies CI cannot reach still publishing the figures from before T-07** (drift 23). **Nine new
+drift items, items 15 to 23, none of them in the code.**
 
 **Session 4's `pnpm verify` — exit 0 against a native PostgreSQL 16.13 — is a repository claim as of
 today, not a session-5 measurement.** Re-checked today: `node_modules` in this working tree holds
@@ -244,11 +245,13 @@ list — including one this scoreboard published about itself. **Session 4 found
 to 14**; item 11 is again this file describing itself wrongly, and 13 and 14 are stale figures inside
 a task's own verification line — found only because the line was actually re-run.
 
-**Session 5 found eight, items 15 to 22, and every one of them is inside the scoreboard itself.**
+**Session 5 found nine, items 15 to 23, and every one of them is inside the scoreboard itself.**
 No code changed between the two passes, so this is the cleanest measurement the project has of how
-fast its own documentation goes stale: **eight false statements in one file-pair in under a day, with
-CI green over them the whole time.** Item 18 is the one that matters — the gate whose entire job is
+fast its own documentation goes stale: **nine false statements across the four copies in under a day, with
+CI green over them the whole time.** Two matter most. **Item 18** — the gate whose entire job is
 keeping the two repo copies in agreement was passing while they disagreed on a published percentage.
+**Item 23** — the two copies CI cannot reach were never updated when T-07 landed, so the four copies
+sat in **three different states** and the only gate that runs saw none of it.
 
 | # | Item | Status |
 |---|---|---|
@@ -276,6 +279,8 @@ keeping the two repo copies in agreement was passing while they disagreed on a p
 | 21 | *(new, session 5)* Both copies' git lens still instruct "**Merge the branch** — 30 commits, well past short-lived" | **Fixed** — PR #1 merged at `dab5a8e` in session 3, PR #2 and #3 since. The instruction outlived the branch it was about |
 | 22 | *(new, session 5)* `progress.html` masthead dated "2026-09-01 · **session 3**"; its own footer dated the same page "2026-09-01 (**session 4**)" | **Fixed** — one page, two dates, neither re-derived |
 
+| 23 | *(new, session 5)* **The published artifact and the Claude Project doc both still read `17.2%` — 25 of 145, 9 of 44, Phase 2 at `6 / 26`** | **Fixed — both republished.** Neither was updated when T-07 landed; the repo files moved to 29/145 in `e88320f` and the two copies CI cannot reach did not. Cadence steps 6 and 7 exist precisely because CI cannot catch this, and they were not executed. **Four copies were in three different states**, and the only gate that runs saw none of it |
+
 **Drift 4 was not drift.** Both figures were accurate; the *classification* was wrong. Filed beside
 three doc-vs-reality typos and closed with "all four are R-11 / T-10 work", it read as documentation
 clean-up — which invited the fix of editing 23 down to 20. Re-derived from the blueprint this
@@ -299,7 +304,7 @@ session and put through a fresh-context adversarial review (AD-7):
   false "MVP-1 surface from blueprint §8.2" comment at `routes.ts` was corrected to say what the
   table actually is.
 
-This is the **seventh** consecutive session in which drift was found by measurement — a recurring
+This is the **eighth** consecutive session in which drift was found by measurement — a recurring
 defect, not an accident. Note what the pattern cost here: session 2's remedy for drift 4, applied as written,
 would have *hidden* two missing MVP-1 routes by moving the target to meet the code. **The precedence
 rule earns its keep: the blueprint wins, and the scoreboard is what gets fixed.**
@@ -375,6 +380,14 @@ Gaps, in priority order:
   `actions/checkout@v4`, `actions/setup-node@v4`, `actions/setup-python@v5` and
   `pnpm/action-setup@v4` are being forced onto Node 24. Pin newer action versions before it becomes
   an error rather than a warning.
+- **New hazard, measured today: every git command from the bridge shell strands a `.git/index.lock`
+  the mount will not let git delete.** The commit carrying this update stranded `HEAD.lock`,
+  `index.lock`, `objects/maintenance.lock` and five `objects/**/tmp_obj_*` files; a following
+  `git status` immediately stranded another `index.lock`. They were moved to
+  `_to_delete/git-locks/` — an **untracked folder at the repo root that has to be deleted from
+  Windows** — and `git fsck` is clean. **A stranded `index.lock` will block GitHub Desktop**, so the
+  rule is: clear it before leaving the bridge, and check for it first if a push refuses. This is
+  T-28's failure mode one layer down — the same read-only mount, a different tool's fixtures.
 - **A new gate, and a fixture lesson worth retrofitting.** `check-content-hash` writes its
   self-test fixtures to the OS temp directory. The other checkers write probe files into the working
   tree and delete them at the end — which on a mount that forbids deletion strands them and makes

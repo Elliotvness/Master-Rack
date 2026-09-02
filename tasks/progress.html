@@ -176,7 +176,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
       <div class="ph"><div class="nm"><b>3 — The contract, then the server</b><span>P-00 and T-13a done; T-13b…T-15, P-01…P-05, R-08, R-10 open</span></div><div class="bar"><i style="width:16%"></i></div><div class="pct">8 / 50</div></div>
       <div class="ph"><div class="nm"><b>4 — The interface</b><span>Zero <code>.tsx</code> files exist</span></div><div class="bar zero"><i style="width:0%"></i></div><div class="pct">0 / 42</div></div>
       <div class="ph"><div class="nm"><b>5 — Deploy readiness</b><span>Not started</span></div><div class="bar zero"><i style="width:0%"></i></div><div class="pct">0 / 16</div></div>
-      <div class="ph total"><div class="nm"><b>Total</b><span>20.0% of the written plan executed — the numerator moved this session, the denominator held at 145</span></div><div class="bar"><i style="width:20%"></i></div><div class="pct">29 / 145</div></div>
+      <div class="ph total"><div class="nm"><b>Total</b><span>20.0% of the written plan executed — <strong>neither numerator nor denominator moved this session;</strong> no commit landed</span></div><div class="bar"><i style="width:20%"></i></div><div class="pct">29 / 145</div></div>
     </div>
     <div class="prose">
       <p><strong>116 points remain.</strong> The server plus all of Phase 4 is 50 of them — 43% of what is left. The other 57% is diffuse: Phase 2’s residue (16), the rest of Phase 3 (42), Phase 5 (16). Planning as though the remainder is two big items will under-book the back half.</p>
@@ -186,7 +186,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
   <section>
     <div class="head">
       <h2>How soft is 20.0%?</h2>
-      <p class="lbl">Sensitivity &mdash; 19 done points never move, only the denominator does (it moved to 145 today)</p>
+      <p class="lbl">Sensitivity &mdash; 29 done points never move, only the denominator does (it last moved to 145 in session 3)</p>
     </div>
     <div class="tw">
       <table>
@@ -240,7 +240,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
   <section>
     <div class="head">
       <h2>Drift found while measuring</h2>
-      <p class="lbl">Seventh consecutive session — thirteen fixed, one reclassified</p>
+      <p class="lbl">Eighth consecutive session &mdash; session 5's nine are every one of them inside the scoreboard itself</p>
     </div>
     <div class="tw">
       <table>
@@ -268,6 +268,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
           <tr><td>Both copies <em>(session 5)</em></td><td>&ldquo;the <strong>36</strong> <code>T-…</code> tasks &hellip; inside <strong>the 35</strong>&rdquo;</td><td><strong>36</strong>, counted today: 13 + 4 + 2 + 2 + 5 + 10</td><td class="n">Fixed</td></tr>
           <tr><td>Both copies <em>(session 5)</em></td><td>&ldquo;<strong>Merge the branch</strong> &mdash; 30 commits, well past short-lived&rdquo;</td><td>PR #1 merged at <code>dab5a8e</code> in session 3; #2 and #3 since. The instruction outlived the branch it was about</td><td class="n">Fixed</td></tr>
           <tr><td><code>progress.html</code> <em>(session 5)</em></td><td>Masthead &ldquo;2026-09-01 &middot; <strong>session 3</strong>&rdquo;</td><td>Its own footer dated the same page <strong>session 4</strong>. One page, two dates, neither re-derived</td><td class="n">Fixed</td></tr>
+          <tr><td><strong>The two copies CI cannot reach</strong> <em>(session 5)</em></td><td>This published page and the Claude Project doc both still read <strong>17.2% &mdash; 25 of 145, 9 of 44</strong>, with Phase 2 at <code>6 / 26</code></td><td><strong>Neither was republished when T-07 landed.</strong> The repo files moved to 29 / 145 in commit <code>e88320f</code>; the cadence's step 6 (&ldquo;update all four copies&rdquo;) and step 7 (&ldquo;verify the two CI cannot see&rdquo;) were not executed. CI cannot catch this by construction &mdash; which is exactly why those two steps are written down</td><td class="n">Fixed &mdash; both republished</td></tr>
         </tbody>
       </table>
     </div>
@@ -312,6 +313,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
         <p>What exists is above ordinary practice in one specific way worth protecting: <strong>every checker has a self-test, and the self-test runs first.</strong> A checker that silently stopped working would otherwise report a clean pass forever — the exact failure mode behind F-06 and F-08.</p>
         <ul>
           <li><strong>The tip is unverified &mdash; REOPENED, one commit after being declared closed.</strong> <code>e88320f</code> has no upstream and has never been pushed. Session 4 struck this bullet through and wrote the remedy inside it &mdash; <em>&ldquo;push each task's commit as it lands&rdquo;</em> &mdash; then did not push the commit it was writing about. One commit deep instead of eight is the whole improvement; the discipline did not survive its first task.</li>
+          <li><strong>New hazard, measured today: every git command from the bridge shell strands a <code>.git/index.lock</code></strong> the mount will not let git delete. This update's commit stranded <code>HEAD.lock</code>, <code>index.lock</code>, <code>objects/maintenance.lock</code> and five <code>tmp_obj_*</code> files; the next <code>git status</code> stranded another. Moved to <code>_to_delete/git-locks/</code> &mdash; an untracked folder at the repo root that <strong>has to be deleted from Windows</strong> &mdash; and <code>git fsck</code> is clean. A stranded <code>index.lock</code> will block GitHub Desktop. T-28's failure mode one layer down.</li>
           <li><strong>The runner is on borrowed time.</strong> Run #10 carries two warnings: Node.js 20 is deprecated, so <code>actions/checkout@v4</code>, <code>actions/setup-node@v4</code>, <code>actions/setup-python@v5</code> and <code>pnpm/action-setup@v4</code> are forced onto Node 24. Pin newer versions before it becomes an error.</li>
           <li><strong><code>verify</code> can fail without the code being wrong.</strong> Run #11's first attempt died in <strong>12&nbsp;s</strong> with <code>Docker start fail with exit code 1</code> &mdash; the Postgres service container never came up, on a docs-only commit; a re-run was green in 1m 12s. A flake and a regression look identical in the checks UI, so <strong>read the duration first</strong>: a real failure gets past <em>Initialize containers</em> and dies tens of seconds in.</li>
           <li><strong>No secret scanning (T-11), no dependency audit.</strong> One CI step each.</li>
@@ -385,7 +387,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
     <div class="prose"><p>This page and <code>tasks/progress.md</code> are updated <strong>whenever a long task completes, or a batch of several tasks completes</strong> — unprompted, before the session ends.</p></div>
     <ol class="steps">
       <li><strong>Re-measure, don't re-read.</strong> Run the commands again against the working tree. Figures copied from the previous scoreboard are claims, not measurements.</li>
-      <li><strong>Recompute</strong> done-points over the 143-point denominator using the plan's own sizes. Completion stays <strong>binary</strong>.</li>
+      <li><strong>Recompute</strong> done-points over the <strong>145</strong>-point denominator using the plan's own sizes &mdash; 143 until T-28 was added in session 3. Completion stays <strong>binary</strong>.</li>
       <li><strong>Re-check §15.2.</strong> It is the headline, and it does not move until HTTP and a screen exist.</li>
       <li><strong>Label every figure</strong> verified-today or repository-claim. Anything that could not be re-run goes in the claims list, with the reason.</li>
       <li><strong>Record new drift</strong> found while measuring, with its owning task.</li>
