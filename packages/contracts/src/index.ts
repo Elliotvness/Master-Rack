@@ -41,3 +41,37 @@ export {
   findForbiddenFields,
   isForbiddenClientField,
 } from './forbidden-fields.js';
+
+export {
+  SchemaError,
+  array,
+  boolean,
+  clientResponse,
+  integer,
+  internalResponse,
+  nullable,
+  number,
+  object,
+  oneOf,
+  paginatedResponse,
+  string,
+  toJsonSchema,
+  validate,
+  validateDetailed,
+  type Audience,
+  type FieldSchema,
+  type JsonSchema,
+  type ObjectSchema,
+  type Problem,
+  type ProblemKind,
+  type ResponseSchema,
+} from './schema.js';
+
+export {
+  OutboundLeakError,
+  OutboundValidationError,
+  outboundGuard,
+  type OutboundGuard,
+  type OutboundMode,
+  type OutboundReport,
+} from './outbound.js';

@@ -13,6 +13,10 @@
  * rather than a serialization bug (invisible in review).
  */
 
+import type { ResponseSchema } from '@rms/contracts';
+
+import { CLIENT_SCHEMAS } from '../dto/client.js';
+import { INTERNAL_SCHEMAS } from '../dto/internal.js';
 import { KNOWN_ACTIONS, type Action, type ActorType } from './authorize.js';
 
 export type Namespace = 'client' | 'internal' | 'public';
@@ -27,7 +31,23 @@ export interface RoutePolicy {
    * omission — a route with no `action` key at all fails the assertion.
    */
   readonly action: Action | null;
+  /**
+   * The response schema this route answers with, by name in its namespace's
+   * registry (`CLIENT_SCHEMAS` / `INTERNAL_SCHEMAS`), or null ONLY for a
+   * public route. T-13b: this is how "one DTO per (entity × audience)" is
+   * measured rather than listed — the assertion below refuses a name the
+   * registry does not hold, and T-14's outbound hook reads it.
+   */
+  readonly response: string | null;
 }
+
+/** The schema registries the assertion checks `response` against. */
+export interface ResponseRegistries {
+  readonly client: Readonly<Record<string, ResponseSchema>>;
+  readonly internal: Readonly<Record<string, ResponseSchema>>;
+}
+
+const REGISTRIES: ResponseRegistries = Object.freeze({ client: CLIENT_SCHEMAS, internal: INTERNAL_SCHEMAS });
 
 /** Which actor types may reach each namespace. */
 const NAMESPACE_ACTORS: Readonly<Record<Namespace, ReadonlySet<ActorType>>> = {
@@ -57,30 +77,31 @@ export function namespaceAllows(namespace: Namespace, actorType: ActorType): boo
  */
 export const ROUTES: readonly RoutePolicy[] = [
   // Public — no session required, single-use token instead.
-  { method: 'POST', path: '/api/auth/invite/accept', namespace: 'public', action: null },
+  { method: 'POST', path: '/api/auth/invite/accept', namespace: 'public', action: null, response: null },
 
-  // Client surface.
-  { method: 'GET', path: '/api/client/v1/projects', namespace: 'client', action: 'project.read' },
-  { method: 'GET', path: '/api/client/v1/projects/:id/revisions', namespace: 'client', action: 'revision.read' },
-  { method: 'POST', path: '/api/client/v1/revisions/:id/facility', namespace: 'client', action: 'revision.edit' },
-  { method: 'POST', path: '/api/client/v1/revisions/:id/units', namespace: 'client', action: 'revision.edit' },
-  { method: 'POST', path: '/api/client/v1/revisions/:id/options', namespace: 'client', action: 'revision.edit' },
-  { method: 'GET', path: '/api/client/v1/revisions/:id/preview', namespace: 'client', action: 'revision.read' },
-  { method: 'GET', path: '/api/client/v1/revisions/:id/compare', namespace: 'client', action: 'revision.read' },
-  { method: 'POST', path: '/api/client/v1/revisions/:id/submit', namespace: 'client', action: 'revision.submit' },
-  { method: 'POST', path: '/api/client/v1/revisions/:id/clone', namespace: 'client', action: 'revision.clone' },
-  { method: 'GET', path: '/api/client/v1/submissions/:id', namespace: 'client', action: 'submission.read' },
-  { method: 'POST', path: '/api/client/v1/invitations', namespace: 'client', action: 'invitation.create' },
+  // Client surface. A list route names its ITEM schema; the pagination
+  // envelope around it is `@rms/contracts`' and is T-14's to apply.
+  { method: 'GET', path: '/api/client/v1/projects', namespace: 'client', action: 'project.read', response: 'Project' },
+  { method: 'GET', path: '/api/client/v1/projects/:id/revisions', namespace: 'client', action: 'revision.read', response: 'Revision' },
+  { method: 'POST', path: '/api/client/v1/revisions/:id/facility', namespace: 'client', action: 'revision.edit', response: 'Revision' },
+  { method: 'POST', path: '/api/client/v1/revisions/:id/units', namespace: 'client', action: 'revision.edit', response: 'Revision' },
+  { method: 'POST', path: '/api/client/v1/revisions/:id/options', namespace: 'client', action: 'revision.edit', response: 'Revision' },
+  { method: 'GET', path: '/api/client/v1/revisions/:id/preview', namespace: 'client', action: 'revision.read', response: 'Preview' },
+  { method: 'GET', path: '/api/client/v1/revisions/:id/compare', namespace: 'client', action: 'revision.read', response: 'Comparison' },
+  { method: 'POST', path: '/api/client/v1/revisions/:id/submit', namespace: 'client', action: 'revision.submit', response: 'Submission' },
+  { method: 'POST', path: '/api/client/v1/revisions/:id/clone', namespace: 'client', action: 'revision.clone', response: 'Revision' },
+  { method: 'GET', path: '/api/client/v1/submissions/:id', namespace: 'client', action: 'submission.read', response: 'Submission' },
+  { method: 'POST', path: '/api/client/v1/invitations', namespace: 'client', action: 'invitation.create', response: 'Invitation' },
 
   // Internal surface.
-  { method: 'GET', path: '/api/internal/v1/queue', namespace: 'internal', action: 'submission.read' },
-  { method: 'GET', path: '/api/internal/v1/submissions/:id', namespace: 'internal', action: 'submission.read' },
-  { method: 'GET', path: '/api/internal/v1/revisions/:id/bom', namespace: 'internal', action: 'bom.read' },
-  { method: 'POST', path: '/api/internal/v1/submissions/:id/derive', namespace: 'internal', action: 'revision.derive_internal' },
-  { method: 'POST', path: '/api/internal/v1/organizations', namespace: 'internal', action: 'organization.create' },
-  { method: 'POST', path: '/api/internal/v1/invitations', namespace: 'internal', action: 'invitation.create_any_org' },
-  { method: 'POST', path: '/api/internal/v1/catalog/releases/:id/approve', namespace: 'internal', action: 'catalog.approve' },
-  { method: 'GET', path: '/api/internal/v1/audit', namespace: 'internal', action: 'audit.read' },
+  { method: 'GET', path: '/api/internal/v1/queue', namespace: 'internal', action: 'submission.read', response: 'QueueEntry' },
+  { method: 'GET', path: '/api/internal/v1/submissions/:id', namespace: 'internal', action: 'submission.read', response: 'SubmissionPackage' },
+  { method: 'GET', path: '/api/internal/v1/revisions/:id/bom', namespace: 'internal', action: 'bom.read', response: 'BomLine' },
+  { method: 'POST', path: '/api/internal/v1/submissions/:id/derive', namespace: 'internal', action: 'revision.derive_internal', response: 'Revision' },
+  { method: 'POST', path: '/api/internal/v1/organizations', namespace: 'internal', action: 'organization.create', response: 'Organization' },
+  { method: 'POST', path: '/api/internal/v1/invitations', namespace: 'internal', action: 'invitation.create_any_org', response: 'Invitation' },
+  { method: 'POST', path: '/api/internal/v1/catalog/releases/:id/approve', namespace: 'internal', action: 'catalog.approve', response: 'CatalogRelease' },
+  { method: 'GET', path: '/api/internal/v1/audit', namespace: 'internal', action: 'audit.read', response: 'AuditEvent' },
 ];
 
 export class RouteCoverageError extends Error {
@@ -100,7 +121,10 @@ export class RouteCoverageError extends Error {
  * known action. Call this at application boot. It THROWS rather than warning,
  * because a warning at boot is a warning nobody reads.
  */
-export function assertRouteCoverage(routes: readonly RoutePolicy[] = ROUTES): void {
+export function assertRouteCoverage(
+  routes: readonly RoutePolicy[] = ROUTES,
+  registries: ResponseRegistries = REGISTRIES,
+): void {
   const problems: string[] = [];
   const known = new Set<Action>(KNOWN_ACTIONS);
   const seen = new Set<string>();
@@ -116,6 +140,20 @@ export function assertRouteCoverage(routes: readonly RoutePolicy[] = ROUTES): vo
     if (!('action' in route)) {
       problems.push(`${id}: no 'action' declared — every route must state its policy`);
       continue;
+    }
+
+    // Same discipline for the response: the key must be present, null only
+    // on a public route, and a name must exist in the namespace's registry —
+    // a route that answers with a shape nobody declared is a route the
+    // outbound guard cannot judge.
+    if (!('response' in route)) {
+      problems.push(`${id}: no 'response' declared — every route must name the schema it answers with`);
+    } else if (route.response === null) {
+      if (route.namespace !== 'public') problems.push(`${id}: only a public route may have a null response`);
+    } else if (route.namespace === 'public') {
+      problems.push(`${id}: a public route answers with no registered schema — declare null`);
+    } else if (!Object.hasOwn(registries[route.namespace], route.response)) {
+      problems.push(`${id}: response schema '${route.response}' is not in the ${route.namespace} registry`);
     }
 
     if (route.action === null) {

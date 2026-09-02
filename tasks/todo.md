@@ -962,12 +962,88 @@ the single shared source for the test, the log redactor and the response validat
 - [x] 21 tests, 100% coverage, inside `check-boundaries` as the 10th pure package
 - [x] `pnpm coverage` threshold added for `packages/contracts/src/**`
 
-### T-13b: Per-audience DTOs and the outbound validator
+### T-13b: Per-audience DTOs and the outbound validator  ✅ 2026-09-02
 **Acceptance criteria:** one DTO per (entity × audience), constructed field by field — never
 `exclude([...])`, which is allow-by-default and leaks the next column someone adds. Client response
 types declared `additionalProperties: false`. The validator fails in non-production and alerts in
 production. The positive companion test asserts staff **do** see the fields.
 **Verification:** add `cost` to a client DTO, confirm red, revert. **Dependencies:** T-13a. **Scope:** M.
+
+**Done.** Container-verified: `pnpm verify` exit 0 — 53 files, 1,232 tests, 0 skipped; `@rms/contracts`
+and `apps/api/src/dto` at 100 / 100 / 100 / 100. Two rounds of fresh-context adversarial review
+(AD-7) before it stood; the first found a BLOCKER (the status vocabulary), the second found another
+(the union hole below). Both fixed and planted.
+
+- [x] **The schema is the OpenAPI promise held as a value.** `@rms/contracts` `schema.ts`: a closed
+      subset of JSON Schema (string+enum, number, integer, boolean+enum, nullable, array, closed
+      object, oneOf of closed objects). `validate` reads the same object `toJsonSchema` emits — the
+      document and the validator cannot drift. Every object is `additionalProperties: false`; there
+      is no way to declare an open one. Own-key lookups on both sides and a null-prototype property
+      map, so `constructor`, `hasOwnProperty` and an own `__proto__` off `JSON.parse` are strays,
+      not silent passes (review R1 #2, planted)
+- [x] **`clientResponse` refuses at declaration** any property on `FORBIDDEN_CLIENT_FIELDS` at any
+      depth, and any embedded internal-audience schema. **Verification as stated, run twice:**
+      `cost: number()` added to the `Project` client DTO →
+      `SchemaError: Project: 'cost' is on FORBIDDEN_CLIENT_FIELDS and cannot be declared on a client
+      response`, both DTO suites red at module load; reverted, 36 green. Second plant: a builder
+      shipping an undeclared `created_by` → `OutboundValidationError … created_by: not a declared
+      field of Project`; reverted. Third: `Comparison` → `Comparisonn` in `ROUTES` →
+      `RouteCoverageError`; reverted (md5 of every planted file equal to its backup after restore)
+- [x] **The outbound guard** (`outbound.ts`): `fail` refuses any schema problem; `alert` reports to
+      the caller's sink and ships. Pure — the caller binds the mode; nothing here reads
+      `process.env`, so "fails in non-production, alerts in production" is met at the library
+      level and **T-14a owns env → mode** and must test the direction
+- [x] **One DTO per (entity × audience), measured, not listed.** `RoutePolicy` gained `response`;
+      every `ROUTES` entry names its schema and `assertRouteCoverage` refuses a missing key, a null
+      on a non-public route, a name on a public route, a client route naming an internal schema, and
+      a name the registry does not hold (planted: an empty registry turns the real table red). Client:
+      Project, Revision, Assumption, Finding, Preview, Comparison, Submission, Document, Invitation.
+      Internal: QueueEntry, Finding, BomLine, InternalNote, Revision, Organization, Invitation,
+      CatalogRelease, SubmissionPackage, AuditEvent. Reverse check: every registry entry is named by
+      a route except `Document` and `InternalNote`, whose routes T-14a adds — an allowlist that can
+      only shrink. The internal audience reuses the client `Assumption` (same shape both sides, §9.2)
+- [x] **Positive companion:** staff receive `rule_id`, `citation`, `standard`, `edition`, `section`,
+      `verification_tier`, the waiver fields, `mpn`, `part_ref`, `organization_id`, `audience`,
+      `lifecycle_state`, the full §3.4 request status — asserted field by field, and by walking the
+      internal DTOs with the shared constant (`['rule_id', 'citation', 'verification_tier']`,
+      `['mpn', 'rule_id']`, `['source_document', 'digitised_by', 'approved_by']`)
+- [x] `pnpm coverage` thresholds unchanged (contracts and `dto/**` already at 100); `check-claims`
+      moved test files 50 → 53 in the same commit
+
+**Decision recorded for EL — a deviation from a literal §8.3.** The blueprint says outbound schema
+validation "fails in non-production, alerts in production". The guard does that for schema DRIFT (a
+declared field arriving null, wrong-typed or missing). It refuses **in both modes**, on a **client**
+response only, (1) any field on `FORBIDDEN_CLIENT_FIELDS` and (2) any field the schema does not
+declare, at any depth — including inside a `oneOf` position, where the first revision swallowed the
+stray into a union summary and shipped it (review R2 #1, planted: a `part_number` on a display item
+and an own `__proto__` carrying `organization_id`, both now `OutboundLeakError` in alert mode). The
+argument: AC-02 says no forbidden key ever reaches a client and R-02 is "one margin figure in one
+API response"; the forbidden list only names what exists today, and the column added last week
+under a name the list has never heard of (`token_hash`, `storage_key`, `audience`) is the same
+leak. An undeclared key to a client is therefore a leak whatever it is called; to staff it is drift.
+The alert is raised in every case. **EL confirms or reverses**; reversing is one branch in
+`outboundGuard.check`.
+
+**OD-12 rows made in code, for the record:** the client's three states are `received` (SUBMITTED),
+`in_progress` (TRIAGE, NEEDS_INFO, IN_PROGRESS) and `complete` (QUOTED, DECLINED, **WITHDRAWN,
+EXPIRED**). A client who withdrew being told "complete" is defensible and not obvious — EL's to
+change. DRAFT is refused on a submission (a submission exists only once the request left DRAFT).
+
+**Filed:** F-38 — `apps/client-web/src/lib/status.ts` and `apps/internal-web/src/lib/queue.ts`
+carry a six-state lifecycle (`submitted / acknowledged / in_review / rfi_open / quoted / declined`)
+and a `draft / submitted / answered` client view that appear nowhere in §3.4, `app.request_status`
+(nine states) or OD-12; the first draft of this task copied them. Also under F-38: `RELEASE_STATUSES`
+in the kernel has five values (`QUARANTINED`) while `app.release_status` in 0001 has four; and
+`COMPARABLE_METRICS` now exists twice (client-web camelCase, api snake_case). Owner: T-14c / T-16.
+
+**Blind spots stated in the code, owned by T-14a:** the guard judges the object graph it is handed
+— a `toJSON` on a prototype or a `Map` can emit what the graph never showed — so T-14a hands it the
+**parsed serialized payload**; a route with no schema wired is the boot gate's to catch; a
+forbidden VALUE under a permitted key (`closed_by`, `why`, display text) is a language lint's job,
+not this walk's. The AD-4 pagination envelope has its own schema constructor
+(`paginatedResponse`) so a list route's wrapper goes through `clientResponse` too — and the
+envelope is camelCase (`pageSize`, `totalItems`) while the DTOs are snake_case: one wire, two
+cases, for T-14 to settle before the first list route ships.
 
 ### T-13c: Input DTOs
 **Acceptance criteria:** `organization_id`, `role`, `audience`, `lifecycle_state` and every price

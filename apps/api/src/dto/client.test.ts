@@ -90,13 +90,19 @@ describe('client DTOs are built field by field, never spread', () => {
       code: 'AISLE_CLEAR_SHORTFALL',
       severity: 'BLOCKER',
       closed_by: 'widen the aisle to the stated equipment requirement',
+      subject_object_ids: [],
+      parameters: [],
       rule_id: 'RULE-AISLE-01',
       citation: 'NFPA 13 §x',
       verification_tier: 'SECONDARY',
     });
+    // T-13b widened this to §11.3's client shape: subjects and parameters are
+    // client-facing; the citation and tier still are not.
     expect(dto).toEqual({
       code: 'AISLE_CLEAR_SHORTFALL',
       severity: 'BLOCKER',
+      subject_object_ids: [],
+      parameters: [],
       closed_by: 'widen the aisle to the stated equipment requirement',
     });
     expect(findForbiddenFields(dto)).toEqual([]);
