@@ -1025,7 +1025,7 @@ patterns turned it red on exactly those 4 cases, naming each.
 
 `pnpm verify` exit 0 in 71 s, 50 files, 1,143 tests, coverage 99.58%.
 
-## F-37 — the coverage gate's verdict depends on the operating system *(raised 2026-09-02; **remedy landed the same day — option 1, with the guard**; closes when the Windows run exits 0)*
+## F-37 — the coverage gate's verdict depends on the operating system *(raised 2026-09-02, **CLOSED** the same day — remedy option 1 with the guard, proven by a Windows `pnpm verify` at exit 0)*
 
 Found by the Windows `pnpm verify` that F-35 unblocked, at `89e55fa`, Node v24.19.0, pnpm 11.22.0,
 Docker Postgres 16 migrated and healthy. Every step through `check:claims` was green — 50 files,
@@ -1112,6 +1112,26 @@ stripper is a small hand-rolled pass rather than a parser — enough, because an
 are excluded and invisible — the reported 99.58% does not move. On Windows they were 90 uncovered
 lines; now they are excluded. **The finding closes when a Windows `pnpm verify` exits 0**, which is
 the same run Checkpoint A's first criterion needs, and not before.
+
+**Closed.** `_to_delete/verify-windows.cmd` at `0df4af5` (the remedy plus its `ci.yml` steps), Node
+v24.19.0, Docker Postgres healthy, `pnpm migrate` exit 0 — the third Windows run of the day and the
+first to finish:
+
+```
+ Test Files  50 passed (50)
+      Tests  1143 passed (1143)
+selftest-spot-check-draw: PASS — 48 draws agree.
+selftest-types-only: PASS — 10 cases, real list reachable.
+check-types-only: PASS — 2 types-only module(s) still compile to an empty module.
+All files          |   99.58 |    99.03 |   99.75 |   99.58 |
+ ...s/workflow/src |     100 |      100 |     100 |     100 |
+=== pnpm verify EXIT CODE 0 at 09/02/2026  4:38:54.90
+```
+
+1 m 34 s wall. **Windows and Linux now report the same coverage to the second decimal**, which is
+what a gate that measures the code rather than the runner looks like. Checkpoint A's first
+criterion — `pnpm verify` PASS on Windows **and** in CI — is met; its record in `tasks/todo.md` is
+ticked in the same commit as this paragraph.
 
 ## F-12 and F-13 — fixed, values untouched
 
