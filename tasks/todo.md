@@ -969,7 +969,7 @@ types declared `additionalProperties: false`. The validator fails in non-product
 production. The positive companion test asserts staff **do** see the fields.
 **Verification:** add `cost` to a client DTO, confirm red, revert. **Dependencies:** T-13a. **Scope:** M.
 
-**Done.** Container-verified: `pnpm verify` exit 0 — 53 files, 1,232 tests, 0 skipped; `@rms/contracts`
+**Done.** Container-verified: `pnpm verify` exit 0 — 53 files, 1,238 tests, 0 skipped; `@rms/contracts`
 and `apps/api/src/dto` at 100 / 100 / 100 / 100. Two rounds of fresh-context adversarial review
 (AD-7) before it stood; the first found a BLOCKER (the status vocabulary), the second found another
 (the union hole below). Both fixed and planted.
