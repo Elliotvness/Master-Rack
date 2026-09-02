@@ -26,10 +26,21 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 /**
- * What each app may NOT import.
+ * What each app may NOT import, and what it may not name.
  *
- * The client rule is the load-bearing one. The internal app is deliberately
- * unrestricted: it is allowed to see everything, which is the point of it.
+ * The client rule is the load-bearing one.
+ *
+ * The internal app carries NO import restrictions, and that is deliberate: it
+ * is allowed to see everything, which is the point of it.
+ *
+ * It does carry the symbol rule (F-36). Those are two different axes and the
+ * exemption only ever justified one of them. VISIBILITY is what an internal
+ * reviewer legitimately needs; AUTHORITY is not, because `apps/internal-web` is
+ * still a browser bundle and the server owns the sequence (D-01, AD-1) no
+ * matter who is looking at the screen. Checkpoint A asks that no orchestration
+ * remain in EITHER front-end package; until F-36 the mechanism covered one, and
+ * T-08 had moved the three authorities out of this app by hand with nothing
+ * holding them out.
  */
 const RULES = [
   {
@@ -65,6 +76,29 @@ const RULES = [
       { pattern: /^freeze/, why: 'freezing a revision is a server authority' },
       { pattern: /^derive/, why: 'derivation is a server authority — a client must not re-derive its own answer' },
       { pattern: /^strip/, why: 'deciding what a client may see is a server authority, never the client\'s' },
+    ],
+  },
+  {
+    app: 'internal-web',
+    /**
+     * Empty ON PURPOSE, not by omission. An internal reviewer may see internal
+     * DTOs, the BOM and anything else — restricting that would defeat the app.
+     */
+    forbidden: [],
+    /**
+     * The same four authorities as the client bundle, for a reason that has
+     * nothing to do with audience: this is a browser bundle, and a browser
+     * bundle that can drive the submit sequence decides for itself when a
+     * revision freezes. T-08 moved `deriveInternalRevision`, `internalNote` and
+     * `stripInternalRevisions` out of `apps/internal-web/src/lib/queue.ts` into
+     * `@rms/workflow`, and the barrel deliberately does not re-export them —
+     * this keeps them out.
+     */
+    forbiddenSymbols: [
+      { pattern: /^submit$/, why: 'the submit transaction; the server owns the sequence (D-01, AD-1)' },
+      { pattern: /^freeze/, why: 'freezing a revision is a server authority, not a reviewer screen\'s' },
+      { pattern: /^derive/, why: 'derivation is a server authority — T-08 moved it out and this keeps it out' },
+      { pattern: /^strip/, why: 'deciding what an audience may see is a server authority' },
     ],
   },
 ];
@@ -208,7 +242,7 @@ export function checkAppBoundaries(root = ROOT) {
               if (pattern.test(name)) {
                 violations.push(
                   `${rel}: ${verb} '${name}' — ${why}. Moving a server authority out of ` +
-                    'the client bundle is worth exactly as much as keeping it moved.',
+                    `the ${rule.app} bundle is worth exactly as much as keeping it moved.`,
                 );
               }
             }
@@ -216,17 +250,24 @@ export function checkAppBoundaries(root = ROOT) {
         }
       }
 
+      // The two patterns overlap: `export function derive…` is both an exported
+      // declaration and a top-level binding, and reporting it twice made the
+      // output of a FAILING run read as two defects rather than one. Deduped by
+      // NAME, not by message, so two different forbidden bindings in one file
+      // are still two lines.
+      const boundNames = new Set();
       for (const re of [EXPORT_DECL_RE, TOP_LEVEL_DECL_RE]) {
         re.lastIndex = 0;
         let d;
-        while ((d = re.exec(raw)) !== null) {
-          for (const { pattern, why } of rule.forbiddenSymbols ?? []) {
-            if (pattern.test(d[1])) {
-              violations.push(
-                `${rel}: binds '${d[1]}' at the top level — ${why}. Moving a server authority ` +
-                  'out of the client bundle is worth exactly as much as keeping it moved.',
-              );
-            }
+        while ((d = re.exec(raw)) !== null) boundNames.add(d[1]);
+      }
+      for (const name of boundNames) {
+        for (const { pattern, why } of rule.forbiddenSymbols ?? []) {
+          if (pattern.test(name)) {
+            violations.push(
+              `${rel}: binds '${name}' at the top level — ${why}. Moving a server authority ` +
+                `out of the ${rule.app} bundle is worth exactly as much as keeping it moved.`,
+            );
           }
         }
       }

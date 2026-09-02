@@ -956,6 +956,53 @@ of it.
 and wants its own commit and its own proof, which is a Windows `pnpm verify` run reaching that step.
 **That run is the evidence Checkpoint A needs anyway.**
 
+## F-36 — "either front-end package" was enforced on one of them *(raised and **CLOSED** 2026-09-02, found while executing Checkpoint A)*
+
+Checkpoint A's criterion reads *"No orchestration remains in **either** front-end package."*
+`check-app-boundaries` reported `1 restricted app(s): client-web`.
+
+`apps/internal-web` was **clean** — T-08 moved `deriveInternalRevision`, `internalNote` and
+`stripInternalRevisions` into `@rms/workflow` and its barrel deliberately does not re-export them.
+So the *state* satisfied the criterion. **Nothing held it there**, and the criterion's own words
+promise a mechanism that covered half of what they name.
+
+**The exemption was real but was doing a job it was never argued for.** The checker's docstring said
+the internal app is *"deliberately unrestricted: it is allowed to see everything, which is the point
+of it."* That is a sound argument about **visibility** — an internal reviewer must see the database
+layer, the BOM and the internal DTOs — and it was silently carrying **authority** as well.
+Those are different axes. `apps/internal-web` is still a **browser bundle**, and a browser bundle
+that can drive the submit sequence decides for itself when a revision freezes, whoever is looking at
+the screen. D-01 and AD-1 say the server owns that sequence; they say nothing about audience.
+
+**Closed by splitting the axes rather than by copying the client rule.** `internal-web` now carries
+`forbidden: []` — empty *on purpose*, with the visibility argument written where the next reader
+will meet it — and the same four `forbiddenSymbols` as the client bundle, justified on authority
+rather than audience.
+
+**Proven to fire, both directions, against the real app:**
+
+| Planted in `apps/internal-web/src/lib/queue.ts` | Result |
+|---|---|
+| `export function deriveInternalRevision()` | **red**, exit 1 — *"binds 'deriveInternalRevision' at the top level … T-08 moved it out and this keeps it out"* |
+| `import { stripInternalRevisions } from '@rms/workflow'` | **red**, exit 1 — *"deciding what an audience may see is a server authority"* |
+| restored | **green**, exit 0, 20 files across 2 restricted apps |
+
+`selftest-app-boundaries` gained **4 must-catch** cases and **4 must-allow** cases. The must-allow
+set is the load-bearing half: it asserts `@rms/db`, `@rms/kernel-bom` and `@rms/api` remain legal
+here, so a later edit that "tidies" the internal rule by copying the client's import list goes red
+and says why. **And the self-test was proven against a broken checker** — neutering the four
+patterns turned it red on exactly those 4 cases, naming each.
+
+**Two defects in the checker surfaced while proving it**, both fixed in the same change:
+
+- A top-level `export function derive…` matched both `EXPORT_DECL_RE` and `TOP_LEVEL_DECL_RE` and
+  was **reported twice**, so one defect read as two. Deduped by **name**, not by message, so two
+  distinct forbidden bindings in one file still produce two lines (asserted).
+- The violation message hard-coded *"out of the client bundle"* and now interpolates `rule.app`,
+  because a control that misdescribes which rule it is enforcing is this project's whole subject.
+
+`pnpm verify` exit 0 in 71 s, 50 files, 1,143 tests, coverage 99.58%.
+
 ## F-12 and F-13 — fixed, values untouched
 
 Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.
