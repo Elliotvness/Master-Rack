@@ -75,14 +75,9 @@ describe('AC-14 \u2014 an internal revision is ABSENT from client responses, not
   it('removes internal items entirely', () => {
     // "Locked" tells a client something exists that they may not see, which is
     // itself information: it says we are working on a variant of their job.
-    // The marker is OMITTED rather than set to `undefined`:
-    // `stripInternalRevisions<T extends { readonly clientVisible?: boolean }>`
-    // will not accept a present-but-undefined property under
-    // `exactOptionalPropertyTypes`, though it handles that shape perfectly well
-    // at runtime - and a row read back from Postgres with a NULL column is
-    // exactly that shape. The signature should be `boolean | undefined`.
-    // Filed for T-08, which moves this function to `packages/workflow`, rather
-    // than changed here: T-08 is a pure move and its diff must stay one.
+    // The omitted-marker shape. F-27 is fixed, so the annotation these three
+    // literals once needed is gone - see the two cases above, which cover the
+    // present-but-undefined and wholly-absent shapes without a cast.
     const items = [
       { id: 'p1' },
       { id: 'c1', clientVisible: false as const },
@@ -99,13 +94,41 @@ describe('AC-14 \u2014 an internal revision is ABSENT from client responses, not
     expect(JSON.stringify(visible)).not.toMatch(/rev-2/);
   });
 
+  /**
+   * F-27, written before the fix. Both shapes below are what real callers hold,
+   * and NEITHER compiled against the original signature:
+   *
+   *   - present-but-undefined is refused under `exactOptionalPropertyTypes`,
+   *     and is exactly what a row read back from Postgres with a NULL column is;
+   *   - an object literal with no `clientVisible` at all is refused because
+   *     `{ readonly clientVisible?: boolean }` is a WEAK TYPE - every property
+   *     optional - so TypeScript rejects a literal sharing no property with it.
+   *
+   * The failure mode is not the type error. It is what a caller does about the
+   * type error: reach for a cast. A cast around the function that decides what
+   * a client may see is how AC-14 silently stops applying, and nothing goes red.
+   *
+   * These cases carry NO annotation and NO cast on purpose. If either is ever
+   * re-added to make this file compile, the finding has been re-introduced.
+   */
+  it('accepts a row whose marker is present but undefined, as a NULL column is', () => {
+    const rows = [
+      { id: 'p1', clientVisible: undefined },
+      { id: 'c1', clientVisible: false as const },
+    ];
+    expect(stripInternalRevisions(rows).map((r) => r.id)).toEqual(['p1']);
+  });
+
+  it('accepts an object literal with no marker at all, uncast and unannotated', () => {
+    expect(stripInternalRevisions([{ id: 'p1' }, { id: 'p2' }])).toHaveLength(2);
+  });
+
   it('keeps items that carry no visibility marker', () => {
-    // The annotation is load-bearing, and it is the second half of the same
-    // finding. `{ readonly clientVisible?: boolean }` is a WEAK TYPE - every
-    // property optional - so TypeScript refuses an object literal that shares
-    // no property with it. `stripInternalRevisions([{ id: 'p1' }])` does not
-    // compile, which means the function cannot be called with the exact shape
-    // this test is named for without an annotation or a cast. Filed for T-08.
+    // The annotation is kept deliberately, and it now proves the opposite of
+    // what it used to. Before F-27 it was load-bearing: without it the call did
+    // not compile. Now it is optional - the case above makes the same call bare
+    // - and this one stays to prove the ANNOTATED form still works, so the fix
+    // widened the signature without narrowing what it already accepted.
     const items: readonly { readonly id: string; readonly clientVisible?: boolean }[] = [
       { id: 'p1' },
       { id: 'p2' },

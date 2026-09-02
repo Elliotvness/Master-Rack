@@ -107,10 +107,35 @@ export function deriveInternalRevision(
  * we are working on a variant of their job, and invites the question we cannot
  * answer.
  */
-export function stripInternalRevisions<T extends { readonly clientVisible?: boolean }>(
+export function stripInternalRevisions<T extends object>(
   items: readonly T[],
 ): readonly T[] {
-  return Object.freeze(items.filter((i) => i.clientVisible !== false));
+  return Object.freeze(items.filter((i) => !isInternal(i)));
+}
+
+/**
+ * F-27. The constraint used to be `{ readonly clientVisible?: boolean }`, and it
+ * refused both shapes a real caller holds:
+ *
+ *   - **present-but-undefined** — `{ clientVisible: undefined }` is rejected
+ *     under `exactOptionalPropertyTypes`, and that is exactly what a row read
+ *     back from Postgres with a NULL column looks like;
+ *   - **absent entirely** — the old constraint was a WEAK TYPE, every property
+ *     optional, so TypeScript refused any object literal sharing no property
+ *     with it. `stripInternalRevisions([{ id: 'p1' }])` did not compile.
+ *
+ * The danger was never the type error; it was what a caller does about one.
+ * The path of least resistance is a cast, and a cast around the function that
+ * decides what a client may see is how `AC-14` silently stops applying — with
+ * nothing going red. `T extends object` accepts every real shape, and the
+ * membership test below reads the marker without a cast of its own.
+ *
+ * Behaviour is unchanged: an item is internal only when it CARRIES the marker
+ * and the marker is exactly `false`. Absent and undefined both mean "not
+ * internal", which is what `!== false` meant before.
+ */
+function isInternal(item: object): boolean {
+  return 'clientVisible' in item && item.clientVisible === false;
 }
 
 /* ------------------------------------------------------------------ *
