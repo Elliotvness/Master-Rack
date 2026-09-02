@@ -672,7 +672,7 @@ the `units` pin was re-based with `--update`. Only that one line of the pin move
 `content-hash` and `positions` are unchanged, which is the correct blast radius for a change confined
 to the units case. A digest pinned over `"undefined"` was never a baseline.
 
-## F-27 — `stripInternalRevisions` cannot be called with the shapes its own tests describe *(raised in T-27, deferred to T-08)*
+## F-27 — `stripInternalRevisions` cannot be called with the shapes its own tests describe *(raised in T-27, FIXED in T-08)*
 
 `stripInternalRevisions<T extends { readonly clientVisible?: boolean }>` enforces **AC-14** — an
 internal revision is *absent* from client responses, not locked. Type-checking its test file for the
@@ -690,12 +690,22 @@ first time showed it refuses two shapes it handles perfectly well at runtime:
 hits both of these, and the path of least resistance is a cast. A cast around the function that
 decides what a client may see is how the control silently stops applying — and nothing would go red.
 
-**Not fixed here, deliberately.** The remedy is `clientVisible?: boolean | undefined` on the
-constraint, in `apps/internal-web/src/lib/queue.ts`. **T-08 moves that function to
-`packages/workflow` and is a pure move whose diff must read as "nothing changed except location"** —
-the same rule T-07 held itself to. Folding a signature change into it would break that. T-08 should
-land the move, then the signature, with a test that passes both shapes above without an annotation.
-The two tests are annotated for now, and each annotation carries a comment saying why.
+**FIXED in T-08, 2026-09-02, as the second of two commits** — the move first, then this, so the
+move's diff stayed reviewable as location-only.
+
+The remedy turned out **not** to be `clientVisible?: boolean | undefined`, which fixes the first
+shape and not the second: a constraint with every property optional stays a weak type, and the bare
+object literal still would not compile. The constraint is now **`T extends object`**, with the
+marker read through an `in` narrowing so the implementation needs no cast either.
+
+Written test-first, and **the gate T-27 added is what caught it**: two cases using the bare shapes,
+no annotation and no cast, went in before the fix — `tsc -p tsconfig.tests.json` **exit 2**, four
+errors; after the fix, **exit 0**. Behaviour is unchanged: an item is internal only when it carries
+the marker and the marker is exactly `false`.
+
+**The control was re-proven against the rewritten implementation**, because a passing test after a
+rewrite proves nothing: internal-items-kept goes **4 red** (up from 3 — the two new cases made it
+stronger), and inverting the membership test so *absent* counts as internal goes 3 red.
 
 ## F-28 — the units case still does not test what its comment claims *(raised in T-27, open)*
 

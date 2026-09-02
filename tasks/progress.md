@@ -94,13 +94,13 @@ The procedure, so it is reproducible:
 | Measure | Value | Blueprint anchor | What it measures |
 |---|---|---|---|
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
-| Plan-task completion, effort-weighted | 33 of 147 pts — **22.4%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
-| Plan-task completion, task count | 12 of 45 — 27% | Same, unweighted | Same |
+| Plan-task completion, effort-weighted | 35 of 147 pts — **23.8%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
+| Plan-task completion, task count | 13 of 45 — 29% | Same, unweighted | Same |
 | Pre-merge review `R-01…R-11` | 8 of 11 — 73% | **§16.1** review gates | A sub-checklist of one merged branch, not the project. Unchanged since session 3. Done: R-01…R-06, **R-08**, **R-11**. Open: R-07 (partly), R-09, R-10 (the per-commit `typecheck && test`, which needs Windows) |
 | Route surface vs the blueprint | 19 of 21 MVP-1 routes declared | **§8.2** (23 rows, 2 marked phase 2) | Re-enumerated today, path by path. A *registry* figure, not a served one — nothing mounts it |
 
-These are not competing answers. **0% is the answer**; 22.4% is how much of the written plan has
-been executed. A reader who quotes 22.4% without §15.2 beside it is quoting the wrong number.
+These are not competing answers. **0% is the answer**; 23.8% is how much of the written plan has
+been executed. A reader who quotes 23.8% without §15.2 beside it is quoting the wrong number.
 
 **Both moved this session, in opposite directions, and the two must not be confused.**
 
@@ -108,12 +108,12 @@ been executed. A reader who quotes 22.4% without §15.2 beside it is quoting the
   by EL and recorded in `tasks/todo.md`'s Phase 2 header. That is bookkeeping. On its own it took
   29 / 145 = 20.0% to 29 / 147 = **19.7%** — a figure that fell while nothing got worse, which is
   precisely why the standing rule makes the denominator report itself.
-- **The numerator moved to 33** because **T-27 and T-28 were both completed** (S = 2 each),
-  container-verified: `pnpm verify` exit 0 at **82 s** and **80 s** against a native PostgreSQL
-  16.13, with an **83 s baseline measured immediately before the first change**, so "does not slow
-  materially" is a comparison and not an assertion.
+- **The numerator moved to 35** because **T-27, T-28 and T-08 were completed** (S = 2 each),
+  container-verified: `pnpm verify` exit 0 at **82 s**, **80 s** and **59 s** against a native
+  PostgreSQL 16.13, with an **83 s baseline measured immediately before the first change**, so "does
+  not slow materially" is a comparison and not an assertion. **Phase 2 is now 16 of 28 — past half.**
 
-Net: 20.0% → **22.4%**, of which the honest progress is the second bullet alone.
+Net: 20.0% → **23.8%**, of which the honest progress is the second bullet alone.
 
 Session 5 opened by landing no commit at all — its first pass was a re-measurement that found nine
 false statements across the four copies and nothing wrong in the code. See *Drift*, items 15–23.
@@ -151,13 +151,13 @@ neither comparable. The one figure all four agree on is §15.2 at 0 of 8.
 - **R-08 and R-10 appear twice** in the plan (in `tasks/review-todo.md` and again in Phase 3). They
   are counted once, in Phase 3. The other nine R-items are outside the 43.
 
-### Caveat that cuts against the 22.4%
+### Caveat that cuts against the 23.8%
 
 The T-shirt sizes were written **before anyone attempted the server or the interface**. T-14 is
 sized L = 8 points = 5.6% of the project, yet it gates **all eight** §15.2 steps: every one needs
 HTTP. Phase 4 is eight M tasks, one L, and one S in a repo with zero `.tsx` files and no framework
 installed.
-If either is under-sized — and both probably are — the true denominator is larger and **22.4% is
+If either is under-sized — and both probably are — the true denominator is larger and **23.8% is
 an overstatement**. Treat it as a ceiling.
 
 Also outside the denominator, because the plan does not contain them: dependency audit in CI, E2E
@@ -172,34 +172,34 @@ changelog and tags *are* T-26.)
 |---|---|---|---|---|
 | 0 — Make CI real | 1 | 1 | **100%** | **T-00 complete.** Tip `efbafbd` pushed; CI run #10 **Success** — the first commit in this repo ever verified |
 | 1 — Catalog and schema integrity | 10 | 10 | **100%** | T-01…T-04 complete (verified at `a2f166e` — repository claim, not re-run today) |
-| 2 — Kernel and workflow repairs | 28 | 14 | **50%** | **T-05, T-06, T-07, T-27, T-28 done**; T-08, T-09, T-10a, T-10b, T-11, T-12 open. Points 26 → 28 from the T-10 split |
+| 2 — Kernel and workflow repairs | 28 | 16 | **57%** | **T-05, T-06, T-07, T-27, T-28, T-08 done**; T-09, T-10a, T-10b, T-11, T-12 open. Points 26 → 28 from the T-10 split |
 | 3 — The contract, then the server | 50 | 8 | 16% | P-00 and T-13a done; T-13b…T-15, P-01…P-05, R-08, R-10 open |
 | 4 — The interface | 42 | 0 | **0%** | Zero `.tsx` files exist |
 | 5 — Deploy readiness | 16 | 0 | 0% | Not started |
-| **Total** | **147** | **33** | **22.4%** | |
+| **Total** | **147** | **35** | **23.8%** | |
 
-**Remaining: 114 points.** T-14 plus all of Phase 4 is 50 of those — 44% of what is left. The other
+**Remaining: 112 points.** T-14 plus all of Phase 4 is 50 of those — 45% of what is left. The other
 **57% is diffuse**: Phase 2's residue (16), the rest of Phase 3 (42), Phase 5 (16). The remaining
 work is *not* concentrated in the two big items, and planning as if it were will under-book the back
 half.
 
 ---
 
-### How soft is 22.4%?
+### How soft is 23.8%?
 
 The caveat above says the figure is a ceiling because T-14 and Phase 4 were sized before anyone
-attempted either. Quantified — 33 done points never move, only the denominator does:
+attempted either. Quantified — 35 done points never move, only the denominator does:
 
 | T-14 | Phase 4 | Denominator | Completion | Scenario |
 |---|---|---|---|---|
-| 8 | 42 | 147 | **22.4%** | as planned — the published figure |
+| 8 | 42 | 147 | **23.8%** | as planned — the published figure |
 | 16 | 63 | 174 | 16.7% | T-14 ×2, Phase 4 ×1.5 |
 | 16 | 84 | 195 | 14.9% | T-14 ×2, Phase 4 ×2 |
 | 24 | 84 | 203 | 14.3% | T-14 ×3, Phase 4 ×2 |
 | 24 | 126 | 245 | 11.8% | T-14 ×3, Phase 4 ×3 |
 
 Even at triple, the figure moves about eight points. **The ceiling is real but shallow**, so
-22.4% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
+23.8% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
 is the number to quote and this one is not.
 
 **Where the remaining 116 points sit:** Phase 3's residue 42 (36.2%) · Phase 4 42 (36.2%) ·
@@ -212,7 +212,9 @@ Re-measured by running commands against the working tree:
 
 | | |
 |---|---|
-| Branch · tip | **`task/t-28-selftest-fixtures`**, cut from `main` @ **`0cc97d1`** after EL pushed and merged **PR #4 (T-07) and PR #5 (T-27)**. `main` in sync with `origin/main`, working tree clean. **Re-run `git rev-list --left-right --count origin/main...HEAD` rather than quoting a number from this document** — the next row says why |
+| Branch · tip | **`task/t-08-internal-server-side`**, 2 commits over `main` @ **`3f1ef3b`** — EL has pushed and merged **PR #4 (T-07), #5 (T-27) and #6 (T-28)**. Working tree clean. **Re-run `git rev-list --left-right --count origin/main...HEAD` rather than quoting a number from this document** — the next row says why |
+| **T-08, container-verified** | The three server authorities moved to `packages/workflow`, **byte-identical: 4,252 bytes on both sides**, compared programmatically. Both deliberate breakages still fire at the new location — waivers carried over **1 red**, internal items kept **3 red**, reverted 12 pass. Criterion 1's *"effects supplied by `apps/api`"* is recorded rather than faked: **there are none**, because all three are pure constructors, and a `DeriveEffects` with nothing behind it is the exact defect shape this project hunts |
+| **F-27 closed, and T-27's gate is what caught it** | Written test-first: two cases using the bare shapes went in **before** the fix — `tsc -p tsconfig.tests.json` **exit 2**, four errors; after, **exit 0**. The remedy was *not* the `boolean \| undefined` first proposed, which fixes one shape and not the other; a constraint with every property optional stays a **weak type**. It is `T extends object` with an `in` narrowing. **Re-proven against the rewritten implementation** — internal-items-kept now goes **4 red**, up from 3: the control got stronger |
 | **CI on the tip — the honest state** | Both pushes were single-shot: no re-pushes, no batching, and the *"push each task's commit as it lands"* remedy applied for the first time. T-07 and T-27 are now on `main` and CI-covered. **T-28 is one commit, unpushed** — which is the rule working, not failing: the gap is one task deep by design, where it once reached eight commits |
 | **The suite, run today** | **`pnpm verify` exit 0** — **47 test files, 1,126 tests, 0 skipped** — against a **native PostgreSQL 16.13** with all 9 migrations applied, in a Linux container rebuilt from this working tree. A **baseline was measured first, before any change: 83 s, exit 0**, so T-27's 82 s is a comparison and not an assertion. This upgrades session 4's headline figure from a repository claim to a **session-5 measurement** |
 | **T-27, container-verified** | `tsconfig.tests.json` type-checks all 47 test files; `"typecheck"` is now `tsc --build && tsc -p tsconfig.tests.json`, so CI picks it up with no `ci.yml` change. **Proven to fire against the real T-04 shape** — required field added *and* the source updated, leaving the fixture the only stale thing: `tsc --build` **exit 0**, `tsc -p tsconfig.tests.json` **exit 2** at `release.test.ts(77,3)`. Reverted, both green |
@@ -355,11 +357,11 @@ rule earns its keep: the blueprint wins, and the scoreboard is what gets fixed.*
    remedy now lives with acceptance criteria of its own — including the one that matters: the
    self-test must plant a disagreeing measure card and watch it go red. Until it lands, treat a green
    `check:scoreboard` as covering **two figures, not two files**.
-3. **Then the rest of Phase 2, in the amended order:** ~~**T-28**~~ **done** → **T-08** →
-   **T-09** → **T-10a** → **T-10b** → **T-12**, with **T-11** done alongside a push rather than in
-   sequence, because "a planted fake credential is caught" and "push protection enabled on the
-   remote" both need the remote. Every one of them can be implemented and container-verified without
-   EL; only the push cannot.
+3. **Then the rest of Phase 2, in the amended order:** ~~**T-28**~~ **done** → ~~**T-08**~~ **done**
+   → **T-09** (migration `0010`) → **T-10a** → **T-10b** → **T-12**, with **T-11** done alongside a
+   push rather than in sequence, because "a planted fake credential is caught" and "push protection
+   enabled on the remote" both need the remote. Every one of them can be implemented and
+   container-verified without EL; only the push cannot.
 
 **Closed in earlier sessions, kept only as lineage:** T-00 (tip pushed, run #10 Success);
 R-08 (catalog reviewed as data — 378 → 336 rows, 42 phantom rows gone, 264 capacity corrections,
@@ -385,7 +387,7 @@ Phase 2 in the amended dependency order — **the order changed in session 5, wi
 on the record in `tasks/todo.md`'s Phase 2 header**: ~~**T-05**~~ **done, merged** → ~~**T-06**~~
 **done, merged** → ~~**T-07**~~ **done, unpushed** → ~~**T-27** (type-check the test files)~~
 **done, merged (PR #5)** → ~~**T-28** (self-test fixtures)~~ **done, unpushed** →
-**T-08** (orchestration off the client) →
+~~**T-08** (orchestration off the client)~~ **done, unpushed** →
 **T-09** (`part` / `part_revision`, migration `0010`) → **T-10a** (reconcile the four documents) →
 **T-10b** (`check-claims` + widen `check-scoreboard-sync`) → **T-12** (source-conflict register),
 with **T-11** alongside a push.
@@ -434,8 +436,13 @@ Gaps, in priority order:
   `objects/maintenance.lock`, **`packed-refs.lock`** and **`refs/heads/<branch>.lock`** all strand,
   and a single git invocation can fail against **its own** lock — `git branch -D` creates
   `packed-refs.lock`, cannot remove it, and then refuses. The workable pattern is one git command
-  per shell call with `find .git -name '*.lock'` cleared between, and **fast-forwarding an existing
-  branch instead of deleting and recreating it.** This is T-28's failure mode one layer down: the
+  per shell call with `find .git -name '*.lock'` cleared **before** the git command as well as after,
+  and **fast-forwarding an existing branch instead of deleting and recreating it.** Two further
+  traps, both of which cost time in session 5: a lock cannot be moved **out** of the mount at all
+  (that is a delete on the source side and is refused) — it has to be renamed **within** it; and the
+  destination name must be **unique**, because overwriting an existing file is itself a delete, so a
+  cleanup helper whose `$RANDOM` silently expands to nothing inside `sh -c` collides after its first
+  run and quietly stops working. This is T-28's failure mode one layer down: the
   same read-only mount, a different tool's fixtures — and unlike T-28's, it is not ours to fix.
 - **A new gate, and a fixture lesson worth retrofitting.** `check-content-hash` writes its
   self-test fixtures to the OS temp directory. The other checkers write probe files into the working

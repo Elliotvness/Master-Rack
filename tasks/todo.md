@@ -397,15 +397,54 @@ control alongside T-03's RLS predicate — it is not deleted, it is relocated an
 enforcement to defence in depth.
 
 **Acceptance criteria:**
-- [ ] The three functions move to `packages/workflow` (pure) with effects supplied by `apps/api`
-- [ ] `internal-web` keeps the queue **view** logic — ordering, clocks, ages — and the trace panel
-- [ ] `AC-14`'s test is re-pointed at the server-side path
-- [ ] Waivers still do not carry over to a derived revision; the existing proof stays green
+- [x] The three functions move to `packages/workflow` (pure) with effects supplied by `apps/api`
+- [x] `internal-web` keeps the queue **view** logic — ordering, clocks, ages — and the trace panel
+- [x] `AC-14`'s test is re-pointed at the server-side path
+- [x] Waivers still do not carry over to a derived revision; the existing proof stays green
 
 **Verification:** `vitest run apps/internal-web packages/workflow`; the two existing deliberate
 breakages (waivers carried over → 1 red; internal items kept → 3 red) must still fire.
 **Dependencies:** T-07. **Files:** `apps/internal-web/src/lib/queue.ts`, `packages/workflow/*`,
 `queue.test.ts`. **Scope:** S.
+
+**DONE 2026-09-02 (session 5) — container-verified, not Windows-verified.** `pnpm verify` **exit 0**,
+**48 test files, 1,128 tests, 0 skipped**, against a native PostgreSQL 16.13. Landed as **two
+commits**: the move, then F-27, so the move's diff could be reviewed as location-only.
+
+**The move is verbatim, checked programmatically rather than by eye.**
+`packages/workflow/src/internal.ts`'s body is **byte-identical** to the block it came from — 4,252
+bytes on both sides. `queue.ts`'s remainder differs by ten lines, all of them its module doc saying
+what the file now holds.
+
+**`stripInternalRevisions` is not deleted and not weakened** — relocated, and demoted from sole
+enforcement to defence in depth. T-03 put `audience` into the revision RLS policy, so the database
+refuses first and this filter is the second line rather than the only one.
+
+**Both deliberate breakages still fire, against the new location:**
+
+```
+waivers carried over    -> 1 failed | 11 passed     (criterion: 1 red)
+internal items kept     -> 3 failed |  9 passed     (criterion: 3 red)
+reverted                -> 12 passed
+```
+
+**Criterion 1's second clause, recorded rather than faked.** *"…with effects supplied by `apps/api`"*
+— **there are no effects to supply, and inventing a seam would have been the defect this project
+keeps finding.** All three are pure constructors over their arguments, unlike `submit()`, which
+orchestrates a nine-step transaction and needs `SubmitEffects`. Persisting a derived revision or a
+note needs tables that do not exist yet; when they do, `apps/api` supplies the effects and owns the
+transaction exactly as it does for submit. What `apps/api` owns **today** is the surface: it
+re-exports the three, and `apps/internal-web`'s barrel deliberately does **not**, because
+re-exporting would leave every old import path working and make the move cosmetic.
+
+**F-27 closed in the second commit, test-first, and T-27's gate is what caught it.** Two cases using
+the bare shapes — present-but-undefined, and an object literal with no marker — were written
+**before** the fix: `tsc -p tsconfig.tests.json` **exit 2**, four errors; after the fix, **exit 0**.
+The constraint is now `T extends object` with the marker read through an `in` narrowing, so no cast
+is needed at any call site. **The control was re-proven against the rewritten implementation**,
+because a passing test after a rewrite proves nothing on its own: internal-items-kept goes **4 red**
+(up from 3 — the two new cases made the control stronger), and inverting the membership test so
+*absent* counts as internal goes 3 red. Reverted, 14 pass.
 
 ### T-09: Give `part_revision_id` something to reference
 **Description.** Audit **D-10**. §19.2 names "BOM lines reference a part revision, never a part" as
