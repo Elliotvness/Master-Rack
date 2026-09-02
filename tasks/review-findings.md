@@ -876,7 +876,7 @@ Not chosen here. **(a) is a CI modification and belongs in T-11**, which is the 
 `ci.yml`; (b) is a change to how EL works and is EL's to accept. What must not survive either way is
 the current wording, which describes a mechanism that does not exist.
 
-## F-33 — the source-conflict register cites a source that was not read *(raised 2026-09-02, open, XS)*
+## F-33 — the source-conflict register cites a source that was not read *(raised and **CLOSED** 2026-09-02)*
 
 T-12 landed the IBC/MH16.1 adoption facts into `data/rules/mvp-2026-08/rules.json`, the blueprint and
 `src/parts/09-s10.html`. **The facts are right.** Verified independently today against RMI — the
@@ -904,6 +904,13 @@ hold open rather than resolve by picking the more convenient source.
 read — RMI's 2024-07-10 statement and the ANSI webstore's revision history — and add the ANSI-blog
 contradiction as a second open thread beneath the AHJ-enforcement one. **The register keeps its
 facts; it stops overstating where they came from.**
+
+**Closed the same day.** Both copies now credit RMI and the ANSI revision history and say explicitly
+that the IBC lists *were not read and are paywalled*; the ANSI-blog contradiction is recorded as a
+second unresolved thread against the Fresno position. **Not one figure changed** — the facts were
+right and only the provenance was wrong, which is the whole point of separating the two. Rebuilt with
+`python src/build.py` (all checks passed), `vitest run packages/kernel-rules` 46 passed,
+`pnpm verify` exit 0.
 
 ## F-34 — a commit was lost because "pushed" was never checked *(raised 2026-09-02, **recovered**, owner T-11's practice half)*
 
