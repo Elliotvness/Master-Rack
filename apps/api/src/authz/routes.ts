@@ -64,16 +64,26 @@ export function namespaceAllows(namespace: Namespace, actorType: ActorType): boo
  * The route table: the A-08/A-09 policy registry. Each entry is a promise that
  * the route is covered; the assertion below proves the promise is kept.
  *
- * It is NOT yet the MVP-1 surface from blueprint §8.2, and saying so would be
- * false in both directions. §8.2 lists 23 rows, two marked phase 2, so the
- * MVP-1 surface is 21. This table carries 20: it omits two MVP-1 routes —
- * `GET /api/client/v1/documents/:id` and `POST /api/internal/v1/revisions/:id/notes`
- * (neither has an Action in authorize.ts either) — and it carries the phase-2
- * `GET /api/internal/v1/audit`. Coverage against §8.2 is 19 of 21. T-14 closes
- * the gap by adding the routes, never by editing the target down.
+ * **This IS the MVP-1 surface now (T-14a).** §8.2 lists 23 rows and marks two
+ * phase 2, so the MVP-1 surface is 21, and this table carries all 21. Drift 4
+ * — open since session 3 — is closed the way it always had to be, by adding
+ * the two missing routes rather than editing 21 down to 20:
  *
- * Nothing mounts this table yet; no HTTP router exists. AC-06 is therefore
- * still enforced against a model, which is what T-15 converts.
+ *   - `GET /api/client/v1/documents/:id`  the signed watermarked-PDF URL that
+ *     §15.2 step 6, E-08 and AC-16 depend on. Its absence also kept the one
+ *     client route that hands out a document URL outside AC-02's leakage walk.
+ *   - `POST /api/internal/v1/revisions/:id/notes` (E-05)
+ *
+ * Both now have an `Action` in `authorize.ts`, which neither had before.
+ *
+ * The phase-2 rows live in `PHASE_2_ROUTES` below, so the registry and §8.2
+ * agree row for row instead of agreeing on a total that happened to match.
+ *
+ * ONE ROW IS NOT §8.2's: `POST /api/internal/v1/idempotency-claims/:key/release`,
+ * EL's operator release (2026-09-03). It is a **blueprint amendment §8.2 has
+ * not yet received**, carried here because T-13d's guarantee needs it and
+ * declared in `PENDING_AMENDMENT` so the arithmetic stays honest rather than
+ * quietly counting 22 as 21.
  */
 export const ROUTES: readonly RoutePolicy[] = [
   // Public — no session required, single-use token instead.
@@ -91,6 +101,7 @@ export const ROUTES: readonly RoutePolicy[] = [
   { method: 'POST', path: '/api/client/v1/revisions/:id/submit', namespace: 'client', action: 'revision.submit', response: 'Submission' },
   { method: 'POST', path: '/api/client/v1/revisions/:id/clone', namespace: 'client', action: 'revision.clone', response: 'Revision' },
   { method: 'GET', path: '/api/client/v1/submissions/:id', namespace: 'client', action: 'submission.read', response: 'Submission' },
+  { method: 'GET', path: '/api/client/v1/documents/:id', namespace: 'client', action: 'document.read', response: 'Document' },
   { method: 'POST', path: '/api/client/v1/invitations', namespace: 'client', action: 'invitation.create', response: 'Invitation' },
 
   // Internal surface.
@@ -101,8 +112,31 @@ export const ROUTES: readonly RoutePolicy[] = [
   { method: 'POST', path: '/api/internal/v1/organizations', namespace: 'internal', action: 'organization.create', response: 'Organization' },
   { method: 'POST', path: '/api/internal/v1/invitations', namespace: 'internal', action: 'invitation.create_any_org', response: 'Invitation' },
   { method: 'POST', path: '/api/internal/v1/catalog/releases/:id/approve', namespace: 'internal', action: 'catalog.approve', response: 'CatalogRelease' },
-  { method: 'GET', path: '/api/internal/v1/audit', namespace: 'internal', action: 'audit.read', response: 'AuditEvent' },
+  { method: 'POST', path: '/api/internal/v1/revisions/:id/notes', namespace: 'internal', action: 'note.create', response: 'InternalNote' },
   { method: 'POST', path: '/api/internal/v1/idempotency-claims/:key/release', namespace: 'internal', action: 'idempotency.release', response: 'AuditEvent' },
+];
+
+/**
+ * §8.2's rows the blueprint itself marks phase 2. Held as data rather than
+ * left out, so "the registry is short two routes" and "the registry carries a
+ * phase-2 route" cannot both be true again without something saying so.
+ */
+export const PHASE_2_ROUTES: readonly RoutePolicy[] = [
+  { method: 'GET', path: '/api/internal/v1/audit', namespace: 'internal', action: 'audit.read', response: 'AuditEvent' },
+  // `POST /api/internal/v1/submissions/:id/status` is §8.2's other phase-2 row
+  // and has no Action yet; it arrives with the status vocabulary F-38 is about.
+];
+
+/**
+ * Rows in ROUTES that §8.2 does not carry, each with the amendment it is
+ * waiting on. An empty list is the healthy state.
+ */
+export const PENDING_AMENDMENT: readonly { readonly path: string; readonly why: string }[] = [
+  {
+    path: '/api/internal/v1/idempotency-claims/:key/release',
+    why: "EL's operator release for a stranded idempotency claim (2026-09-03). §8.2 needs the row; "
+      + 'the path and the INTERNAL_ADMIN mapping are substitutions he has not yet confirmed.',
+  },
 ];
 
 export class RouteCoverageError extends Error {
@@ -191,6 +225,7 @@ const INTERNAL_ONLY_ACTIONS: ReadonlySet<Action> = new Set<Action>([
   // on a client route. Review found it absent from this set while every
   // comparable action was in it — the assertion would have waved it through.
   'idempotency.release',
+  'note.create',
   'bom.read',
   'catalog.read',
   'catalog.approve',

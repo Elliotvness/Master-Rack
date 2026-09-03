@@ -10,9 +10,10 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@rms/contracts": "workspace:*",
     "@rms/db": "workspace:*",
     "@rms/kernel-model": "workspace:*",
-    "@rms/contracts": "workspace:*",
-    "@rms/workflow": "workspace:*"
+    "@rms/workflow": "workspace:*",
+    "fastify": "^5.12.1"
   }
 }

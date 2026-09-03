@@ -86,10 +86,39 @@ export const DERIVATIONS = Object.freeze({
       return 0;
     }
   },
+  /**
+   * Rows in `ROUTES` — the MVP-1 registry — and NOT in any other list in the
+   * file.
+   *
+   * It used to be a bare count of `  { method:` lines across the whole module,
+   * which was right while there was one list. T-14a added `PHASE_2_ROUTES`, and
+   * the count silently became "rows in every list", so the scoreboard card
+   * "Route table N entries" and the number checking it had quietly stopped
+   * meaning the same thing. Bounded to the ROUTES declaration instead: a
+   * derivation that drifts from the sentence it settles is worth less than no
+   * derivation, because it looks like evidence.
+   */
   routeTableEntries: (root) => {
     try {
       const src = readFileSync(join(root, 'apps', 'api', 'src', 'authz', 'routes.ts'), 'utf8');
-      return (src.match(/^ {2}\{ method:/gm) ?? []).length;
+      const start = src.indexOf('export const ROUTES');
+      if (start === -1) return 0;
+      const end = src.indexOf('\n];', start);
+      if (end === -1) return 0;
+      return (src.slice(start, end).match(/^ {2}\{ method:/gm) ?? []).length;
+    } catch {
+      return 0;
+    }
+  },
+  /** Rows in `PHASE_2_ROUTES`, so "the registry carries a phase-2 row" is measured too. */
+  phase2Routes: (root) => {
+    try {
+      const src = readFileSync(join(root, 'apps', 'api', 'src', 'authz', 'routes.ts'), 'utf8');
+      const start = src.indexOf('export const PHASE_2_ROUTES');
+      if (start === -1) return 0;
+      const end = src.indexOf('\n];', start);
+      if (end === -1) return 0;
+      return (src.slice(start, end).match(/^ {2}\{ method:/gm) ?? []).length;
     } catch {
       return 0;
     }
@@ -130,6 +159,12 @@ export const CLAIMS = Object.freeze([
     file: 'tasks/progress.md',
     pattern: /^\| Route table \| \*\*(\d+) entries\*\*/m,
     derive: 'routeTableEntries',
+  },
+  {
+    id: 'progress.md · phase-2 routes held separately',
+    file: 'tasks/progress.md',
+    pattern: /^\| Phase-2 routes \| \*\*(\d+)\*\*/m,
+    derive: 'phase2Routes',
   },
   {
     id: 'progress.html · packages',

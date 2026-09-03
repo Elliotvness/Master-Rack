@@ -153,6 +153,36 @@ export default defineConfig({
           lines: 100,
           statements: 100,
         },
+        /**
+         * T-14a's two new root-level files. They had NO floor at all until
+         * this entry: the thresholds are keyed by directory, `apps/api/src/**`
+         * is not among them, and `server.ts` sat at **0%** through a green
+         * `pnpm verify`. A file with no floor is a file the ratchet cannot
+         * hold, which is the coverage gate's own version of a control with
+         * nothing behind it.
+         *
+         * Floors sit just under the measured value, per the ratchet rule:
+         * raise them when the number rises, never lower them to pass.
+         */
+        'apps/api/src/app.ts': {
+          branches: 88,
+          functions: 90,
+          lines: 98,
+          statements: 98,
+        },
+        /**
+         * The entry point. Lower deliberately and not by neglect: the residue
+         * is `listen`'s error path and the two signal handlers, which cannot
+         * be exercised without killing the test process. `server.db.test.ts`
+         * covers everything that decides anything — it starts the process on a
+         * real socket and asserts the gate answers over it.
+         */
+        'apps/api/src/server.ts': {
+          branches: 80,
+          functions: 66,
+          lines: 75,
+          statements: 75,
+        },
         'apps/api/src/authz/**': {
           branches: 90,
           functions: 100,
