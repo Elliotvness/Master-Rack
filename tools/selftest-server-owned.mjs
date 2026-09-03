@@ -162,6 +162,8 @@ const EXPECTED = Object.freeze({
   actor_type: 'enum app.actor_type',
   audience: 'enum app.audience',
   available_at: 'DEFAULT now()',
+  claim_outcome: 'enum app.idempotency_outcome',
+  claimed_at: 'DEFAULT now()',
   created_at: 'DEFAULT now()',
   granted_at: 'DEFAULT now()',
   last_seen_at: 'DEFAULT now()',

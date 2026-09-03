@@ -198,3 +198,18 @@ export {
   type InternalRevision,
   type SourceSubmission,
 } from '@rms/workflow';
+
+export {
+  IDEMPOTENT_INTENTS,
+  RETENTION_MS as IDEMPOTENCY_RETENTION_MS,
+  claimIdempotencyKey,
+  claimOn,
+  purgeExpiredOn,
+  requestHash,
+  settleIdempotencyKey,
+  settleOn,
+  type ClaimParams,
+  type ClaimResult,
+  type IdempotencyOutcome,
+  type IdempotentIntent,
+} from './idempotency/idempotency.js';

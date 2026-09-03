@@ -73,6 +73,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
  */
 export const ENUM_CLASSIFICATION = Object.freeze({
   'app.actor_type': true,
+  'app.idempotency_outcome': true,
   'app.audience': true,
   'app.lifecycle_state': true,
   'app.member_role': true,
