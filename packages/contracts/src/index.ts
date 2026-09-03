@@ -75,3 +75,17 @@ export {
   type OutboundMode,
   type OutboundReport,
 } from './outbound.js';
+
+export {
+  CLIENT_ONLY_REFUSED_FIELDS,
+  clientRequestBody,
+  internalRequestBody,
+  isRefusedOnClientBody,
+  isRefusedOnInternalBody,
+  isServerAssignedField,
+  narrowToDeclared,
+  parseBody,
+  type BodyResult,
+  type FieldProblem,
+  type RequestSchema,
+} from './request.js';

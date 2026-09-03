@@ -1045,11 +1045,135 @@ not this walk's. The AD-4 pagination envelope has its own schema constructor
 envelope is camelCase (`pageSize`, `totalItems`) while the DTOs are snake_case: one wire, two
 cases, for T-14 to settle before the first list route ships.
 
-### T-13c: Input DTOs
+### T-13c: Input DTOs  ✅ 2026-09-03
 **Acceptance criteria:** `organization_id`, `role`, `audience`, `lifecycle_state` and every price
 field are structurally unreachable from a request body. No mass assignment. A test attempts each and
 is refused.
-**Verification:** `vitest run packages/contracts`. **Dependencies:** T-13a. **Scope:** S.
+**Verification:** `vitest run packages/contracts`. **Dependencies:** T-13a. **Scope:** S as planned,
+**M as built** — three fresh-context adversarial reviews turned it up. The size is recorded, not
+re-scored: the denominator stays 148 until EL confirms, as with T-14a–e.
+
+**Done.** Container-verified 2026-09-03: `pnpm verify` **exit 0 — 54 files, 1,385 tests, 0 skipped**,
+`packages/contracts/src` and `request.ts` at **100 / 100 / 100 / 100**, **15** checkers green behind
+their self-tests. Three fresh-context adversarial reviews ran before it stood. **The first two both
+refused it** (five blockers). The third round reviewed the fixes and **refused those too** — the fix
+had reintroduced the project's own defect shape one level up. Everything below is the state after
+round three; every claim was re-measured, not carried.
+
+- [x] **`clientRequestBody` / `internalRequestBody` refuse at declaration**, at any depth (object,
+      array items, `oneOf` variant, `nullable` inner, a stack of arrays), any server-assigned key,
+      and every `FORBIDDEN_CLIENT_FIELDS` entry; a client body additionally refuses
+      `organization_id` and `role`. An internal-audience schema cannot be embedded in a client body,
+      mirroring `schema.ts`. The failure lands on the line that declared the field, at module load
+- [x] **What the server assigns is a RULE, not a list.** The first draft carried sixteen names
+      written from recall; review found three matching no column in `packages/db/migrations`
+      (`revision`, `tenant_id`, `updated_at`) while `is_internal` — §7.2's tenant-root privilege
+      bit — `content_hash`, `revision_code` and `request_status` were open. Now a `_at` / `_by` /
+      `_hash` suffix rule plus **seventeen** named columns, each with its reason in the source
+- [x] **The rule reads a name however it is spelt** (round 3). It was snake_case-only, so
+      `organizationId`, `lifecycleState` and `isInternal` were declarable on a client body and bound
+      into the handler — and camelCase is already house style for a shipped envelope (`pageSize`,
+      `totalItems` in `pagination.ts`). A declared key is normalised before the rule applies.
+      **The checker could never have found this**: Postgres identifiers are lower snake_case, so it
+      draws its inputs from the one namespace where the rule was guaranteed to work. Pinned in the
+      suite instead — ten camelCase and three capitalised spellings, each asserted refused
+- [x] **`parseBody` binds only a schema this module built** (round 1 blocker, found independently by
+      both reviewers). `RequestSchema` and `ResponseSchema` are structurally identical, so
+      `parseBody(Revision, body)` — `Revision` being the shipped DTO at `apps/api/src/dto/internal.ts`
+      that declares `organization_id`, `audience` and `lifecycle_state` — compiled with `tsc` exit 0
+      and bound all three. Closed with a `kind` discriminator at the type level and a private
+      `WeakSet` at runtime, because a type brand alone is one cast from gone. `narrowToDeclared` is
+      branded the same way — round 3 found the sibling function left open beside it
+- [x] **No mass assignment, at every depth.** A handler receives a new frozen null-prototype object
+      built key by key from a SNAPSHOT taken once, every scalar position re-checked against its
+      declared type, so the narrowing does not depend on the validator having run. The first draft
+      defended only the top level: four mutants (nested object, array item, `oneOf`, `nullable`) each
+      survived a green suite. The single snapshot also closes a getter/Proxy TOCTOU and a
+      non-enumerable declared field, which now reads as `required` rather than passing unchecked
+- [x] **The snapshot is total, and says so rather than staying quiet** (round 3). A body nested past
+      `MAX_BODY_DEPTH` was a `RangeError` out of `parseBody` — a 500 from a 6 KB body that
+      `JSON.parse` accepts without complaint, on the exact request this module exists to refuse. A
+      throwing getter escaped the same way. Function-valued and `undefined`-valued stray keys were
+      dropped by the snapshot *before* the validator could report them, contradicting "validation
+      makes it LOUD". And `seen` was a visited-set, never unwound, so a shared reference appearing
+      twice — a DAG, not a cycle — was rejected as a missing required field. All four fixed; each
+      has a test
+- [x] **The refusal reflects nothing.** Envelope carries `{path, kind}` pairs only — never a
+      submitted value — capped at 20 fields and 120 characters of path, with the dropped count
+      stated. The full prose stays in `problems` for the server's log
+- [x] `__proto__`, `constructor` and `prototype` are refused as declared property names on both
+      audiences: `object()` builds a null-prototype property map, which makes `__proto__` a legal
+      declared name whose narrowed value becomes the prototype of whatever a handler spreads it into
+
+**`tools/check-server-owned.mjs` — the 14th self-tested checker, and the part that was hardest to
+get honest.** It never asks a human which columns are the server's; it asks the DDL — `DEFAULT
+now()`, `DEFAULT gen_random_uuid()`, `GENERATED`, or a lifecycle/privilege enum type — and asserts
+every signalled column is refused on a client body. **It went red on its first run against the real
+schema**, naming `outcome` (`app.audit_outcome`) and `severity` (`app.finding_severity`);
+`content_sha256` was found the same way. Then round three showed the checker had become the thing it
+was built to prevent, in four ways, all now closed and all four proven by planting:
+
+- [x] **The self-test asserted floors, not the set.** `real.size` was printed and never asserted, so
+      a parser regression that lost half the migrations passed the self-test AND the checker, and
+      `outcome`, `severity` and `request_status` became bindable with everything green. The signalled
+      set is now **pinned name by name with the reason the DDL gave**. Planted: a parser that skips
+      tables after the eighth, and a `readMigrations` that reads one file — both PASSED before, both
+      red now
+- [x] **The SQL parser was fail-open on seven legal shapes** — lowercase DDL, a wrapped `DEFAULT`, a
+      type name on the next line, a table not ending `\n);`, a `WITH` clause, a quoted identifier, a
+      second `ADD COLUMN` in one statement — and fail-*closed* on two, signalling a column because a
+      trailing comment or a string literal contained `DEFAULT now()`. It now strips comments and
+      string literals with a scanner, paren-matches table bodies and splits on top-level commas.
+      All nine shapes are fixtures
+- [x] **`STATEFUL_ENUMS` was the list validated against itself**, one level up from the list it
+      replaced: deleting three entries dropped `outcome` and `severity` out of the check silently.
+      Every `CREATE TYPE … AS ENUM` in the migrations must now be classified, and a classification
+      entry the schema no longer declares is equally a failure — `check-claims`' rule applied here
+- [x] **It judged a build artifact with nothing tying it to the source.** Deleting five names from
+      `request.ts` and not rebuilding reported PASS. It now compares a **content fingerprint** of
+      the rule in the source against the one in the artifact. An mtime comparison was the first
+      attempt and was wrong both ways — `tsc --build` skips emit when content is unchanged, so a
+      touched source left the checker permanently red
+- [x] Robust direct-invocation guard (`resolve(fileURLToPath(import.meta.url))`), so the checker
+      cannot silently vanish from `pnpm verify` on a checkout path containing a space.
+      `check-content-hash`, `check-scoreboard-sync` and `check-spot-check-record` still carry the
+      fragile idiom — **recorded, not fixed here**
+- [x] 43 self-test cases; `check-claims` moved test files 53 → 54 and tests 1,238 → 1,385 in the
+      same commit
+
+**Decision recorded for EL — a deviation from a literal reading of these acceptance criteria.**
+The criteria say `organization_id` and `role` are unreachable from *a request body*. They are
+unreachable from a **client** body. An **internal** body may declare **those two and nothing else
+extra**, because §8.2's `POST /api/internal/v1/invitations` issues an invitation into **any**
+organization and carries no path parameter for it, and §7.2 says of the invitation row: "Role and
+org live here, not in the URL." A blanket refusal makes that MVP-1 route undeclarable. §14.3's own
+mass-assignment sentence is scoped the same way — "**the acceptance form** must not accept any of
+them from the client" — so the blanket reading was never the blueprint's. `audience`,
+`lifecycle_state` and every price field are refused on **both** audiences, as written.
+
+The first revision of this split was **wider than its justification** and round three caught the
+mismatch: it opened all 27 `FORBIDDEN_CLIENT_FIELDS` — `price`, `cost`, `margin`, `supplier` — on
+every internal body at every depth, while this paragraph told EL it was two fields on one route. The
+mechanism was narrowed to match the paragraph rather than the paragraph widened to match the
+mechanism. **EL confirms or reverses**; reversing is one call site.
+
+**Handed to T-14a, not silently dropped.** §8.3 says "request bodies bind to explicit input DTOs".
+T-13b made the outbound half *measurable* by putting `response` on `RoutePolicy`. The matching
+`request` field, a request-schema registry and the coverage assertion belong to T-14a, where a real
+router first exists — a registry with no routes to register would be a control with nothing behind
+it, which is the shape this project keeps finding. **Until T-14a lands, nothing stops a handler
+reading `req.body` directly, and no MVP-1 input DTO has been written yet**: this task shipped the
+mechanism, not the bindings. `grep` finds zero call sites of either builder outside `index.ts`.
+
+**Still open on this module, recorded rather than fixed:** a hand-built (non-builder) sub-schema
+stays mutable after the declaration walk passes, because `object()` freezes only the top-level
+property map — builder-made children are frozen and safe, and a hand-built one needs a cast;
+`object()` in `schema.ts` still permits `__proto__` as a declared name for a *response* (server-built,
+not attacker-controlled, so the refusal was kept inside `request.ts` rather than widening an
+already-reviewed T-13b module); `status` is refused on every body, which the phase-2
+`POST /api/internal/v1/submissions/:id/status` will need reversed; and `check-server-owned` signals
+15 of the schema's ~129 columns — a server-owned column carrying no DDL signal (`content_hash`,
+`manifest_uri`, `payload`, `sequence`) rests on the suffix rule and on T-14a's scoped fetch.
 
 ### T-13d: Idempotency key store
 **Acceptance criteria:** AD-3 in full — atomic claim via a unique constraint on
