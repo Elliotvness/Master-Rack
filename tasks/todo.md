@@ -1146,7 +1146,10 @@ was built to prevent, in four ways, all now closed and all four proven by planti
       checkers in CI". The change that added a control for controls-with-no-mechanism shipped
       exactly that. Nothing in the repository could have caught it — a checker absent from CI
       cannot fail there, and `check-claims` reads no figure from `ci.yml`. Found only by reading
-      the run rather than ticking it. Both steps are in `ci.yml` now, self-test first; drift 38
+      the run rather than ticking it. Both steps are in `ci.yml` now, self-test first; drift 38.
+      **Proven by CI #81** (`f8efadf`, push, Success 1m 20s): both `Run pnpm
+      check:serverowned:selftest` and `Run pnpm check:serverowned` appear in its raw log and pass
+      — a step in a workflow file is a claim until a run shows it executing
 - [x] 43 self-test cases; `check-claims` moved test files 53 → 54 and tests 1,238 → 1,385 in the
       same commit
 - [x] **CI #80 read from the raw log** (`08153e2`, push, Success 1m 32s): `Test Files 54 passed
