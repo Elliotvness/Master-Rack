@@ -25,6 +25,7 @@ import {
   NON_CONTENT_FIELDS,
   UnhashableValueError,
   canonicalise,
+  canonicaliseAll,
   contentHash,
 } from './canonical.js';
 
@@ -262,5 +263,46 @@ describe('number formatting is fixed', () => {
   it('formats negative numbers', () => {
     expect(canonicalise({ n: -42 })).toBe('{"n":n-42}');
     expect(contentHash({ n: -42 })).not.toBe(contentHash({ n: 42 }));
+  });
+});
+
+describe('canonicaliseAll — the omit-set is empty, and that is the whole point', () => {
+  it('keeps every field canonicalise drops, at the top level', () => {
+    for (const field of NON_CONTENT_FIELDS) {
+      // canonicalise cannot see the difference; canonicaliseAll must.
+      expect(canonicalise({ [field]: 'a' })).toBe(canonicalise({ [field]: 'b' }));
+      expect(canonicaliseAll({ [field]: 'a' })).not.toBe(canonicaliseAll({ [field]: 'b' }));
+    }
+  });
+
+  it('keeps them at depth, not just at the root', () => {
+    const a = { outer: { inner: [{ note: 'first' }] } };
+    const b = { outer: { inner: [{ note: 'second' }] } };
+    expect(canonicalise(a)).toBe(canonicalise(b));
+    expect(canonicaliseAll(a)).not.toBe(canonicaliseAll(b));
+  });
+
+  it('agrees with canonicalise on a value that carries no dropped field', () => {
+    const value = { bays: [1, 2, 3], label: 'row A', nested: { deep: true } };
+    expect(canonicaliseAll(value)).toBe(canonicalise(value));
+  });
+
+  it('keeps every other refusal — depth, Date, Map, Set, bigint', () => {
+    let deep: unknown = 'leaf';
+    for (let i = 0; i <= MAX_CANONICAL_DEPTH + 1; i += 1) deep = { deep };
+    expect(() => canonicaliseAll(deep)).toThrow(CanonicalDepthError);
+    expect(() => canonicaliseAll({ d: new Date(0) })).toThrow(UnhashableValueError);
+    expect(() => canonicaliseAll({ m: new Map() })).toThrow(UnhashableValueError);
+    expect(() => canonicaliseAll({ s: new Set() })).toThrow(UnhashableValueError);
+    expect(() => canonicaliseAll({ b: 1n })).toThrow(UnhashableValueError);
+  });
+
+  it('sorts keys and drops undefined exactly as canonicalise does', () => {
+    expect(canonicaliseAll({ b: 1, a: 2 })).toBe(canonicaliseAll({ a: 2, b: 1 }));
+    expect(canonicaliseAll({ a: 1, b: undefined })).toBe(canonicaliseAll({ a: 1 }));
+  });
+
+  it('still tags types, so "1" and 1 cannot collide', () => {
+    expect(canonicaliseAll({ v: '1' })).not.toBe(canonicaliseAll({ v: 1 }));
   });
 });

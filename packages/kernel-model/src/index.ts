@@ -19,6 +19,7 @@ export {
   NON_CONTENT_FIELDS,
   UnhashableValueError,
   canonicalise,
+  canonicaliseAll,
   contentHash,
 } from './canonical.js';
 

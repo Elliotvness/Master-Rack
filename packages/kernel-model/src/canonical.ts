@@ -115,7 +115,12 @@ function quote(text: string): string {
   return JSON.stringify(text);
 }
 
-function encode(value: unknown, depth: number, path: string): string {
+function encode(
+  value: unknown,
+  depth: number,
+  path: string,
+  omit: ReadonlySet<string>,
+): string {
   if (depth > MAX_CANONICAL_DEPTH) {
     throw new CanonicalDepthError(path);
   }
@@ -149,7 +154,7 @@ function encode(value: unknown, depth: number, path: string): string {
   if (Array.isArray(value)) {
     // Array order IS content: a run of bays in a different order is a
     // different building. Never sorted.
-    const parts = value.map((item, i) => encode(item, depth + 1, `${path}[${i}]`));
+    const parts = value.map((item, i) => encode(item, depth + 1, `${path}[${i}]`, omit));
     return `[${parts.join(',')}]`;
   }
 
@@ -173,12 +178,13 @@ function encode(value: unknown, depth: number, path: string): string {
   // handled above, and arrays, Dates, Maps and Sets were dealt with first.
   const source = value as Record<string, unknown>;
   const keys = Object.keys(source)
-    .filter((key) => !NON_CONTENT_FIELDS.has(key))
+    .filter((key) => !omit.has(key))
     .filter((key) => source[key] !== undefined)
     .sort();
 
   const parts = keys.map(
-    (key) => `${quote(key)}:${encode(source[key], depth + 1, path === '' ? key : `${path}.${key}`)}`,
+    (key) =>
+      `${quote(key)}:${encode(source[key], depth + 1, path === '' ? key : `${path}.${key}`, omit)}`,
   );
   return `{${parts.join(',')}}`;
 }
@@ -189,8 +195,31 @@ function encode(value: unknown, depth: number, path: string): string {
  * print it: when two hashes disagree, diffing the canonical text says why.
  */
 export function canonicalise(value: unknown): string {
-  return encode(value, 0, '');
+  return encode(value, 0, '', NON_CONTENT_FIELDS);
 }
+
+/**
+ * Canonical text that drops NOTHING — every own key at every depth is encoded.
+ *
+ * `canonicalise` answers "is this the same *content*", and to do that it drops
+ * the eight `NON_CONTENT_FIELDS` at every depth. That is right for a revision
+ * and wrong for a request body, and the difference is not cosmetic: `note` and
+ * `author` are among the eight, and `POST /api/internal/v1/revisions/:id/notes`
+ * carries `note` as its ONLY meaningful field. Hash a request with
+ * `canonicalise` and two genuinely different notes collide, so AD-3's payload
+ * guard — same key, different body ⇒ 422 — could never fire for the one route
+ * whose body is entirely a dropped field.
+ *
+ * Same encoder, same tagging, same refusals; only the omit-set differs. Kept
+ * here rather than reimplemented next to the idempotency store, because two
+ * canonicalisers are two things to keep in step and the second one always
+ * loses.
+ */
+export function canonicaliseAll(value: unknown): string {
+  return encode(value, 0, '', EMPTY_OMIT);
+}
+
+const EMPTY_OMIT: ReadonlySet<string> = new Set<string>();
 
 /**
  * SHA-256 over the canonical text, as 64 lowercase hex characters.
