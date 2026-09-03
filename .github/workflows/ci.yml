@@ -221,6 +221,15 @@ jobs:
       - name: Server-assigned columns are refused on a client body
         run: pnpm check:serverowned
 
+      # The 15th checker. Wired into BOTH package.json and this file in the
+      # commit that adds it — drift 38 was a checker that landed in `verify`
+      # and not here, so CI went green over T-13c without ever running it.
+      - name: Route surface self-test
+        run: pnpm check:routesurface:selftest
+
+      - name: The registry agrees with blueprint §8.2, row for row
+        run: pnpm check:routesurface
+
       - name: Kernel coverage gate
         run: pnpm coverage
 

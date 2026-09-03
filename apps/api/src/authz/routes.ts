@@ -79,11 +79,16 @@ export function namespaceAllows(namespace: Namespace, actorType: ActorType): boo
  * The phase-2 rows live in `PHASE_2_ROUTES` below, so the registry and §8.2
  * agree row for row instead of agreeing on a total that happened to match.
  *
- * ONE ROW IS NOT §8.2's: `POST /api/internal/v1/idempotency-claims/:key/release`,
- * EL's operator release (2026-09-03). It is a **blueprint amendment §8.2 has
- * not yet received**, carried here because T-13d's guarantee needs it and
- * declared in `PENDING_AMENDMENT` so the arithmetic stays honest rather than
- * quietly counting 22 as 21.
+ * EL amended §8.2 on 2026-09-03 to carry `POST /api/internal/v1/idempotency-claims/:key/release`,
+ * so the blueprint now lists **24** rows, two marked phase 2, and this table
+ * carries all **22** MVP-1 ones. `PENDING_AMENDMENT` is empty, which is the
+ * healthy state.
+ *
+ * **And the agreement is now a control rather than a count.**
+ * `tools/check-route-surface.mjs` parses §8.2 out of the built blueprint and
+ * diffs it against these two lists in both directions. Drift 4 lived for five
+ * sessions because every session that noticed it noticed it by hand; a number
+ * in a document is not a control, and this is the control.
  */
 export const ROUTES: readonly RoutePolicy[] = [
   // Public — no session required, single-use token instead.
@@ -128,16 +133,17 @@ export const PHASE_2_ROUTES: readonly RoutePolicy[] = [
 ];
 
 /**
- * Rows in ROUTES that §8.2 does not carry, each with the amendment it is
- * waiting on. An empty list is the healthy state.
+ * Rows in ROUTES that §8.2 does not carry, each with the amendment it waits on.
+ *
+ * **Empty, and that is the healthy state.** It held the operator release for
+ * one afternoon; EL amended §8.2 and confirmed both substitutions — the path
+ * (there is no `/admin` namespace) and `INTERNAL_ADMIN` for "operator role" —
+ * so the entry is gone rather than left as a note about something that already
+ * happened. `check-route-surface` fails on any row this list would have to
+ * describe, so the list can no longer be the only thing standing between the
+ * registry and the blueprint.
  */
-export const PENDING_AMENDMENT: readonly { readonly path: string; readonly why: string }[] = [
-  {
-    path: '/api/internal/v1/idempotency-claims/:key/release',
-    why: "EL's operator release for a stranded idempotency claim (2026-09-03). §8.2 needs the row; "
-      + 'the path and the INTERNAL_ADMIN mapping are substitutions he has not yet confirmed.',
-  },
-];
+export const PENDING_AMENDMENT: readonly { readonly path: string; readonly why: string }[] = [];
 
 export class RouteCoverageError extends Error {
   override readonly name = 'RouteCoverageError';

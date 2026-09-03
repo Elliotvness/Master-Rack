@@ -1331,6 +1331,59 @@ because both new rules require it — which is the point of them, not an inconve
 policy has no handler. Four controls that exist and have never run in anger, all owned by T-14a and
 T-14e and recorded there.
 
+## Drift 4 — CLOSED 2026-09-03, five sessions after it was raised, and it now has a mechanism
+
+Kept here rather than in the drift table because closing it took a blueprint amendment, two routes,
+and a checker, and because the reason it survived is the more useful half.
+
+**What it was.** §8.2 listed 23 rows and `apps/api/src/authz/routes.ts` carried 20, disagreeing in
+**both directions at once**: two MVP-1 routes absent — `GET /api/client/v1/documents/:id` (the
+signed watermarked-PDF URL that §15.2 step 6, `E-08` and `AC-16` depend on) and
+`POST /api/internal/v1/revisions/:id/notes` (`E-05`) — and one phase-2 route present. Neither
+missing route had an `Action` in `authorize.ts` either. The consequence nobody had recorded until
+session 3: because the documents route was absent from `ROUTES`, `AC-02`'s leakage walk never
+enumerated the one client route that hands out a document URL, so it sat outside the contract test
+**even at model level**.
+
+**Why it survived five sessions.** Every session that found it found it *by hand*, by re-enumerating
+twenty-odd paths and diffing them by eye, and then wrote the answer into a document. A number in a
+document is not a control. Session 2's proposed remedy would have edited 23 down to 20 — hiding two
+missing MVP-1 routes by moving the target to meet the code — which is exactly why the rule is that
+the blueprint wins and the scoreboard is what gets fixed.
+
+**How it closed.** T-14a added both routes and their actions; EL amended §8.2 on 2026-09-03 to
+carry `POST /api/internal/v1/idempotency-claims/:key/release` and confirmed the two substitutions
+(no `/admin` namespace, so the internal one; "operator role" → `INTERNAL_ADMIN`). §8.2 now lists
+**24** rows, two marked phase 2, and the registry carries all **22** MVP-1 ones. The phase-2 audit
+row lives in `PHASE_2_ROUTES`; `PENDING_AMENDMENT` is empty.
+
+**And `tools/check-route-surface.mjs` is the mechanism** — the 15th self-tested checker. It parses
+§8.2 out of the built blueprint and diffs it against both registry lists in both directions, on
+every run and in CI. Wired into `package.json` **and** `ci.yml` in the same commit, because drift 38
+was a checker that landed in one and not the other.
+
+**It found something on its first run against the real tree**, which is the argument for building
+controls rather than reading code: `GET /api/client/v1/submissions/:id` carries a phase-2 note that
+defers **the RFI thread, not the route**. That distinction was recorded in prose in three documents
+and enforced by none of them. It is now `SUB_FEATURE_PHASE_2` — declared data with the reason
+beside it, and a stale-entry check, so an exemption for a row §8.2 no longer marks fails.
+
+**Proven to fire, against the real tree**, each planted and reverted:
+
+```
+the amendment removed from §8.2  -> "ROUTES carries POST …/release, which §8.2 does not list at all"
+documents route dropped          -> "§8.2 lists GET …/documents/:id as MVP-1 and ROUTES does not carry it"
+audit row put back into ROUTES   -> "ROUTES carries GET …/audit, which §8.2 marks PHASE 2"
+```
+
+And the self-test proven against a broken checker — four branches neutered one at a time, each
+turning it red: the missing-from-registry branch (1 of 15), the extra-in-registry branch (2 of 15),
+the vacuous-blueprint guard (1 of 15), the stale-exemption check (1 of 15).
+
+**What it still does not cover, stated beside the guarantee:** it compares `METHOD path` and
+nothing else — audiences, actions and response schemas are `assertRouteCoverage`'s — and it cannot
+tell a correct path from a plausible one. If §8.2 and the registry both say `/projekts`, it passes.
+
 ## F-12 and F-13 — fixed, values untouched
 
 Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.
