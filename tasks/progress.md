@@ -10,14 +10,15 @@ store: `0011_idempotency.sql`, `apps/api/src/idempotency/`, and `canonicaliseAll
 `INSERT … ON CONFLICT DO NOTHING`, not by application code, and the claim commits in its own
 transaction **before** the effect so a crash leaves evidence rather than a silently retried freeze.
 Measured on `task/t-13d-idempotency` in the container against native PostgreSQL 16.13: every
-`pnpm verify` at **exit 0 — 56 files, 1,430 tests, 0 skipped** and **14** checkers behind their
-self-tests, coverage **all files 99.66 / 99.18 / 99.79 / 99.66** with `idempotency.ts`,
+`pnpm verify` at **exit 0 — 56 files, 1,448 tests, 0 skipped** and **14** checkers behind their
+self-tests, coverage **all files 99.66 / 99.15 / 99.79 / 99.66** with `idempotency.ts`,
 `request.ts` and `canonical.ts` at 100% lines. *(A separate `pnpm coverage` on the identical tree
 read 99.69 / 99.23 — v8 coverage is not bit-stable across worker scheduling, as session 7 also
 found. The figure published is the one from the exit-0 `verify` being cited, not the better of the
 two; the per-package 100s, which are what the thresholds gate, did not move. The only occurrence
-of "skipped" anywhere in the log is a self-test case name.)* **The numerator moved 58 → 62 at a fixed
-denominator: 39.2% → 41.9%.** §15.2 did not move and could not: a key store that no route yet
+of "skipped" anywhere in the log is a self-test case name.)* **The numerator moved 58 → 62.** The denominator then moved 148 → 160 when EL confirmed T-14a–e
+later the same day, so the published figure is **38.8%** — the numerator is progress, the
+denominator move is bookkeeping, and the two must not be read as one. §15.2 did not move and could not: a key store that no route yet
 consults cannot get a client through a screen.
 
 **The run before this edition did NOT end at exit 0, and that was the gate working.** It stopped
@@ -42,6 +43,15 @@ forever while someone raised `max_attempts` to 200" — and then hardcoded it. R
 four on the fix, including the one the review showed could not fire. Two figures in the first
 commit body did not reproduce — dropping the unique constraint turns 15 of 30 red, not 8 — and are
 corrected in F-39 rather than quietly restated.
+
+**EL answered all six parked questions the same day, and one of them was code.** The stranded
+claim — an `in_flight` row left by a dead process, refusing every retry of that key for thirty days
+— is closed with **both** halves he asked for: a **10-minute lease** configurable through
+`CLAIM_LEASE_MINUTES` (a malformed value throws at startup rather than falling back), and an
+**operator release** at `INTERNAL_ADMIN` writing an audit event in the same transaction as the
+release, setting the row to a fourth outcome, `abandoned`. Migration `0012`, six more controls
+planted and proven red. The cost is stated rather than discovered later: a lease turns *one effect
+per key, ever* into *one effect per key per lease window*.
 
 **Still unpushed at the time of writing.** `task/t-13d-idempotency` sits on top of
 `task/t-13c-input-dtos`, which is itself pushed and unmerged. Pushes need Windows; nothing here has
@@ -255,13 +265,13 @@ The procedure, so it is reproducible:
 | Measure | Value | Blueprint anchor | What it measures |
 |---|---|---|---|
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
-| Plan-task completion, effort-weighted | 62 of 148 pts — **41.9%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
-| Plan-task completion, task count | 23 of 45 — 51% | Same, unweighted | Same |
+| Plan-task completion, effort-weighted | 62 of 160 pts — **38.8%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
+| Plan-task completion, task count | 23 of 49 — 47% | Same, unweighted | Same |
 | Pre-merge review `R-01…R-11` | **11 of 11 — 100%** | **§16.1** review gates | A sub-checklist of one merged branch, not the project. All eleven closed on their own criteria. R-09 and R-10 closed at Checkpoint A in the container; **R-07 closed last**, by fixing L-3 and L-5 to throw (`6696f5f`, PR #16) rather than leaving them dispositioned — the dissent on the record won |
 | Route surface vs the blueprint | 19 of 21 MVP-1 routes declared | **§8.2** (23 rows, 2 marked phase 2) | Re-enumerated today, path by path. A *registry* figure, not a served one — nothing mounts it. Since T-13b every entry also names the response schema it answers with, and `assertRouteCoverage` refuses one that does not |
 
-These are not competing answers. **0% is the answer**; 41.9% is how much of the written plan has
-been executed. A reader who quotes 41.9% without §15.2 beside it is quoting the wrong number.
+These are not competing answers. **0% is the answer**; 38.8% is how much of the written plan has
+been executed. A reader who quotes 38.8% without §15.2 beside it is quoting the wrong number.
 
 **Phase 2 is complete** — the first phase to close since Phase 1. **§15.2 did not move by one step
 while it happened**, and that is not a paradox: Phase 2 was repairs and controls, and the definition
@@ -277,8 +287,10 @@ The T-14 breakdown the checkpoint owed is written as **T-14a–e** — the appli
 against the *registered* router (plus the two §8.2 routes still missing, drift 4), auth and
 organizations, client reads and drafting, submit / clone / status / documents with P-01 in the same
 commit, the internal surface with P-02 in the same commit — **each M, each with the failure it must
-be proven to catch, and none of it confirmed.** If EL confirms: 148 → 160 points and 41.9% → 38.8%
-with nothing getting worse. Until then this file keeps T-14 at L = 8.
+be proven to catch. **EL confirmed the breakdown at 160 points on 2026-09-03** — *"the breakdown
+names its failure modes, that's the right structure; the denominator change is bookkeeping"* — so
+T-14's single L = 8 is retired, the five M sub-tasks count, and this file publishes 38.8% over 160.
+Nothing got worse: 62 done points did not move, only the denominator did.
 
 **Checkpoint A was held in session 6, and by the close of the session every measurable criterion
 is met.** When it was first held, seven of its eight criteria were re-measured (three runs, three
@@ -351,8 +363,9 @@ neither comparable. The one figure all four agree on is §15.2 at 0 of 8.
 
 ## Method, so it can be re-run
 
-- **Inventory.** The **45** tasks — 43 until T-28 was added in session 3, 44 until **T-10 was split**
-  into T-10a and T-10b in session 5: the 37 `T-…` tasks and 6 `P-…` tasks in `tasks/todo.md` (T-13a–d, T-10a–b and
+- **Inventory.** The **49** tasks — 43 until T-28 was added in session 3, 44 until **T-10 was split**
+  into T-10a and T-10b in session 5, 45 until **T-14 was split into T-14a–e** on EL's confirmation
+  2026-09-03 (one L task becoming five M ones, +4 tasks and +12 points): the 37 `T-…` tasks and 6 `P-…` tasks in `tasks/todo.md` (T-13a–d, T-10a–b and
   T-18a–e counted individually), plus R-08 and R-10 counted once. The ten Phase 4 bullets
   (T-16…T-21) and the five Phase 5 bullets (T-22…T-26) are inside the 37, not additions to it.
   `tasks/todo.md`'s 110 checkboxes are *sub-criteria inside* those tasks, not tasks; they are also
@@ -373,13 +386,13 @@ neither comparable. The one figure all four agree on is §15.2 at 0 of 8.
 - **R-08 and R-10 appear twice** in the plan (in `tasks/review-todo.md` and again in Phase 3). They
   are counted once, in Phase 3. The other nine R-items are outside the 43.
 
-### Caveat that cuts against the 41.9%
+### Caveat that cuts against the 38.8%
 
 The T-shirt sizes were written **before anyone attempted the server or the interface**. T-14 is
 sized L = 8 points = 5.4% of the project, yet it gates **all eight** §15.2 steps: every one needs
 HTTP. Phase 4 is eight M tasks, one L, and one S in a repo with zero `.tsx` files and no framework
 installed.
-If either is under-sized — and both probably are — the true denominator is larger and **41.9% is
+If either is under-sized — and both probably are — the true denominator is larger and **38.8% is
 an overstatement**. Treat it as a ceiling. **The first re-sizing is now on the table:** T-14a–e,
 five M sub-tasks = 20 points where T-14 carried 8, proposed under T-14 in `tasks/todo.md` and
 waiting on EL. *(This heading and its last sentence read "32.4%" through two editions in which the
@@ -393,20 +406,17 @@ changelog and tags *are* T-26.)
 
 ## Your queue — EL
 
-Nothing in the first table blocks the next task; the two starred items block a phase.
+**Six of the ten cleared on 2026-09-03**, and they moved to the second table. Four remain, of which
+the two starred block a phase.
 
 | # | Waiting on you | Why it is yours, not code's | Gates |
 |---|---|---|---|
 | 1 | **Push two branches.** `task/t-13c-input-dtos` is on `origin` and unmerged; `task/t-13d-idempotency` is unpushed and was delivered as a git bundle | A scheduled run's git proxy refuses this repo and no folder was connected, so nothing reaches `origin` from the container. Until it lands, **no CI run has judged T-13d** and every figure here has one machine behind it | CI coverage of T-13c and T-13d |
-| 2 | **Confirm or resize T-14a–e** — five M sub-tasks written under T-14 | A denominator change is a planning decision, not a measurement. Deliberately *not counted* until you say | 148 → 160 pts; 38.8% |
-| 3 | **Confirm the outbound guard's both-modes refusal**, or reverse it | As built, a forbidden or undeclared field on a client response is refused in production too, not alerted; only type drift follows the mode. A literal §8.3 reads the other way | T-13b · AC-02, R-02 |
-| 4 | **OD-12: `WITHDRAWN` and `EXPIRED` → *complete*** | The code has it this way already; confirming makes it a decision rather than an implementation detail | T-14c, T-16 |
-| 5 | **T-13d returns four claim outcomes where AD-3 spells out three** — the fourth is `settled` | Without it §8.3's "a double-click must not produce two submissions" has no true answer for the second click: `409` is untrue, `422` is untrue. It carries a `result_ref`, not a cached body, and a `failed` intent is re-claimable | T-13d · T-14d |
-| 6 | **A stranded claim has no owner** — a lease, or an operator action | AD-3 chooses `409` over waiting, which is right — but a dead process leaves an `in_flight` row and every retry of that key gets `409` **for thirty days**. Nothing settles it; `purgeExpiredOn` has no caller. Both options change the guarantee, so T-13d chose neither | T-14d · operability |
-| 7 | **★ Q3 — the standing disclaimer text verbatim**, company and contact name, document number format | Every client-facing output carries it. Nobody but you can write the words a client is shown | **T-20, AC-16** — blocks the client PDF |
-| 8 | **★ Q4 — Backblaze B2 credentials** and Governance-bucket permission | A credential and an authorisation; no code substitutes | **T-24** — blocks WORM retention |
-| 9 | **Q6 / OD-20b — the external pilot client name** | Criteria settled and one audited account fits all five. Gates no development — but **R-01 retires only when an outside organisation completes a submission unaided** | Retires R-01; P-04's unit sizes |
-| 10 | **Whether to re-base the 2026-09 `content_sha256`** | Reproducible only by Python, because `beams.json` carries `face_height_in: 4.0` and every other JSON implementation renders it `4`. Re-basing changes an **APPROVED** release | Recorded, not acted on |
+| 2 | **★ Q3 — the standing disclaimer text verbatim**, company and contact name, document number format | Every client-facing output carries it. Nobody but you can write the words a client is shown | **T-20, AC-16** — blocks the client PDF |
+| 3 | **★ Q4 — Backblaze B2 credentials** and Governance-bucket permission | A credential and an authorisation; no code substitutes | **T-24** — blocks WORM retention |
+| 5 | **★ A blueprint amendment §8.2 now needs.** The operator release route is registered in code but is not a §8.2 row | You decided the endpoint; the blueprint is the governing document and this session did not edit it. Until §8.2 carries the row, the registry holds two entries §8.2 does not list as MVP-1. Two substitutions also want your yes or no: the path is  rather than  because there is no  namespace, and "operator role" maps to  | **T-14e** — and the route-surface figure |
+| 5 | **★ A blueprint amendment §8.2 now needs.** The operator release route is registered in code but is not a §8.2 row | You decided the endpoint; the blueprint is the governing document and this session did not edit it. Until §8.2 carries the row, the registry holds two entries §8.2 does not list as MVP-1. Two substitutions also want a yes or no: the path is `/api/internal/v1/idempotency-claims/:key/release` rather than `/admin/claims/:key/release` because there is no `/admin` namespace, and "operator role" maps to `INTERNAL_ADMIN` | **T-14e** — and the route-surface figure |
+| 4 | **Q6 / OD-20b — the external pilot client name** | Criteria settled and one audited account fits all five. Gates no development — but **R-01 retires only when an outside organisation completes a submission unaided** | Retires R-01; P-04's unit sizes |
 
 | Closed by you | What it settled | When |
 |---|---|---|
@@ -417,6 +427,7 @@ Nothing in the first table blocks the next task; the two starred items block a p
 | **Q1, Q2, Q5, Q7** | Answered, and `tasks/plan.md` now says so for all four — it had not caught up on Q1, Q5 *or* Q7 | 2026-09-01 |
 | **OD-07 / OD-15 — approver authority** | You are catalog approver and rule-pack owner; Nick Heraldez is fallback. The single-point dependency is **formally accepted for MVP-1 only** — a decision, not an oversight | 2026-08-31 |
 | **R-07 — the dissent taken** | You took the dissent rather than the disposition: `approved_by: 42` now throws, and `constraints` goes through a validator that names the offending entry. Test-first, PR #16. Closed the pre-merge review at **11 of 11** | 2026-09-02 |
+| **T-13d's six open questions, in one pass** | The fourth claim outcome kept and AD-3's enumeration completed rather than extended; the stranded claim closed with **both** halves (a 10-minute lease, configurable, plus an `INTERNAL_ADMIN` release writing an audit event) and landed in T-13d rather than deferred; the outbound guard's both-modes refusal kept with the deviation recorded where the guard lives; OD-12 confirmed; T-14a–e confirmed at 160 points; the `content_sha256` left alone with one sentence in `packages/kernel-catalog/README.md`. *"Don't let sizing debates stall execution."* | 2026-09-03 |
 | **The go-ahead to implement** | Planning complete, decision set closed at Rev C, no production code written. You asked for an explicit go-ahead and gave it — which is why every task since has a settled decision behind it rather than an assumption | 2026-08-31 |
 
 ## By phase
@@ -426,23 +437,24 @@ Nothing in the first table blocks the next task; the two starred items block a p
 | 0 — Make CI real | 1 | 1 | **100%** | **T-00 complete.** Tip `efbafbd` pushed; CI run #10 **Success** — the first commit in this repo ever verified |
 | 1 — Catalog and schema integrity | 10 | 10 | **100%** | T-01…T-04 complete (verified at `a2f166e` — repository claim, not re-run today) |
 | 2 — Kernel and workflow repairs | 29 | 29 | **100%** | **Complete.** T-05, T-06, T-07, T-27, T-28, T-08, T-09, T-10a, T-10b, **T-11**, **T-12**. Points 26 → 28 from the T-10 split, 28 → 29 when T-11 grew XS → S for F-32 |
-| 3 — The contract, then the server | 50 | 22 | 44% | P-00, T-13a, T-13b, T-13c, **T-13d**, R-08, R-10 done; T-14 (L = 8 until T-14a–e is confirmed), T-15, P-01…P-05 open |
+| 3 — The contract, then the server | 62 | 22 | 35% | P-00, T-13a, T-13b, T-13c, **T-13d**, R-08, R-10 done; **T-14a–e (5 × M = 20, confirmed by EL 2026-09-03)**, T-15, P-01…P-05 open |
 | 4 — The interface | 42 | 0 | **0%** | Zero `.tsx` files exist |
 | 5 — Deploy readiness | 16 | 0 | 0% | Not started |
-| **Total** | **148** | **62** | **41.9%** | |
+| **Total** | **160** | **62** | **38.8%** | |
 
-**Remaining: 86 points, and Phase 2's residue is zero.** T-14 plus all of Phase 4 is **50 of the 86
-— just under three fifths**; the other 36 is the rest of Phase 3 (20, T-14 excluded) and Phase 5 (16). The
+**Remaining: 98 points, and Phase 2's residue is zero.** T-14a–e plus all of Phase 4 is **62 of the
+98 — just under two thirds**; the other 36 is the rest of Phase 3 (20, T-14 excluded) and Phase 5
+(16). The
 remaining work is *not* concentrated in the two big items, and planning as if it were will under-book
 the back half.
 
 ---
 
-### How soft is 41.9%?
+### How soft is 38.8%?
 
 The caveat above says the figure is a ceiling because T-14 and Phase 4 were sized before anyone
 attempted either. Quantified — 62 done points never move, only the denominator does.
-**Every row here is 62 over its own denominator, and every denominator is derived from 148 rather
+**Every row here is 62 over its own denominator, and every denominator is derived from 160 rather
 than carried forward** (re-derived again in session 6 when the numerator moved to 52, and again in
 this edition at 62). This table has now been wrong twice in one day in two different ways: four
 of five rows were still computed on session 4's numerator of 29 while the first row read 41 (item
@@ -451,20 +463,20 @@ the pre-split base of 145 while the row above them said 147** (item 29). Re-deri
 
 | T-14 | Phase 4 | Denominator | Completion | Scenario |
 |---|---|---|---|---|
-| 8 | 42 | 148 | **41.9%** | as planned — the published figure |
-| 20 | 42 | 160 | 38.8% | **T-14a–e as proposed** (five M), Phase 4 as planned |
-| 16 | 63 | 177 | 35.0% | T-14 ×2, Phase 4 ×1.5 |
-| 16 | 84 | 198 | 31.3% | T-14 ×2, Phase 4 ×2 |
-| 24 | 84 | 206 | 30.1% | T-14 ×3, Phase 4 ×2 |
-| 24 | 126 | 248 | 25.0% | T-14 ×3, Phase 4 ×3 |
+| 20 | 42 | 160 | **38.8%** | **T-14a–e as confirmed by EL (five M)** — the published figure |
+| 20 | 63 | 181 | 34.3% | Phase 4 ×1.5 |
+| 20 | 84 | 202 | 30.7% | Phase 4 ×2 |
+| 30 | 84 | 212 | 29.2% | T-14a–e ×1.5, Phase 4 ×2 |
+| 40 | 84 | 222 | 27.9% | T-14a–e ×2, Phase 4 ×2 |
+| 40 | 126 | 266 | 23.3% | T-14a–e ×2, Phase 4 ×3 |
 
 Even at triple, the figure moves about fifteen points. **The ceiling is real but shallow**, so
-41.9% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
+38.8% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
 is the number to quote and this one is not. The second row is new and is not a scenario: it is the
 breakdown actually on the table, and it is what this file publishes the day EL confirms it.
 
-**Where the remaining 86 points sit:** Phase 4 42 (48.8%) · Phase 3's residue 28 (32.6%) ·
-Phase 5 16 (18.6%) · Phase 2's residue 0. Neither large block is a majority. *(This paragraph read
+**Where the remaining 98 points sit:** Phase 4 42 (42.9%) · Phase 3's residue 40 (40.8%) ·
+Phase 5 16 (16.3%) · Phase 2's residue 0. Neither large block is a majority. *(This paragraph read
 "116 … Phase 2's residue 16" until session 6 while the table above it said 100 — drift 30.)*
 
 ## Verified today
@@ -532,11 +544,11 @@ Re-measured by running commands against the working tree:
 | `main` | in sync with `origin/main` @ `162d26e` — PR #1 … #19 merged, every task branch deleted, `git branch -r` lists `origin/main` alone *(this row read `e86d2bf` / "PR #13 open" through the close-out edition while the tip row above it said `b8d2087` — drift 36's shape, fixed here)* |
 | Packages | **12** — `packages/workflow` added by T-07 |
 | Test files | **56** (`*.test.ts`) — T-13c added `request.test.ts`; T-13d added `idempotency.test.ts` and `idempotency.db.test.ts`. Re-derived by `check:claims`, not typed |
-| Migrations | **11** (`0001`–`0011`) — `0011_idempotency.sql` adds `app.idempotency_key`: `UNIQUE (organization_id, key)`, a 64-hex `request_hash` CHECK, three states in `app.idempotency_outcome`, five consistency CHECKs, tenant RLS and the F-31 explicit GRANT. `check-rls` inspected **22** tables and **86** grants today and passed |
+| Migrations | **12** (`0001`–`0012`) — `0012_idempotency_lease.sql` adds the `abandoned` outcome and the lease index (EL's stranded-claim decision); `0011_idempotency.sql` added `app.idempotency_key`: `UNIQUE (organization_id, key)`, a 64-hex `request_hash` CHECK, three states in `app.idempotency_outcome`, five consistency CHECKs, tenant RLS and the F-31 explicit GRANT. `check-rls` inspected **22** tables and **86** grants today and passed |
 | `.tsx` / `.jsx` / `.vue` / `.svelte` / `.astro` files | **0** |
 | Server entry point | **none** — no `fastify`, `express`, `koa`, `hono`, `node:http`, `.listen(` anywhere in `apps/` or `packages/` |
 | Front-end dependency | **none** — no `react`, no `vite` in any `package.json` |
-| Route table | **20 entries** in `apps/api/src/authz/routes.ts` — **11 client, 8 internal, 1 public, each path enumerated and counted today**. Imported by `authorize.test.ts` (twice) and re-exported by `apps/api/src/index.ts` — **a barrel re-export is not a consumer, and no router mounts it**. Re-diffed against §8.2 today: `GET /api/client/v1/documents/:id` and `POST /api/internal/v1/revisions/:id/notes` are still absent and `GET /api/internal/v1/audit` (phase 2) is still carried. **19 of 21** — see drift 4 |
+| Route table | **21 entries** in `apps/api/src/authz/routes.ts` — **11 client, 9 internal, 1 public, each path enumerated and counted today** — the internal count rose by one when EL's operator release route was registered. Imported by `authorize.test.ts` (twice) and re-exported by `apps/api/src/index.ts` — **a barrel re-export is not a consumer, and no router mounts it**. Re-diffed against §8.2 today: `GET /api/client/v1/documents/:id` and `POST /api/internal/v1/revisions/:id/notes` are still absent and `GET /api/internal/v1/audit` (phase 2) is still carried. **19 of 21** — see drift 4 |
 | `apps/api/src/index.ts` | Its own header calls it "The HTTP layer". It is a barrel of **15** re-export blocks (8 until T-13b) and **no HTTP**. Not filed as drift — the file says "and (later) authorization and DTOs" — but it is the sentence a future reader will misread as a server |
 | Git tags · `CHANGELOG.md` · Dependabot | none · none · none, all re-checked today. `version` is `0.0.0`. Expected — `CHANGELOG.md` is T-26's, unstarted — but the house rule is to write the entry **in the commit that makes the change**, and 4 commits have landed since that rule was written down |
 | CI gates present | typecheck, lint, migrate, test, **13** self-tested checkers (the thirteenth, `check-types-only`, landed with F-37), coverage, bench, docs rebuild + `git diff --exit-code`. Two landed today: `check-content-hash` (recomputes each release's `content_sha256` by the method that manifest declares) and `check-spot-check-record` (asserts every signed spot-check covers the draw that was pinned before it) |

@@ -131,8 +131,41 @@ safe. The contract:
 - **In-flight duplicate ⇒ `409`.** Deliberately chosen over waiting: submit is not long-running
   enough to need `202`, and letting the second caller through because the first "seems stuck" is
   precisely when duplication costs most.
-- **Three outcomes, not two.** The intent row is written *before* the effect, so a crash between the
-  call and the response leaves evidence rather than a silently retried freeze.
+- **Four claim outcomes.** *(Enumerated 2026-09-03. AD-3 originally said three; three do not
+  answer §8.3's "a double-click must not produce two submissions" for the click that arrives after
+  the first has succeeded, so the enumeration was underspecified and T-13d completed it. This is
+  the list, and it is final.)*
+  1. **`claimed`** — a fresh claim, or a re-claim of a terminal-but-re-claimable row. The caller
+     runs the effect and must settle it.
+  2. **`in_flight`** ⇒ `409`. A duplicate is running, or a process died holding the claim and the
+     lease has not yet run out.
+  3. **`mismatch`** ⇒ `422`. Same key, different request. Never replayed.
+  4. **`settled`** — this key already ran to success with this exact request, so the effect must
+     **not** run again. It carries a `result_ref` and the handler re-renders from the referenced
+     row through the outbound DTO; a cached response body would be the screen-only model §19.2
+     rules out. This is the outcome §8.3's second click gets: `409` would be untrue because
+     nothing is in flight, and `422` untrue because the payload matches.
+
+  A body the canonicaliser cannot hash is refused as `MALFORMED_REQUEST` before any of the four —
+  a guard that throws is not a guard.
+- **The intent row is written and COMMITTED before the effect**, in a transaction of its own, so a
+  crash between the call and the response leaves evidence rather than a silently retried freeze.
+- **A stranded claim is released, both automatically and by hand.** *(Decided 2026-09-03. Without
+  this, a process that dies mid-effect leaves an `in_flight` row and every retry of that key gets
+  `409` for the full retention window — a submission the user can never make, which is a
+  correctness defect and not an operability gap.)*
+  - **Lease.** An `in_flight` row whose `claimed_at` is older than `CLAIM_LEASE_MINUTES`
+    (**default 10**) may be taken over. Chosen against the shape of the effect: a B2 upload that
+    has not finished in ten minutes is dead or hitting a fault a retry will solve. Configurable by
+    environment so the window can be raised without a deploy; **a malformed value throws at
+    startup** rather than falling back.
+  - **Operator release.** `POST /api/internal/v1/idempotency-claims/:key/release`,
+    `INTERNAL_ADMIN` only, writing an audit event **in the same transaction** as the release. The
+    row becomes `abandoned` — terminal, and re-claimable, and distinct from `failed` because an
+    audit reader needs to know whether the effect reported its own rollback or a human overrode it.
+  - **The cost, stated:** a lease turns "one effect per key, ever" into "one effect per key per
+    lease window". A live process slower than its lease can be overtaken. That is the price of not
+    stranding users, and it is why the window is configurable.
 - **Retention outlives the longest retry path** — the outbox's dead-letter replay window, not disk
   cost. Set to 30 days, which is longer than any current re-delivery path.
 

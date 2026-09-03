@@ -40,6 +40,8 @@
  */
 
 import { CanonicalError, canonicaliseAll, sha256 } from '@rms/kernel-model';
+
+import { appendAuditEvent } from '../audit/chain.js';
 import { withTenant, type TenantContext, type TenantTransaction } from '@rms/db';
 import type { ErrorCode } from '@rms/contracts';
 
@@ -49,7 +51,17 @@ import type { ErrorCode } from '@rms/contracts';
  * F-38 was a six-state status vocabulary invented for a table that needed
  * three. This alphabet is the decision record's own.
  */
-export type IdempotencyOutcome = 'in_flight' | 'succeeded' | 'failed';
+export type IdempotencyOutcome = 'in_flight' | 'succeeded' | 'failed' | 'abandoned';
+
+/**
+ * Terminal states a key may be claimed again from.
+ *
+ * `failed` is the effect reporting its own rollback; `abandoned` is an operator
+ * overriding a claim that reported nothing at all. Both mean the intent did not
+ * happen, so both are re-claimable — and they stay distinct because an audit
+ * reader needs to know which one ended it.
+ */
+const RECLAIMABLE: ReadonlySet<IdempotencyOutcome> = new Set(['failed', 'abandoned']);
 
 /** §8.3's four operations. A closed set: a fifth is a blueprint change. */
 export const IDEMPOTENT_INTENTS = Object.freeze([
@@ -159,6 +171,38 @@ export function errorCodeFor(status: ClaimResult['status']): ErrorCode | null {
 /** 30 days, per AD-3 — and `idempotency.test.ts` proves it outlives the outbox. */
 export const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
+/** The default lease, in minutes. EL's decision, 2026-09-03. */
+export const DEFAULT_CLAIM_LEASE_MINUTES = 10;
+
+/**
+ * How long a claim may be held before another caller may take it.
+ *
+ * Configurable through `CLAIM_LEASE_MINUTES` so the window can be raised the
+ * moment a legitimate effect is seen to outrun it, without a code deploy.
+ *
+ * **A malformed value THROWS.** It does not fall back to the default, because
+ * a setting that silently ignores what it was given is a control that says it
+ * is configurable and is not — this repository's recurring defect, in an
+ * environment variable. `CLAIM_LEASE_MINUTES=ten` must stop the process at
+ * startup, not quietly run a ten-minute lease that nobody chose.
+ *
+ * The environment is passed in rather than read from module scope, so this is
+ * testable without mutating global state — the same reason
+ * `configureDatabase` takes a connection string.
+ */
+export function claimLeaseMs(env: Readonly<Record<string, string | undefined>> = process.env): number {
+  const raw = env['CLAIM_LEASE_MINUTES'];
+  if (raw === undefined || raw.trim() === '') return DEFAULT_CLAIM_LEASE_MINUTES * 60_000;
+  const minutes = Number(raw);
+  if (!Number.isFinite(minutes) || !Number.isInteger(minutes) || minutes <= 0) {
+    throw new RangeError(
+      `CLAIM_LEASE_MINUTES must be a positive whole number of minutes; got '${raw}'. ` +
+        'Refusing to fall back to the default: a lease nobody chose is worse than no lease.',
+    );
+  }
+  return minutes * 60_000;
+}
+
 export interface ClaimParams {
   /** Caller-supplied row id, like every other id in this schema. */
   readonly id: string;
@@ -169,6 +213,12 @@ export interface ClaimParams {
   readonly body: unknown;
   /** Supplied, never read from a clock — retries stay deterministic in a test. */
   readonly now: Date;
+  /**
+   * How long a claim may be held before this call may take it over. Defaults
+   * to `claimLeaseMs()`; supplied explicitly by tests so a lease case does not
+   * depend on the clock or on the environment.
+   */
+  readonly leaseMs?: number;
 }
 
 /**
@@ -243,7 +293,7 @@ export async function claimOn(tx: TenantTransaction, params: ClaimParams): Promi
     return { status: 'settled', id: row.id, outcome: 'succeeded', resultRef: row.result_ref };
   }
 
-  if (row.claim_outcome === 'failed') {
+  if (RECLAIMABLE.has(row.claim_outcome)) {
     // A failed effect rolled back, so the intent never happened and may be
     // attempted again. Re-claiming is itself conditional on the row still being
     // 'failed', so two retries racing on a failed key cannot both win.
@@ -252,17 +302,40 @@ export async function claimOn(tx: TenantTransaction, params: ClaimParams): Promi
     // a failed key more than 30 days later raised a raw constraint violation
     // out of this function instead of returning a ClaimResult. A re-claim is a
     // fresh claim and gets a fresh window.
+    //
+    // The UPDATE is conditional on the state it read, so two retries racing on
+    // one re-claimable key cannot both win — the loser reads zero rows and is
+    // told the key is in flight, which by then it is.
     const reclaimed = await tx.query<{ id: string }>(
       `UPDATE app.idempotency_key
           SET claim_outcome = 'in_flight', claimed_at = $2, expires_at = $3,
               settled_at = NULL, result_ref = NULL
-        WHERE id = $1 AND claim_outcome = 'failed'
+        WHERE id = $1 AND claim_outcome = ANY($4::app.idempotency_outcome[])
         RETURNING id`,
-      [row.id, params.now, expiresAt],
+      [row.id, params.now, expiresAt, [...RECLAIMABLE]],
     );
     return reclaimed.rows.length === 1
       ? { status: 'claimed', id: row.id }
       : { status: 'in_flight', id: row.id };
+  }
+
+  // Still `in_flight`. Has the lease run out?
+  //
+  // This is the half of EL's decision that needs no human. The UPDATE carries
+  // the cutoff in its own WHERE clause rather than comparing in TypeScript
+  // first: a read-then-write here is the same race AD-3 rejected for the claim
+  // itself, and under a retry storm it is exactly when it fires.
+  const lease = params.leaseMs ?? claimLeaseMs();
+  const cutoff = new Date(params.now.getTime() - lease);
+  const seized = await tx.query<{ id: string }>(
+    `UPDATE app.idempotency_key
+        SET claimed_at = $2, expires_at = $3
+      WHERE id = $1 AND claim_outcome = 'in_flight' AND claimed_at <= $4
+      RETURNING id`,
+    [row.id, params.now, expiresAt, cutoff],
+  );
+  if (seized.rows.length === 1) {
+    return { status: 'claimed', id: row.id };
   }
 
   return { status: 'in_flight', id: row.id };
@@ -321,6 +394,75 @@ export async function settleIdempotencyKey(
   },
 ): Promise<boolean> {
   return withTenant(tenant, (tx) => settleOn(tx, params));
+}
+
+/**
+ * An operator releases a stranded claim (EL's decision, 2026-09-03).
+ *
+ * The 1% the lease does not cover: the lease is wrong for this effect, or the
+ * process was doing something genuinely long and has since died anyway. The
+ * row goes to `abandoned` — terminal, and re-claimable — so the next retry of
+ * that key proceeds instead of collecting a `409` for thirty days.
+ *
+ * **The audit event is written in the SAME transaction as the release**, so a
+ * release without a record is not a state this can reach. That is the whole
+ * reason this function owns a transaction rather than taking one: an operator
+ * override of a safety control that leaves no trace is worse than the stranded
+ * claim it fixes.
+ *
+ * Authorization is NOT decided here. The route layer (T-14e) refuses anyone
+ * but an `INTERNAL_ADMIN` through the `idempotency.release` action, and this
+ * function records who it was told did it. A module that both authorizes and
+ * acts is one where the check can be forgotten by the next caller.
+ *
+ * Returns false when there was nothing to release — no such key, another
+ * organization's key, or a claim that had already settled on its own. False is
+ * an honest "nothing happened", and no audit event is written for it.
+ */
+export async function releaseClaim(
+  tenant: TenantContext,
+  params: {
+    readonly organizationId: string;
+    readonly key: string;
+    /** The operator. Recorded in the audit event; never inferred here. */
+    readonly releasedBy: string;
+    /** Caller-supplied id for the audit row, like every other id here. */
+    readonly auditEventId: string;
+    readonly now: Date;
+    readonly reason?: string;
+  },
+): Promise<boolean> {
+  return withTenant(tenant, async (tx) => {
+    const released = await tx.query<{ id: string }>(
+      `UPDATE app.idempotency_key
+          SET claim_outcome = 'abandoned', settled_at = $3, result_ref = NULL
+        WHERE organization_id = $1 AND key = $2 AND claim_outcome = 'in_flight'
+        RETURNING id`,
+      [params.organizationId, params.key, params.now],
+    );
+    const row = released.rows[0];
+    if (row === undefined) return false;
+
+    const at = params.now.toISOString();
+    await appendAuditEvent(tx, {
+      eventId: params.auditEventId,
+      recordedAt: at,
+      content: {
+        occurredAt: at,
+        actorUserId: params.releasedBy,
+        actorType: 'staff',
+        actorOrganizationId: tenant.organizationId,
+        impersonatedBy: null,
+        subjectOrganizationId: params.organizationId,
+        action: 'idempotency.release',
+        resourceType: 'idempotency_key',
+        resourceId: row.id,
+        outcome: 'success',
+        reasons: [params.reason ?? 'operator released a stranded claim'],
+      },
+    });
+    return true;
+  });
 }
 
 /**

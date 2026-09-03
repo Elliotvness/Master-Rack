@@ -24,6 +24,8 @@ import { backoffFor } from '../outbox/outbox.js';
 import {
   IDEMPOTENT_INTENTS,
   RETENTION_MS,
+  DEFAULT_CLAIM_LEASE_MINUTES,
+  claimLeaseMs,
   claimOn,
   errorCodeFor,
   requestHash,
@@ -243,5 +245,30 @@ describe('a key that conflicted on insert and vanished before the select', () =>
     };
     await settleOn(tx, { id: PARAMS.id, outcome: 'failed', resultRef: 'x', now: PARAMS.now });
     expect(seen[0]?.[3]).toBeNull();
+  });
+});
+
+describe('CLAIM_LEASE_MINUTES — configurable, and it refuses rather than falls back', () => {
+  it('defaults to the ten minutes EL chose when unset or blank', () => {
+    expect(claimLeaseMs({})).toBe(DEFAULT_CLAIM_LEASE_MINUTES * 60_000);
+    expect(claimLeaseMs({ CLAIM_LEASE_MINUTES: '' })).toBe(10 * 60_000);
+    expect(claimLeaseMs({ CLAIM_LEASE_MINUTES: '   ' })).toBe(10 * 60_000);
+  });
+
+  it('takes a positive whole number of minutes', () => {
+    expect(claimLeaseMs({ CLAIM_LEASE_MINUTES: '30' })).toBe(30 * 60_000);
+    expect(claimLeaseMs({ CLAIM_LEASE_MINUTES: '1' })).toBe(60_000);
+  });
+
+  it('THROWS on anything else rather than quietly running a lease nobody chose', () => {
+    // The point of the whole rule: a setting that ignores what it was given is
+    // a control that says it is configurable and is not.
+    for (const bad of ['ten', '0', '-5', '2.5', 'NaN', 'Infinity', '10min']) {
+      expect(() => claimLeaseMs({ CLAIM_LEASE_MINUTES: bad })).toThrow(RangeError);
+    }
+  });
+
+  it('names the offending value, so the failure is actionable at startup', () => {
+    expect(() => claimLeaseMs({ CLAIM_LEASE_MINUTES: 'ten' })).toThrow(/'ten'/);
   });
 });

@@ -102,6 +102,7 @@ export const ROUTES: readonly RoutePolicy[] = [
   { method: 'POST', path: '/api/internal/v1/invitations', namespace: 'internal', action: 'invitation.create_any_org', response: 'Invitation' },
   { method: 'POST', path: '/api/internal/v1/catalog/releases/:id/approve', namespace: 'internal', action: 'catalog.approve', response: 'CatalogRelease' },
   { method: 'GET', path: '/api/internal/v1/audit', namespace: 'internal', action: 'audit.read', response: 'AuditEvent' },
+  { method: 'POST', path: '/api/internal/v1/idempotency-claims/:key/release', namespace: 'internal', action: 'idempotency.release', response: 'AuditEvent' },
 ];
 
 export class RouteCoverageError extends Error {

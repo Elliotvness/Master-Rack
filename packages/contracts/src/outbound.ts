@@ -49,6 +49,19 @@
  * Pure: no I/O, no clock, no RNG. The alert sink is the caller's.
  */
 
+/**
+ * **Deviation from §8.3, confirmed by EL 2026-09-03.** Forbidden and undeclared
+ * fields are refused in BOTH development and production modes, not alerted in
+ * one and refused in the other; only type drift follows the mode. Rationale: a
+ * field that should not be on the wire should not be on the wire — alert-only
+ * creates a false sense of safety and leaks the value into logs and test
+ * fixtures on the way past. §8.3 was written to prevent accidental disclosure
+ * in production; this prevents it everywhere. A deliberate tightening, not a
+ * bug, and not to be regressed to match a spec that was less strict than its
+ * own intent.
+ */
+
+
 import { findForbiddenFields } from './forbidden-fields.js';
 import { validateDetailed, type Audience, type ResponseSchema } from './schema.js';
 

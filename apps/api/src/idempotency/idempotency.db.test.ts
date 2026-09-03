@@ -17,6 +17,7 @@ import { closeDatabase, configureDatabase, withTenant, type TenantContext } from
 import {
   RETENTION_MS,
   claimIdempotencyKey,
+  releaseClaim,
   claimOn,
   purgeExpiredOn,
   requestHash,
@@ -33,6 +34,8 @@ const APP_URL =
 const ORG = '55555555-5555-4555-8555-b00000000001';
 const OTHER_ORG = '55555555-5555-4555-8555-b00000000002';
 const INTERNAL_ORG = '55555555-5555-4555-8555-b00000000003';
+/** A real INTERNAL_ADMIN, so the audit event's actor is a row and not a null. */
+const OPERATOR = '55555555-5555-4555-8555-b00000000004';
 
 const NOW = new Date('2026-09-03T00:00:00.000Z');
 
@@ -41,6 +44,19 @@ const otherTenant: TenantContext = { organizationId: OTHER_ORG, actorType: 'clie
 const staffTenant: TenantContext = { organizationId: INTERNAL_ORG, actorType: 'staff' };
 
 let seq = 0;
+/**
+ * Audit event ids are RANDOM, unlike every other id here.
+ *
+ * `app.audit_event` is append-only by design — no DELETE policy, no privilege,
+ * and a trigger that raises — so it is the one table `beforeAll` cannot clear.
+ * A deterministic event id therefore collides with the previous run of this
+ * file. Deterministic ids everywhere else; a fresh one here, because the table
+ * is meant to accumulate.
+ */
+function auditId(): string {
+  return crypto.randomUUID();
+}
+
 /** Deterministic ids: a random one makes a failure unreproducible. */
 function nextId(): string {
   seq += 1;
@@ -154,6 +170,11 @@ beforeAll(async () => {
      VALUES ($1,'Harbor Idem',false), ($2,'Rival Idem',false), ($3,'Internal Idem',true)
      ON CONFLICT (id) DO NOTHING`,
     [ORG, OTHER_ORG, INTERNAL_ORG],
+  );
+  await admin(
+    `INSERT INTO app.app_user (id, organization_id, email, name, actor_type)
+     VALUES ($1,$2,'ops@example.test','Ops','staff') ON CONFLICT (id) DO NOTHING`,
+    [OPERATOR, INTERNAL_ORG],
   );
   configureDatabase(APP_URL);
 });
@@ -352,6 +373,141 @@ describe('AD-3 — the intent row outlives the effect that failed', () => {
 
     // And the retry is refused rather than duplicating the effect.
     expect((await claim(key, { revisionId: 'r1' })).status).toBe('in_flight');
+  });
+});
+
+describe('a stranded claim gets released — the lease (EL, 2026-09-03)', () => {
+  const LEASE = 10 * 60_000;
+
+  maybe('a claim younger than the lease is still in flight', async () => {
+    const key = freshKey('lease-young');
+    expect((await claim(key, { revisionId: 'r1' })).status).toBe('claimed');
+    const nineMinutesLater = new Date(NOW.getTime() + 9 * 60_000);
+    const second = await claimIdempotencyKey(tenant, {
+      id: nextId(), organizationId: ORG, key, intent: 'submit',
+      body: { revisionId: 'r1' }, now: nineMinutesLater, leaseMs: LEASE,
+    });
+    expect(second.status).toBe('in_flight');
+  });
+
+  maybe('a claim older than the lease is taken over, and the row is not duplicated', async () => {
+    const key = freshKey('lease-expired');
+    const first = await claim(key, { revisionId: 'r1' });
+    expect(first.status).toBe('claimed');
+
+    const elevenMinutesLater = new Date(NOW.getTime() + 11 * 60_000);
+    const second = await claimIdempotencyKey(tenant, {
+      id: nextId(), organizationId: ORG, key, intent: 'submit',
+      body: { revisionId: 'r1' }, now: elevenMinutesLater, leaseMs: LEASE,
+    });
+    expect(second.status).toBe('claimed');
+    expect(second.id).toBe(first.id);
+
+    const rows = await admin(
+      `SELECT count(*)::int AS n, max(claimed_at) AS claimed FROM app.idempotency_key
+        WHERE organization_id = $1 AND key = $2`,
+      [ORG, key],
+    );
+    expect(rows.rows[0]?.n).toBe(1);
+    // The lease renews on takeover, so the next caller waits a full window
+    // rather than piling in behind the one that just seized it.
+    expect((rows.rows[0]?.claimed as Date).getTime()).toBe(elevenMinutesLater.getTime());
+  });
+
+  maybe('two callers racing an expired lease produce exactly one winner', async () => {
+    // The takeover is a conditional UPDATE, not a read-then-write, so this is
+    // the same guarantee the claim itself has and not a weaker one.
+    const key = freshKey('lease-race');
+    await claim(key, { revisionId: 'r1' });
+    const later = new Date(NOW.getTime() + 11 * 60_000);
+    const params = { organizationId: ORG, key, intent: 'submit' as const, body: { revisionId: 'r1' }, now: later, leaseMs: LEASE };
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () => claimIdempotencyKey(tenant, { ...params, id: nextId() })),
+    );
+    expect(results.filter((r) => r.status === 'claimed')).toHaveLength(1);
+    expect(results.filter((r) => r.status === 'in_flight')).toHaveLength(4);
+  });
+
+  maybe('a settled key is never taken over by the lease, however old it is', async () => {
+    const key = freshKey('lease-settled');
+    const first = await claim(key, { revisionId: 'r1' });
+    await settleIdempotencyKey(tenant, { id: first.id, outcome: 'succeeded', resultRef: ORG, now: NOW });
+    const muchLater = new Date(NOW.getTime() + 40 * 60_000);
+    const again = await claimIdempotencyKey(tenant, {
+      id: nextId(), organizationId: ORG, key, intent: 'submit',
+      body: { revisionId: 'r1' }, now: muchLater, leaseMs: LEASE,
+    });
+    expect(again).toMatchObject({ status: 'settled', outcome: 'succeeded' });
+  });
+});
+
+describe('a stranded claim gets released — the operator (EL, 2026-09-03)', () => {
+  maybe('release sets the row abandoned, writes an audit event, and frees the key', async () => {
+    const key = freshKey('release');
+    const first = await claim(key, { revisionId: 'r1' });
+    expect(first.status).toBe('claimed');
+    // Before release the retry is refused, which is the stuck user.
+    expect((await claim(key, { revisionId: 'r1' })).status).toBe('in_flight');
+
+    const eventId = auditId();
+    const released = await releaseClaim(staffTenant, {
+      organizationId: ORG, key, releasedBy: OPERATOR,
+      auditEventId: eventId, now: NOW, reason: 'process died mid-upload',
+    });
+    expect(released).toBe(true);
+
+    const row = await admin(
+      `SELECT claim_outcome, settled_at, result_ref FROM app.idempotency_key WHERE id = $1`,
+      [first.id],
+    );
+    expect(row.rows[0]).toMatchObject({ claim_outcome: 'abandoned', result_ref: null });
+    expect(row.rows[0]?.settled_at).not.toBeNull();
+
+    const audit = await admin(
+      `SELECT action, resource_type, resource_id, outcome, reasons FROM app.audit_event WHERE event_id = $1`,
+      [eventId],
+    );
+    expect(audit.rowCount).toBe(1);
+    expect(audit.rows[0]).toMatchObject({
+      action: 'idempotency.release',
+      resource_type: 'idempotency_key',
+      resource_id: first.id,
+      outcome: 'success',
+    });
+    expect(audit.rows[0]?.reasons).toContain('process died mid-upload');
+    const actor = await admin(`SELECT actor_user_id, actor_type, subject_organization_id FROM app.audit_event WHERE event_id = $1`, [eventId]);
+    expect(actor.rows[0]).toMatchObject({ actor_user_id: OPERATOR, actor_type: 'staff', subject_organization_id: ORG });
+
+    // And the user is unstuck: the same key claims again.
+    expect((await claim(key, { revisionId: 'r1' })).status).toBe('claimed');
+  });
+
+  maybe('releasing a key that is not in flight changes nothing and writes no audit event', async () => {
+    const key = freshKey('release-settled');
+    const first = await claim(key, { revisionId: 'r1' });
+    await settleIdempotencyKey(tenant, { id: first.id, outcome: 'succeeded', now: NOW });
+
+    const eventId = auditId();
+    expect(
+      await releaseClaim(staffTenant, {
+        organizationId: ORG, key, releasedBy: OPERATOR,
+        auditEventId: eventId, now: NOW,
+      }),
+    ).toBe(false);
+
+    const row = await admin(`SELECT claim_outcome FROM app.idempotency_key WHERE id = $1`, [first.id]);
+    expect(row.rows[0]?.claim_outcome).toBe('succeeded');
+    const audit = await admin(`SELECT 1 FROM app.audit_event WHERE event_id = $1`, [eventId]);
+    expect(audit.rowCount).toBe(0);
+  });
+
+  maybe('releasing a key that does not exist is false, not an error', async () => {
+    expect(
+      await releaseClaim(staffTenant, {
+        organizationId: ORG, key: 'no-such-key-at-all', releasedBy: OPERATOR,
+        auditEventId: auditId(), now: NOW,
+      }),
+    ).toBe(false);
   });
 });
 

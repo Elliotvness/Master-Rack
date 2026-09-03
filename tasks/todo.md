@@ -1208,6 +1208,48 @@ Ten controls planted and proven to go red; figures in the commit bodies. Adversa
 REFUSED the first attempt with three blockers and three majors, all closed and recorded as
 **F-39**.
 
+**ANSWERED BY EL, 2026-09-03 — all of T-13d's parked questions, and the two starred ones.**
+
+- **The fourth claim outcome: KEEP.** *"AD-3 was incomplete — three outcomes don't cover 'the
+  window closed but the client retries.' The fourth outcome is the only honest response. Don't
+  call it an extension. AD-3 was underspecified and T-13d completed it."* `tasks/plan.md`'s AD-3
+  now **enumerates all four** with the §8.3 citation; the `result_ref` shape and the re-claimable
+  `failed` intent stand as built.
+- **The stranded claim: BOTH halves, no compromise.** A **10-minute lease**, configurable through
+  `CLAIM_LEASE_MINUTES` so it moves without a deploy, **plus** an operator release requiring the
+  admin role and writing an audit event, setting the row to `abandoned`. *"Without both, you have
+  either silent data loss or false reclaims. It's not a nice-to-have — it's a correctness
+  requirement. A claim that can't be released is a submission the user can never make."* **Landed
+  in this task** rather than deferred to T-14d: migration `0012`, the lease in `claimOn`,
+  `releaseClaim`, and the `idempotency.release` action and route policy.
+  - **Two substitutions made against the letter of the instruction, both flagged for reversal.**
+    The path given was `POST /admin/claims/:key/release`; this repository has exactly two API
+    namespaces and no `/admin`, so it is registered as
+    `POST /api/internal/v1/idempotency-claims/:key/release`. And "operator role" maps to
+    **`INTERNAL_ADMIN`**, the only admin-tier internal role in `app.member_role`; `INTERNAL_SALES`
+    is denied, so seeing a stuck submission and clearing one are different privileges.
+  - **This route is not in blueprint §8.2, so it is a blueprint amendment, not a code change.**
+    It is registered in `authz/routes.ts` because T-14e needs it, and §8.2 needs a row added by
+    hand. **Recorded, not done** — the blueprint is the governing document and this session did
+    not edit it. Until it is, the registry carries **two** rows §8.2 does not list as MVP-1: the
+    phase-2 audit browser and this one.
+- **The outbound guard's both-modes refusal: KEEP the stricter behaviour.** *"§8.3 was written to
+  prevent accidental info disclosure in production. Your code goes further — it prevents it
+  everywhere. Don't regress to match a spec that was less strict than your intent."* The deviation
+  is now a docstring at the top of `packages/contracts/src/outbound.ts`, where the guard lives.
+- **OD-12: `WITHDRAWN` and `EXPIRED` → *complete*** on the client status. Confirmed as the code
+  has it.
+- **T-14a–e: CONFIRMED at 160 points.** *"The breakdown names its failure modes — that's the right
+  structure. The denominator change is bookkeeping. Don't let sizing debates stall execution."*
+  Five M sub-tasks now count; the scoreboard's denominator moves 148 → 160 and the task count
+  45 → 49.
+- **The 2026-09 `content_sha256`: DO NOT re-base.** One sentence in
+  `packages/kernel-catalog/README.md` records that the hash is Python-canonical and not
+  cross-language reproducible, and that approved releases are not re-based for serialization
+  differences. No ADR, no decision-log entry — it is a known serialization difference, documented.
+
+The original text of the deviation, kept because the argument is what was approved:
+
 **Decision recorded for EL — a deviation from a literal reading of these acceptance criteria.**
 AD-3 spells out **three** claim outcomes; the store returns **four**. The fourth is `settled`,
 and it is not an addition to the decision but the thing the decision presupposes: AD-3 says
@@ -1261,8 +1303,9 @@ documents route is absent from `ROUTES`, `AC-02`'s leakage walk does not enumera
 route that hands out a document URL — it is outside the contract test even at model level. Add both
 routes and their actions as part of T-14; do not close the gap by editing 21 down to 20.
 
-**Breakdown, written at Checkpoint A's close (2026-09-02) — PROPOSED, sizes not yet confirmed by
-EL.** The plan said T-14 splits "at implementation into auth routes / client routes / internal
+**Breakdown, written at Checkpoint A's close (2026-09-02) — CONFIRMED BY EL AT 160 POINTS,
+2026-09-03.** Five M sub-tasks, counted from this date; T-14's single L = 8 is retired and the
+denominator is **160**, the task count **49**. The plan said T-14 splits "at implementation into auth routes / client routes / internal
 routes"; measured against what exists (`authz/` with 20 policies and 15 actions, `auth/` with
 sessions, invitations and the password policy, `db` with `withTenant`, `workflow/submit-effects`,
 `outbox`, `audit/chain`, `worm`), three slices is one too few — the client surface is twelve routes

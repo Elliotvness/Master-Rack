@@ -58,6 +58,7 @@ export type Action =
   | 'invitation.create'
   | 'invitation.create_any_org'
   | 'audit.read'
+  | 'idempotency.release'
   | 'organization.create';
 
 export type Decision =
@@ -139,6 +140,17 @@ const RULES: Readonly<Record<Action, Rule>> = {
     actor.role === 'INTERNAL_ADMIN' ? ALLOW : deny('only an internal admin approves a release'),
   'audit.read': (actor) =>
     STAFF_ROLES.has(actor.role) ? ALLOW : deny('audit log is internal-only', true),
+
+  // Releasing a stranded idempotency claim overrides a safety control, so it
+  // sits with catalog approval at INTERNAL_ADMIN rather than with the staff
+  // reads — INTERNAL_SALES may see a stuck submission and must escalate rather
+  // than clear it. `notFound: true` because to a client the route does not
+  // exist at all: this is an internal ARTIFACT, and a 403 would confirm the
+  // key.
+  'idempotency.release': (actor) =>
+    actor.role === 'INTERNAL_ADMIN'
+      ? ALLOW
+      : deny('only an internal admin releases a stranded claim', true),
 
   'invitation.create': (actor, resource) => {
     // A client admin may invite into its OWN organization only.

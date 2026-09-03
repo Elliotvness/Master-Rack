@@ -213,8 +213,11 @@ export {
 export {
   IDEMPOTENT_INTENTS,
   RETENTION_MS as IDEMPOTENCY_RETENTION_MS,
+  DEFAULT_CLAIM_LEASE_MINUTES,
   claimIdempotencyKey,
+  claimLeaseMs,
   errorCodeFor,
+  releaseClaim,
   purgeExpiredOn,
   requestHash,
   settleIdempotencyKey,
