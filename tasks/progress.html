@@ -94,6 +94,32 @@ section{display:flex; flex-direction:column; gap:18px}
 
 /* tables */
 .tw{overflow-x:auto; border:1px solid var(--rule); background:var(--surface)}
+
+/* A wide table breaks out of the 1000px reading column, symmetrically, and
+   without a transform. On a narrow viewport min() collapses to the viewport
+   width, the margin goes non-negative, and .tw's overflow-x takes over. */
+.tw.wide{
+  width:min(1460px, calc(100vw - 48px));
+  margin-left:calc((100% - min(1460px, 100vw - 48px)) / 2);
+}
+/* The drift table is four columns of very unequal weight: "Actually" carries a
+   paragraph and the other three carry a phrase. Left to auto layout it was the
+   narrowest column with the most text in it, so every row ran ten lines deep
+   and the section became the longest on the page. Fixed layout, explicit
+   widths, and a floor so it scrolls instead of squashing. */
+table.drift{table-layout:fixed; min-width:900px}
+/* Every table stays HORIZONTAL. Below its floor the wrapper scrolls sideways;
+   no table ever restacks its columns into a vertical list, because a drift row
+   read as four stacked paragraphs loses the where/says/actually comparison
+   that is the whole point of the row. */
+.tw table{min-width:720px}
+table.queue{table-layout:fixed; min-width:900px}
+table.queue td{overflow-wrap:anywhere}
+table.queue td.n,table.queue th.n{white-space:normal}
+table.drift td{overflow-wrap:anywhere}
+/* .n is nowrap for numeric cells; these status cells are sentences. */
+table.drift td.n,table.drift th.n{white-space:normal}
+table.drift td:nth-child(3){color:var(--ink-2)}
 table{border-collapse:collapse; width:100%; font-size:14px}
 th{text-align:left; font-size:10.5px; font-weight:600; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); padding:11px 14px; border-bottom:1px solid var(--rule); white-space:nowrap}
 td{padding:10px 14px; border-bottom:1px solid var(--rule); vertical-align:top; color:var(--ink-2)}
@@ -120,10 +146,16 @@ ol.steps li code{background:transparent; padding:0}
 .foot{border-top:1px solid var(--rule); padding-top:18px; font-size:13px; color:var(--muted); max-width:70ch; display:flex; flex-direction:column; gap:8px}
 code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--surface-2); padding:1px 5px; border-radius:2px; color:var(--ink)}
 @media (max-width:620px){
-  .ph{grid-template-columns:1fr 62px; }
-  .ph .bar{grid-column:1/-1; order:3}
+  /* The phase row stays one horizontal line — name, bar, figure — at every
+     width. It used to drop the bar onto a third row below the other two, which
+     is the vertical stacking this page no longer does anywhere. The row narrows
+     instead, and .phases scrolls sideways if it has to. */
+  .ph{grid-template-columns:minmax(96px,1.2fr) 1fr 62px; gap:10px}
   .gauge .big{font-size:52px}
+  .wrap{padding-left:16px; padding-right:16px}
 }
+.phases{overflow-x:auto}
+.phases .ph{min-width:520px}
 </style>
 
 <div class="wrap">
@@ -166,6 +198,47 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
 
   <section>
     <div class="head">
+      <h2>Your queue &mdash; EL</h2>
+      <p class="lbl">What is waiting on you, and what you have already closed. Nothing in the left column blocks the next task; the two starred items block a phase</p>
+    </div>
+    <div class="tw wide">
+      <table class="queue">
+        <colgroup><col style="width:5%"><col style="width:33%"><col style="width:46%"><col style="width:16%"></colgroup>
+        <thead><tr><th>#</th><th>Waiting on you</th><th>Why it is yours, not code's</th><th>Gates</th></tr></thead>
+        <tbody>
+          <tr><td class="n"><b>1</b></td><td><strong>Push two branches.</strong> <code>task/t-13c-input-dtos</code> is on <code>origin</code> and unmerged; <code>task/t-13d-idempotency</code> is unpushed and was delivered as a git bundle</td><td>A scheduled run's git proxy refuses this repo and no folder was connected, so nothing can reach <code>origin</code> from the container. Until it lands, <strong>no CI run has judged T-13d</strong> and every figure on this page has one machine behind it</td><td>CI coverage of T-13c and T-13d</td></tr>
+          <tr><td class="n"><b>2</b></td><td><strong>Confirm or resize T-14a&ndash;e</strong> &mdash; five M sub-tasks written under T-14</td><td>A denominator change is a planning decision, not a measurement. The breakdown is written and each sub-task names the failure it must be proven to catch; it is deliberately <em>not counted</em> until you say</td><td>148 &rarr; 160 pts; this page reads 38.8%</td></tr>
+          <tr><td class="n"><b>3</b></td><td><strong>Confirm the outbound guard's both-modes refusal</strong>, or reverse it</td><td>As built, a forbidden or undeclared field on a client response is refused in production too, not alerted; only type drift follows the mode. A literal &sect;8.3 reads the other way, so this is a deviation on the record rather than a reading</td><td>T-13b &middot; AC-02, R-02</td></tr>
+          <tr><td class="n"><b>4</b></td><td><strong>OD-12: <code>WITHDRAWN</code> and <code>EXPIRED</code> &rarr; <em>complete</em></strong> on the client status</td><td>The code has it this way already. Confirming makes it a decision instead of an implementation detail</td><td>T-14c, T-16</td></tr>
+          <tr><td class="n"><b>5</b></td><td><strong>T-13d returns four claim outcomes where AD-3 spells out three.</strong> The fourth is <code>settled</code></td><td>Without it &sect;8.3's &ldquo;a double-click must not produce two submissions&rdquo; has no true answer for the second click: <code>409</code> is untrue because nothing is in flight, <code>422</code> is untrue because the payload matches. It carries a <code>result_ref</code>, not a cached body, and a <code>failed</code> intent is re-claimable</td><td>T-13d &middot; T-14d</td></tr>
+          <tr><td class="n"><b>6</b></td><td><strong>A stranded claim has no owner.</strong> A lease, or an operator action</td><td>AD-3 chooses <code>409</code> over waiting, which is right &mdash; but a process that dies mid-effect leaves an <code>in_flight</code> row and every retry of that key gets <code>409</code> <strong>for thirty days</strong>. Nothing settles it and <code>purgeExpiredOn</code> has no caller. Both options change the guarantee, so T-13d chose neither</td><td>T-14d &middot; operability</td></tr>
+          <tr><td class="n"><b>7</b></td><td><strong>&#9733; Q3 &mdash; the standing disclaimer text verbatim</strong>, company and contact name, document number format</td><td>Every client-facing output carries it. Nobody but you can write the words a client is shown</td><td><strong>T-20, AC-16</strong> &mdash; blocks the client PDF</td></tr>
+          <tr><td class="n"><b>8</b></td><td><strong>&#9733; Q4 &mdash; Backblaze B2 credentials</strong> and permission for the Governance-bucket proof</td><td>A credential and an authorisation. No amount of code substitutes</td><td><strong>T-24</strong> &mdash; blocks WORM retention</td></tr>
+          <tr><td class="n"><b>9</b></td><td><strong>Q6 / OD-20b &mdash; the external pilot client name</strong></td><td>Criteria are settled (outside McMurray Stern, new material, one sitting, live opportunity, a relationship that survives a rough release) and one audited account fits all five. Gates no development &mdash; but <strong>R-01 is retired only when an outside organisation completes a submission unaided</strong></td><td>Retires R-01; P-04's real unit sizes</td></tr>
+          <tr><td class="n"><b>10</b></td><td><strong>Whether to re-base the 2026-09 <code>content_sha256</code></strong></td><td>It is reproducible only by Python, because <code>beams.json</code> carries <code>face_height_in: 4.0</code> and every other JSON implementation renders it <code>4</code>. Re-basing changes an <strong>APPROVED</strong> release, which is yours alone</td><td>Recorded, not acted on</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tw wide">
+      <table class="queue">
+        <colgroup><col style="width:22%"><col style="width:62%"><col style="width:16%"></colgroup>
+        <thead><tr><th>Closed by you</th><th>What it settled</th><th class="n">When</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Checkpoint A</strong></td><td>Seven criteria were ticked on evidence; the eighth &mdash; <em>review with EL before Phase 3</em> &mdash; was closed by your word, <em>&ldquo;lets proceed&rdquo;</em>, after the seven and the two things still yours were put to you in those terms. Recorded in <code>tasks/todo.md</code> and <code>tasks/plan.md</code> B3 (PR #18). <strong>Phase 3 has been open ever since</strong>, and T-13b, T-13c and T-13d have all landed past it</td><td class="n">2026-09-02</td></tr>
+          <tr><td><strong>The catalog release <code>interlake-2026-09</code></strong></td><td>The first APPROVED, pinnable release &mdash; 336 rows, approved after you read the tool-drawn spot-check cells off PSG 2025 p.88 (42 cells plus one supplementary). The gate keys on a recorded verification path, not on the digitiser identity string, so running an extraction script cannot make one person approve their own work</td><td class="n">2026-09-01</td></tr>
+          <tr><td><strong>F-32 &mdash; the CI trigger</strong></td><td>You took option (a): <code>push: branches: ['**']</code> plus a <code>concurrency</code> group with <code>cancel-in-progress</code>. The acceptance criterion was that somebody watches it fire, and somebody did. <strong>It is also yours as a find</strong> &mdash; you spotted that all four copies asserted a CI run existed for a pushed branch when <code>ci.yml</code> could not have produced one</td><td class="n">2026-09-02</td></tr>
+          <tr><td><strong>All 21 open decisions</strong></td><td>OD-01…OD-21 settled in one pass &mdash; storage, SSO, rack topology, project creation, tenancy, units, the client PDF's contents, waiver authority, the two named clocks, retention, de-identification, per-org defaults, single-writer concurrency, and MVP-1's catalog-only scope with an off-ramp that keeps every entered input</td><td class="n">2026-08-31</td></tr>
+          <tr><td><strong>Q1, Q2, Q5, Q7</strong></td><td>Answered, and <code>tasks/plan.md</code> now says so for all four &mdash; it had not caught up on Q1, Q5 <em>or</em> Q7, and session 2's drift list missed Q5 entirely</td><td class="n">2026-09-01</td></tr>
+          <tr><td><strong>OD-07 / OD-15 &mdash; approver authority</strong></td><td>You are catalog approver and rule-pack owner; Nick Heraldez (McMurray Stern design consultant) is fallback approver. The single-point dependency is <strong>formally accepted for MVP-1 only</strong>, which is a decision rather than an oversight</td><td class="n">2026-08-31</td></tr>
+          <tr><td><strong>R-07 &mdash; the dissent taken</strong></td><td>You took the dissent rather than the disposition: <code>approved_by: 42</code> now throws instead of passing as <code>null</code>, and <code>constraints</code> goes through a validator that names the offending entry. Test-first, two tests red then green, PR #16. That closed the pre-merge review at <strong>11 of 11</strong></td><td class="n">2026-09-02</td></tr>
+          <tr><td><strong>The go-ahead to implement</strong></td><td>Planning was complete and the decision set closed at blueprint Rev C with no production code written. You asked for an explicit go-ahead before implementation began, and gave it &mdash; which is why every task since has a settled decision behind it rather than an assumption</td><td class="n">2026-08-31</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
       <h2>By phase</h2>
       <p class="lbl">Effort points · XS 1 · S 2 · M 4 · L 8, the plan's own sizes</p>
     </div>
@@ -188,7 +261,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
       <h2>How soft is 41.9%?</h2>
       <p class="lbl">Sensitivity &mdash; 62 done points never move, only the denominator does (147 when T-10 was split, 148 when T-11 grew; 160 if T-14a&ndash;e is confirmed). <strong>Every denominator here is derived from 148, not carried forward.</strong> This table has been wrong twice in one day: its numerators were stale (drift 24) and then its four scenario denominators turned out to be built on the pre-split base of 145 (drift 29)</p>
     </div>
-    <div class="tw">
+    <div class="tw wide">
       <table>
         <thead><tr><th class="n">T-14</th><th class="n">Phase 4</th><th class="n">Denominator</th><th class="n">Completion</th><th>Scenario</th></tr></thead>
         <tbody>
@@ -293,8 +366,9 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
       <h2>Drift found while measuring</h2>
       <p class="lbl">Ninth consecutive session &mdash; session 5's <strong>fifteen</strong> were every one of them inside the scoreboard itself; session 6's eight are the same shape: two of them are this page lagging <code>progress.md</code> by an edition, and the last two are a test count in a DONE block and a percentage inside a heading, both outside every gate</p>
     </div>
-    <div class="tw">
-      <table>
+    <div class="tw wide">
+      <table class="drift">
+        <colgroup><col style="width:15%"><col style="width:22%"><col style="width:49%"><col style="width:14%"></colgroup>
         <thead><tr><th>Where</th><th>Says</th><th>Actually</th><th class="n">Status</th></tr></thead>
         <tbody>
           <tr><td><code>tasks/todo.md</code></td><td>T-01&hellip;T-04 boxes unchecked</td><td>The file's own header says all four are complete</td><td class="n">Fixed &mdash; 20 ticked</td></tr>
@@ -437,7 +511,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
       <h2>Still gating work</h2>
       <p class="lbl">Open questions that need EL, not code</p>
     </div>
-    <div class="tw">
+    <div class="tw wide">
       <table>
         <thead><tr><th>#</th><th>Question</th><th>Gates</th></tr></thead>
         <tbody>

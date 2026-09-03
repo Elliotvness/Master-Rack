@@ -391,6 +391,34 @@ changelog and tags *are* T-26.)
 
 ---
 
+## Your queue — EL
+
+Nothing in the first table blocks the next task; the two starred items block a phase.
+
+| # | Waiting on you | Why it is yours, not code's | Gates |
+|---|---|---|---|
+| 1 | **Push two branches.** `task/t-13c-input-dtos` is on `origin` and unmerged; `task/t-13d-idempotency` is unpushed and was delivered as a git bundle | A scheduled run's git proxy refuses this repo and no folder was connected, so nothing reaches `origin` from the container. Until it lands, **no CI run has judged T-13d** and every figure here has one machine behind it | CI coverage of T-13c and T-13d |
+| 2 | **Confirm or resize T-14a–e** — five M sub-tasks written under T-14 | A denominator change is a planning decision, not a measurement. Deliberately *not counted* until you say | 148 → 160 pts; 38.8% |
+| 3 | **Confirm the outbound guard's both-modes refusal**, or reverse it | As built, a forbidden or undeclared field on a client response is refused in production too, not alerted; only type drift follows the mode. A literal §8.3 reads the other way | T-13b · AC-02, R-02 |
+| 4 | **OD-12: `WITHDRAWN` and `EXPIRED` → *complete*** | The code has it this way already; confirming makes it a decision rather than an implementation detail | T-14c, T-16 |
+| 5 | **T-13d returns four claim outcomes where AD-3 spells out three** — the fourth is `settled` | Without it §8.3's "a double-click must not produce two submissions" has no true answer for the second click: `409` is untrue, `422` is untrue. It carries a `result_ref`, not a cached body, and a `failed` intent is re-claimable | T-13d · T-14d |
+| 6 | **A stranded claim has no owner** — a lease, or an operator action | AD-3 chooses `409` over waiting, which is right — but a dead process leaves an `in_flight` row and every retry of that key gets `409` **for thirty days**. Nothing settles it; `purgeExpiredOn` has no caller. Both options change the guarantee, so T-13d chose neither | T-14d · operability |
+| 7 | **★ Q3 — the standing disclaimer text verbatim**, company and contact name, document number format | Every client-facing output carries it. Nobody but you can write the words a client is shown | **T-20, AC-16** — blocks the client PDF |
+| 8 | **★ Q4 — Backblaze B2 credentials** and Governance-bucket permission | A credential and an authorisation; no code substitutes | **T-24** — blocks WORM retention |
+| 9 | **Q6 / OD-20b — the external pilot client name** | Criteria settled and one audited account fits all five. Gates no development — but **R-01 retires only when an outside organisation completes a submission unaided** | Retires R-01; P-04's unit sizes |
+| 10 | **Whether to re-base the 2026-09 `content_sha256`** | Reproducible only by Python, because `beams.json` carries `face_height_in: 4.0` and every other JSON implementation renders it `4`. Re-basing changes an **APPROVED** release | Recorded, not acted on |
+
+| Closed by you | What it settled | When |
+|---|---|---|
+| **Checkpoint A** | Seven criteria ticked on evidence; the eighth — *review with EL before Phase 3* — closed by your word, *"lets proceed"*. Recorded in `tasks/todo.md` and `tasks/plan.md` B3 (PR #18). **Phase 3 has been open ever since**, and T-13b, T-13c and T-13d have all landed past it | 2026-09-02 |
+| **The catalog release `interlake-2026-09`** | The first APPROVED, pinnable release — 336 rows, approved after you read the tool-drawn spot-check cells off PSG 2025 p.88 (42 plus one supplementary). The gate keys on a recorded verification path, not the digitiser identity string | 2026-09-01 |
+| **F-32 — the CI trigger** | You took option (a): `push: branches: ['**']` plus a `concurrency` group. The criterion was that somebody watches it fire, and somebody did. **Also yours as a find** — you spotted that all four copies asserted a CI run existed when `ci.yml` could not have produced one | 2026-09-02 |
+| **All 21 open decisions** | OD-01…OD-21 settled in one pass — storage, SSO, rack topology, tenancy, units, the client PDF's contents, waiver authority, the two named clocks, retention, per-org defaults, single-writer concurrency, and MVP-1's catalog-only scope with an off-ramp | 2026-08-31 |
+| **Q1, Q2, Q5, Q7** | Answered, and `tasks/plan.md` now says so for all four — it had not caught up on Q1, Q5 *or* Q7 | 2026-09-01 |
+| **OD-07 / OD-15 — approver authority** | You are catalog approver and rule-pack owner; Nick Heraldez is fallback. The single-point dependency is **formally accepted for MVP-1 only** — a decision, not an oversight | 2026-08-31 |
+| **R-07 — the dissent taken** | You took the dissent rather than the disposition: `approved_by: 42` now throws, and `constraints` goes through a validator that names the offending entry. Test-first, PR #16. Closed the pre-merge review at **11 of 11** | 2026-09-02 |
+| **The go-ahead to implement** | Planning complete, decision set closed at Rev C, no production code written. You asked for an explicit go-ahead and gave it — which is why every task since has a settled decision behind it rather than an assumption | 2026-08-31 |
+
 ## By phase
 
 | Phase | Points | Done | % | State |
