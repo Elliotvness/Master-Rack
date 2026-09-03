@@ -1289,6 +1289,48 @@ Nothing calls `authorize(actor, 'idempotency.release', …)` outside the matrix 
 still has no caller, and the route is not a §8.2 row. All three belong to T-14a/T-14e and are
 recorded there.
 
+## F-41 — one rule of three could stop applying and the checker still said PASS *(raised and **CLOSED** 2026-09-03 while running `prove-the-control-fires` over session 8's own additions)*
+
+Found by turning the discipline on the work of the same session rather than on older code.
+
+**The vacuous-pass guard was one level too coarse.** `checkAppBoundaries` did `if (files.length ===
+0) continue` per rule, and `main` refused a pass only when the scan matched **nothing at all**. With
+three rules, renaming `apps/api/src` leaves two apps checked, a non-zero count, and a **green build
+over a rule that had silently stopped applying** — exactly F-08's shape, one level down, and it
+arrived with the `api` rule this session added. A rule that matches nothing now fails and says to
+delete it if the app is genuinely gone.
+
+**The `exempt` list was a silent skip wearing a comment.** It was introduced this session as the
+first path exemption in that checker, and nothing asserted the path it names still exists. An
+exemption for something that is gone is a justification honouring nothing — the same posture
+`check-rls`'s `EXEMPTIONS` has had since T-10b, and it was missing here. Every exemption's hits are
+counted now, and zero hits fails.
+
+**And the test written for the first of those was itself defective — caught by the step people
+skip.** The skill requires neutering the checker and proving the *self-test* goes red. Neutering the
+per-rule guard left `selftest-app-boundaries` **PASS**: the new case filtered violations by the
+`api:` prefix, and a vanished `src` directory produces *both* a vanished-directory violation and a
+stale-exemption one, so the case went green through the neighbouring control while the one it
+names was disabled. Now matched on the message text. **A test that passes for the wrong reason is
+the defect this project hunts, inside the test written to hunt it.**
+
+**Four neuterings, each proven red and restored:**
+
+```
+per-rule vacuous guard disabled  -> MISSED a real violation: a rule whose app directory has vanished
+stale-exemption check disabled   -> MISSED a real violation: an exemption naming a path that no longer exists
+exemption matching disabled      -> baseline refuses: "the tree already has violations"
+symbol rule disabled             -> 7 MISSED
+```
+
+The self-test's temp tree now populates all three apps and the exempt directory at baseline,
+because both new rules require it — which is the point of them, not an inconvenience around them.
+
+**Still open, and not this finding's to close.** `assertRouteCoverage` has no caller,
+`assertConfiguration` has no caller, `purgeExpiredOn` has no caller, and the `idempotency.release`
+policy has no handler. Four controls that exist and have never run in anger, all owned by T-14a and
+T-14e and recorded there.
+
 ## F-12 and F-13 — fixed, values untouched
 
 Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.

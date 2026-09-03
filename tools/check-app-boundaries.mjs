@@ -235,20 +235,41 @@ export function checkAppBoundaries(root = ROOT) {
   const violations = [];
   const scanned = [];
   const appsChecked = [];
+  /** Which `exempt` patterns actually matched something, per rule. */
+  const exemptHits = new Map();
 
   for (const rule of RULES) {
     const appDir = join(root, 'apps', rule.app, 'src');
     const files = listFiles(appDir);
-    if (files.length === 0) continue;
+    if (files.length === 0) {
+      // NOT a skip. `main` only refused a scan that matched NOTHING AT ALL, so
+      // with three rules an `apps/api/src` that had been renamed left two apps
+      // checked, a non-zero count, and a green build over a rule that had
+      // silently stopped applying. A vacuous pass for one rule is the same
+      // defect as a vacuous pass for the whole checker, one level down.
+      violations.push(
+        `${rule.app}: no application source files under apps/${rule.app}/src. A rule that ` +
+          'matches nothing enforces nothing — refusing to report a pass over it. If the app is ' +
+          'genuinely gone, delete its rule.',
+      );
+      continue;
+    }
     appsChecked.push(rule.app);
+    for (const pattern of rule.exempt ?? []) exemptHits.set(`${rule.app}:${pattern}`, 0);
 
     for (const file of files) {
       const rel = relative(root, file).split(sep).join('/');
       scanned.push(rel);
       // An exemption is data with a justification, never a silent skip: the
       // reason lives beside the pattern in RULES, and a rule with no exempt
-      // list skips nothing.
-      if ((rule.exempt ?? []).some((pattern) => pattern.test(rel))) continue;
+      // list skips nothing. Every hit is counted, because an exemption that
+      // matches nothing is checked for below.
+      const matched = (rule.exempt ?? []).find((pattern) => pattern.test(rel));
+      if (matched !== undefined) {
+        const key = `${rule.app}:${matched}`;
+        exemptHits.set(key, (exemptHits.get(key) ?? 0) + 1);
+        continue;
+      }
       const raw = readFileSync(file, 'utf8');
 
       for (const re of [IMPORT_RE, SIDE_EFFECT_IMPORT_RE, DYNAMIC_IMPORT_RE]) {
@@ -338,6 +359,19 @@ export function checkAppBoundaries(root = ROOT) {
             'Name the exports.',
         );
       }
+    }
+  }
+
+  // A stale exemption is a justification for something that is no longer
+  // there, still being honoured. Same posture as check-rls's EXEMPTIONS: the
+  // list is data, and dead entries fail rather than linger.
+  for (const [key, hits] of exemptHits) {
+    if (hits === 0) {
+      const [app, pattern] = key.split(/:(.*)/s);
+      violations.push(
+        `${app}: the exemption ${pattern} matched no scanned file. An exemption for something ` +
+          'that no longer exists is not evidence — remove it, or fix the path it names.',
+      );
     }
   }
 

@@ -7,7 +7,7 @@
  * invariant rots. A renamed app directory would do it, and nobody would notice.
  */
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -317,7 +317,14 @@ function main() {
     return;
   }
 
+  // Every rule must match something, and every exemption must match something,
+  // or the checker now fails — so the baseline tree carries all three apps and
+  // the exempt directory. That is the point of those two rules, not an
+  // inconvenience around them.
   writeProbe('export const x = 1;\n');
+  writeInternalProbe('export const x = 1;\n');
+  writeApiProbe('export const x = 1;\n');
+  writeApiOwnedProbe('export const x = 1;\n');
   const baseline = checkAppBoundaries(TREE);
   if (baseline.violations.length > 0) {
     console.error(
@@ -415,6 +422,37 @@ function main() {
       console.log('  caught      [api] a sibling directory is still refused while the owner is exempt');
     }
     writeApiProbe('export const x = 1;\n');
+
+    // A RULE THAT MATCHES NOTHING. Renaming an app's src directory used to
+    // leave the other rules checked, a non-zero app count, and a green build
+    // over a rule that had silently stopped applying.
+    {
+      const moved = join(TREE, 'apps', 'api', 'src-renamed');
+      renameSync(join(TREE, 'apps', 'api', 'src'), moved);
+      // Matched on the MESSAGE, not on the app prefix. `api:` also prefixes
+      // the stale-exemption violation, and a vanished src directory produces
+      // both — so a prefix match went green through the neighbouring control
+      // while this one was neutered. Found by neutering it, which is the whole
+      // point of doing that.
+      const hits = checkAppBoundaries(TREE).violations.filter((v) =>
+        v.includes('no application source files'),
+      );
+      renameSync(moved, join(TREE, 'apps', 'api', 'src'));
+      if (hits.length === 0) missed.push('[api] a rule whose app directory has vanished');
+      else console.log('  caught      [api] a rule whose app directory has vanished');
+    }
+
+    // A STALE EXEMPTION. The exempt path is data with a justification; when the
+    // thing it names is gone, the justification is honouring nothing.
+    {
+      const owned = join(TREE, 'apps', 'api', 'src', 'idempotency');
+      const stashed = join(TREE, 'apps', 'api', 'src-idempotency-stashed');
+      renameSync(owned, stashed);
+      const hits = checkAppBoundaries(TREE).violations.filter((v) => v.includes('matched no scanned file'));
+      renameSync(stashed, owned);
+      if (hits.length === 0) missed.push('[api] an exemption naming a path that no longer exists');
+      else console.log('  caught      [api] an exemption naming a path that no longer exists');
+    }
   } finally {
     rmSync(TREE, { recursive: true, force: true });
   }
