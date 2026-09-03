@@ -204,6 +204,23 @@ jobs:
       - name: Coverage exclusions are still types-only
         run: pnpm check:typesonly
 
+      # T-13c. The request-body rule decides which columns a client may never
+      # set. This asks the DDL rather than a human — a now()/gen_random_uuid()
+      # default, a GENERATED clause, a lifecycle or privilege enum — and fails
+      # on a signalled column the rule accepts. It imports the predicate from
+      # the emitted module, so `typecheck` above must have run first.
+      #
+      # It was added to `pnpm verify` and NOT to this file, and CI #80 went
+      # green over T-13c without ever executing it while both scoreboard
+      # copies said "14 self-tested checkers in CI". A checker that runs only
+      # on the author's machine is the shape this repository exists to catch,
+      # committed by the change that added the checker. Self-test first.
+      - name: Server-owned rule self-test
+        run: pnpm check:serverowned:selftest
+
+      - name: Server-assigned columns are refused on a client body
+        run: pnpm check:serverowned
+
       - name: Kernel coverage gate
         run: pnpm coverage
 

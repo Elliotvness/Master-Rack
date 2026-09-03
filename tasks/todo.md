@@ -1138,8 +1138,21 @@ was built to prevent, in four ways, all now closed and all four proven by planti
       cannot silently vanish from `pnpm verify` on a checkout path containing a space.
       `check-content-hash`, `check-scoreboard-sync` and `check-spot-check-record` still carry the
       fragile idiom — **recorded, not fixed here**
+- [x] **It was not wired into CI, and CI went green over T-13c without running it once.**
+      `.github/workflows/ci.yml` enumerates every checker as its own step and never runs
+      `pnpm verify`, so adding `check:serverowned` to the `verify` chain reached the author's
+      machine and nothing else. **CI #80 on `08153e2`: Success, and `check-server-owned` occurs
+      zero times in its 1,433-line raw log** — while both scoreboard copies said "14 self-tested
+      checkers in CI". The change that added a control for controls-with-no-mechanism shipped
+      exactly that. Nothing in the repository could have caught it — a checker absent from CI
+      cannot fail there, and `check-claims` reads no figure from `ci.yml`. Found only by reading
+      the run rather than ticking it. Both steps are in `ci.yml` now, self-test first; drift 38
 - [x] 43 self-test cases; `check-claims` moved test files 53 → 54 and tests 1,238 → 1,385 in the
       same commit
+- [x] **CI #80 read from the raw log** (`08153e2`, push, Success 1m 32s): `Test Files 54 passed
+      (54)`, `Tests 1385 passed (1385)` in both the test and the coverage step, `All files
+      99.65 / 99.22 / 99.79 / 99.65`, and the only two occurrences of "skipped" in the whole log
+      are a pnpm lockfile notice and a self-test case name. F-29's check run, not assumed
 
 **Decision recorded for EL — a deviation from a literal reading of these acceptance criteria.**
 The criteria say `organization_id` and `role` are unreachable from *a request body*. They are
