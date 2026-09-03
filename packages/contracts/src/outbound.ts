@@ -49,6 +49,7 @@
  * Pure: no I/O, no clock, no RNG. The alert sink is the caller's.
  */
 
+/* eslint-disable-next-line -- see the deviation note below */
 /**
  * **Deviation from §8.3, confirmed by EL 2026-09-03.** Forbidden and undeclared
  * fields are refused in BOTH development and production modes, not alerted in

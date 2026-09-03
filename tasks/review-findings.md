@@ -1223,6 +1223,72 @@ database. T-13d narrows it — the probe now REFUSES rather than skips when Post
 `app.idempotency_key` is absent, which is the migration-failed case the review reproduced by
 renaming the table (18 skipped, exit 0). A no-database developer still skips, by design.
 
+## F-40 — the lease was not a fence, and the config check it named had no startup to run at *(raised and **CLOSED** 2026-09-03 by the review of EL's stranded-claim fix)*
+
+**The lease shipped without a fence, and that is a duplicate-effect bug, not a nicety.** A takeover
+reused the row id and `settleOn` guarded only on `claim_outcome = 'in_flight'`, so the overtaken
+holder was indistinguishable from the new one. Review demonstrated it against the live database
+rather than arguing it:
+
+```
+stale holder A settle -> true
+real  holder B settle -> false
+replay -> A's result_ref, while B's effect had also committed
+```
+
+The client is handed the wrong result for an effect that ran twice — the exact failure AD-3 exists
+to prevent. **And the stated cost was itself too generous:** a stale holder settling `failed` frees
+the key immediately, with no lease expiry, so a third effect can start at once. "One effect per key
+per lease window" was not the guarantee; there was no bound inside a window at all.
+
+Closed by `lease_epoch` (migration 0013): a monotonic token bumped on every re-claim, takeover and
+release, returned in the `claimed` result, and required by every settle. Removing it from
+`settleOn`'s WHERE clause turns **14 of 56** red; not bumping it on takeover turns **2 of 56** red.
+
+**Second blocker, and it is this repository's signature defect committed inside the paragraph that
+names it.** The commit body, the module docstring, AD-3 and both scoreboard copies all said a
+malformed `CLAIM_LEASE_MINUTES` "throws at startup". There is no startup. `claimLeaseMs()` is
+called lazily from one branch of `claimOn`, so a typo'd deploy comes up healthy, serves every
+first-attempt request, and throws an unhandled `RangeError` at the first duplicate claim — the one
+path the lease exists to protect. Review proved it:
+
+```
+fresh claim with CLAIM_LEASE_MINUTES=ten -> claimed
+duplicate claim threw -> CLAIM_LEASE_MINUTES must be a positive whole number…
+```
+
+Closed two ways, neither of them a reword: `assertConfiguration()` exists and is exported, and
+**T-14a's acceptance criteria now require `createApp()` to call it**; and every document that said
+"at startup" now says where it actually throws and why. The unit tests proved the *function*
+throws; nothing proved the *process* refuses to start, because nothing made it.
+
+**Three more from the same review.**
+
+- **`releaseClaim` fabricated its audit actor.** `actorType` was hardcoded `'staff'` and the
+  function took `releasedBy` on trust, so a client tenant released its own claim and produced an
+  audit event asserting a staff actor inside a client organization — a function whose whole
+  justification is that an override must leave a trace, leaving a false one. It now derives
+  `actorType` from the tenant and refuses a non-staff context outright. Cross-org release was
+  already blocked by RLS, and that held.
+- **The retention sweep deleted `in_flight` rows**, so bookkeeping could free a key an effect still
+  held. It now deletes settled rows only; an `in_flight` row past its window is a bug and leaving
+  it visible is the point. The first attempt at this fix had no test and the plant stayed green —
+  the test came second, and the plant now turns 1 of 57 red.
+- **`idempotency.release` was missing from `INTERNAL_ONLY_ACTIONS`** while every comparable action
+  was in it, so `assertRouteCoverage` would have waved it onto a client route.
+
+**A figure in the previous commit body did not reproduce.** It claimed "lease takeover removed —
+9 of 50 red"; the measured number is **2 of 50**, and 9 is the neighbouring row's figure, copied.
+Corrected here rather than left standing. Under `verified-not-claimed` a duplicated number in an
+evidence table is precisely what the rule exists to stop, and this is the second commit in two days
+to carry one.
+
+**Not closed, and named so it is not mistaken for closed.** The operator release is a policy row, an
+authorization rule and a library function — there is **no endpoint**, because there is no server.
+Nothing calls `authorize(actor, 'idempotency.release', …)` outside the matrix test, `purgeExpiredOn`
+still has no caller, and the route is not a §8.2 row. All three belong to T-14a/T-14e and are
+recorded there.
+
 ## F-12 and F-13 — fixed, values untouched
 
 Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.

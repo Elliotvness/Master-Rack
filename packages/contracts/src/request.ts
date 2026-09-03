@@ -135,7 +135,11 @@ const SERVER_ASSIGNED_SUFFIXES: readonly string[] = Object.freeze(['_at', '_by',
  *                                `tools/check-server-owned.mjs` on its first
  *                                run against the real schema, which is the
  *                                whole argument for having it
- *   claim_outcome                AD-3's three idempotency states. A body that
+ *   lease_epoch                  the idempotency fence token. A body that names
+ *                                it is a body claiming a lease it was not
+ *                                granted, which is the whole thing the fence
+ *                                stops
+ *   claim_outcome                AD-3's idempotency states. A body that
  *                                names one claims its own intent already
  *                                succeeded — which is a request to skip the
  *                                effect and be told it happened. Found by the
@@ -159,6 +163,7 @@ const SERVER_ASSIGNED_NAMES: ReadonlySet<string> = new Set([
   'outcome',
   'severity',
   'claim_outcome',
+  'lease_epoch',
   'actor_organization_id',
   'subject_organization_id',
   'verification_tier',

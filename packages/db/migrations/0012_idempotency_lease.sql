@@ -47,8 +47,13 @@ BEGIN;
 -- incidental — a CHECK constraint naming 'abandoned' here would fail.
 ALTER TYPE app.idempotency_outcome ADD VALUE IF NOT EXISTS 'abandoned';
 
--- The lease scan asks one question: which rows are still `in_flight` and were
--- claimed before a cutoff. Index it so a sweep does not read the whole table.
+-- Indexed for the sweep that does not exist yet, and said plainly rather than
+-- implied: today's takeover is a primary-key UPDATE and needs no index at all.
+-- What will need it is an operator listing stranded claims, and the retention
+-- sweep once something calls `purgeExpiredOn` — which still has no caller. An
+-- index justified by a query nobody has written is a small instance of this
+-- repository's own defect shape, so the justification is dated instead of
+-- asserted.
 CREATE INDEX idempotency_lease_idx
   ON app.idempotency_key (claimed_at)
   WHERE claim_outcome = 'in_flight';

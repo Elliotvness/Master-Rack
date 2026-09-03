@@ -157,15 +157,23 @@ safe. The contract:
   - **Lease.** An `in_flight` row whose `claimed_at` is older than `CLAIM_LEASE_MINUTES`
     (**default 10**) may be taken over. Chosen against the shape of the effect: a B2 upload that
     has not finished in ten minutes is dead or hitting a fault a retry will solve. Configurable by
-    environment so the window can be raised without a deploy; **a malformed value throws at
-    startup** rather than falling back.
+    environment so the window can be raised without a deploy. **A malformed value throws rather
+    than falling back** — but it is read lazily today, so it throws at the first duplicate claim
+    and not at boot; `assertConfiguration()` exists to make it early and **T-14a must call it**.
   - **Operator release.** `POST /api/internal/v1/idempotency-claims/:key/release`,
     `INTERNAL_ADMIN` only, writing an audit event **in the same transaction** as the release. The
     row becomes `abandoned` — terminal, and re-claimable, and distinct from `failed` because an
     audit reader needs to know whether the effect reported its own rollback or a human overrode it.
-  - **The cost, stated:** a lease turns "one effect per key, ever" into "one effect per key per
-    lease window". A live process slower than its lease can be overtaken. That is the price of not
-    stranding users, and it is why the window is configurable.
+  - **The fence.** A takeover reuses the row, so the overtaken holder must be stopped from
+    settling a claim it no longer holds. `lease_epoch` (migration 0013) increments on every
+    re-claim and every takeover, and a settle must present the epoch it was claimed under. Without
+    it — as the first draft shipped — the stale holder's settle *won*, its `result_ref` was what
+    the replay handed the client, both effects had committed, and a stale `failed` settle freed
+    the key at once so a third effect could start. Found by adversarial review.
+  - **The cost, stated:** a lease turns "one effect per key, ever" into "at most one **settled**
+    effect per key per lease window". A live process slower than its lease is overtaken and its
+    work is discarded — it can no longer record a result. That is the price of not stranding
+    users, and it is why the window is configurable.
 - **Retention outlives the longest retry path** — the outbox's dead-letter replay window, not disk
   cost. Set to 30 days, which is longer than any current re-delivery path.
 

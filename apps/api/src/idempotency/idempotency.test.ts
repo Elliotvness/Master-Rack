@@ -228,6 +228,7 @@ describe('a key that conflicted on insert and vanished before the select', () =>
           ],
         },
         { rows: [] },
+        { rows: [] },
       ]),
       PARAMS,
     );
@@ -243,7 +244,7 @@ describe('a key that conflicted on insert and vanished before the select', () =>
         return { rows: [{}], rowCount: 1 } as never;
       },
     };
-    await settleOn(tx, { id: PARAMS.id, outcome: 'failed', resultRef: 'x', now: PARAMS.now });
+    await settleOn(tx, { id: PARAMS.id, epoch: 1, outcome: 'failed', resultRef: 'x', now: PARAMS.now });
     expect(seen[0]?.[3]).toBeNull();
   });
 });

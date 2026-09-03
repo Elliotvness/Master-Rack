@@ -113,6 +113,12 @@ if (!available) {
 }
 const maybe = available ? it : it.skip;
 
+/** Narrow a ClaimResult to the claimed case, so a test can read its epoch. */
+function mustClaim(r: ClaimResult): { id: string; epoch: number } {
+  if (r.status !== 'claimed') throw new Error(`expected a claim, got '${r.status}'`);
+  return { id: r.id, epoch: r.epoch };
+}
+
 let keyCounter = 0;
 /** A fresh key per case, so one case cannot decide another's outcome. */
 function freshKey(label: string): string {
@@ -186,14 +192,13 @@ afterAll(async () => {
 describe('AD-3 — the atomic claim', () => {
   maybe('a first claim wins and a retry of the same intent does not re-run it', async () => {
     const key = freshKey('submit');
-    const first = await claim(key, { revisionId: 'r1' });
-    expect(first.status).toBe('claimed');
+    const first = mustClaim(await claim(key, { revisionId: 'r1' }));
 
     // Still in flight: the effect has not settled.
     const duplicate = await claim(key, { revisionId: 'r1' });
     expect(duplicate.status).toBe('in_flight');
 
-    expect(await settleIdempotencyKey(tenant, { id: first.id, outcome: 'succeeded', resultRef: ORG, now: NOW })).toBe(true);
+    expect(await settleIdempotencyKey(tenant, { id: first.id, epoch: first.epoch, outcome: 'succeeded', resultRef: ORG, now: NOW })).toBe(true);
 
     const afterSuccess = await claim(key, { revisionId: 'r1' });
     expect(afterSuccess).toMatchObject({ status: 'settled', outcome: 'succeeded', resultRef: ORG });
@@ -201,15 +206,14 @@ describe('AD-3 — the atomic claim', () => {
 
   maybe('the same key with a different body is refused, not replayed', async () => {
     const key = freshKey('mismatch');
-    const first = await claim(key, { revisionId: 'r1' });
-    expect(first.status).toBe('claimed');
+    const first = mustClaim(await claim(key, { revisionId: 'r1' }));
 
     const different = await claim(key, { revisionId: 'r2' });
     expect(different.status).toBe('mismatch');
 
     // And it stays refused after the first has succeeded — a settled key must
     // never hand its result to a request that did not ask for it.
-    await settleIdempotencyKey(tenant, { id: first.id, outcome: 'succeeded', now: NOW });
+    await settleIdempotencyKey(tenant, { id: first.id, epoch: first.epoch, outcome: 'succeeded', now: NOW });
     expect((await claim(key, { revisionId: 'r2' })).status).toBe('mismatch');
   });
 
@@ -228,9 +232,8 @@ describe('AD-3 — the atomic claim', () => {
 
   maybe('a failed effect leaves the intent claimable again', async () => {
     const key = freshKey('failed');
-    const first = await claim(key, { revisionId: 'r1' });
-    expect(first.status).toBe('claimed');
-    expect(await settleIdempotencyKey(tenant, { id: first.id, outcome: 'failed', now: NOW })).toBe(true);
+    const first = mustClaim(await claim(key, { revisionId: 'r1' }));
+    expect(await settleIdempotencyKey(tenant, { id: first.id, epoch: first.epoch, outcome: 'failed', now: NOW })).toBe(true);
 
     const retry = await claim(key, { revisionId: 'r1' });
     expect(retry.status).toBe('claimed');
@@ -249,8 +252,8 @@ describe('AD-3 — the atomic claim', () => {
     // Postgres error out of claimOn, because the re-claim moved claimed_at and
     // left expires_at behind. Found by review; this is the case that pins it.
     const key = freshKey('late-retry');
-    const first = await claim(key, { revisionId: 'r1' });
-    await settleIdempotencyKey(tenant, { id: first.id, outcome: 'failed', now: NOW });
+    const first = mustClaim(await claim(key, { revisionId: 'r1' }));
+    await settleIdempotencyKey(tenant, { id: first.id, epoch: first.epoch, outcome: 'failed', now: NOW });
 
     const muchLater = new Date(NOW.getTime() + RETENTION_MS + 24 * 60 * 60 * 1000);
     const retry = await claimIdempotencyKey(tenant, {
@@ -392,8 +395,7 @@ describe('a stranded claim gets released — the lease (EL, 2026-09-03)', () => 
 
   maybe('a claim older than the lease is taken over, and the row is not duplicated', async () => {
     const key = freshKey('lease-expired');
-    const first = await claim(key, { revisionId: 'r1' });
-    expect(first.status).toBe('claimed');
+    const first = mustClaim(await claim(key, { revisionId: 'r1' }));
 
     const elevenMinutesLater = new Date(NOW.getTime() + 11 * 60_000);
     const second = await claimIdempotencyKey(tenant, {
@@ -430,8 +432,8 @@ describe('a stranded claim gets released — the lease (EL, 2026-09-03)', () => 
 
   maybe('a settled key is never taken over by the lease, however old it is', async () => {
     const key = freshKey('lease-settled');
-    const first = await claim(key, { revisionId: 'r1' });
-    await settleIdempotencyKey(tenant, { id: first.id, outcome: 'succeeded', resultRef: ORG, now: NOW });
+    const first = mustClaim(await claim(key, { revisionId: 'r1' }));
+    await settleIdempotencyKey(tenant, { id: first.id, epoch: first.epoch, outcome: 'succeeded', resultRef: ORG, now: NOW });
     const muchLater = new Date(NOW.getTime() + 40 * 60_000);
     const again = await claimIdempotencyKey(tenant, {
       id: nextId(), organizationId: ORG, key, intent: 'submit',
@@ -444,8 +446,7 @@ describe('a stranded claim gets released — the lease (EL, 2026-09-03)', () => 
 describe('a stranded claim gets released — the operator (EL, 2026-09-03)', () => {
   maybe('release sets the row abandoned, writes an audit event, and frees the key', async () => {
     const key = freshKey('release');
-    const first = await claim(key, { revisionId: 'r1' });
-    expect(first.status).toBe('claimed');
+    const first = mustClaim(await claim(key, { revisionId: 'r1' }));
     // Before release the retry is refused, which is the stuck user.
     expect((await claim(key, { revisionId: 'r1' })).status).toBe('in_flight');
 
@@ -484,8 +485,8 @@ describe('a stranded claim gets released — the operator (EL, 2026-09-03)', () 
 
   maybe('releasing a key that is not in flight changes nothing and writes no audit event', async () => {
     const key = freshKey('release-settled');
-    const first = await claim(key, { revisionId: 'r1' });
-    await settleIdempotencyKey(tenant, { id: first.id, outcome: 'succeeded', now: NOW });
+    const first = mustClaim(await claim(key, { revisionId: 'r1' }));
+    await settleIdempotencyKey(tenant, { id: first.id, epoch: first.epoch, outcome: 'succeeded', now: NOW });
 
     const eventId = auditId();
     expect(
@@ -511,24 +512,134 @@ describe('a stranded claim gets released — the operator (EL, 2026-09-03)', () 
   });
 });
 
+describe('the lease is a FENCE — an overtaken holder cannot settle (found by review)', () => {
+  const LEASE = 10 * 60_000;
+
+  maybe('the holder whose lease was taken settles nothing, and the taker settles', async () => {
+    // Without lease_epoch the stale holder won this race, its result_ref was
+    // what the replay handed the client, and BOTH effects had committed.
+    const key = freshKey('fence');
+    const stale = mustClaim(await claim(key, { revisionId: 'r1' }));
+
+    const later = new Date(NOW.getTime() + 11 * 60_000);
+    const taker = mustClaim(
+      await claimIdempotencyKey(tenant, {
+        id: nextId(), organizationId: ORG, key, intent: 'submit',
+        body: { revisionId: 'r1' }, now: later, leaseMs: LEASE,
+      }),
+    );
+    expect(taker.epoch).toBeGreaterThan(stale.epoch);
+
+    expect(await settleIdempotencyKey(tenant, { id: stale.id, epoch: stale.epoch, outcome: 'succeeded', resultRef: ORG, now: later })).toBe(false);
+    expect(await settleIdempotencyKey(tenant, { id: taker.id, epoch: taker.epoch, outcome: 'succeeded', resultRef: OTHER_ORG, now: later })).toBe(true);
+
+    const replay = await claimIdempotencyKey(tenant, {
+      id: nextId(), organizationId: ORG, key, intent: 'submit',
+      body: { revisionId: 'r1' }, now: later, leaseMs: LEASE,
+    });
+    // The TAKER's result, not the stale holder's.
+    expect(replay).toMatchObject({ status: 'settled', resultRef: OTHER_ORG });
+  });
+
+  maybe('a stale holder cannot free the key by settling it failed', async () => {
+    // The sharper half of the same bug: a stale `failed` settle made the row
+    // re-claimable at once, with no lease expiry, so a third effect could start
+    // immediately. "One effect per lease window" was not even true.
+    const key = freshKey('fence-failed');
+    const stale = mustClaim(await claim(key, { revisionId: 'r1' }));
+    const later = new Date(NOW.getTime() + 11 * 60_000);
+    mustClaim(
+      await claimIdempotencyKey(tenant, {
+        id: nextId(), organizationId: ORG, key, intent: 'submit',
+        body: { revisionId: 'r1' }, now: later, leaseMs: LEASE,
+      }),
+    );
+
+    expect(await settleIdempotencyKey(tenant, { id: stale.id, epoch: stale.epoch, outcome: 'failed', now: later })).toBe(false);
+    // Still held by the taker, so a third caller is refused.
+    const third = await claimIdempotencyKey(tenant, {
+      id: nextId(), organizationId: ORG, key, intent: 'submit',
+      body: { revisionId: 'r1' }, now: later, leaseMs: LEASE,
+    });
+    expect(third.status).toBe('in_flight');
+  });
+
+  maybe('a released claim cannot be settled by the holder it was taken from', async () => {
+    const key = freshKey('fence-release');
+    const stale = mustClaim(await claim(key, { revisionId: 'r1' }));
+    expect(
+      await releaseClaim(staffTenant, {
+        organizationId: ORG, key, releasedBy: OPERATOR, auditEventId: auditId(), now: NOW,
+      }),
+    ).toBe(true);
+    expect(await settleIdempotencyKey(tenant, { id: stale.id, epoch: stale.epoch, outcome: 'succeeded', resultRef: ORG, now: NOW })).toBe(false);
+  });
+
+  maybe('a re-claim of a failed key bumps the epoch, so the failed holder stays fenced out', async () => {
+    const key = freshKey('fence-reclaim');
+    const first = mustClaim(await claim(key, { revisionId: 'r1' }));
+    expect(await settleIdempotencyKey(tenant, { id: first.id, epoch: first.epoch, outcome: 'failed', now: NOW })).toBe(true);
+    const second = mustClaim(await claim(key, { revisionId: 'r1' }));
+    expect(second.epoch).toBeGreaterThan(first.epoch);
+    expect(await settleIdempotencyKey(tenant, { id: first.id, epoch: first.epoch, outcome: 'succeeded', now: NOW })).toBe(false);
+  });
+});
+
+describe('a release that cannot be audited does not happen', () => {
+  maybe('a failing audit append rolls the release back, so the row stays in flight', async () => {
+    // The module claims "a release without a record is not a state this can
+    // reach". Review pointed out the claim had no test. Reusing an event_id
+    // violates audit_event_pkey INSIDE the release transaction.
+    const key = freshKey('release-atomic');
+    const first = mustClaim(await claim(key, { revisionId: 'r1' }));
+    const reused = auditId();
+    expect(
+      await releaseClaim(staffTenant, {
+        organizationId: ORG, key: freshKey('release-atomic-other'), releasedBy: OPERATOR,
+        auditEventId: reused, now: NOW,
+      }),
+    ).toBe(false); // nothing to release on that key, so the id is still unused
+
+    // Burn the id on a real release of another claim, then reuse it here.
+    const burnKey = freshKey('release-atomic-burn');
+    mustClaim(await claim(burnKey, { revisionId: 'r1' }));
+    expect(await releaseClaim(staffTenant, { organizationId: ORG, key: burnKey, releasedBy: OPERATOR, auditEventId: reused, now: NOW })).toBe(true);
+
+    await expect(
+      releaseClaim(staffTenant, { organizationId: ORG, key, releasedBy: OPERATOR, auditEventId: reused, now: NOW }),
+    ).rejects.toThrow();
+
+    const row = await admin(`SELECT claim_outcome FROM app.idempotency_key WHERE id = $1`, [first.id]);
+    expect(row.rows[0]?.claim_outcome).toBe('in_flight');
+  });
+
+  maybe('a client context cannot release at all, so it cannot forge a staff audit event', async () => {
+    const key = freshKey('release-client');
+    mustClaim(await claim(key, { revisionId: 'r1' }));
+    await expect(
+      releaseClaim(tenant, { organizationId: ORG, key, releasedBy: OPERATOR, auditEventId: auditId(), now: NOW }),
+    ).rejects.toThrow(/requires a staff context/);
+  });
+});
+
 describe('settling', () => {
   maybe('settling twice writes once, and reports the second as a no-op', async () => {
     const key = freshKey('settle-twice');
-    const first = await claim(key, {});
-    expect(await settleIdempotencyKey(tenant, { id: first.id, outcome: 'succeeded', now: NOW })).toBe(true);
-    expect(await settleIdempotencyKey(tenant, { id: first.id, outcome: 'failed', now: NOW })).toBe(false);
+    const first = mustClaim(await claim(key, {}));
+    expect(await settleIdempotencyKey(tenant, { id: first.id, epoch: first.epoch, outcome: 'succeeded', now: NOW })).toBe(true);
+    expect(await settleIdempotencyKey(tenant, { id: first.id, epoch: first.epoch, outcome: 'failed', now: NOW })).toBe(false);
     const rows = await admin(`SELECT claim_outcome FROM app.idempotency_key WHERE id = $1`, [first.id]);
     expect(rows.rows[0]?.claim_outcome).toBe('succeeded');
   });
 
   maybe('settling an id that was never claimed writes nothing', async () => {
-    expect(await settleIdempotencyKey(tenant, { id: nextId(), outcome: 'succeeded', now: NOW })).toBe(false);
+    expect(await settleIdempotencyKey(tenant, { id: nextId(), epoch: 1, outcome: 'succeeded', now: NOW })).toBe(false);
   });
 
   maybe('a failure never carries a result reference, even when one is offered', async () => {
     const key = freshKey('failed-ref');
-    const first = await claim(key, {});
-    await settleIdempotencyKey(tenant, { id: first.id, outcome: 'failed', resultRef: ORG, now: NOW });
+    const first = mustClaim(await claim(key, {}));
+    await settleIdempotencyKey(tenant, { id: first.id, epoch: first.epoch, outcome: 'failed', resultRef: ORG, now: NOW });
     const rows = await admin(`SELECT result_ref FROM app.idempotency_key WHERE id = $1`, [first.id]);
     expect(rows.rows[0]?.result_ref).toBeNull();
   });
@@ -598,6 +709,11 @@ describe('tenancy and retention', () => {
     ]);
     await claim(live, {}, tenant);
 
+    // Settle it first: the sweep deliberately leaves `in_flight` rows alone.
+    const rows = await admin(`SELECT id, lease_epoch FROM app.idempotency_key WHERE key = $1`, [expired]);
+    await admin(`UPDATE app.idempotency_key SET claim_outcome = 'failed', settled_at = $2 WHERE id = $1`,
+      [rows.rows[0]?.['id'], long]);
+
     const purged = await withTenant(staffTenant, (tx) => purgeExpiredOn(tx, NOW));
     expect(purged).toBeGreaterThanOrEqual(1);
 
@@ -608,14 +724,34 @@ describe('tenancy and retention', () => {
     expect(remaining.rows.map((r) => r['key'])).toEqual([live]);
   });
 
+  maybe('the sweep leaves an expired IN-FLIGHT row alone, because deleting it frees a held key', async () => {
+    // Found by review: the purge deleted by expiry alone, so retention
+    // bookkeeping could quietly free a key an effect still held. An in_flight
+    // row past its window is a bug, and leaving it visible is the point.
+    const stuck = freshKey('purge-inflight');
+    mustClaim(await claim(stuck, {}, tenant));
+    await admin(`UPDATE app.idempotency_key SET claimed_at = $2, expires_at = $3 WHERE key = $1`, [
+      stuck,
+      new Date(NOW.getTime() - RETENTION_MS - 2000),
+      new Date(NOW.getTime() - 2000),
+    ]);
+
+    await withTenant(staffTenant, (tx) => purgeExpiredOn(tx, NOW));
+
+    const survived = await admin(`SELECT claim_outcome FROM app.idempotency_key WHERE key = $1`, [stuck]);
+    expect(survived.rowCount).toBe(1);
+    expect(survived.rows[0]?.claim_outcome).toBe('in_flight');
+  });
+
   maybe('claimOn inside a caller’s transaction behaves the same as the owning entry point', async () => {
     const key = freshKey('claim-on');
-    const first = await withTenant(tenant, (tx) =>
-      claimOn(tx, { id: nextId(), organizationId: ORG, key, intent: 'invite', body: {}, now: NOW }),
+    const first = mustClaim(
+      await withTenant(tenant, (tx) =>
+        claimOn(tx, { id: nextId(), organizationId: ORG, key, intent: 'invite', body: {}, now: NOW }),
+      ),
     );
-    expect(first.status).toBe('claimed');
     const settled = await withTenant(tenant, (tx) =>
-      settleOn(tx, { id: first.id, outcome: 'succeeded', now: NOW }),
+      settleOn(tx, { id: first.id, epoch: first.epoch, outcome: 'succeeded', now: NOW }),
     );
     expect(settled).toBe(true);
   });

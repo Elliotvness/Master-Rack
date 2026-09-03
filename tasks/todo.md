@@ -1222,6 +1222,15 @@ REFUSED the first attempt with three blockers and three majors, all closed and r
   requirement. A claim that can't be released is a submission the user can never make."* **Landed
   in this task** rather than deferred to T-14d: migration `0012`, the lease in `claimOn`,
   `releaseClaim`, and the `idempotency.release` action and route policy.
+  - **Adversarial review REFUSED the first implementation.** The lease was not a fence: a takeover
+    reused the row id and `settleOn` guarded only on `in_flight`, so the overtaken holder settled
+    the claim it had lost, its result was replayed to the client, and both effects had committed.
+    A stale `failed` settle freed the key with no lease expiry at all, so the stated cost — "one
+    effect per key per lease window" — was not even the guarantee. Closed by `lease_epoch`
+    (migration 0013). Recorded as **F-40**.
+  - **T-14a gains an acceptance criterion from the same review:** `createApp()` must call
+    `assertConfiguration()`, because `CLAIM_LEASE_MINUTES` is read lazily and a typo'd value
+    currently surfaces as a 500 at the first duplicate claim rather than as a refusal to boot.
   - **Two substitutions made against the letter of the instruction, both flagged for reversal.**
     The path given was `POST /admin/claims/:key/release`; this repository has exactly two API
     namespaces and no `/admin`, so it is registered as
@@ -1312,7 +1321,11 @@ sessions, invitations and the password policy, `db` with `withTenant`, `workflow
 and carries submit, which drags T-13d, P-01 and the document pipeline with it. Five sub-tasks, each
 M, each leaving the app bootable:
 
-- **T-14a — the application and its gate** *(M, files: `apps/api/src/app.ts`, `server.ts`,
+- **T-14a — the application and its gate** *(M — and it now also owns two obligations from T-13d:
+  `createApp()` must call `assertConfiguration()` so a malformed `CLAIM_LEASE_MINUTES` refuses to
+  boot instead of throwing at the first duplicate claim, and it must mount and authorize
+  `POST /api/internal/v1/idempotency-claims/:key/release`, whose policy row and `idempotency.release`
+  action exist with no handler and no caller. Files: `apps/api/src/app.ts`, `server.ts`,
   `authz/routes.ts`, `authz/authorize.ts`, `plugins/*`)*. `createApp()` builds the Fastify instance
   with no handlers of its own; a route module pairs every `RoutePolicy` with its handler. The
   boot-time assertion walks the **registered** router (an `onRoute` hook collecting `method + path`)

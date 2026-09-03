@@ -22,11 +22,11 @@
  * "three outcomes, not two", and the third outcome is the `in_flight` row a
  * dead process leaves behind.
  *
- * The cost is stated rather than hidden: a process that dies mid-effect strands
- * an `in_flight` row, and every retry of that key gets `409` until a human or a
- * sweeper settles it. That is the trade AD-3 chose over letting the second
- * caller through "because the first seems stuck" — which is precisely when
- * duplication costs most.
+ * A process that dies mid-effect strands an `in_flight` row. That used to mean
+ * `409` for every retry of that key for thirty days; since EL's decision of
+ * 2026-09-03 it means `409` until the lease runs out or an operator releases
+ * it, and `lease_epoch` (migration 0013) stops the overtaken holder settling
+ * the claim it lost.
  *
  * ## What this module does NOT do
  *
@@ -46,10 +46,13 @@ import { withTenant, type TenantContext, type TenantTransaction } from '@rms/db'
 import type { ErrorCode } from '@rms/contracts';
 
 /**
- * The three states AD-3 names, and no more.
+ * The four states this table holds.
  *
- * F-38 was a six-state status vocabulary invented for a table that needed
- * three. This alphabet is the decision record's own.
+ * Three came from AD-3; `abandoned` is EL's operator release (2026-09-03) and
+ * is deliberately distinct from `failed` — an audit reader needs to know
+ * whether the effect reported its own rollback or a human overrode it. F-38
+ * was a six-state vocabulary invented for a table that needed three; every one
+ * of these four is named by a decision on the record.
  */
 export type IdempotencyOutcome = 'in_flight' | 'succeeded' | 'failed' | 'abandoned';
 
@@ -87,8 +90,14 @@ export type IdempotentIntent = (typeof IDEMPOTENT_INTENTS)[number];
  * Recorded as a deviation for EL in `tasks/todo.md` rather than assumed.
  */
 export type ClaimResult =
-  /** Fresh claim. The caller runs the effect and must then settle this id. */
-  | { readonly status: 'claimed'; readonly id: string }
+  /**
+   * Fresh claim, or a re-claim. The caller runs the effect and must settle
+   * with BOTH the id and the `epoch` — the fence token this claim was granted
+   * under. A holder whose lease is later taken over carries a stale epoch and
+   * can no longer settle, which is what stops two effects from settling one
+   * key. Review found the absence of this the hard way; see migration 0013.
+   */
+  | { readonly status: 'claimed'; readonly id: string; readonly epoch: number }
   /** A duplicate is still running, or a process died holding it. Route: 409. */
   | { readonly status: 'in_flight'; readonly id: string }
   /** Same key, different request. Route: 422. Never replay. */
@@ -180,11 +189,20 @@ export const DEFAULT_CLAIM_LEASE_MINUTES = 10;
  * Configurable through `CLAIM_LEASE_MINUTES` so the window can be raised the
  * moment a legitimate effect is seen to outrun it, without a code deploy.
  *
- * **A malformed value THROWS.** It does not fall back to the default, because
- * a setting that silently ignores what it was given is a control that says it
- * is configurable and is not — this repository's recurring defect, in an
- * environment variable. `CLAIM_LEASE_MINUTES=ten` must stop the process at
- * startup, not quietly run a ten-minute lease that nobody chose.
+ * **A malformed value THROWS** rather than falling back to the default: a
+ * setting that silently ignores what it was given is a control that says it is
+ * configurable and is not — this repository's recurring defect, in an
+ * environment variable.
+ *
+ * **Where it throws is the honest part.** This function is called lazily, from
+ * one branch of `claimOn`, so today a typo'd `CLAIM_LEASE_MINUTES` lets the
+ * process start, serves every first-attempt request, and throws at the first
+ * DUPLICATE claim — the exact path the lease exists to protect. Review caught
+ * an earlier draft of this docstring claiming it "stops the process at
+ * startup" when there is no startup to stop: `apps/api` has no server, and
+ * `assertRouteCoverage` has no caller either. `assertConfiguration()` below is
+ * the function that makes it early, and T-14a's acceptance criteria now
+ * require `createApp()` to call it.
  *
  * The environment is passed in rather than read from module scope, so this is
  * testable without mutating global state — the same reason
@@ -236,16 +254,17 @@ export async function claimOn(tx: TenantTransaction, params: ClaimParams): Promi
   const hash = hashed.hash;
   const expiresAt = new Date(params.now.getTime() + RETENTION_MS);
 
-  const inserted = await tx.query<{ id: string }>(
+  const inserted = await tx.query<{ id: string; lease_epoch: number }>(
     `INSERT INTO app.idempotency_key
        (id, organization_id, key, intent, request_hash, claim_outcome, claimed_at, expires_at)
      VALUES ($1, $2, $3, $4, $5, 'in_flight', $6, $7)
      ON CONFLICT (organization_id, key) DO NOTHING
-     RETURNING id`,
+     RETURNING id, lease_epoch`,
     [params.id, params.organizationId, params.key, params.intent, hash, params.now, expiresAt],
   );
-  if (inserted.rows.length === 1) {
-    return { status: 'claimed', id: params.id };
+  const insertedRow = inserted.rows[0];
+  if (insertedRow !== undefined) {
+    return { status: 'claimed', id: params.id, epoch: insertedRow.lease_epoch };
   }
 
   const existing = await tx.query<{
@@ -306,16 +325,17 @@ export async function claimOn(tx: TenantTransaction, params: ClaimParams): Promi
     // The UPDATE is conditional on the state it read, so two retries racing on
     // one re-claimable key cannot both win — the loser reads zero rows and is
     // told the key is in flight, which by then it is.
-    const reclaimed = await tx.query<{ id: string }>(
+    const reclaimed = await tx.query<{ id: string; lease_epoch: number }>(
       `UPDATE app.idempotency_key
           SET claim_outcome = 'in_flight', claimed_at = $2, expires_at = $3,
-              settled_at = NULL, result_ref = NULL
+              settled_at = NULL, result_ref = NULL, lease_epoch = lease_epoch + 1
         WHERE id = $1 AND claim_outcome = ANY($4::app.idempotency_outcome[])
-        RETURNING id`,
+        RETURNING id, lease_epoch`,
       [row.id, params.now, expiresAt, [...RECLAIMABLE]],
     );
-    return reclaimed.rows.length === 1
-      ? { status: 'claimed', id: row.id }
+    const reclaimedRow = reclaimed.rows[0];
+    return reclaimedRow !== undefined
+      ? { status: 'claimed', id: row.id, epoch: reclaimedRow.lease_epoch }
       : { status: 'in_flight', id: row.id };
   }
 
@@ -327,15 +347,16 @@ export async function claimOn(tx: TenantTransaction, params: ClaimParams): Promi
   // itself, and under a retry storm it is exactly when it fires.
   const lease = params.leaseMs ?? claimLeaseMs();
   const cutoff = new Date(params.now.getTime() - lease);
-  const seized = await tx.query<{ id: string }>(
+  const seized = await tx.query<{ id: string; lease_epoch: number }>(
     `UPDATE app.idempotency_key
-        SET claimed_at = $2, expires_at = $3
+        SET claimed_at = $2, expires_at = $3, lease_epoch = lease_epoch + 1
       WHERE id = $1 AND claim_outcome = 'in_flight' AND claimed_at <= $4
-      RETURNING id`,
+      RETURNING id, lease_epoch`,
     [row.id, params.now, expiresAt, cutoff],
   );
-  if (seized.rows.length === 1) {
-    return { status: 'claimed', id: row.id };
+  const seizedRow = seized.rows[0];
+  if (seizedRow !== undefined) {
+    return { status: 'claimed', id: row.id, epoch: seizedRow.lease_epoch };
   }
 
   return { status: 'in_flight', id: row.id };
@@ -368,6 +389,13 @@ export async function settleOn(
   tx: TenantTransaction,
   params: {
     readonly id: string;
+    /**
+     * The fence token this caller was claimed under. Required, and the reason
+     * the signature changed: without it an overtaken holder settles a claim it
+     * no longer holds, and the client is handed that holder's result for an
+     * effect that ran twice.
+     */
+    readonly epoch: number;
     readonly outcome: 'succeeded' | 'failed';
     readonly resultRef?: string | null;
     readonly now: Date;
@@ -377,9 +405,9 @@ export async function settleOn(
   const settled = await tx.query(
     `UPDATE app.idempotency_key
         SET claim_outcome = $2, settled_at = $3, result_ref = $4
-      WHERE id = $1 AND claim_outcome = 'in_flight'
+      WHERE id = $1 AND claim_outcome = 'in_flight' AND lease_epoch = $5
       RETURNING id`,
-    [params.id, params.outcome, params.now, resultRef],
+    [params.id, params.outcome, params.now, resultRef, params.epoch],
   );
   return settled.rowCount === 1;
 }
@@ -388,6 +416,7 @@ export async function settleIdempotencyKey(
   tenant: TenantContext,
   params: {
     readonly id: string;
+    readonly epoch: number;
     readonly outcome: 'succeeded' | 'failed';
     readonly resultRef?: string | null;
     readonly now: Date;
@@ -432,10 +461,22 @@ export async function releaseClaim(
     readonly reason?: string;
   },
 ): Promise<boolean> {
+  if (tenant.actorType !== 'staff') {
+    // Review found this fabricating its actor: `actorType` was hardcoded
+    // 'staff' and a client tenant could release its own claim, producing an
+    // audit event asserting a staff actor inside a client organization. A
+    // function whose stated justification is that an override must leave a
+    // trace must not be able to leave a FALSE one.
+    throw new Error(
+      `releaseClaim requires a staff context; got '${tenant.actorType}'. ` +
+        'Releasing a stranded claim overrides a safety control and is an INTERNAL_ADMIN action.',
+    );
+  }
   return withTenant(tenant, async (tx) => {
     const released = await tx.query<{ id: string }>(
       `UPDATE app.idempotency_key
-          SET claim_outcome = 'abandoned', settled_at = $3, result_ref = NULL
+          SET claim_outcome = 'abandoned', settled_at = $3, result_ref = NULL,
+              lease_epoch = lease_epoch + 1
         WHERE organization_id = $1 AND key = $2 AND claim_outcome = 'in_flight'
         RETURNING id`,
       [params.organizationId, params.key, params.now],
@@ -450,7 +491,7 @@ export async function releaseClaim(
       content: {
         occurredAt: at,
         actorUserId: params.releasedBy,
-        actorType: 'staff',
+        actorType: tenant.actorType,
         actorOrganizationId: tenant.organizationId,
         impersonatedBy: null,
         subjectOrganizationId: params.organizationId,
@@ -474,6 +515,36 @@ export async function releaseClaim(
  * correct rather than broken, and returns a smaller count.
  */
 export async function purgeExpiredOn(tx: TenantTransaction, now: Date): Promise<number> {
-  const purged = await tx.query(`DELETE FROM app.idempotency_key WHERE expires_at <= $1`, [now]);
+  // SETTLED rows only. Review found this deleting `in_flight` rows, which frees
+  // a key an effect may still hold — retention bookkeeping quietly undoing the
+  // guard. An `in_flight` row older than the retention window is a bug, and
+  // leaving it visible is the point: the lease and the operator release exist
+  // to end one, not a DELETE that hides it.
+  const purged = await tx.query(
+    `DELETE FROM app.idempotency_key WHERE expires_at <= $1 AND claim_outcome <> 'in_flight'`,
+    [now],
+  );
   return purged.rowCount ?? 0;
+}
+
+/**
+ * Validate everything this module reads from the environment, once, loudly.
+ *
+ * **This is not called at boot yet, and saying otherwise would be the defect
+ * this repository hunts.** There is no boot: `apps/api` has no server, and
+ * `assertRouteCoverage` has no caller either. Review caught the earlier
+ * wording — the commit and three documents all said `CLAIM_LEASE_MINUTES`
+ * "throws at startup" when in fact it is read lazily inside one branch of
+ * `claimOn`, so a typo'd deploy came up healthy and threw a 500 at the first
+ * duplicate claim, on the exact path the lease exists to protect.
+ *
+ * So: the function exists, it is exported, and **T-14a's acceptance criteria
+ * now require `createApp()` to call it** alongside the route-coverage
+ * assertion. Until that lands, a bad value still surfaces late, and that is
+ * stated rather than papered over.
+ */
+export function assertConfiguration(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): void {
+  claimLeaseMs(env);
 }

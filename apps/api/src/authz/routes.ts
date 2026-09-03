@@ -187,6 +187,10 @@ export function assertRouteCoverage(
 
 /** Actions that must never appear on a client-namespace route. */
 const INTERNAL_ONLY_ACTIONS: ReadonlySet<Action> = new Set<Action>([
+  // Releasing a stranded claim overrides a safety control; it may never appear
+  // on a client route. Review found it absent from this set while every
+  // comparable action was in it — the assertion would have waved it through.
+  'idempotency.release',
   'bom.read',
   'catalog.read',
   'catalog.approve',

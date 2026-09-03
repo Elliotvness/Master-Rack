@@ -10,8 +10,8 @@ store: `0011_idempotency.sql`, `apps/api/src/idempotency/`, and `canonicaliseAll
 `INSERT … ON CONFLICT DO NOTHING`, not by application code, and the claim commits in its own
 transaction **before** the effect so a crash leaves evidence rather than a silently retried freeze.
 Measured on `task/t-13d-idempotency` in the container against native PostgreSQL 16.13: every
-`pnpm verify` at **exit 0 — 56 files, 1,448 tests, 0 skipped** and **14** checkers behind their
-self-tests, coverage **all files 99.66 / 99.15 / 99.79 / 99.66** with `idempotency.ts`,
+`pnpm verify` at **exit 0 — 56 files, 1,455 tests, 0 skipped** and **14** checkers behind their
+self-tests, coverage **all files 99.60 / 99.19 / 99.59 / 99.60** with `idempotency.ts`,
 `request.ts` and `canonical.ts` at 100% lines. *(A separate `pnpm coverage` on the identical tree
 read 99.69 / 99.23 — v8 coverage is not bit-stable across worker scheduling, as session 7 also
 found. The figure published is the one from the exit-0 `verify` being cited, not the better of the
@@ -44,7 +44,16 @@ four on the fix, including the one the review showed could not fire. Two figures
 commit body did not reproduce — dropping the unique constraint turns 15 of 30 red, not 8 — and are
 corrected in F-39 rather than quietly restated.
 
-**EL answered all six parked questions the same day, and one of them was code.** The stranded
+**EL answered all six parked questions the same day, one of them was code, and adversarial review
+refused the first implementation of it.** The lease shipped without a **fence**: a takeover reused
+the row id, so the overtaken holder still settled the claim it had lost, its result was replayed to
+the client, and both effects had committed — and a stale `failed` settle freed the key with no
+lease expiry at all, so the stated cost was not even the guarantee. `lease_epoch` (migration 0013)
+closes it. Recorded as **F-40**, together with the second blocker: four documents said a malformed
+`CLAIM_LEASE_MINUTES` "throws at startup" when there is no startup, so a typo'd deploy came up
+healthy and threw at the first duplicate claim.
+
+**EL's decision, as landed.** The stranded
 claim — an `in_flight` row left by a dead process, refusing every retry of that key for thirty days
 — is closed with **both** halves he asked for: a **10-minute lease** configurable through
 `CLAIM_LEASE_MINUTES` (a malformed value throws at startup rather than falling back), and an
@@ -544,7 +553,7 @@ Re-measured by running commands against the working tree:
 | `main` | in sync with `origin/main` @ `162d26e` — PR #1 … #19 merged, every task branch deleted, `git branch -r` lists `origin/main` alone *(this row read `e86d2bf` / "PR #13 open" through the close-out edition while the tip row above it said `b8d2087` — drift 36's shape, fixed here)* |
 | Packages | **12** — `packages/workflow` added by T-07 |
 | Test files | **56** (`*.test.ts`) — T-13c added `request.test.ts`; T-13d added `idempotency.test.ts` and `idempotency.db.test.ts`. Re-derived by `check:claims`, not typed |
-| Migrations | **12** (`0001`–`0012`) — `0012_idempotency_lease.sql` adds the `abandoned` outcome and the lease index (EL's stranded-claim decision); `0011_idempotency.sql` added `app.idempotency_key`: `UNIQUE (organization_id, key)`, a 64-hex `request_hash` CHECK, three states in `app.idempotency_outcome`, five consistency CHECKs, tenant RLS and the F-31 explicit GRANT. `check-rls` inspected **22** tables and **86** grants today and passed |
+| Migrations | **13** (`0001`–`0013`) — `0013_idempotency_lease_epoch.sql` adds the fence token without which the lease let two effects settle one key (F-40); `0012` added the `abandoned` outcome and the lease index; `0011_idempotency.sql` added `app.idempotency_key`: `UNIQUE (organization_id, key)`, a 64-hex `request_hash` CHECK, three states in `app.idempotency_outcome`, five consistency CHECKs, tenant RLS and the F-31 explicit GRANT. `check-rls` inspected **22** tables and **86** grants today and passed |
 | `.tsx` / `.jsx` / `.vue` / `.svelte` / `.astro` files | **0** |
 | Server entry point | **none** — no `fastify`, `express`, `koa`, `hono`, `node:http`, `.listen(` anywhere in `apps/` or `packages/` |
 | Front-end dependency | **none** — no `react`, no `vite` in any `package.json` |
