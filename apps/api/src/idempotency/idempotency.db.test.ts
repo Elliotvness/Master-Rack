@@ -60,11 +60,25 @@ async function admin(sql: string, values: readonly unknown[] = []): Promise<pg.Q
 /** Probed at MODULE LOAD — see the note in tenancy.test.ts on why not beforeAll. */
 async function probe(): Promise<boolean> {
   const client = new pg.Client({ connectionString: ADMIN_URL, connectionTimeoutMillis: 3000 });
+  let connected = false;
   try {
     await client.connect();
+    connected = true;
     await client.query('SELECT id FROM app.idempotency_key LIMIT 1');
     return true;
-  } catch {
+  } catch (error) {
+    // F-29's shape, narrowed. "No database" is a legitimate skip — a developer
+    // without Postgres. "Database, but no app.idempotency_key" is migration
+    // 0011 having failed to apply, and skipping there would delete AD-3's
+    // entire DB-backed verification while CI stayed green. Review reproduced
+    // exactly that by renaming the table: 18 tests skipped, exit 0.
+    if (connected) {
+      throw new Error(
+        'app.idempotency_key is missing from a database that is otherwise reachable. ' +
+          'Migration 0011 has not applied. Refusing to skip: T-13d verifies against a real ' +
+          `database or not at all. Underlying error: ${String(error)}`,
+      );
+    }
     return false;
   } finally {
     try {
@@ -209,6 +223,43 @@ describe('AD-3 — the atomic claim', () => {
     expect(rows.rows[0]).toMatchObject({ claim_outcome: 'in_flight', settled_at: null, result_ref: null });
   });
 
+  maybe('a failed key retried long after its window returns a result, not a constraint error', async () => {
+    // CHECK (expires_at > claimed_at) turned a legitimate late retry into a raw
+    // Postgres error out of claimOn, because the re-claim moved claimed_at and
+    // left expires_at behind. Found by review; this is the case that pins it.
+    const key = freshKey('late-retry');
+    const first = await claim(key, { revisionId: 'r1' });
+    await settleIdempotencyKey(tenant, { id: first.id, outcome: 'failed', now: NOW });
+
+    const muchLater = new Date(NOW.getTime() + RETENTION_MS + 24 * 60 * 60 * 1000);
+    const retry = await claimIdempotencyKey(tenant, {
+      id: nextId(),
+      organizationId: ORG,
+      key,
+      intent: 'submit',
+      body: { revisionId: 'r1' },
+      now: muchLater,
+    });
+    expect(retry.status).toBe('claimed');
+
+    const rows = await admin(`SELECT claimed_at, expires_at FROM app.idempotency_key WHERE id = $1`, [
+      first.id,
+    ]);
+    const row = rows.rows[0] as { claimed_at: Date; expires_at: Date };
+    expect(row.expires_at.getTime()).toBe(row.claimed_at.getTime() + RETENTION_MS);
+  });
+
+  maybe('the schema refuses an intent outside §8.3’s four', async () => {
+    await expect(
+      admin(
+        `INSERT INTO app.idempotency_key
+           (id, organization_id, key, intent, request_hash, claim_outcome, claimed_at, expires_at)
+         VALUES ($1,$2,$3,'approve',$4,'in_flight',$5,$6)`,
+        [nextId(), ORG, freshKey('bad-intent'), 'd'.repeat(64), NOW, new Date(NOW.getTime() + 1000)],
+      ),
+    ).rejects.toThrow(/idempotency_intent_known/);
+  });
+
   maybe('the same key in another organization is a different key', async () => {
     const key = freshKey('tenant');
     expect((await claim(key, { revisionId: 'r1' })).status).toBe('claimed');
@@ -274,6 +325,36 @@ describe('AC — exactly one of two simultaneous claims wins', () => {
   });
 });
 
+describe('AD-3 — the intent row outlives the effect that failed', () => {
+  maybe('an effect that rolls back leaves the claim standing, which is the third outcome', async () => {
+    // The guarantee "the intent row is written BEFORE the effect" is only worth
+    // stating if something goes red when it stops being true. Review's finding:
+    // nothing did. This is that test — the claim owns its transaction, the
+    // effect owns a different one, and the effect's rollback must not take the
+    // evidence with it.
+    const key = freshKey('survives-rollback');
+    const claimed = await claim(key, { revisionId: 'r1' });
+    expect(claimed.status).toBe('claimed');
+
+    await expect(
+      withTenant(tenant, async (tx) => {
+        await tx.query(`SELECT 1`);
+        throw new Error('the effect failed');
+      }),
+    ).rejects.toThrow('the effect failed');
+
+    const rows = await admin(
+      `SELECT claim_outcome FROM app.idempotency_key WHERE organization_id = $1 AND key = $2`,
+      [ORG, key],
+    );
+    expect(rows.rowCount).toBe(1);
+    expect(rows.rows[0]?.claim_outcome).toBe('in_flight');
+
+    // And the retry is refused rather than duplicating the effect.
+    expect((await claim(key, { revisionId: 'r1' })).status).toBe('in_flight');
+  });
+});
+
 describe('settling', () => {
   maybe('settling twice writes once, and reports the second as a no-op', async () => {
     const key = freshKey('settle-twice');
@@ -313,8 +394,9 @@ describe('the schema refuses what the application must not be trusted to remembe
     await expect(
       admin(insert, [base[0], ORG, 'k2', 'submit', base[4], NOW, new Date(NOW.getTime() - 1000)]),
     ).rejects.toThrow(/idempotency_expiry_after_claim/);
+    // A blank intent is outside §8.3's four, so the closed set catches it.
     await expect(admin(insert, [base[0], ORG, 'k3', '  ', base[4], NOW, base[6]])).rejects.toThrow(
-      /idempotency_intent_nonempty/,
+      /idempotency_intent_known/,
     );
   });
 

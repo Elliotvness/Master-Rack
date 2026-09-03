@@ -79,6 +79,40 @@ const RULES = [
     ],
   },
   {
+    /**
+     * `apps/api` (F-39, T-13d). No audience rule — the API sees everything by
+     * definition — but one AUTHORITY rule, and it exists because adversarial
+     * review demonstrated the failure rather than imagined it.
+     *
+     * `claimOn` and `settleOn` take a CALLER'S transaction. A route handler
+     * that claims inside the effect's own transaction is doing the tidy,
+     * obvious thing and is silently undoing AD-3's "three outcomes, not two":
+     * the intent row rolls back with the effect, so a crash leaves no evidence
+     * and the retry duplicates the work. Review ran exactly that and got two
+     * effects for one key with zero rows left behind.
+     *
+     * Removing them from `apps/api/src/index.ts` narrows the surface; it does
+     * not close it, because a sibling module can still reach them by relative
+     * path — which is precisely how T-14's route modules will be written. So
+     * the rule is enforced by name, everywhere in the app except the directory
+     * that owns them.
+     */
+    app: 'api',
+    forbidden: [],
+    /** The module that defines them, and its tests. Nothing else. */
+    exempt: [/^apps\/api\/src\/idempotency\//],
+    forbiddenSymbols: [
+      {
+        pattern: /^claimOn$/,
+        why: 'claiming inside the effect\'s transaction destroys AD-3\'s third outcome; use claimIdempotencyKey, which owns its own',
+      },
+      {
+        pattern: /^settleOn$/,
+        why: 'settling inside the effect\'s transaction makes a success unrecordable when the commit is what failed; use settleIdempotencyKey',
+      },
+    ],
+  },
+  {
     app: 'internal-web',
     /**
      * Empty ON PURPOSE, not by omission. An internal reviewer may see internal
@@ -211,6 +245,10 @@ export function checkAppBoundaries(root = ROOT) {
     for (const file of files) {
       const rel = relative(root, file).split(sep).join('/');
       scanned.push(rel);
+      // An exemption is data with a justification, never a silent skip: the
+      // reason lives beside the pattern in RULES, and a rule with no exempt
+      // list skips nothing.
+      if ((rule.exempt ?? []).some((pattern) => pattern.test(rel))) continue;
       const raw = readFileSync(file, 'utf8');
 
       for (const re of [IMPORT_RE, SIDE_EFFECT_IMPORT_RE, DYNAMIC_IMPORT_RE]) {

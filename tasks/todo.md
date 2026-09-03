@@ -1199,6 +1199,48 @@ retention exceeding the outbox's dead-letter replay window. A concurrency test f
 once and asserts exactly one wins.
 **Verification:** DB-backed test in CI. **Dependencies:** T-13a, T-03. **Scope:** M.
 
+**LANDED 2026-09-03** — `0011_idempotency.sql`, `apps/api/src/idempotency/`, and
+`canonicaliseAll` in `@rms/kernel-model`. Verified today in the container against native
+Postgres 16.13: every `pnpm verify` step green through 1,430 tests in 56 files and 14
+self-tested checkers, with the run ending at `check-claims` because the scoreboard still
+states the pre-T-13d figures — the gate working, closed by the scoreboard commit that follows.
+Ten controls planted and proven to go red; figures in the commit bodies. Adversarial review
+REFUSED the first attempt with three blockers and three majors, all closed and recorded as
+**F-39**.
+
+**Decision recorded for EL — a deviation from a literal reading of these acceptance criteria.**
+AD-3 spells out **three** claim outcomes; the store returns **four**. The fourth is `settled`,
+and it is not an addition to the decision but the thing the decision presupposes: AD-3 says
+"never replay the first response to a **different** request", and a rule about *different*
+requests only means anything if the *same* request replays. Without it, §8.3's "a double-click
+must not produce two submissions" has no true answer for the second click after the first has
+succeeded — `409` is untrue because nothing is in flight, and `422` is untrue because the
+payload matches. **Confirm or reverse.**
+
+Two shapes inside that fourth outcome, both deliberate and both reversible:
+
+- It carries a **`result_ref`, not a stored response body.** A cached body is a screen-only
+  model, which §19.2 rules out, and it goes stale the first time a DTO changes while still
+  claiming to be what the client saw. The handler re-renders from the referenced row through
+  the same outbound DTO T-13b validates. The cost: a replay costs a read.
+- A **`failed` intent is re-claimable.** AD-3 does not say. A failed effect rolled back, so the
+  intent never happened; leaving the row terminal would mean a client could never retry a
+  transient failure under its own key. The re-claim is conditional on the row still being
+  `failed`, so two retries racing cannot both win.
+
+**A third question this task could not answer, and did not invent an answer to.** AD-3 chooses
+`409` for an in-flight duplicate over waiting, which is right — but a process that dies holding
+a claim strands an `in_flight` row, and **every retry of that key gets `409` for thirty days**.
+Nothing today settles a stranded claim, and `purgeExpiredOn` has no caller. Two candidates: a
+lease (`claimed_at` older than N minutes is re-claimable) or an operator action. Both change
+the guarantee, so neither was chosen here. **Needs EL, or a T-14 sub-task.**
+
+**What T-13d does NOT do, so nobody reads it as more than it is.** It has no route wiring: no
+header is read, no audit event is written, and `errorCodeFor` maps an outcome to a code that
+nothing yet returns. `submit`, `derive`, `clone` and `invite` are unguarded until T-14 calls
+`claimIdempotencyKey`, and the retention sweep is unscheduled until something calls
+`purgeExpiredOn`. Both belong to T-14a–e and are listed there.
+
 ### T-14: The server
 **Acceptance criteria:** all **21** §8.2 routes mounted — the 23 rows in §8.2 less the two the
 blueprint itself marks phase 2 (`POST /api/internal/v1/submissions/:id/status`, `GET /api/internal/v1/audit`);

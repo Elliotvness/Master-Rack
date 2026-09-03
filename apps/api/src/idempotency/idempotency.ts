@@ -39,8 +39,9 @@
  * difference.
  */
 
-import { canonicaliseAll, sha256 } from '@rms/kernel-model';
+import { CanonicalError, canonicaliseAll, sha256 } from '@rms/kernel-model';
 import { withTenant, type TenantContext, type TenantTransaction } from '@rms/db';
+import type { ErrorCode } from '@rms/contracts';
 
 /**
  * The three states AD-3 names, and no more.
@@ -81,6 +82,17 @@ export type ClaimResult =
   /** Same key, different request. Route: 422. Never replay. */
   | { readonly status: 'mismatch'; readonly id: string }
   /**
+   * The body cannot be canonicalised, so it cannot be hashed, so no guard can
+   * be applied to it. Route: 400.
+   *
+   * Found by review: `requestHash` was the first statement in `claimOn` and it
+   * was unguarded, so `{"qty":-0}` — which survives JSON.parse and a numeric
+   * DTO — turned any idempotent route into a 500. AD-3's opening line is that
+   * careless handling is worse than not offering the header at all, and an
+   * unhandled throw out of the guard is the careless case.
+   */
+  | { readonly status: 'unhashable'; readonly id: string; readonly reason: string }
+  /**
    * This key already ran to a terminal state with this exact request. The
    * caller must NOT re-run the effect. `outcome` is 'succeeded' or 'failed';
    * a failure is re-claimable and never reaches here — see `claimOn`.
@@ -103,6 +115,45 @@ export type ClaimResult =
  */
 export function requestHash(body: unknown): string {
   return sha256(canonicaliseAll(body));
+}
+
+/**
+ * `requestHash`, total. Returns the reason instead of throwing, so a body the
+ * canonicaliser refuses becomes a modelled refusal rather than a 500.
+ *
+ * Only `CanonicalError` is caught. Anything else is a defect in this process,
+ * not a property of the request, and swallowing it would hide it.
+ */
+export function tryRequestHash(body: unknown): { hash: string } | { reason: string } {
+  try {
+    return { hash: requestHash(body) };
+  } catch (error) {
+    if (error instanceof CanonicalError) return { reason: error.message };
+    throw error;
+  }
+}
+
+/**
+ * The status code each outcome carries, as a table rather than as a convention
+ * a route layer is trusted to remember.
+ *
+ * Review's point, and it was right: the acceptance criteria say the guard
+ * RETURNS 422 and 409, and a module that returns `'mismatch'` and stops has
+ * met half of that. Nothing would have gone red if T-14 mapped `mismatch` onto
+ * 409. `null` means the caller proceeds or replays — not an error at all.
+ */
+export function errorCodeFor(status: ClaimResult['status']): ErrorCode | null {
+  switch (status) {
+    case 'mismatch':
+      return 'IDEMPOTENCY_KEY_REUSED';
+    case 'in_flight':
+      return 'IDEMPOTENCY_IN_FLIGHT';
+    case 'unhashable':
+      return 'MALFORMED_REQUEST';
+    case 'claimed':
+    case 'settled':
+      return null;
+  }
 }
 
 /** 30 days, per AD-3 — and `idempotency.test.ts` proves it outlives the outbox. */
@@ -128,7 +179,11 @@ export interface ClaimParams {
  * therefore commits the intent before the effect starts.
  */
 export async function claimOn(tx: TenantTransaction, params: ClaimParams): Promise<ClaimResult> {
-  const hash = requestHash(params.body);
+  const hashed = tryRequestHash(params.body);
+  if (!('hash' in hashed)) {
+    return { status: 'unhashable', id: params.id, reason: hashed.reason };
+  }
+  const hash = hashed.hash;
   const expiresAt = new Date(params.now.getTime() + RETENTION_MS);
 
   const inserted = await tx.query<{ id: string }>(
@@ -192,12 +247,18 @@ export async function claimOn(tx: TenantTransaction, params: ClaimParams): Promi
     // A failed effect rolled back, so the intent never happened and may be
     // attempted again. Re-claiming is itself conditional on the row still being
     // 'failed', so two retries racing on a failed key cannot both win.
+    // `expires_at` moves with `claimed_at`. Review found the omission: the
+    // schema carries CHECK (expires_at > claimed_at), so a legitimate retry of
+    // a failed key more than 30 days later raised a raw constraint violation
+    // out of this function instead of returning a ClaimResult. A re-claim is a
+    // fresh claim and gets a fresh window.
     const reclaimed = await tx.query<{ id: string }>(
       `UPDATE app.idempotency_key
-          SET claim_outcome = 'in_flight', claimed_at = $2, settled_at = NULL, result_ref = NULL
+          SET claim_outcome = 'in_flight', claimed_at = $2, expires_at = $3,
+              settled_at = NULL, result_ref = NULL
         WHERE id = $1 AND claim_outcome = 'failed'
         RETURNING id`,
-      [row.id, params.now],
+      [row.id, params.now, expiresAt],
     );
     return reclaimed.rows.length === 1
       ? { status: 'claimed', id: row.id }

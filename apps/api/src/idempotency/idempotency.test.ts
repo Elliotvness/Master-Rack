@@ -13,18 +13,52 @@
  * control computes the thing it claims to guarantee.
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import type { TenantTransaction } from '@rms/db';
 
 import { backoffFor } from '../outbox/outbox.js';
-import { IDEMPOTENT_INTENTS, RETENTION_MS, claimOn, requestHash, settleOn } from './idempotency.js';
+import {
+  IDEMPOTENT_INTENTS,
+  RETENTION_MS,
+  claimOn,
+  errorCodeFor,
+  requestHash,
+  settleOn,
+  tryRequestHash,
+} from './idempotency.js';
+
+/**
+ * The schema's own `max_attempts` default, READ FROM THE MIGRATION.
+ *
+ * The first draft of this file hardcoded 5 and 100, and adversarial review
+ * planted `DEFAULT 5000` in `0004_outbox.sql` — a ~208-day window against a
+ * 30-day retention — and watched all three assertions stay green. A control
+ * that names a variable and then hardcodes it is this repository's recurring
+ * defect wearing the docstring of its own remedy.
+ */
+function schemaMaxAttempts(): number {
+  const sql = readFileSync(
+    fileURLToPath(new URL('../../../../packages/db/migrations/0004_outbox.sql', import.meta.url)),
+    'utf8',
+  );
+  const match = /max_attempts\s+integer\s+NOT NULL\s+DEFAULT\s+(\d+)/i.exec(sql);
+  if (match?.[1] === undefined) {
+    // A migration this cannot parse must fail the test, never silently score
+    // the default it hoped for. A skip is a pass.
+    throw new Error('could not read max_attempts from 0004_outbox.sql');
+  }
+  return Number(match[1]);
+}
 
 /**
  * The longest a message can stay replayable: the sum of every backoff a row
- * accrues before it dead-letters. `max_attempts` DEFAULT 5 comes from
- * `0004_outbox.sql`; `enqueue` lets a caller raise it, so the sum is taken over
- * a deliberately generous ceiling as well.
+ * accrues before it dead-letters. Both inputs come from the code under
+ * guarantee — `backoffFor` from the outbox module, `maxAttempts` from the
+ * migration — so raising either one moves this number.
  */
 function deadLetterWindowMs(maxAttempts: number): number {
   let total = 0;
@@ -33,19 +67,72 @@ function deadLetterWindowMs(maxAttempts: number): number {
 }
 
 describe('AD-3 — retention outlives the longest retry path', () => {
-  it('exceeds the dead-letter window at the schema default of 5 attempts', () => {
-    expect(RETENTION_MS).toBeGreaterThan(deadLetterWindowMs(5));
+  it('exceeds the dead-letter window at whatever the schema currently defaults to', () => {
+    expect(RETENTION_MS).toBeGreaterThan(deadLetterWindowMs(schemaMaxAttempts()));
   });
 
-  it('still exceeds it at a hundred attempts, so the margin is real and not incidental', () => {
-    // Backoff caps at an hour, so a hundred attempts is ~100 hours — four days.
-    // If someone raises max_attempts past the point where 30 days stops being
-    // enough, this fails and the window gets re-derived rather than re-guessed.
-    expect(RETENTION_MS).toBeGreaterThan(deadLetterWindowMs(100));
+  it('exceeds it with an order of magnitude of headroom, so the margin is not incidental', () => {
+    // A caller may raise max_attempts per message; `enqueue` allows it. Ten
+    // times the schema default is the headroom this retention window buys, and
+    // when it stops being enough this fails rather than quietly under-retaining.
+    expect(RETENTION_MS).toBeGreaterThan(deadLetterWindowMs(schemaMaxAttempts() * 10));
+  });
+
+  it('reads a real number out of the migration rather than falling back to one', () => {
+    expect(schemaMaxAttempts()).toBeGreaterThan(0);
   });
 
   it('is the 30 days AD-3 records, expressed so the unit is visible', () => {
     expect(RETENTION_MS).toBe(30 * 24 * 60 * 60 * 1000);
+  });
+
+  /**
+   * Stated rather than left for the next reader to discover: `backoffFor` caps
+   * at one hour, so the window grows linearly past attempt 7 and this
+   * guarantee breaks at roughly 726 attempts. The first assertion is what
+   * notices — it is not a bound anyone has to remember.
+   *
+   * Also honest about the quantity: nothing in the outbox replays a `dead`
+   * message today, so "dead-letter replay window" is measured as time-to-dead,
+   * which is the conservative direction.
+   */
+  it('breaks, and says so, once the attempt count outruns the window', () => {
+    expect(RETENTION_MS).toBeLessThan(deadLetterWindowMs(1000));
+  });
+});
+
+describe('every outcome carries the status code the acceptance criteria name', () => {
+  it('maps the two refusals onto AD-2’s codes and lets the two successes through', () => {
+    expect(errorCodeFor('mismatch')).toBe('IDEMPOTENCY_KEY_REUSED');
+    expect(errorCodeFor('in_flight')).toBe('IDEMPOTENCY_IN_FLIGHT');
+    expect(errorCodeFor('unhashable')).toBe('MALFORMED_REQUEST');
+    expect(errorCodeFor('claimed')).toBeNull();
+    expect(errorCodeFor('settled')).toBeNull();
+  });
+});
+
+describe('a body the canonicaliser refuses is a refusal, not a 500', () => {
+  it('reports negative zero instead of throwing out of the guard', async () => {
+    // -0 survives JSON.parse and a numeric DTO, so this is one character in a
+    // client-controlled field. Review turned it into an unhandled 500.
+    const result = await claimOn(stubTx([]), { ...PARAMS, body: JSON.parse('{"qty":-0}') });
+    expect(result.status).toBe('unhashable');
+  });
+
+  it('reports a body nested past the canonical depth bound', async () => {
+    let deep: unknown = 'leaf';
+    for (let i = 0; i < 40; i += 1) deep = { deep };
+    const result = await claimOn(stubTx([]), { ...PARAMS, body: deep });
+    expect(result.status).toBe('unhashable');
+  });
+
+  it('never swallows an error that is not the canonicaliser’s', () => {
+    const exploding = {
+      get boom(): never {
+        throw new TypeError('not a canonical error');
+      },
+    };
+    expect(() => tryRequestHash(exploding)).toThrow(TypeError);
   });
 });
 

@@ -1170,6 +1170,59 @@ modules. Nothing compared either to the migration's enum, because nothing consum
 DTO tried to. The lesson is the one CLAUDE.md already states: a vocabulary in code is a claim until
 something re-derives it from the governing document.
 
+## F-39 — a guarantee stated in three places, enforced in none, and the module exported the way to break it *(raised and **CLOSED** 2026-09-03 by T-13d's adversarial review)*
+
+**The shape, again.** AD-3's "the intent row is written **before** the effect" was stated in
+`0011_idempotency.sql`'s header, in `idempotency.ts`'s module note, and in T-13d's acceptance
+criteria. `claimIdempotencyKey` honoured it by owning its transaction. Nothing made it true.
+`claimOn` — which takes a *caller's* transaction — was exported from the module **and re-exported
+from `apps/api/src/index.ts`**, and the last DB test blessed calling it inside a caller's
+transaction. Claiming inside the effect's transaction is the tidiest thing a T-14 handler will
+reach for, and it silently deletes the third outcome: the intent row rolls back with the effect,
+so a crash leaves no evidence and the retry duplicates the work.
+
+**Demonstrated, not argued.** The review ran a probe that claimed inside a transaction which then
+threw: `{ first: 'rolled-back', second: 'rolled-back', effects: 2, rowsLeft: 0 }` — two effects for
+one key, no evidence of either. No test, lint rule or checker went red.
+
+**Closed three ways, weakest to strongest.** `claimOn`/`settleOn` removed from
+`apps/api/src/index.ts` with the reason written where the export used to be; a DB test in which the
+effect rolls back and the claim must survive; and a symbol rule for `apps/api` in
+`tools/check-app-boundaries.mjs` — the first rule in that checker to carry a path **exemption**, so
+the directory that defines them may name them and no other may. Proven on the real tree: a
+`apps/api/src/routes/probe-t14.ts` importing `claimOn` turns the checker FAIL, and its self-test
+carries three catch cases, two allow cases, and the case that would notice if the exemption ever
+widened from the owning directory to the whole app.
+
+**Four more from the same review, all closed in the same commit.**
+
+- **The retention control could not fire for the change it named.** `idempotency.test.ts` said in
+  its own docstring that asserting `RETENTION_MS === 30 days` would "pass forever while someone
+  raised `max_attempts` to 200" — and then hardcoded 5 and 100. The review planted
+  `DEFAULT 5000` in `0004_outbox.sql` (a ~208-day window against 30-day retention) and all three
+  assertions stayed green. Now read from the migration; the same plant turns 2 of 39 red.
+- **A false statement of record.** Both the module source and the commit body said a deviation was
+  "recorded for EL in `tasks/todo.md`". It was not; `todo.md` was not in the commit. The record now
+  exists, and it carries the two shapes inside the deviation and one question T-13d deliberately
+  did not answer (a stranded `in_flight` claim gets `409` for thirty days and nothing settles it).
+- **A legitimate late retry raised a raw Postgres error.** The re-claim moved `claimed_at` and left
+  `expires_at`, so `CHECK (expires_at > claimed_at)` fired on a failed key retried after its
+  window. Reproduced by the review; fixed and pinned.
+- **A client could turn any idempotent route into a 500 with one character.** `requestHash` was
+  unguarded and `canonicaliseAll` refuses `-0`, which survives `JSON.parse` and a numeric DTO.
+  Now a modelled `unhashable` outcome. The same commit adds `errorCodeFor`, because the acceptance
+  criteria say the guard *returns* 422 and 409 and the module returned `'mismatch'` and stopped.
+
+**Two figures in the original commit body were wrong** and are corrected here: dropping
+`UNIQUE (organization_id, key)` turns **15** of 30 red, not 8; removing the `request_hash`
+comparison turns **2** of 30 red, not 3. The controls fire; the arithmetic reported did not
+reproduce, which in this repository is its own small instance of the shape.
+
+**Still open, and not T-13d's to close.** F-29 remains: the DB suites skip to green without a
+database. T-13d narrows it — the probe now REFUSES rather than skips when Postgres is reachable but
+`app.idempotency_key` is absent, which is the migration-failed case the review reproduced by
+renaming the table (18 skipped, exit 0). A no-database developer still skips, by design.
+
 ## F-12 and F-13 — fixed, values untouched
 
 Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.

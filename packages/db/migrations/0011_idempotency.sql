@@ -83,7 +83,11 @@ CREATE TABLE app.idempotency_key (
   -- An empty key is a key that collides with every other empty key, which
   -- turns the guard into a denial of service for the second caller.
   CONSTRAINT idempotency_key_nonempty CHECK (length(btrim(key)) > 0),
-  CONSTRAINT idempotency_intent_nonempty CHECK (length(btrim(intent)) > 0),
+  -- §8.3's four operations, closed by the schema rather than by a frozen array
+  -- in TypeScript that only a test reads. Review found that array "a closed set
+  -- nothing closes"; a fifth intent is a blueprint change and now costs a
+  -- migration, which is the price the comment always claimed it had.
+  CONSTRAINT idempotency_intent_known CHECK (intent IN ('submit', 'derive', 'clone', 'invite')),
 
   -- 64 lowercase hex characters. A truncated or re-encoded hash compares
   -- unequal to itself and would return 422 for a genuine retry.

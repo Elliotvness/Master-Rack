@@ -230,6 +230,63 @@ function probeViolations() {
   );
 }
 
+/**
+ * `apps/api` (F-39). Two probes, because the api rule is the first one with an
+ * EXEMPTION and an exemption is exactly the kind of thing that quietly widens:
+ * one probe outside the owning directory that must be caught, one inside it
+ * that must be allowed, and one that proves the exemption is a path rule and
+ * not a whole-app opt-out.
+ */
+const API_PROBE_DIR = join(TREE, 'apps', 'api', 'src', 'routes');
+const API_PROBE = join(API_PROBE_DIR, 'probe.ts');
+const API_OWNED_DIR = join(TREE, 'apps', 'api', 'src', 'idempotency');
+const API_OWNED_PROBE = join(API_OWNED_DIR, 'probe.ts');
+
+function writeApiProbe(source) {
+  mkdirSync(API_PROBE_DIR, { recursive: true });
+  writeFileSync(API_PROBE, source, 'utf8');
+}
+
+function apiProbeViolations() {
+  return checkAppBoundaries(TREE).violations.filter((v) => v.includes('api/src/routes/probe.'));
+}
+
+function writeApiOwnedProbe(source) {
+  mkdirSync(API_OWNED_DIR, { recursive: true });
+  writeFileSync(API_OWNED_PROBE, source, 'utf8');
+}
+
+function apiOwnedProbeViolations() {
+  return checkAppBoundaries(TREE).violations.filter((v) => v.includes('api/src/idempotency/probe.'));
+}
+
+const MUST_CATCH_API = [
+  {
+    name: 'a route module importing claimOn by relative path (the T-14 shape review demonstrated)',
+    source: "import { claimOn } from '../idempotency/idempotency.js';\nexport const x = claimOn;\n",
+  },
+  {
+    name: 'a route module importing settleOn',
+    source: "import { settleOn } from '../idempotency/idempotency.js';\nexport const y = settleOn;\n",
+  },
+  {
+    name: 're-exporting claimOn, which is how it reaches a handler without an import line',
+    source: "export { claimOn } from '../idempotency/idempotency.js';\n",
+  },
+];
+
+const MUST_ALLOW_API = [
+  {
+    name: 'the transaction-owning entry point, which is the whole point of the rule',
+    source:
+      "import { claimIdempotencyKey } from '../idempotency/idempotency.js';\nexport const x = claimIdempotencyKey;\n",
+  },
+  {
+    name: 'a name that merely contains the forbidden one',
+    source: 'export function reclaimOnce() { return 1; }\n',
+  },
+];
+
 function writeInternalProbe(source) {
   mkdirSync(INTERNAL_PROBE_DIR, { recursive: true });
   writeFileSync(INTERNAL_PROBE, source, 'utf8');
@@ -321,6 +378,43 @@ function main() {
       if (hits.length > 0) falsePositives.push(`[internal-web] ${name} -> ${hits[0]}`);
       else console.log(`  allowed     [internal-web] ${name}`);
     }
+
+    // F-39 — the api authority rule and its exemption.
+    writeInternalProbe('export const x = 1;\n');
+    writeApiProbe('export const x = 1;\n');
+    if (apiProbeViolations().length > 0) {
+      missed.push('the api baseline probe is not clean, so its cases prove nothing');
+    }
+    for (const { name, source } of MUST_CATCH_API) {
+      writeApiProbe(source);
+      if (apiProbeViolations().length === 0) missed.push(`[api] ${name}`);
+      else console.log(`  caught      [api] ${name}`);
+    }
+    for (const { name, source } of MUST_ALLOW_API) {
+      writeApiProbe(source);
+      const hits = apiProbeViolations();
+      if (hits.length > 0) falsePositives.push(`[api] ${name} -> ${hits[0]}`);
+      else console.log(`  allowed     [api] ${name}`);
+    }
+    writeApiProbe('export const x = 1;\n');
+
+    // The exemption is a PATH rule: the same source that is caught above must
+    // be allowed inside the directory that owns these functions, and nowhere
+    // else. An exemption that turned out to cover the whole app would pass
+    // every case above and be worthless.
+    writeApiOwnedProbe("export { claimOn, settleOn } from './idempotency.js';\n");
+    if (apiOwnedProbeViolations().length > 0) {
+      falsePositives.push('[api] the owning module may name claimOn/settleOn');
+    } else {
+      console.log('  allowed     [api] the owning directory, which defines them');
+    }
+    writeApiProbe("export { claimOn } from '../idempotency/idempotency.js';\n");
+    if (apiProbeViolations().length === 0) {
+      missed.push('[api] the exemption covers the whole app, not just the owning directory');
+    } else {
+      console.log('  caught      [api] a sibling directory is still refused while the owner is exempt');
+    }
+    writeApiProbe('export const x = 1;\n');
   } finally {
     rmSync(TREE, { recursive: true, force: true });
   }
@@ -334,9 +428,9 @@ function main() {
   }
 
   console.log(
-    `selftest-app-boundaries: PASS — all ${MUST_CATCH.length + MUST_CATCH_INTERNAL.length} ` +
-      `violation types caught (${MUST_CATCH_INTERNAL.length} of them internal-web), all ` +
-      `${MUST_ALLOW.length + MUST_ALLOW_INTERNAL.length} legal forms allowed; ` +
+    `selftest-app-boundaries: PASS — all ${MUST_CATCH.length + MUST_CATCH_INTERNAL.length + MUST_CATCH_API.length} ` +
+      `violation types caught (${MUST_CATCH_INTERNAL.length} internal-web, ${MUST_CATCH_API.length} api), all ` +
+      `${MUST_ALLOW.length + MUST_ALLOW_INTERNAL.length + MUST_ALLOW_API.length} legal forms allowed; ` +
       `${baseline.scanned.length} file(s) scanned clean.`,
   );
 }
