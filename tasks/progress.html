@@ -199,7 +199,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
   <section>
     <div class="head">
       <h2>Your queue &mdash; EL</h2>
-      <p class="lbl"><strong>Six of the ten cleared on 2026-09-03</strong> and moved to the second table. Five remain, of which three are starred and block a phase</p>
+      <p class="lbl"><strong>Eight of the ten cleared on 2026-09-03.</strong> Q3 and Q4 are resolved on EL&rsquo;s word, which unblocks T-20/AC-16 and T-24. Three remain, and <strong>one of them is a correction rather than a request</strong></p>
     </div>
     <div class="tw wide">
       <table class="queue">
@@ -212,9 +212,9 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
           
           
           
-          <tr><td class="n"><b>2</b></td><td><strong>&#9733; Q3 &mdash; the standing disclaimer text verbatim</strong>, company and contact name, document number format</td><td>Every client-facing output carries it. Nobody but you can write the words a client is shown</td><td><strong>T-20, AC-16</strong> &mdash; blocks the client PDF</td></tr>
-          <tr><td class="n"><b>3</b></td><td><strong>&#9733; Q4 &mdash; Backblaze B2 credentials</strong> and permission for the Governance-bucket proof</td><td>A credential and an authorisation. No amount of code substitutes</td><td><strong>T-24</strong> &mdash; blocks WORM retention</td></tr>
-          <tr><td class="n"><b>4</b></td><td><strong>&#9733; A blueprint amendment &sect;8.2 now needs.</strong> The operator release route is registered in code but is not a &sect;8.2 row</td><td>You decided the endpoint; the blueprint is the governing document and this session did not edit it. Until &sect;8.2 carries the row, the registry holds two entries &sect;8.2 does not list as MVP-1. Two substitutions also want a yes or no: the path is <code>/api/internal/v1/idempotency-claims/:key/release</code> rather than <code>/admin/claims/:key/release</code> because there is no <code>/admin</code> namespace, and &ldquo;operator role&rdquo; maps to <code>INTERNAL_ADMIN</code></td><td><strong>T-14e</strong> &mdash; and the route-surface figure</td></tr><tr><td class="n"><b>5</b></td><td><strong>Q6 / OD-20b &mdash; the external pilot client name</strong></td><td>Criteria are settled (outside McMurray Stern, new material, one sitting, live opportunity, a relationship that survives a rough release) and one audited account fits all five. Gates no development &mdash; but <strong>R-01 is retired only when an outside organisation completes a submission unaided</strong></td><td>Retires R-01; P-04's real unit sizes</td></tr>
+          
+          
+          <tr><td class="n"><b>2</b></td><td><strong>&#9733; A blueprint amendment &sect;8.2 now needs.</strong> The operator release route is registered in code but is not a &sect;8.2 row</td><td>You decided the endpoint; the blueprint is the governing document and this session did not edit it. Until &sect;8.2 carries the row, the registry holds two entries &sect;8.2 does not list as MVP-1. Two substitutions also want a yes or no: the path is <code>/api/internal/v1/idempotency-claims/:key/release</code> rather than <code>/admin/claims/:key/release</code> because there is no <code>/admin</code> namespace, and &ldquo;operator role&rdquo; maps to <code>INTERNAL_ADMIN</code></td><td><strong>T-14e</strong> &mdash; and the route-surface figure</td></tr><tr><td class="n"><b>5</b></td><td><strong>Q6 / OD-20b &mdash; the external pilot client name</strong></td><td>Criteria are settled (outside McMurray Stern, new material, one sitting, live opportunity, a relationship that survives a rough release) and one audited account fits all five. Gates no development &mdash; but <strong>R-01 is retired only when an outside organisation completes a submission unaided</strong></td><td>Retires R-01; P-04's real unit sizes</td></tr>
           
         </tbody>
       </table>
@@ -232,6 +232,7 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
           <tr><td><strong>OD-07 / OD-15 &mdash; approver authority</strong></td><td>You are catalog approver and rule-pack owner; Nick Heraldez (McMurray Stern design consultant) is fallback approver. The single-point dependency is <strong>formally accepted for MVP-1 only</strong>, which is a decision rather than an oversight</td><td class="n">2026-08-31</td></tr>
           <tr><td><strong>R-07 &mdash; the dissent taken</strong></td><td>You took the dissent rather than the disposition: <code>approved_by: 42</code> now throws instead of passing as <code>null</code>, and <code>constraints</code> goes through a validator that names the offending entry. Test-first, two tests red then green, PR #16. That closed the pre-merge review at <strong>11 of 11</strong></td><td class="n">2026-09-02</td></tr>
           <tr><td><strong>T-13d&rsquo;s six open questions, in one pass</strong></td><td>The fourth claim outcome kept and AD-3&rsquo;s enumeration <em>completed</em> rather than extended; the stranded claim closed with <strong>both</strong> halves &mdash; a 10-minute lease, configurable by environment, plus an <code>INTERNAL_ADMIN</code> release writing an audit event &mdash; and landed inside T-13d rather than deferred, because <em>&ldquo;a claim that can&rsquo;t be released is a submission the user can never make&rdquo;</em>; the outbound guard&rsquo;s both-modes refusal kept with the deviation recorded where the guard lives; OD-12 confirmed; T-14a&ndash;e confirmed at 160 points; the <code>content_sha256</code> left alone with one sentence in a README. <em>&ldquo;Don&rsquo;t let sizing debates stall execution.&rdquo;</em></td><td class="n">2026-09-03</td></tr>
+          <tr><td><strong>Q3 and Q4</strong></td><td>The standing disclaimer text, company and contact name, and the <code>MS-GOV-YYYY-NNN</code> document numbering; and the Backblaze B2 bucket with scoped keys, created and verified. Between them they unblock <strong>T-20 / AC-16</strong> (the client PDF) and <strong>T-24</strong> (WORM retention) &mdash; two of the three phase-blocking items on this page are gone</td><td class="n">2026-09-03</td></tr>
           <tr><td><strong>The go-ahead to implement</strong></td><td>Planning was complete and the decision set closed at blueprint Rev C with no production code written. You asked for an explicit go-ahead before implementation began, and gave it &mdash; which is why every task since has a settled decision behind it rather than an assumption</td><td class="n">2026-08-31</td></tr>
         </tbody>
       </table>
@@ -522,8 +523,8 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
         <thead><tr><th>#</th><th>Question</th><th>Gates</th></tr></thead>
         <tbody>
           <tr><td class="n"><b>Q3</b></td><td>Standing disclaimer text verbatim, company and contact name, document number format</td><td>T-20 · AC-16</td></tr>
-          <tr><td class="n"><b>Q4</b></td><td>Backblaze B2 credentials, and permission for the Governance-bucket proof</td><td>T-24</td></tr>
-          <tr><td class="n"><b>Q6</b></td><td>External pilot client name (OD-20b)</td><td>No code. Retires R-01; supplies P-04's real unit sizes</td></tr>
+          <tr><td class="n"><b>Q4</b></td><td><s>Backblaze B2 credentials and the Governance-bucket proof</s> &mdash; <strong>answered 2026-09-03</strong>, bucket created and keys scoped</td><td>T-24 <strong>unblocked</strong></td></tr>
+          <tr><td class="n"><b>Q6</b></td><td><strong>Still open.</strong> McMurray Stern answers <strong>OD-20a</strong>, the internal dogfood pilot; <strong>OD-20b</strong>&rsquo;s own criterion is <em>outside</em> McMurray Stern</td><td>No code. <strong>R-01 stays live</strong> &mdash; it retires only when an outside organisation completes a submission unaided</td></tr>
         </tbody>
       </table>
     </div>

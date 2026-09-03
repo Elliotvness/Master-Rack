@@ -423,17 +423,16 @@ changelog and tags *are* T-26.)
 
 ## Your queue — EL
 
-**Six of the ten cleared on 2026-09-03**, and they moved to the second table. Four remain, of which
-the two starred block a phase.
+**Eight of the ten cleared on 2026-09-03.** Q3 (disclaimer text, contact name, `MS-GOV-YYYY-NNN`
+numbering) and Q4 (B2 bucket, scoped keys) are resolved on EL's word, which unblocks T-20/AC-16 and
+T-24. Three items remain, and **one of them is a correction rather than a request**.
 
 | # | Waiting on you | Why it is yours, not code's | Gates |
 |---|---|---|---|
 | 1 | **Push two branches.** `task/t-13c-input-dtos` is on `origin` and unmerged; `task/t-13d-idempotency` is unpushed and was delivered as a git bundle | A scheduled run's git proxy refuses this repo and no folder was connected, so nothing reaches `origin` from the container. Until it lands, **no CI run has judged T-13d** and every figure here has one machine behind it | CI coverage of T-13c and T-13d |
-| 2 | **★ Q3 — the standing disclaimer text verbatim**, company and contact name, document number format | Every client-facing output carries it. Nobody but you can write the words a client is shown | **T-20, AC-16** — blocks the client PDF |
-| 3 | **★ Q4 — Backblaze B2 credentials** and Governance-bucket permission | A credential and an authorisation; no code substitutes | **T-24** — blocks WORM retention |
-| 5 | **★ A blueprint amendment §8.2 now needs.** The operator release route is registered in code but is not a §8.2 row | You decided the endpoint; the blueprint is the governing document and this session did not edit it. Until §8.2 carries the row, the registry holds two entries §8.2 does not list as MVP-1. Two substitutions also want your yes or no: the path is  rather than  because there is no  namespace, and "operator role" maps to  | **T-14e** — and the route-surface figure |
-| 5 | **★ A blueprint amendment §8.2 now needs.** The operator release route is registered in code but is not a §8.2 row | You decided the endpoint; the blueprint is the governing document and this session did not edit it. Until §8.2 carries the row, the registry holds two entries §8.2 does not list as MVP-1. Two substitutions also want a yes or no: the path is `/api/internal/v1/idempotency-claims/:key/release` rather than `/admin/claims/:key/release` because there is no `/admin` namespace, and "operator role" maps to `INTERNAL_ADMIN` | **T-14e** — and the route-surface figure |
-| 4 | **Q6 / OD-20b — the external pilot client name** | Criteria settled and one audited account fits all five. Gates no development — but **R-01 retires only when an outside organisation completes a submission unaided** | Retires R-01; P-04's unit sizes |
+| 2 | **★ A blueprint amendment §8.2 now needs.** The operator release route is registered in code but is not a §8.2 row | You decided the endpoint; the blueprint is the governing document and this session did not edit it. Until §8.2 carries the row, the registry holds two entries §8.2 does not list as MVP-1. Two substitutions also want your yes or no: the path is  rather than  because there is no  namespace, and "operator role" maps to  | **T-14e** — and the route-surface figure |
+| 2 | **★ A blueprint amendment §8.2 now needs.** The operator release route is registered in code but is not a §8.2 row | You decided the endpoint; the blueprint is the governing document and this session did not edit it. Until §8.2 carries the row, the registry holds two entries §8.2 does not list as MVP-1. Two substitutions also want a yes or no: the path is `/api/internal/v1/idempotency-claims/:key/release` rather than `/admin/claims/:key/release` because there is no `/admin` namespace, and "operator role" maps to `INTERNAL_ADMIN` | **T-14e** — and the route-surface figure |
+| 3 | **Q6 answered as McMurray Stern — which answers OD-20a, not OD-20b.** Read the distinction before closing it | OD-20a is the **internal dogfood** pilot: settled, worth doing, and it measures *usability*. OD-20b is the **external** pilot, and its own recorded criterion is *"outside McMurray Stern"*. Naming McMurray Stern therefore closes the first and leaves the second open — which matters because **R-01 (will a client actually do this work) retires only when an outside organisation completes a submission unaided**, and nothing else retires it | R-01 stays live; P-04's real unit sizes still unsourced |
 
 | Closed by you | What it settled | When |
 |---|---|---|
@@ -445,6 +444,7 @@ the two starred block a phase.
 | **OD-07 / OD-15 — approver authority** | You are catalog approver and rule-pack owner; Nick Heraldez is fallback. The single-point dependency is **formally accepted for MVP-1 only** — a decision, not an oversight | 2026-08-31 |
 | **R-07 — the dissent taken** | You took the dissent rather than the disposition: `approved_by: 42` now throws, and `constraints` goes through a validator that names the offending entry. Test-first, PR #16. Closed the pre-merge review at **11 of 11** | 2026-09-02 |
 | **T-13d's six open questions, in one pass** | The fourth claim outcome kept and AD-3's enumeration completed rather than extended; the stranded claim closed with **both** halves (a 10-minute lease, configurable, plus an `INTERNAL_ADMIN` release writing an audit event) and landed in T-13d rather than deferred; the outbound guard's both-modes refusal kept with the deviation recorded where the guard lives; OD-12 confirmed; T-14a–e confirmed at 160 points; the `content_sha256` left alone with one sentence in `packages/kernel-catalog/README.md`. *"Don't let sizing debates stall execution."* | 2026-09-03 |
+| **Q3 and Q4** | The standing disclaimer text, company and contact name, and the `MS-GOV-YYYY-NNN` document numbering; and the Backblaze B2 bucket with scoped keys, created and verified. Between them they unblock **T-20 / AC-16** (the client PDF) and **T-24** (WORM retention) — two of the three phase-blocking items on this page are gone | 2026-09-03 |
 | **The go-ahead to implement** | Planning complete, decision set closed at Rev C, no production code written. You asked for an explicit go-ahead and gave it — which is why every task since has a settled decision behind it rather than an assumption | 2026-08-31 |
 
 ## By phase
@@ -895,9 +895,9 @@ Zero `.tsx` files, so every decision here is still free.
 
 | | | Gates |
 |---|---|---|
-| **Q3** | Standing disclaimer text, company/contact name, document number format | T-20, AC-16 |
-| **Q4** | Backblaze B2 credentials + permission for the Governance-bucket proof | T-24 |
-| **Q6 / OD-20b** | External pilot client name | No code. Retires R-01, and P-04's real unit sizes |
+| ~~**Q3**~~ | **Answered 2026-09-03** — disclaimer text, company/contact name, `MS-GOV-YYYY-NNN` numbering | T-20, AC-16 **unblocked** |
+| ~~**Q4**~~ | **Answered 2026-09-03** — B2 bucket created, keys scoped and verified | T-24 **unblocked** |
+| **Q6 / OD-20b** | **Still open.** McMurray Stern answers **OD-20a**, the internal dogfood pilot; OD-20b's own criterion is *outside* McMurray Stern | No code. **R-01 stays live** — it retires only when an outside organisation completes a submission unaided |
 
 Q1, Q2, Q5 and Q7 are answered, and as of session 3 `tasks/plan.md` says so for all four — it had
 not caught up on Q1, Q5 **or** Q7 (session 2's drift list missed Q5).
