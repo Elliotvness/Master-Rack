@@ -53,6 +53,14 @@ closes it. Recorded as **F-40**, together with the second blocker: four document
 `CLAIM_LEASE_MINUTES` "throws at startup" when there is no startup, so a typo'd deploy came up
 healthy and threw at the first duplicate claim.
 
+**`prove-the-control-fires` was then run over this session's own additions, and found two more.**
+`check-app-boundaries` refused a pass only when the scan matched *nothing at all*, so with three
+rules a renamed `apps/api/src` left two apps checked and a green build over the rule this session
+had just added; and its new `exempt` list was a silent skip that never asserted the path it names
+still exists. Both fail now. **The test written for the first was itself defective** — it filtered
+violations by the `api:` prefix, which the neighbouring stale-exemption violation also carries, so
+neutering the guard it named left the self-test green. Recorded as **F-41**.
+
 **EL's decision, as landed.** The stranded
 claim — an `in_flight` row left by a dead process, refusing every retry of that key for thirty days
 — is closed with **both** halves he asked for: a **10-minute lease** configurable through
