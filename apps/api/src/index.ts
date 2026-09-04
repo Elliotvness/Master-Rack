@@ -198,3 +198,32 @@ export {
   type InternalRevision,
   type SourceSubmission,
 } from '@rms/workflow';
+
+/**
+ * `claimOn` and `settleOn` are deliberately ABSENT from this list.
+ *
+ * They take a caller's transaction, and a T-14 handler that reached for the
+ * tidy thing — claiming inside the effect's transaction — would silently undo
+ * AD-3's "three outcomes, not two": the intent row would roll back with the
+ * effect, leaving two effects for one key and no evidence of either. Review
+ * demonstrated exactly that, twice, with zero rows left behind. They stay
+ * module-local for the tests that need to hold a transaction open; the public
+ * surface is the pair that owns its own transaction.
+ */
+export {
+  IDEMPOTENT_INTENTS,
+  RETENTION_MS as IDEMPOTENCY_RETENTION_MS,
+  DEFAULT_CLAIM_LEASE_MINUTES,
+  claimIdempotencyKey,
+  claimLeaseMs,
+  errorCodeFor,
+  releaseClaim,
+  purgeExpiredOn,
+  requestHash,
+  settleIdempotencyKey,
+  tryRequestHash,
+  type ClaimParams,
+  type ClaimResult,
+  type IdempotencyOutcome,
+  type IdempotentIntent,
+} from './idempotency/idempotency.js';

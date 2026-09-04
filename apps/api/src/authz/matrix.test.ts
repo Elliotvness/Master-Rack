@@ -98,6 +98,23 @@ const EXPECTED_OWN_ORG: Readonly<Record<Action, Readonly<Record<Role, boolean>>>
     CLIENT_USER: false, CLIENT_ADMIN: false, INTERNAL_SALES: true, INTERNAL_ADMIN: true,
     SERVICE_ENGINE: false,
   },
+  // Overriding a safety control sits with catalog approval, not with the staff
+  // reads: INTERNAL_SALES may SEE a stuck submission and must escalate rather
+  // than clear it.
+  // The client's own watermarked PDF: same audience shape as revision.read.
+  'document.read': {
+    CLIENT_USER: true, CLIENT_ADMIN: true, INTERNAL_SALES: true, INTERNAL_ADMIN: true,
+    SERVICE_ENGINE: false,
+  },
+  // §9 makes an internal note a category a client must never see.
+  'note.create': {
+    CLIENT_USER: false, CLIENT_ADMIN: false, INTERNAL_SALES: true, INTERNAL_ADMIN: true,
+    SERVICE_ENGINE: false,
+  },
+  'idempotency.release': {
+    CLIENT_USER: false, CLIENT_ADMIN: false, INTERNAL_SALES: false, INTERNAL_ADMIN: true,
+    SERVICE_ENGINE: false,
+  },
   'invitation.create': {
     // A client ADMIN may invite into its own org; a client USER may not.
     CLIENT_USER: false, CLIENT_ADMIN: true, INTERNAL_SALES: true, INTERNAL_ADMIN: true,

@@ -38,6 +38,7 @@
       <tr><td><code>POST /api/internal/v1/invitations</code></td><td>Issue an invitation into any organization</td><td><code>staff</code></td></tr>
       <tr><td><code>POST /api/internal/v1/catalog/releases/:id/approve</code></td><td>Approve a catalog or rule release</td><td><code>internal_admin</code>, checker ≠ digitiser, re-auth</td></tr>
       <tr><td><code>GET  /api/internal/v1/audit</code></td><td>Audit browser — <b>phase 2</b>. MVP-1 reads the audit table directly.</td><td><code>internal_admin</code>; export re-auths</td></tr>
+      <tr><td><code>POST /api/internal/v1/idempotency-claims/:key/release</code></td><td>Release a stranded idempotency claim (operator escape hatch, AD-3). Writes an audit event in the same transaction as the release.</td><td><code>internal_admin</code></td></tr>
     </tbody>
   </table>
   </div>

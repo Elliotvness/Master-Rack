@@ -1045,11 +1045,151 @@ not this walk's. The AD-4 pagination envelope has its own schema constructor
 envelope is camelCase (`pageSize`, `totalItems`) while the DTOs are snake_case: one wire, two
 cases, for T-14 to settle before the first list route ships.
 
-### T-13c: Input DTOs
+### T-13c: Input DTOs  ✅ 2026-09-03
 **Acceptance criteria:** `organization_id`, `role`, `audience`, `lifecycle_state` and every price
 field are structurally unreachable from a request body. No mass assignment. A test attempts each and
 is refused.
-**Verification:** `vitest run packages/contracts`. **Dependencies:** T-13a. **Scope:** S.
+**Verification:** `vitest run packages/contracts`. **Dependencies:** T-13a. **Scope:** S as planned,
+**M as built** — three fresh-context adversarial reviews turned it up. The size is recorded, not
+re-scored: the denominator stays 148 until EL confirms, as with T-14a–e.
+
+**Done.** Container-verified 2026-09-03: `pnpm verify` **exit 0 — 54 files, 1,385 tests, 0 skipped**,
+`packages/contracts/src` and `request.ts` at **100 / 100 / 100 / 100**, **15** checkers green behind
+their self-tests. Three fresh-context adversarial reviews ran before it stood. **The first two both
+refused it** (five blockers). The third round reviewed the fixes and **refused those too** — the fix
+had reintroduced the project's own defect shape one level up. Everything below is the state after
+round three; every claim was re-measured, not carried.
+
+- [x] **`clientRequestBody` / `internalRequestBody` refuse at declaration**, at any depth (object,
+      array items, `oneOf` variant, `nullable` inner, a stack of arrays), any server-assigned key,
+      and every `FORBIDDEN_CLIENT_FIELDS` entry; a client body additionally refuses
+      `organization_id` and `role`. An internal-audience schema cannot be embedded in a client body,
+      mirroring `schema.ts`. The failure lands on the line that declared the field, at module load
+- [x] **What the server assigns is a RULE, not a list.** The first draft carried sixteen names
+      written from recall; review found three matching no column in `packages/db/migrations`
+      (`revision`, `tenant_id`, `updated_at`) while `is_internal` — §7.2's tenant-root privilege
+      bit — `content_hash`, `revision_code` and `request_status` were open. Now a `_at` / `_by` /
+      `_hash` suffix rule plus **seventeen** named columns, each with its reason in the source
+- [x] **The rule reads a name however it is spelt** (round 3). It was snake_case-only, so
+      `organizationId`, `lifecycleState` and `isInternal` were declarable on a client body and bound
+      into the handler — and camelCase is already house style for a shipped envelope (`pageSize`,
+      `totalItems` in `pagination.ts`). A declared key is normalised before the rule applies.
+      **The checker could never have found this**: Postgres identifiers are lower snake_case, so it
+      draws its inputs from the one namespace where the rule was guaranteed to work. Pinned in the
+      suite instead — ten camelCase and three capitalised spellings, each asserted refused
+- [x] **`parseBody` binds only a schema this module built** (round 1 blocker, found independently by
+      both reviewers). `RequestSchema` and `ResponseSchema` are structurally identical, so
+      `parseBody(Revision, body)` — `Revision` being the shipped DTO at `apps/api/src/dto/internal.ts`
+      that declares `organization_id`, `audience` and `lifecycle_state` — compiled with `tsc` exit 0
+      and bound all three. Closed with a `kind` discriminator at the type level and a private
+      `WeakSet` at runtime, because a type brand alone is one cast from gone. `narrowToDeclared` is
+      branded the same way — round 3 found the sibling function left open beside it
+- [x] **No mass assignment, at every depth.** A handler receives a new frozen null-prototype object
+      built key by key from a SNAPSHOT taken once, every scalar position re-checked against its
+      declared type, so the narrowing does not depend on the validator having run. The first draft
+      defended only the top level: four mutants (nested object, array item, `oneOf`, `nullable`) each
+      survived a green suite. The single snapshot also closes a getter/Proxy TOCTOU and a
+      non-enumerable declared field, which now reads as `required` rather than passing unchecked
+- [x] **The snapshot is total, and says so rather than staying quiet** (round 3). A body nested past
+      `MAX_BODY_DEPTH` was a `RangeError` out of `parseBody` — a 500 from a 6 KB body that
+      `JSON.parse` accepts without complaint, on the exact request this module exists to refuse. A
+      throwing getter escaped the same way. Function-valued and `undefined`-valued stray keys were
+      dropped by the snapshot *before* the validator could report them, contradicting "validation
+      makes it LOUD". And `seen` was a visited-set, never unwound, so a shared reference appearing
+      twice — a DAG, not a cycle — was rejected as a missing required field. All four fixed; each
+      has a test
+- [x] **The refusal reflects nothing.** Envelope carries `{path, kind}` pairs only — never a
+      submitted value — capped at 20 fields and 120 characters of path, with the dropped count
+      stated. The full prose stays in `problems` for the server's log
+- [x] `__proto__`, `constructor` and `prototype` are refused as declared property names on both
+      audiences: `object()` builds a null-prototype property map, which makes `__proto__` a legal
+      declared name whose narrowed value becomes the prototype of whatever a handler spreads it into
+
+**`tools/check-server-owned.mjs` — the 14th self-tested checker, and the part that was hardest to
+get honest.** It never asks a human which columns are the server's; it asks the DDL — `DEFAULT
+now()`, `DEFAULT gen_random_uuid()`, `GENERATED`, or a lifecycle/privilege enum type — and asserts
+every signalled column is refused on a client body. **It went red on its first run against the real
+schema**, naming `outcome` (`app.audit_outcome`) and `severity` (`app.finding_severity`);
+`content_sha256` was found the same way. Then round three showed the checker had become the thing it
+was built to prevent, in four ways, all now closed and all four proven by planting:
+
+- [x] **The self-test asserted floors, not the set.** `real.size` was printed and never asserted, so
+      a parser regression that lost half the migrations passed the self-test AND the checker, and
+      `outcome`, `severity` and `request_status` became bindable with everything green. The signalled
+      set is now **pinned name by name with the reason the DDL gave**. Planted: a parser that skips
+      tables after the eighth, and a `readMigrations` that reads one file — both PASSED before, both
+      red now
+- [x] **The SQL parser was fail-open on seven legal shapes** — lowercase DDL, a wrapped `DEFAULT`, a
+      type name on the next line, a table not ending `\n);`, a `WITH` clause, a quoted identifier, a
+      second `ADD COLUMN` in one statement — and fail-*closed* on two, signalling a column because a
+      trailing comment or a string literal contained `DEFAULT now()`. It now strips comments and
+      string literals with a scanner, paren-matches table bodies and splits on top-level commas.
+      All nine shapes are fixtures
+- [x] **`STATEFUL_ENUMS` was the list validated against itself**, one level up from the list it
+      replaced: deleting three entries dropped `outcome` and `severity` out of the check silently.
+      Every `CREATE TYPE … AS ENUM` in the migrations must now be classified, and a classification
+      entry the schema no longer declares is equally a failure — `check-claims`' rule applied here
+- [x] **It judged a build artifact with nothing tying it to the source.** Deleting five names from
+      `request.ts` and not rebuilding reported PASS. It now compares a **content fingerprint** of
+      the rule in the source against the one in the artifact. An mtime comparison was the first
+      attempt and was wrong both ways — `tsc --build` skips emit when content is unchanged, so a
+      touched source left the checker permanently red
+- [x] Robust direct-invocation guard (`resolve(fileURLToPath(import.meta.url))`), so the checker
+      cannot silently vanish from `pnpm verify` on a checkout path containing a space.
+      `check-content-hash`, `check-scoreboard-sync` and `check-spot-check-record` still carry the
+      fragile idiom — **recorded, not fixed here**
+- [x] **It was not wired into CI, and CI went green over T-13c without running it once.**
+      `.github/workflows/ci.yml` enumerates every checker as its own step and never runs
+      `pnpm verify`, so adding `check:serverowned` to the `verify` chain reached the author's
+      machine and nothing else. **CI #80 on `08153e2`: Success, and `check-server-owned` occurs
+      zero times in its 1,433-line raw log** — while both scoreboard copies said "14 self-tested
+      checkers in CI". The change that added a control for controls-with-no-mechanism shipped
+      exactly that. Nothing in the repository could have caught it — a checker absent from CI
+      cannot fail there, and `check-claims` reads no figure from `ci.yml`. Found only by reading
+      the run rather than ticking it. Both steps are in `ci.yml` now, self-test first; drift 38.
+      **Proven by CI #81** (`f8efadf`, push, Success 1m 20s): both `Run pnpm
+      check:serverowned:selftest` and `Run pnpm check:serverowned` appear in its raw log and pass
+      — a step in a workflow file is a claim until a run shows it executing
+- [x] 43 self-test cases; `check-claims` moved test files 53 → 54 and tests 1,238 → 1,385 in the
+      same commit
+- [x] **CI #80 read from the raw log** (`08153e2`, push, Success 1m 32s): `Test Files 54 passed
+      (54)`, `Tests 1385 passed (1385)` in both the test and the coverage step, `All files
+      99.65 / 99.22 / 99.79 / 99.65`, and the only two occurrences of "skipped" in the whole log
+      are a pnpm lockfile notice and a self-test case name. F-29's check run, not assumed
+
+**Decision recorded for EL — a deviation from a literal reading of these acceptance criteria.**
+The criteria say `organization_id` and `role` are unreachable from *a request body*. They are
+unreachable from a **client** body. An **internal** body may declare **those two and nothing else
+extra**, because §8.2's `POST /api/internal/v1/invitations` issues an invitation into **any**
+organization and carries no path parameter for it, and §7.2 says of the invitation row: "Role and
+org live here, not in the URL." A blanket refusal makes that MVP-1 route undeclarable. §14.3's own
+mass-assignment sentence is scoped the same way — "**the acceptance form** must not accept any of
+them from the client" — so the blanket reading was never the blueprint's. `audience`,
+`lifecycle_state` and every price field are refused on **both** audiences, as written.
+
+The first revision of this split was **wider than its justification** and round three caught the
+mismatch: it opened all 27 `FORBIDDEN_CLIENT_FIELDS` — `price`, `cost`, `margin`, `supplier` — on
+every internal body at every depth, while this paragraph told EL it was two fields on one route. The
+mechanism was narrowed to match the paragraph rather than the paragraph widened to match the
+mechanism. **EL confirms or reverses**; reversing is one call site.
+
+**Handed to T-14a, not silently dropped.** §8.3 says "request bodies bind to explicit input DTOs".
+T-13b made the outbound half *measurable* by putting `response` on `RoutePolicy`. The matching
+`request` field, a request-schema registry and the coverage assertion belong to T-14a, where a real
+router first exists — a registry with no routes to register would be a control with nothing behind
+it, which is the shape this project keeps finding. **Until T-14a lands, nothing stops a handler
+reading `req.body` directly, and no MVP-1 input DTO has been written yet**: this task shipped the
+mechanism, not the bindings. `grep` finds zero call sites of either builder outside `index.ts`.
+
+**Still open on this module, recorded rather than fixed:** a hand-built (non-builder) sub-schema
+stays mutable after the declaration walk passes, because `object()` freezes only the top-level
+property map — builder-made children are frozen and safe, and a hand-built one needs a cast;
+`object()` in `schema.ts` still permits `__proto__` as a declared name for a *response* (server-built,
+not attacker-controlled, so the refusal was kept inside `request.ts` rather than widening an
+already-reviewed T-13b module); `status` is refused on every body, which the phase-2
+`POST /api/internal/v1/submissions/:id/status` will need reversed; and `check-server-owned` signals
+15 of the schema's ~129 columns — a server-owned column carrying no DDL signal (`content_hash`,
+`manifest_uri`, `payload`, `sequence`) rests on the suffix rule and on T-14a's scoped fetch.
 
 ### T-13d: Idempotency key store
 **Acceptance criteria:** AD-3 in full — atomic claim via a unique constraint on
@@ -1058,6 +1198,99 @@ payload; `409` for an in-flight duplicate; the intent row written **before** the
 retention exceeding the outbox's dead-letter replay window. A concurrency test fires two claims at
 once and asserts exactly one wins.
 **Verification:** DB-backed test in CI. **Dependencies:** T-13a, T-03. **Scope:** M.
+
+**LANDED 2026-09-03** — `0011_idempotency.sql`, `apps/api/src/idempotency/`, and
+`canonicaliseAll` in `@rms/kernel-model`. Verified today in the container against native
+Postgres 16.13: every `pnpm verify` step green through 1,430 tests in 56 files and 14
+self-tested checkers, with the run ending at `check-claims` because the scoreboard still
+states the pre-T-13d figures — the gate working, closed by the scoreboard commit that follows.
+Ten controls planted and proven to go red; figures in the commit bodies. Adversarial review
+REFUSED the first attempt with three blockers and three majors, all closed and recorded as
+**F-39**.
+
+**ANSWERED BY EL, 2026-09-03 — all of T-13d's parked questions, and the two starred ones.**
+
+- **The fourth claim outcome: KEEP.** *"AD-3 was incomplete — three outcomes don't cover 'the
+  window closed but the client retries.' The fourth outcome is the only honest response. Don't
+  call it an extension. AD-3 was underspecified and T-13d completed it."* `tasks/plan.md`'s AD-3
+  now **enumerates all four** with the §8.3 citation; the `result_ref` shape and the re-claimable
+  `failed` intent stand as built.
+- **The stranded claim: BOTH halves, no compromise.** A **10-minute lease**, configurable through
+  `CLAIM_LEASE_MINUTES` so it moves without a deploy, **plus** an operator release requiring the
+  admin role and writing an audit event, setting the row to `abandoned`. *"Without both, you have
+  either silent data loss or false reclaims. It's not a nice-to-have — it's a correctness
+  requirement. A claim that can't be released is a submission the user can never make."* **Landed
+  in this task** rather than deferred to T-14d: migration `0012`, the lease in `claimOn`,
+  `releaseClaim`, and the `idempotency.release` action and route policy.
+  - **Adversarial review REFUSED the first implementation.** The lease was not a fence: a takeover
+    reused the row id and `settleOn` guarded only on `in_flight`, so the overtaken holder settled
+    the claim it had lost, its result was replayed to the client, and both effects had committed.
+    A stale `failed` settle freed the key with no lease expiry at all, so the stated cost — "one
+    effect per key per lease window" — was not even the guarantee. Closed by `lease_epoch`
+    (migration 0013). Recorded as **F-40**.
+  - **T-14a gains an acceptance criterion from the same review:** `createApp()` must call
+    `assertConfiguration()`, because `CLAIM_LEASE_MINUTES` is read lazily and a typo'd value
+    currently surfaces as a 500 at the first duplicate claim rather than as a refusal to boot.
+  - **Two substitutions made against the letter of the instruction, both flagged for reversal.**
+    The path given was `POST /admin/claims/:key/release`; this repository has exactly two API
+    namespaces and no `/admin`, so it is registered as
+    `POST /api/internal/v1/idempotency-claims/:key/release`. And "operator role" maps to
+    **`INTERNAL_ADMIN`**, the only admin-tier internal role in `app.member_role`; `INTERNAL_SALES`
+    is denied, so seeing a stuck submission and clearing one are different privileges.
+  - **This route is not in blueprint §8.2, so it is a blueprint amendment, not a code change.**
+    It is registered in `authz/routes.ts` because T-14e needs it, and §8.2 needs a row added by
+    hand. **Recorded, not done** — the blueprint is the governing document and this session did
+    not edit it. Until it is, the registry carries **two** rows §8.2 does not list as MVP-1: the
+    phase-2 audit browser and this one.
+- **The outbound guard's both-modes refusal: KEEP the stricter behaviour.** *"§8.3 was written to
+  prevent accidental info disclosure in production. Your code goes further — it prevents it
+  everywhere. Don't regress to match a spec that was less strict than your intent."* The deviation
+  is now a docstring at the top of `packages/contracts/src/outbound.ts`, where the guard lives.
+- **OD-12: `WITHDRAWN` and `EXPIRED` → *complete*** on the client status. Confirmed as the code
+  has it.
+- **T-14a–e: CONFIRMED at 160 points.** *"The breakdown names its failure modes — that's the right
+  structure. The denominator change is bookkeeping. Don't let sizing debates stall execution."*
+  Five M sub-tasks now count; the scoreboard's denominator moves 148 → 160 and the task count
+  45 → 49.
+- **The 2026-09 `content_sha256`: DO NOT re-base.** One sentence in
+  `packages/kernel-catalog/README.md` records that the hash is Python-canonical and not
+  cross-language reproducible, and that approved releases are not re-based for serialization
+  differences. No ADR, no decision-log entry — it is a known serialization difference, documented.
+
+The original text of the deviation, kept because the argument is what was approved:
+
+**Decision recorded for EL — a deviation from a literal reading of these acceptance criteria.**
+AD-3 spells out **three** claim outcomes; the store returns **four**. The fourth is `settled`,
+and it is not an addition to the decision but the thing the decision presupposes: AD-3 says
+"never replay the first response to a **different** request", and a rule about *different*
+requests only means anything if the *same* request replays. Without it, §8.3's "a double-click
+must not produce two submissions" has no true answer for the second click after the first has
+succeeded — `409` is untrue because nothing is in flight, and `422` is untrue because the
+payload matches. **Confirm or reverse.**
+
+Two shapes inside that fourth outcome, both deliberate and both reversible:
+
+- It carries a **`result_ref`, not a stored response body.** A cached body is a screen-only
+  model, which §19.2 rules out, and it goes stale the first time a DTO changes while still
+  claiming to be what the client saw. The handler re-renders from the referenced row through
+  the same outbound DTO T-13b validates. The cost: a replay costs a read.
+- A **`failed` intent is re-claimable.** AD-3 does not say. A failed effect rolled back, so the
+  intent never happened; leaving the row terminal would mean a client could never retry a
+  transient failure under its own key. The re-claim is conditional on the row still being
+  `failed`, so two retries racing cannot both win.
+
+**A third question this task could not answer, and did not invent an answer to.** AD-3 chooses
+`409` for an in-flight duplicate over waiting, which is right — but a process that dies holding
+a claim strands an `in_flight` row, and **every retry of that key gets `409` for thirty days**.
+Nothing today settles a stranded claim, and `purgeExpiredOn` has no caller. Two candidates: a
+lease (`claimed_at` older than N minutes is re-claimable) or an operator action. Both change
+the guarantee, so neither was chosen here. **Needs EL, or a T-14 sub-task.**
+
+**What T-13d does NOT do, so nobody reads it as more than it is.** It has no route wiring: no
+header is read, no audit event is written, and `errorCodeFor` maps an outcome to a code that
+nothing yet returns. `submit`, `derive`, `clone` and `invite` are unguarded until T-14 calls
+`claimIdempotencyKey`, and the retention sweep is unscheduled until something calls
+`purgeExpiredOn`. Both belong to T-14a–e and are listed there.
 
 ### T-14: The server
 **Acceptance criteria:** all **21** §8.2 routes mounted — the 23 rows in §8.2 less the two the
@@ -1079,15 +1312,20 @@ documents route is absent from `ROUTES`, `AC-02`'s leakage walk does not enumera
 route that hands out a document URL — it is outside the contract test even at model level. Add both
 routes and their actions as part of T-14; do not close the gap by editing 21 down to 20.
 
-**Breakdown, written at Checkpoint A's close (2026-09-02) — PROPOSED, sizes not yet confirmed by
-EL.** The plan said T-14 splits "at implementation into auth routes / client routes / internal
+**Breakdown, written at Checkpoint A's close (2026-09-02) — CONFIRMED BY EL AT 160 POINTS,
+2026-09-03.** Five M sub-tasks, counted from this date; T-14's single L = 8 is retired and the
+denominator is **160**, the task count **49**. The plan said T-14 splits "at implementation into auth routes / client routes / internal
 routes"; measured against what exists (`authz/` with 20 policies and 15 actions, `auth/` with
 sessions, invitations and the password policy, `db` with `withTenant`, `workflow/submit-effects`,
 `outbox`, `audit/chain`, `worm`), three slices is one too few — the client surface is twelve routes
 and carries submit, which drags T-13d, P-01 and the document pipeline with it. Five sub-tasks, each
 M, each leaving the app bootable:
 
-- **T-14a — the application and its gate** *(M, files: `apps/api/src/app.ts`, `server.ts`,
+- **T-14a — the application and its gate** *(M — and it now also owns two obligations from T-13d:
+  `createApp()` must call `assertConfiguration()` so a malformed `CLAIM_LEASE_MINUTES` refuses to
+  boot instead of throwing at the first duplicate claim, and it must mount and authorize
+  `POST /api/internal/v1/idempotency-claims/:key/release`, whose policy row and `idempotency.release`
+  action exist with no handler and no caller. Files: `apps/api/src/app.ts`, `server.ts`,
   `authz/routes.ts`, `authz/authorize.ts`, `plugins/*`)*. `createApp()` builds the Fastify instance
   with no handlers of its own; a route module pairs every `RoutePolicy` with its handler. The
   boot-time assertion walks the **registered** router (an `onRoute` hook collecting `method + path`)

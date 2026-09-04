@@ -1170,6 +1170,220 @@ modules. Nothing compared either to the migration's enum, because nothing consum
 DTO tried to. The lesson is the one CLAUDE.md already states: a vocabulary in code is a claim until
 something re-derives it from the governing document.
 
+## F-39 — a guarantee stated in three places, enforced in none, and the module exported the way to break it *(raised and **CLOSED** 2026-09-03 by T-13d's adversarial review)*
+
+**The shape, again.** AD-3's "the intent row is written **before** the effect" was stated in
+`0011_idempotency.sql`'s header, in `idempotency.ts`'s module note, and in T-13d's acceptance
+criteria. `claimIdempotencyKey` honoured it by owning its transaction. Nothing made it true.
+`claimOn` — which takes a *caller's* transaction — was exported from the module **and re-exported
+from `apps/api/src/index.ts`**, and the last DB test blessed calling it inside a caller's
+transaction. Claiming inside the effect's transaction is the tidiest thing a T-14 handler will
+reach for, and it silently deletes the third outcome: the intent row rolls back with the effect,
+so a crash leaves no evidence and the retry duplicates the work.
+
+**Demonstrated, not argued.** The review ran a probe that claimed inside a transaction which then
+threw: `{ first: 'rolled-back', second: 'rolled-back', effects: 2, rowsLeft: 0 }` — two effects for
+one key, no evidence of either. No test, lint rule or checker went red.
+
+**Closed three ways, weakest to strongest.** `claimOn`/`settleOn` removed from
+`apps/api/src/index.ts` with the reason written where the export used to be; a DB test in which the
+effect rolls back and the claim must survive; and a symbol rule for `apps/api` in
+`tools/check-app-boundaries.mjs` — the first rule in that checker to carry a path **exemption**, so
+the directory that defines them may name them and no other may. Proven on the real tree: a
+`apps/api/src/routes/probe-t14.ts` importing `claimOn` turns the checker FAIL, and its self-test
+carries three catch cases, two allow cases, and the case that would notice if the exemption ever
+widened from the owning directory to the whole app.
+
+**Four more from the same review, all closed in the same commit.**
+
+- **The retention control could not fire for the change it named.** `idempotency.test.ts` said in
+  its own docstring that asserting `RETENTION_MS === 30 days` would "pass forever while someone
+  raised `max_attempts` to 200" — and then hardcoded 5 and 100. The review planted
+  `DEFAULT 5000` in `0004_outbox.sql` (a ~208-day window against 30-day retention) and all three
+  assertions stayed green. Now read from the migration; the same plant turns 2 of 39 red.
+- **A false statement of record.** Both the module source and the commit body said a deviation was
+  "recorded for EL in `tasks/todo.md`". It was not; `todo.md` was not in the commit. The record now
+  exists, and it carries the two shapes inside the deviation and one question T-13d deliberately
+  did not answer (a stranded `in_flight` claim gets `409` for thirty days and nothing settles it).
+- **A legitimate late retry raised a raw Postgres error.** The re-claim moved `claimed_at` and left
+  `expires_at`, so `CHECK (expires_at > claimed_at)` fired on a failed key retried after its
+  window. Reproduced by the review; fixed and pinned.
+- **A client could turn any idempotent route into a 500 with one character.** `requestHash` was
+  unguarded and `canonicaliseAll` refuses `-0`, which survives `JSON.parse` and a numeric DTO.
+  Now a modelled `unhashable` outcome. The same commit adds `errorCodeFor`, because the acceptance
+  criteria say the guard *returns* 422 and 409 and the module returned `'mismatch'` and stopped.
+
+**Two figures in the original commit body were wrong** and are corrected here: dropping
+`UNIQUE (organization_id, key)` turns **15** of 30 red, not 8; removing the `request_hash`
+comparison turns **2** of 30 red, not 3. The controls fire; the arithmetic reported did not
+reproduce, which in this repository is its own small instance of the shape.
+
+**Still open, and not T-13d's to close.** F-29 remains: the DB suites skip to green without a
+database. T-13d narrows it — the probe now REFUSES rather than skips when Postgres is reachable but
+`app.idempotency_key` is absent, which is the migration-failed case the review reproduced by
+renaming the table (18 skipped, exit 0). A no-database developer still skips, by design.
+
+## F-40 — the lease was not a fence, and the config check it named had no startup to run at *(raised and **CLOSED** 2026-09-03 by the review of EL's stranded-claim fix)*
+
+**The lease shipped without a fence, and that is a duplicate-effect bug, not a nicety.** A takeover
+reused the row id and `settleOn` guarded only on `claim_outcome = 'in_flight'`, so the overtaken
+holder was indistinguishable from the new one. Review demonstrated it against the live database
+rather than arguing it:
+
+```
+stale holder A settle -> true
+real  holder B settle -> false
+replay -> A's result_ref, while B's effect had also committed
+```
+
+The client is handed the wrong result for an effect that ran twice — the exact failure AD-3 exists
+to prevent. **And the stated cost was itself too generous:** a stale holder settling `failed` frees
+the key immediately, with no lease expiry, so a third effect can start at once. "One effect per key
+per lease window" was not the guarantee; there was no bound inside a window at all.
+
+Closed by `lease_epoch` (migration 0013): a monotonic token bumped on every re-claim, takeover and
+release, returned in the `claimed` result, and required by every settle. Removing it from
+`settleOn`'s WHERE clause turns **14 of 56** red; not bumping it on takeover turns **2 of 56** red.
+
+**Second blocker, and it is this repository's signature defect committed inside the paragraph that
+names it.** The commit body, the module docstring, AD-3 and both scoreboard copies all said a
+malformed `CLAIM_LEASE_MINUTES` "throws at startup". There is no startup. `claimLeaseMs()` is
+called lazily from one branch of `claimOn`, so a typo'd deploy comes up healthy, serves every
+first-attempt request, and throws an unhandled `RangeError` at the first duplicate claim — the one
+path the lease exists to protect. Review proved it:
+
+```
+fresh claim with CLAIM_LEASE_MINUTES=ten -> claimed
+duplicate claim threw -> CLAIM_LEASE_MINUTES must be a positive whole number…
+```
+
+Closed two ways, neither of them a reword: `assertConfiguration()` exists and is exported, and
+**T-14a's acceptance criteria now require `createApp()` to call it**; and every document that said
+"at startup" now says where it actually throws and why. The unit tests proved the *function*
+throws; nothing proved the *process* refuses to start, because nothing made it.
+
+**Three more from the same review.**
+
+- **`releaseClaim` fabricated its audit actor.** `actorType` was hardcoded `'staff'` and the
+  function took `releasedBy` on trust, so a client tenant released its own claim and produced an
+  audit event asserting a staff actor inside a client organization — a function whose whole
+  justification is that an override must leave a trace, leaving a false one. It now derives
+  `actorType` from the tenant and refuses a non-staff context outright. Cross-org release was
+  already blocked by RLS, and that held.
+- **The retention sweep deleted `in_flight` rows**, so bookkeeping could free a key an effect still
+  held. It now deletes settled rows only; an `in_flight` row past its window is a bug and leaving
+  it visible is the point. The first attempt at this fix had no test and the plant stayed green —
+  the test came second, and the plant now turns 1 of 57 red.
+- **`idempotency.release` was missing from `INTERNAL_ONLY_ACTIONS`** while every comparable action
+  was in it, so `assertRouteCoverage` would have waved it onto a client route.
+
+**A figure in the previous commit body did not reproduce.** It claimed "lease takeover removed —
+9 of 50 red"; the measured number is **2 of 50**, and 9 is the neighbouring row's figure, copied.
+Corrected here rather than left standing. Under `verified-not-claimed` a duplicated number in an
+evidence table is precisely what the rule exists to stop, and this is the second commit in two days
+to carry one.
+
+**Not closed, and named so it is not mistaken for closed.** The operator release is a policy row, an
+authorization rule and a library function — there is **no endpoint**, because there is no server.
+Nothing calls `authorize(actor, 'idempotency.release', …)` outside the matrix test, `purgeExpiredOn`
+still has no caller, and the route is not a §8.2 row. All three belong to T-14a/T-14e and are
+recorded there.
+
+## F-41 — one rule of three could stop applying and the checker still said PASS *(raised and **CLOSED** 2026-09-03 while running `prove-the-control-fires` over session 8's own additions)*
+
+Found by turning the discipline on the work of the same session rather than on older code.
+
+**The vacuous-pass guard was one level too coarse.** `checkAppBoundaries` did `if (files.length ===
+0) continue` per rule, and `main` refused a pass only when the scan matched **nothing at all**. With
+three rules, renaming `apps/api/src` leaves two apps checked, a non-zero count, and a **green build
+over a rule that had silently stopped applying** — exactly F-08's shape, one level down, and it
+arrived with the `api` rule this session added. A rule that matches nothing now fails and says to
+delete it if the app is genuinely gone.
+
+**The `exempt` list was a silent skip wearing a comment.** It was introduced this session as the
+first path exemption in that checker, and nothing asserted the path it names still exists. An
+exemption for something that is gone is a justification honouring nothing — the same posture
+`check-rls`'s `EXEMPTIONS` has had since T-10b, and it was missing here. Every exemption's hits are
+counted now, and zero hits fails.
+
+**And the test written for the first of those was itself defective — caught by the step people
+skip.** The skill requires neutering the checker and proving the *self-test* goes red. Neutering the
+per-rule guard left `selftest-app-boundaries` **PASS**: the new case filtered violations by the
+`api:` prefix, and a vanished `src` directory produces *both* a vanished-directory violation and a
+stale-exemption one, so the case went green through the neighbouring control while the one it
+names was disabled. Now matched on the message text. **A test that passes for the wrong reason is
+the defect this project hunts, inside the test written to hunt it.**
+
+**Four neuterings, each proven red and restored:**
+
+```
+per-rule vacuous guard disabled  -> MISSED a real violation: a rule whose app directory has vanished
+stale-exemption check disabled   -> MISSED a real violation: an exemption naming a path that no longer exists
+exemption matching disabled      -> baseline refuses: "the tree already has violations"
+symbol rule disabled             -> 7 MISSED
+```
+
+The self-test's temp tree now populates all three apps and the exempt directory at baseline,
+because both new rules require it — which is the point of them, not an inconvenience around them.
+
+**Still open, and not this finding's to close.** `assertRouteCoverage` has no caller,
+`assertConfiguration` has no caller, `purgeExpiredOn` has no caller, and the `idempotency.release`
+policy has no handler. Four controls that exist and have never run in anger, all owned by T-14a and
+T-14e and recorded there.
+
+## Drift 4 — CLOSED 2026-09-03, five sessions after it was raised, and it now has a mechanism
+
+Kept here rather than in the drift table because closing it took a blueprint amendment, two routes,
+and a checker, and because the reason it survived is the more useful half.
+
+**What it was.** §8.2 listed 23 rows and `apps/api/src/authz/routes.ts` carried 20, disagreeing in
+**both directions at once**: two MVP-1 routes absent — `GET /api/client/v1/documents/:id` (the
+signed watermarked-PDF URL that §15.2 step 6, `E-08` and `AC-16` depend on) and
+`POST /api/internal/v1/revisions/:id/notes` (`E-05`) — and one phase-2 route present. Neither
+missing route had an `Action` in `authorize.ts` either. The consequence nobody had recorded until
+session 3: because the documents route was absent from `ROUTES`, `AC-02`'s leakage walk never
+enumerated the one client route that hands out a document URL, so it sat outside the contract test
+**even at model level**.
+
+**Why it survived five sessions.** Every session that found it found it *by hand*, by re-enumerating
+twenty-odd paths and diffing them by eye, and then wrote the answer into a document. A number in a
+document is not a control. Session 2's proposed remedy would have edited 23 down to 20 — hiding two
+missing MVP-1 routes by moving the target to meet the code — which is exactly why the rule is that
+the blueprint wins and the scoreboard is what gets fixed.
+
+**How it closed.** T-14a added both routes and their actions; EL amended §8.2 on 2026-09-03 to
+carry `POST /api/internal/v1/idempotency-claims/:key/release` and confirmed the two substitutions
+(no `/admin` namespace, so the internal one; "operator role" → `INTERNAL_ADMIN`). §8.2 now lists
+**24** rows, two marked phase 2, and the registry carries all **22** MVP-1 ones. The phase-2 audit
+row lives in `PHASE_2_ROUTES`; `PENDING_AMENDMENT` is empty.
+
+**And `tools/check-route-surface.mjs` is the mechanism** — the 15th self-tested checker. It parses
+§8.2 out of the built blueprint and diffs it against both registry lists in both directions, on
+every run and in CI. Wired into `package.json` **and** `ci.yml` in the same commit, because drift 38
+was a checker that landed in one and not the other.
+
+**It found something on its first run against the real tree**, which is the argument for building
+controls rather than reading code: `GET /api/client/v1/submissions/:id` carries a phase-2 note that
+defers **the RFI thread, not the route**. That distinction was recorded in prose in three documents
+and enforced by none of them. It is now `SUB_FEATURE_PHASE_2` — declared data with the reason
+beside it, and a stale-entry check, so an exemption for a row §8.2 no longer marks fails.
+
+**Proven to fire, against the real tree**, each planted and reverted:
+
+```
+the amendment removed from §8.2  -> "ROUTES carries POST …/release, which §8.2 does not list at all"
+documents route dropped          -> "§8.2 lists GET …/documents/:id as MVP-1 and ROUTES does not carry it"
+audit row put back into ROUTES   -> "ROUTES carries GET …/audit, which §8.2 marks PHASE 2"
+```
+
+And the self-test proven against a broken checker — four branches neutered one at a time, each
+turning it red: the missing-from-registry branch (1 of 15), the extra-in-registry branch (2 of 15),
+the vacuous-blueprint guard (1 of 15), the stale-exemption check (1 of 15).
+
+**What it still does not cover, stated beside the guarantee:** it compares `METHOD path` and
+nothing else — audiences, actions and response schemas are `assertRouteCoverage`'s — and it cannot
+tell a correct path from a plausible one. If §8.2 and the registry both say `/projekts`, it passes.
+
 ## F-12 and F-13 — fixed, values untouched
 
 Both were prose inside `data/catalog/interlake-2026-09/manifest.json`, and both are corrected.

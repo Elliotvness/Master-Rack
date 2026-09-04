@@ -103,6 +103,22 @@ export interface OutboundGuard {
 
 const MODES: ReadonlySet<string> = new Set<OutboundMode>(['fail', 'alert']);
 
+/**
+ * **Deviation from §8.3, confirmed by EL on 2026-09-03.** Forbidden and
+ * undeclared fields are refused in BOTH modes, not alerted in development and
+ * refused in production; only type drift follows the mode.
+ *
+ * Rationale, in EL's words: *"a field that shouldn't be on the wire shouldn't
+ * be on the wire — alert-only in dev creates a false sense of safety and leaks
+ * into logs and test fixtures. §8.3 was written to prevent accidental info
+ * disclosure in production; your code goes further — it prevents it
+ * everywhere."* A deliberate tightening, not a bug, and not to be regressed to
+ * match a spec that was less strict than its own intent.
+ *
+ * Attached here rather than floating between the module docstring and the
+ * imports, where review found it: a note no symbol carries is one that never
+ * appears on hover and never reaches the person about to change this function.
+ */
 export function outboundGuard(opts: {
   readonly mode: OutboundMode;
   readonly alert: (report: OutboundReport) => void;

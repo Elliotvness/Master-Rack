@@ -58,6 +58,9 @@ export type Action =
   | 'invitation.create'
   | 'invitation.create_any_org'
   | 'audit.read'
+  | 'document.read'
+  | 'note.create'
+  | 'idempotency.release'
   | 'organization.create';
 
 export type Decision =
@@ -139,6 +142,31 @@ const RULES: Readonly<Record<Action, Rule>> = {
     actor.role === 'INTERNAL_ADMIN' ? ALLOW : deny('only an internal admin approves a release'),
   'audit.read': (actor) =>
     STAFF_ROLES.has(actor.role) ? ALLOW : deny('audit log is internal-only', true),
+
+  // A signed URL for the client's OWN watermarked PDF. Same shape as
+  // `revision.read`: scoped to the caller's organization, and a cross-tenant
+  // miss is 404 because a 403 would confirm another client's document exists.
+  // Staff may read one too — an internal reviewer looking at what the client
+  // was sent.
+  'document.read': (actor, resource) =>
+    STAFF_ROLES.has(actor.role) ? ALLOW : clientOwnOrg(actor, resource),
+
+  // An internal reviewer's note on a revision (E-05). Internal-only in the
+  // strongest sense: §9 makes internal notes a category a client must never
+  // see, so this is 404 to a client rather than 403.
+  'note.create': (actor) =>
+    STAFF_ROLES.has(actor.role) ? ALLOW : deny('internal notes are internal-only', true),
+
+  // Releasing a stranded idempotency claim overrides a safety control, so it
+  // sits with catalog approval at INTERNAL_ADMIN rather than with the staff
+  // reads — INTERNAL_SALES may see a stuck submission and must escalate rather
+  // than clear it. `notFound: true` because to a client the route does not
+  // exist at all: this is an internal ARTIFACT, and a 403 would confirm the
+  // key.
+  'idempotency.release': (actor) =>
+    actor.role === 'INTERNAL_ADMIN'
+      ? ALLOW
+      : deny('only an internal admin releases a stranded claim', true),
 
   'invitation.create': (actor, resource) => {
     // A client admin may invite into its OWN organization only.
