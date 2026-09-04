@@ -70,9 +70,14 @@ release, setting the row to a fourth outcome, `abandoned`. Migration `0012`, six
 planted and proven red. The cost is stated rather than discovered later: a lease turns *one effect
 per key, ever* into *one effect per key per lease window*.
 
-**Still unpushed at the time of writing.** `task/t-13d-idempotency` sits on top of
-`task/t-13c-input-dtos`, which is itself pushed and unmerged. Pushes need Windows; nothing here has
-been through CI yet, and no claim in this edition rests on a CI run.
+**Now merged and pushed.** `task/t-13d-idempotency` was merged into `main` as a merge commit
+(`42c8211`, `--no-ff`) on 2026-09-03, landing all 18 commits — T-13c, T-13d, T-14a, and the §8.2
+amendment — and pushed to `origin/main` (`d61082e..42c8211`). Verified: `origin/main` is level with
+local `main`, and **0 commits** remain behind on either `task/t-13d-idempotency` or
+`task/t-13c-input-dtos`. The merge was clean (no conflicts; confirmed with `git merge-tree` before
+executing). Pushes need Windows; the push was done from this machine, bypassing the container's
+broken proxy. The delivery bundle (tip `005fa87`) is **not present** in this repo and remains the
+one unlanded increment.
 
 **Session 7 (2026-09-03) — T-13c lands, and the review round that mattered was the third one.**
 `@rms/contracts` gains the input half of the audience boundary: a request body cannot declare a
@@ -423,16 +428,15 @@ changelog and tags *are* T-26.)
 
 ## Your queue — EL
 
-**Eight of the ten cleared on 2026-09-03.** Q3 (disclaimer text, contact name, `MS-GOV-YYYY-NNN`
+**Nine of the ten cleared on 2026-09-03.** Q3 (disclaimer text, contact name, `MS-GOV-YYYY-NNN`
 numbering) and Q4 (B2 bucket, scoped keys) are resolved on EL's word, which unblocks T-20/AC-16 and
-T-24. Three items remain, and **one of them is a correction rather than a request**.
+T-24. The **push** (item 1) and the **§8.2 amendment** (item 2) are also done — the merge landed and
+pushed to `origin/main` as `42c8211`, and the operator release route is now a §8.2 row. **One item
+remains** in the waiting table below.
 
 | # | Waiting on you | Why it is yours, not code's | Gates |
 |---|---|---|---|
-| 1 | **Push two branches.** `task/t-13c-input-dtos` is on `origin` and unmerged; `task/t-13d-idempotency` is unpushed and was delivered as a git bundle | A scheduled run's git proxy refuses this repo and no folder was connected, so nothing reaches `origin` from the container. Until it lands, **no CI run has judged T-13d** and every figure here has one machine behind it | CI coverage of T-13c and T-13d |
-| 2 | **★ A blueprint amendment §8.2 now needs.** The operator release route is registered in code but is not a §8.2 row | You decided the endpoint; the blueprint is the governing document and this session did not edit it. Until §8.2 carries the row, the registry holds two entries §8.2 does not list as MVP-1. Two substitutions also want your yes or no: the path is  rather than  because there is no  namespace, and "operator role" maps to  | **T-14e** — and the route-surface figure |
-| 2 | **★ A blueprint amendment §8.2 now needs.** The operator release route is registered in code but is not a §8.2 row | You decided the endpoint; the blueprint is the governing document and this session did not edit it. Until §8.2 carries the row, the registry holds two entries §8.2 does not list as MVP-1. Two substitutions also want a yes or no: the path is `/api/internal/v1/idempotency-claims/:key/release` rather than `/admin/claims/:key/release` because there is no `/admin` namespace, and "operator role" maps to `INTERNAL_ADMIN` | **T-14e** — and the route-surface figure |
-| 3 | **Q6 answered as McMurray Stern — which answers OD-20a, not OD-20b.** Read the distinction before closing it | OD-20a is the **internal dogfood** pilot: settled, worth doing, and it measures *usability*. OD-20b is the **external** pilot, and its own recorded criterion is *"outside McMurray Stern"*. Naming McMurray Stern therefore closes the first and leaves the second open — which matters because **R-01 (will a client actually do this work) retires only when an outside organisation completes a submission unaided**, and nothing else retires it | R-01 stays live; P-04's real unit sizes still unsourced |
+| 1 | **Q6 answered as McMurray Stern — which answers OD-20a, not OD-20b.** Read the distinction before closing it | OD-20a is the **internal dogfood** pilot: settled, worth doing, and it measures *usability*. OD-20b is the **external** pilot, and its own recorded criterion is *"outside McMurray Stern"*. Naming McMurray Stern therefore closes the first and leaves the second open — which matters because **R-01 (will a client actually do this work) retires only when an outside organisation completes a submission unaided**, and nothing else retires it | R-01 stays live; P-04's real unit sizes still unsourced |
 
 | Closed by you | What it settled | When |
 |---|---|---|
@@ -445,6 +449,8 @@ T-24. Three items remain, and **one of them is a correction rather than a reques
 | **R-07 — the dissent taken** | You took the dissent rather than the disposition: `approved_by: 42` now throws, and `constraints` goes through a validator that names the offending entry. Test-first, PR #16. Closed the pre-merge review at **11 of 11** | 2026-09-02 |
 | **T-13d's six open questions, in one pass** | The fourth claim outcome kept and AD-3's enumeration completed rather than extended; the stranded claim closed with **both** halves (a 10-minute lease, configurable, plus an `INTERNAL_ADMIN` release writing an audit event) and landed in T-13d rather than deferred; the outbound guard's both-modes refusal kept with the deviation recorded where the guard lives; OD-12 confirmed; T-14a–e confirmed at 160 points; the `content_sha256` left alone with one sentence in `packages/kernel-catalog/README.md`. *"Don't let sizing debates stall execution."* | 2026-09-03 |
 | **Q3 and Q4** | The standing disclaimer text, company and contact name, and the `MS-GOV-YYYY-NNN` document numbering; and the Backblaze B2 bucket with scoped keys, created and verified. Between them they unblock **T-20 / AC-16** (the client PDF) and **T-24** (WORM retention) — two of the three phase-blocking items on this page are gone | 2026-09-03 |
+| **Push two branches** | `task/t-13d-idempotency` merged into `main` as a merge commit (`42c8211`, `--no-ff`) and pushed to `origin/main` (`d61082e..42c8211`), landing all 18 commits — T-13c, T-13d, T-14a, and the §8.2 amendment. Verified: **0 commits** remain behind on either branch; `origin/main` is level with local `main`. Done from this machine, bypassing the container's broken proxy. The delivery bundle (tip `005fa87`) is **not present** in this repo and remains the one unlanded increment | 2026-09-03 |
+| **§8.2 amendment** | The operator release route is now a §8.2 row: `POST /api/internal/v1/idempotency-claims/:key/release` at `internal_admin`, writing an audit event in the same transaction as the release. The two substitutions you approved are in: the path uses `/api/internal/v1/...` (no `/admin` namespace) and "operator role" maps to `INTERNAL_ADMIN`. The route is registered in `ROUTES` (action `idempotency.release`, response `AuditEvent`); its real handler is deferred to **T-14e** | 2026-09-03 |
 | **The go-ahead to implement** | Planning complete, decision set closed at Rev C, no production code written. You asked for an explicit go-ahead and gave it — which is why every task since has a settled decision behind it rather than an assumption | 2026-08-31 |
 
 ## By phase
@@ -719,7 +725,8 @@ at `0b0e97b`; the checkpoint list before it at `9296ce1`; session 5's at `2bad6d
    `task/t-13d-idempotency` sits on top of it and is **unpushed**, so nothing in T-13d has been
    through CI. Pushes need Windows. Either merge T-13c first and rebase T-13d onto `main`, or open
    both PRs stacked — T-13d's first commit touches `@rms/kernel-model` only, so the stack is
-   separable if that is easier.
+   separable if that is easier. **DONE 2026-09-03:** `task/t-13d-idempotency` merged into `main` as
+   `42c8211` and pushed to `origin/main`; both branches now have **0 commits** behind `main`.
 
 1. **Confirm or resize T-14a–e.** Five M sub-tasks under T-14 in `tasks/todo.md`, each with the
    failure it must be proven to catch. Confirmed, the denominator moves 148 → 160 and this file
