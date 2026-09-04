@@ -36,3 +36,11 @@ _scratch/
 # for the Windows session to apply; it is never repository content. Committed
 # once by accident (T-11, 2026-09-02) and removed; this keeps it out.
 _to_delete/
+
+# Cowork/Claude writes session outputs here — delivered artifacts, transfer
+# archives, and frozen copies of documents that live in the repo already.
+# Never repository content: a stale copy of tasks/progress.html committed from
+# here would become a sixth scoreboard that nothing gates, which is the exact
+# defect the scoreboard exists to hunt. Offered for commit by GitHub Desktop
+# on 2026-09-04 and declined; this keeps it out.
+Claude outputs/
