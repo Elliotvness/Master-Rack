@@ -241,6 +241,18 @@ jobs:
       - name: Front-end budgets agree across §5.4, the checker and PERF.md
         run: pnpm check:budgets
 
+      # `check-scoreboard-sync` compares the two scoreboard copies against each
+      # other and says in its own docstring that prose is outside its reach.
+      # Drift 50 walked into exactly that: both copies stated two figures for
+      # one quantity, and the cross-file gate was green because both were wrong
+      # in the same place. This derives the remainder from each file's own Total
+      # row and checks every sentence about it. Self-test first, as always.
+      - name: Scoreboard prose self-test
+        run: pnpm check:prose:selftest
+
+      - name: Each scoreboard file states one figure per quantity
+        run: pnpm check:prose
+
       - name: Kernel coverage gate
         run: pnpm coverage
 

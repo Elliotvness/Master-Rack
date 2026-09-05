@@ -1488,7 +1488,8 @@ not the sum of all chunks, the renderers load with the preview step that needs t
 and internal applications are budgeted separately. `PERF.md` gains rows 6–9 and the reasoning.
 
 **The mechanism, and exactly what it proves.** `check-front-end-budgets` + its self-test run
-self-test-first in `verify` and in `ci.yml` (31 checker invocations in each, sets compared by
+self-test-first in `verify` and in `ci.yml` (31 checker invocations in each when P-05 landed;
+**33 as of 2026-09-05**, `check-scoreboard-prose` added for drift 50 — sets compared by
 difference — drift 38's shape checked for and absent). What it proves **today** is that one ceiling
 is stated in three places that agree: §5.4, the checker's `BUDGETS`, and `PERF.md`.
 
