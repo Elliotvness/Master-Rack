@@ -1199,6 +1199,21 @@ retention exceeding the outbox's dead-letter replay window. A concurrency test f
 once and asserts exactly one wins.
 **Verification:** DB-backed test in CI. **Dependencies:** T-13a, T-03. **Scope:** M.
 
+**DONE 2026-09-03 (session 8), merged to `main` 2026-09-03 in `42c8211`, recorded here 2026-09-04
+(session 10) — drift 43.** All of AD-3: `UNIQUE (organization_id, key)` decides the claim, not
+application code; the intent row commits in its own transaction **before** the effect; `422` on a
+reused key with a different `request_hash`, `409` in flight, and a fourth outcome `settled` for a
+retry whose effect already succeeded (EL confirmed the fourth). Migrations `0011`, `0012` (lease +
+`abandoned`) and `0013` (`lease_epoch`, the fence without which a takeover let two effects settle
+one key — F-40). Ten controls planted and proven red across three commits; a fresh-context review
+refused the first implementation and the lease's first fence-less version — **F-39, F-40, F-41**.
+**Re-verified on `main` 2026-09-04:** `pnpm verify` exit 0, 59 files, 1,491 tests, 0 skipped,
+native PostgreSQL 16.13, 13 migrations.
+
+*This block was missing for two full editions while the scoreboard counted the task and the code
+carried it — a task can be complete in the code, counted on the scoreboard, and open in the plan at
+the same time, and nothing in `verify` compares the plan to either.*
+
 **LANDED 2026-09-03** — `0011_idempotency.sql`, `apps/api/src/idempotency/`, and
 `canonicaliseAll` in `@rms/kernel-model`. Verified today in the container against native
 Postgres 16.13: every `pnpm verify` step green through 1,430 tests in 56 files and 14
@@ -1339,6 +1354,27 @@ M, each leaving the app bootable:
   separate `PHASE_2_ROUTES` list so the registry and §8.2 agree). **Proof:** register a route with no
   `ROUTES` entry → boot refused, naming it; remove a mounted route's handler → boot refused; a
   client principal on any `/api/internal` path → 404 and an audit row.
+
+  **DONE 2026-09-03 at `466c9b2`, merged to `main` in `42c8211`, counted and recorded 2026-09-04
+  (session 10) — drift 39 and drift 43.** `apps/api/src/app.ts` builds the Fastify instance and
+  `server.ts` calls `.listen()`; `createApp` mounts all **22** §8.2 MVP-1 routes and authorizes
+  every one of them; **all 22 handlers are placeholders that answer 500**, declared as data in
+  `UNIMPLEMENTED` so "the app boots" cannot be read as "the app works". `routerCoverageProblems`
+  refuses to boot on a mounted route absent from `ROUTES`, a `ROUTES` entry mounted on nothing, an
+  `UNIMPLEMENTED` key naming neither, or a scan that matched nothing at all — and it runs in
+  `onReady`, not in the body of `createApp`, because route modules register **after** `createApp`
+  returns. `assertConfiguration()` is called at build time. `document.read` and `note.create` added
+  to `Action`; the two missing §8.2 routes added; the phase-2 audit row moved to `PHASE_2_ROUTES`.
+  **Registry now 22 of §8.2's 22 MVP-1 rows** — the criterion above says "table → 21 MVP-1 rows",
+  written before EL's §8.2 amendment added the operator release, which is why it is 22.
+
+  **Proof re-run on `main` 2026-09-04, not inherited from the commit message.** Three mutations
+  against the real `apps/api/src/app.ts`, each reverted and the file compared identical afterwards:
+  mounted-but-absent-from-`ROUTES` arm disabled → **2 failed**; `assertConfiguration()` dropped from
+  `createApp` → **1 failed**; **the coverage check moved out of `onReady` into the body of
+  `createApp` → 2 failed**. Baseline `apps/api`: 16 files, 396 tests, all passing. The third is the
+  one worth having run — the only one of the three a reader could not predict from the diff, and the
+  exact hole this task's own commit body calls *"the whole control"*.
 - **T-14b — auth and organizations** *(M)*. `POST /api/auth/invite/accept` (single-use token →
   credential → session, refusing a reused or expired token), the session `preHandler` that turns a
   cookie into the principal `authorize()` consumes, `POST /api/client/v1/invitations` (own org
