@@ -1,8 +1,65 @@
-# Progress scoreboard — 2026-09-04 (session 10, T-14a counted on `main`)
+# Progress scoreboard — 2026-09-05 (session 12, three gates that could not see the next phase)
 
 Derived from `tasks/todo.md`, which stays the source of truth for task detail. This file holds
 only the arithmetic and the ordering. Where a figure was re-measured today it says so; where it is
 the repository's own claim it says that instead.
+
+**Session 12 (2026-09-05) — nothing on this board moved, and the reason is the edition.** No task
+landed, no phase bar changed, §15.2 is **0 of 8**. What landed is S0.0, three commits on
+`task/s-0-0-studio-gates` off `main` at `db87ad6`, closing **F-43, F-44 and F-45**: the test, type
+and coverage gates could not see `.tsx`; an app in `apps/` with no boundary rule was scanned by
+nothing; and the front-end bundle arm's reach was a typed two-entry array it had never been run
+against. All three are the recurring shape — *a control that states its own method and has nothing
+behind it* — and all three were found by reading a build plan that proposes a React application and
+then asking what `pnpm verify` would say about one. **The numerator does not move: S0.0 is not a
+registered task**, and inventing a point for it would be the bookkeeping this file exists to refuse.
+
+**The sharpest of the three is not the `.tsx` collection hole.** It is that
+`no-restricted-imports` — A-05's only mechanism, the rule standing between a raw `pg` client and an
+unset tenant GUC — was scoped `files: ['apps/**/*.ts', 'packages/**/*.ts']`. A `.tsx` importing `pg`
+was not flagged; the byte-identical `.ts` was. Nothing had to break for that to be true. The
+extension had only to be the one nobody had written yet, which is what makes this class invisible:
+the control was correct, current, self-tested, and one glob short of the future.
+
+**Verified today, and one figure moves out of "repository claim".** First on a clone of `main` at
+`db87ad6`, then **again after rebasing onto `2fe1481`** — PR #25, the prose gate — so the figures
+published here are the ones from the run at the commit being cited. Container, native
+**PostgreSQL 16.13**, 13 migrations: `pnpm verify` **exit 0 — 59 files, 1,491 tests, 0 skipped**,
+coverage all files **99.54 / 98.90 / 99.40 / 99.54**, all eight `.db.test.ts` suites against the real
+database. *(The pre-rebase run on `db87ad6` read 99.51 / 98.85 — v8 coverage is not bit-stable across
+worker scheduling, as sessions 7, 8 and 10 also found; the per-package 100s the thresholds gate did
+not move.)* The **0 skipped** was read, not assumed: the only two occurrences of "skipped" in the log
+are self-test case names.
+
+**`check-scoreboard-prose` had never seen this edition, and it passes.** Session 11's gate landed in
+PR #25 while S0.0 was being written, so the first prose it judged that it had not been written
+alongside is this block: `2 scoreboard file(s) read … PASS — each file states one figure per
+quantity`. Worth saying because a gate that only ever sees text written after it exists is a gate
+nobody has tested.
+
+**F-29 turned up live again, in the same shape the row below describes.** The container's Postgres
+died between the two runs; `pnpm test` reported **52 passed | 7 skipped** and **1,359 passed | 132
+skipped** and stayed green, and `verify` went red three steps later at `check-rls` with
+`ECONNREFUSED`. Third session to observe it. The guard is still incidental and
+`RMS_REQUIRE_DB=1` is still unowned.
+
+**Each control was planted before it counted, and the plants are in the commit bodies.** A
+`.test.tsx` asserting `1 === 2` that ran through `verify` at exit 0 — *59 files, 1,491 tests* —
+because nothing collected it. A fourth app importing `@rms/kernel-bom` and binding `submit` at the
+top level, over which `check-app-boundaries` printed **PASS**. A **301 KB gzipped** initial bundle,
+half again over the agreed ceiling, over which `check-front-end-budgets` printed **"no SPA build …
+PASS"**. Each now goes red on the same plant, and the two self-tests carry the cases permanently —
+including the false-positive halves, because a checker that fails on a scaffolded empty directory
+trains people to add empty rules to silence it.
+
+**The review that found these was itself partly wrong, and that is recorded rather than quietly
+dropped.** It claimed eslint could not see `.tsx` at all. Eslint's recommended configs do lint
+`.tsx`; only the two hand-written `.ts`-only globs did not. The narrow hole was real and is the one
+that mattered, and the broad claim is corrected in F-43.
+
+**Session 11's edition is not restated here.** It sits on the unmerged branch
+`docs/session-11-prose-gate` (`78c29ef`, `check-scoreboard-prose`), which is not on `main`; this
+edition is written against `main` and does not speak for it.
 
 **Session 10 (2026-09-04) — a scheduled unattended run. It built nothing and it landed nothing,
 because it can do neither: the git proxy refuses this repository, and no folder was connected. What
@@ -619,14 +676,14 @@ Re-measured by running commands against the working tree:
 | Test files | **59** (`*.test.ts`) — T-13c added `request.test.ts`; T-13d added `idempotency.test.ts` and `idempotency.db.test.ts`; **T-14a added `app.test.ts`, `app.db.test.ts` and `server.db.test.ts`**. Re-derived by `check:claims`, not typed |
 | Phase-2 routes | **1** — `GET /api/internal/v1/audit`, held in `PHASE_2_ROUTES`. §8.2's other phase-2 row, `POST /api/internal/v1/submissions/:id/status`, has no `Action` yet and arrives with the status vocabulary F-38 is about. A third §8.2 row *mentions* phase 2 and stays MVP-1 — `GET /api/client/v1/submissions/:id` defers the RFI **thread**, not the route — which is now declared data in `SUB_FEATURE_PHASE_2` with a stale-entry check, instead of an interpretation living in three documents and enforced by none |
 | Migrations | **13** (`0001`–`0013`) — `0013_idempotency_lease_epoch.sql` adds the fence token without which the lease let two effects settle one key (F-40); `0012` added the `abandoned` outcome and the lease index; `0011_idempotency.sql` added `app.idempotency_key`: `UNIQUE (organization_id, key)`, a 64-hex `request_hash` CHECK, three states in `app.idempotency_outcome`, five consistency CHECKs, tenant RLS and the F-31 explicit GRANT. `check-rls` inspected **22** tables and **86** grants today and passed |
-| `.tsx` / `.jsx` / `.vue` / `.svelte` / `.astro` files | **0** |
+| `.tsx` / `.jsx` / `.vue` / `.svelte` / `.astro` files | **0** — and as of S0.0 the gate would see them if there were any. Until 2026-09-05 it could not: `.tsx` was outside vitest's `include`, outside `tsconfig.tests.json`'s, outside the coverage globs and outside two eslint rule scopes, so a failing `.test.tsx` ran through `pnpm verify` at exit 0 (F-43). The count is the same; what changed is what the count would be worth |
 | Server entry point | **exists, as of T-14a** — `apps/api/src/app.ts` builds a **Fastify** instance (`createApp`) and `apps/api/src/server.ts` calls `app.listen({ port, host: '127.0.0.1' })`. Re-derived today by the same grep that returned nothing for five sessions. **This row read "none" for a full edition after T-14a landed — drift 41.** What has *not* changed: all 22 handlers are placeholders that answer 500, declared as data in `UNIMPLEMENTED`, so the row below about §15.2 is unaffected |
 | Front-end dependency | **none** — no `react`, no `vite` in any `package.json` |
 | Route table | **22 entries** in `apps/api/src/authz/routes.ts` — **12 client, 9 internal, 1 public.** All 22 are §8.2 MVP-1 rows: the two T-14a added, plus EL's operator release, which §8.2 now carries after his amendment. `PENDING_AMENDMENT` is **empty**, which is the healthy state. Re-derived today with the checker's own parser, not by eye: `blueprintRoutes()` finds **24** rows in §8.2, **2** of them flagged phase 2 (`POST /api/internal/v1/submissions/:id/status`, `GET /api/internal/v1/audit`), leaving an MVP-1 surface of **22** — and `ROUTES` declares exactly those 22. **22 of 22.** `createApp` mounts all 22 and `routerCoverageProblems` refuses to boot on any disagreement in either direction, so the registry now has a consumer that is not a barrel re-export. **This cell simultaneously said "22 of 22" and "19 of 21", and its last three sentences described the pre-T-14a world — drift 40** |
 | `apps/api/src/index.ts` | Its own header calls it "The HTTP layer". It is a barrel of **15** re-export blocks (8 until T-13b) and **no HTTP**. Not filed as drift — the file says "and (later) authorization and DTOs" — but it is the sentence a future reader will misread as a server |
 | Git tags · `CHANGELOG.md` · Dependabot | none · none · none, all re-checked today. `version` is `0.0.0`. Expected — `CHANGELOG.md` is T-26's, unstarted — but the house rule is to write the entry **in the commit that makes the change**, and 4 commits have landed since that rule was written down |
 | CI gates present | typecheck, lint, migrate, test, **17 self-test invocations covering 16 checkers** — re-derived 2026-09-05 from `package.json` itself, by set difference against `ci.yml` rather than by counting twice. The precise shape, because "16 self-tested checkers" was ambiguous and this row carried it: **16 checkers each run with its own self-test**, plus `check:draw:selftest`, which has no separate `check:draw` because *it is* the gate — it asserts the `.mjs` tool and the compiled kernel draw the same cells, and there is nothing else to run. (The fourteenth checker, `check-server-owned`, landed with F-32's remedy; the fifteenth, `check-route-surface`, with the §8.2 amendment; the sixteenth, `check-front-end-budgets`, with P-05's agreed budgets; the **seventeenth, `check-scoreboard-prose`, with drift 50**; the thirteenth, `check-types-only`, with F-37) — coverage, bench, docs rebuild + `git diff --exit-code`. **Secret scanning (gitleaks, checksum-pinned) is present too and this row omitted it.** Two landed today: `check-content-hash` (recomputes each release's `content_sha256` by the method that manifest declares) and `check-spot-check-record` (asserts every signed spot-check covers the draw that was pinned before it) |
-| CI gates absent | dependency audit, bundle-size ceiling, E2E. **Secret scanning is present and this row said it was absent — drift 46.** `ci.yml` has run a checksum-pinned `gitleaks v8.30.1` over the working tree since T-11 (D-20 / NFR-SEC-06), verified today by reading the workflow file; the row has understated the build's own gates for five sessions and no gate could catch it, because `check-claims` reads seven figures from this file and none of them is a list |
+| CI gates absent | dependency audit, E2E. **The bundle-size ceiling moved off this row on 2026-09-05 and only halfway.** `check-front-end-budgets` now discovers `apps/*/dist/index.html` instead of consulting a typed list, and its self-test plants a synthetic over-ceiling bundle and asserts red — so the arm is no longer *unexercised*, which is not the same as proven. It has still never weighed a real framework build, and P-05's second half (Lighthouse against a built SPA) remains T-16's obligation (F-45). **Secret scanning is present and this row said it was absent — drift 46.** `ci.yml` has run a checksum-pinned `gitleaks v8.30.1` over the working tree since T-11 (D-20 / NFR-SEC-06), verified today by reading the workflow file; the row has understated the build's own gates for five sessions and no gate could catch it, because `check-claims` reads seven figures from this file and none of them is a list |
 
 ### Not verified today — the repository's own figures
 
