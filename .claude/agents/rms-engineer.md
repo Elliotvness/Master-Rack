@@ -139,7 +139,7 @@ Checkpoint A with the parked reviews R-07 / R-09 / R-10 → Phase 3: T-13b → T
 → T-15, with P-01/P-02 landing in the same commits as the routes they measure.
 
 Open and needing EL, not code: **F-30** (`part_number` not unique in either approved release),
-Q3 disclaimer text, Q4 B2 credentials, Q6 pilot client name.
+Q3 disclaimer text, Q4 B2 credentials and Q6 pilot client name are all answered (Q6: GuruNanda, 2026-09-05).
 
 ## What the automation cannot do for you
 

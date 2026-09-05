@@ -134,7 +134,7 @@ were inspected **read-only**. Nothing in them was edited, deleted, moved, rename
 
 **The decision set is closed.** All twenty-one decisions are settled and logged in `open-decisions.md`, summarised in blueprint §18.1. Phase 0 and MVP-1 are fully unblocked.
 
-**One item is deliberately left open: the name of the external pilot client (`OD-20b`).** Its selection criteria are settled — outside the company, a new-material job, small enough to finish in one sitting, a live opportunity, a relationship that survives a rough first release — and one account from the job audit fits all five. Choosing it is a commercial judgement, not a design decision, and it gates no development work.
+**~~One item is deliberately left open: the name of the external pilot client (`OD-20b`).~~ Answered 2026-09-05 — GuruNanda, Bldg. G, Buena Park. `R-01` is not retired by it.** Its selection criteria are settled — outside the company, a new-material job, small enough to finish in one sitting, a live opportunity, a relationship that survives a rough first release — and one account from the job audit fits all five. Choosing it is a commercial judgement, not a design decision, and it gates no development work.
 
 What it does gate is a conclusion. `R-01` — *will a commercial client actually do this configuration work themselves* — is the risk the whole business case rests on, and it is retired only when one organization outside McMurray Stern completes a submission unaided. The internal dogfood pilot (`OD-20a`) will find real defects and should happen; it measures usability, not willingness.
 

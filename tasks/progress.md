@@ -975,7 +975,7 @@ Zero `.tsx` files, so every decision here is still free.
 |---|---|---|
 | ~~**Q3**~~ | **Answered 2026-09-03** — disclaimer text, company/contact name, `MS-GOV-YYYY-NNN` numbering | T-20, AC-16 **unblocked** |
 | ~~**Q4**~~ | **Answered 2026-09-03** — B2 bucket created, keys scoped and verified | T-24 **unblocked** |
-| **Q6 / OD-20b** | **Still open.** McMurray Stern answers **OD-20a**, the internal dogfood pilot; OD-20b's own criterion is *outside* McMurray Stern | No code. **R-01 stays live** — it retires only when an outside organisation completes a submission unaided |
+| **Q6 / OD-20b** | **ANSWERED 2026-09-05 — GuruNanda, Bldg. G, Buena Park.** All five criteria met: 1–3 verified against McMurray Stern drawing R-1 (`PROJ # 260903`, 2026-09-03) — *"New pallet rack design"*, no reused material on the sheet, **320 bays / 2,404 pallet positions** — and 4–5 affirmed by EL as commercial judgement. *(McMurray Stern answered **OD-20a**, the internal dogfood, and never OD-20b, whose criterion is* outside *McMurray Stern.)* | No code. **R-01 stays live and stays Critical** — it retires only when an outside organisation completes a submission **unaided**, which a named account is not. Supplies P-04's first real unit-size distribution: 304 type-A bays against a 300-bay fixture |
 
 Q1, Q2, Q5 and Q7 are answered, and as of session 3 `tasks/plan.md` says so for all four — it had
 not caught up on Q1, Q5 **or** Q7 (session 2's drift list missed Q5).

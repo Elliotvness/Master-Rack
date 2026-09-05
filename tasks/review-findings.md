@@ -1289,6 +1289,46 @@ Nothing calls `authorize(actor, 'idempotency.release', …)` outside the matrix 
 still has no caller, and the route is not a §8.2 row. All three belong to T-14a/T-14e and are
 recorded there.
 
+## F-42 — the shortlist behind the last open decision was derived from a tally that does not add up *(raised 2026-09-05 while answering OD-20b; **recorded, not corrected**)*
+
+**Where.** `open-decisions.md`, the OD-20b selection-criteria passage.
+
+**What it says.** *"Of the four accounts in the OD-17 audit, one fits all five cleanly — the small
+all-new single-unit job, roughly 70 bays across 14 profiles. **The two large new-material jobs fail
+criterion 3**, and the used and mixed jobs fail criterion 2."*
+
+**Why it is wrong.** That accounts for 1 + 2 + 2 = **five** jobs. The OD-17 audit, three screens
+above in the same file, says: *"Four structural racking jobs, not five: one entirely used (Jam-N
+Carson Phase 4), one mixed (KOAM–IBOCO), two entirely new (The One Rancho, GoPlus Crest Hill)."*
+There is **one** large new-material job in that set — GoPlus, which is 91.3% of every structural
+component in the sample — not two. And **no account in the audit is recorded at ~70 bays**: the
+per-job bay counts on record are 916 and 551.
+
+So the passage describes a fifth account that the audit does not contain, and attributes a size to
+it that appears nowhere.
+
+**The shape.** This is the recurring defect in its documentary form, and in the worst possible
+place: a *conclusion* — "one fits all five cleanly" — carried for five sessions as settled
+reasoning, with an arithmetic derivation behind it that nothing ever re-ran. It reads exactly like
+evidence. It is the same class as drift 24 and drift 29 (a table whose rows silently disagreed with
+their own base), except that here the artefact is a shortlist someone would act on.
+
+**Consequence: none, by luck rather than by control.** The account eventually named — GuruNanda,
+2026-09-05 — arrived after this passage was written and was chosen from a live opportunity, not
+from this shortlist. Had the shortlist been used as written, it would have pointed at a job that
+does not exist in the audit.
+
+**Why it is left standing.** Rewriting it would destroy the evidence that it was ever wrong, and the
+editorial rule is that a dated observation keeps its number. The passage now carries a blockquote
+naming this finding directly beneath it, so a reader meets the correction before they act on the
+tally.
+
+**The gap it exposes, unowned.** `check-claims` derives test files, migrations, packages and route
+counts. **Nothing derives the arithmetic inside a prose argument**, and nothing ever will in the
+general case. The narrower, tractable version — *a document that states two different figures for
+one quantity* — is the same gap drift 30 and drift 35 came through, and is worth a checker. Sized
+nowhere yet.
+
 ## F-41 — one rule of three could stop applying and the checker still said PASS *(raised and **CLOSED** 2026-09-03 while running `prove-the-control-fires` over session 8's own additions)*
 
 Found by turning the discipline on the work of the same session rather than on older code.
