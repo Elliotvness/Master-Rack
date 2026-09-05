@@ -1289,6 +1289,260 @@ Nothing calls `authorize(actor, 'idempotency.release', …)` outside the matrix 
 still has no caller, and the route is not a §8.2 row. All three belong to T-14a/T-14e and are
 recorded there.
 
+## F-46 — **Critical:** §8.2's route inventory cannot run §15.2, and the gap is in the objective, not the code *(raised 2026-09-05 by the pre-implementation review of T-14b; **OPEN — needs a blueprint amendment from EL, which is a decision, not a code change**)*
+
+**Found by reading the blueprint before writing the task, which is the only reason it was found at
+all.** T-14b was next; every figure said so. The task cannot be written as specified, and neither
+can three of the eight MVP-1 steps.
+
+**The whole API surface the blueprint declares contains exactly one `/api/auth/*` route.** Every
+`/api/` string in all fourteen `src/parts/*.html` sources was enumerated: 30 distinct paths, of
+which `POST /api/auth/invite/accept` is the only one under `/api/auth`. The words `callback`,
+`redirect_uri` and `OAuth` appear **zero** times in the document. `ROUTES` agrees — one
+`namespace: 'public'` row, and it is that one.
+
+**So no route establishes a session for a credential-verified principal, and no route establishes
+one for staff at all.** The claim is stated at that width deliberately, because a wider one is
+refutable: §14.3's *Transport* row does say the acceptance POST is exchanged for *"a short-lived
+server-side session"*, so a session of **a** kind is established there. Its own next row then
+forbids that session being the login — *"**No auto-login** — Require an explicit first sign-in with
+the new credential"* — and it exists only on the client path. For staff there is nothing at all.
+
+| Missing route | §15.2 steps it blocks |
+|---|---|
+| Staff OIDC initiation and a `redirect_uri` callback that mints the session | **1** (`POST /api/internal/v1/organizations`, `POST /api/internal/v1/invitations` — both staff) and **8** (`GET /api/internal/v1/submissions/:id`, `GET …/bom`, `POST …/derive`). Also `POST …/catalog/releases/:id/approve`, the prerequisite for the pinned release steps 4–5 rest on |
+| Client credential sign-in — present password plus second factor, receive a session | **2**'s *"and signs in"*, and transitively **3, 4, 5, 6, 7**: every client route is `client`-scoped |
+| Second-factor enrollment | **2**'s *"enrolls a second factor"* |
+
+**The enrollment leg is the weakest of the three and is stated as such.** §8.2's accept row reads
+*"Redeem an invitation, set a credential"*, and a hostile reader can argue factor enrollment rides
+along on that POST. The defensible form is narrower: no enrollment route is declared, and a
+passkey/FIDO2 ceremony (challenge → attestation verify) or a TOTP enrollment (secret issue → proof
+verify) is two round trips and does not fit one stateless POST. The sign-in and OIDC-callback gaps
+need no such hedging.
+
+**The escape that nearly works, and why it does not.** §15.2 step 2's *Done when* column mentions
+only redemption — *"The token is single-use; a second redemption renders the same page as an
+expired one"* — and **AC-01** tests only redemption. On a strict "done when" reading, step 2 could
+be ticked with no sign-in ever happening. Three other rows close that reading: **AC-20** requires
+*"All eight MVP steps run as one automated walkthrough"*, and steps 3–7 are all client-scoped;
+**§16.1**'s authorization tests require *"Every route rejects unauthenticated and wrong-tenant
+callers with 401/404"*, which presupposes authenticated callers this surface cannot produce; and
+**§16.3**'s demo beat 2 is *"Client accepts the invitation in a fresh browser, sets a passkey,
+**signs in**"*. None of it reaches steps 1 and 8, which need a staff principal and have no path to
+one. Nothing in §15.4's exclusion table defers authentication; the only nearby exclusion is
+*"Public self-signup — Not planned"*, which is the opposite point.
+
+**The blueprint did not forget authentication, and saying it did would be wrong.** §15.3 **A-07** is
+a Phase-0 task — *"Session management, cookie hardening, OIDC for staff, password+TOTP for
+clients"* — **A-08 depends on it**, **D-01** is *"Invitation acceptance and first sign-in"*, and the
+code exists: `apps/api/src/auth/` holds `createSession`, `resolveSession`, `regenerateToken`,
+`verifyPassword` and `__Host-rms_session`, and `LOGIN_TOKEN_TTL_MS` sits there unused. **The defect
+is precisely and only that §8.2's inventory never gained the routes A-07 and D-01 must expose** —
+and a code-level control now enforces that inventory as a build gate.
+
+**Which is why this blocks rather than merely annoys.** `tools/check-route-surface.mjs` diffs §8.2
+against `ROUTES` in **both** directions and says so in its own message: *"Either the blueprint needs
+an amendment — a decision, not a code change — or the route should not exist."*
+`routerCoverageProblems` then refuses to boot on a mounted route the registry does not hold. **T-14b
+cannot add a sign-in route until §8.2 carries one.** That is the mechanism working exactly as
+designed: it is stopping the code from being quietly moved to meet the target, which is the failure
+drift 4 was closed to prevent.
+
+**The plan had already resolved the gap the forbidden way, and nobody noticed.** `tasks/todo.md`
+specifies T-14b as *"`POST /api/auth/invite/accept` (single-use token → credential → **session**…)"*
+— which is auto-login, forbidden by §14.3 in terms — and `tasks/progress.md` then reports T-14b as
+delivering *"step 2 (acceptance and sign-in)"*. Under this project's own precedence rule the
+blueprint wins, so **T-14b's specification is wrong as written** and must be re-scoped in the same
+pass that amends §8.2.
+
+**Do not close this by adding two rows.** §8.2 is an incomplete inventory more generally, and the
+same step-1 blockage has non-auth causes. Found while checking the above, each against an MVP-1
+requirement:
+
+- **No project-creation route.** §15.2 step 1 is *"creates a client organization **and project**"*
+  and OD-04 settles *"Internal-created projects only in MVP-1"*. §8.2 has
+  `POST /api/internal/v1/organizations` and no `POST …/projects`; the only projects route is
+  `GET /api/client/v1/projects`.
+- **No revision-creation route.** Step 3 POSTs facility to `revisions/:id`. The only
+  revision-creating routes are `clone` (needs a frozen revision) and `derive` (staff, internal
+  audience). The first draft revision has no declared origin.
+- **No user-deactivation and no invitation-revocation route**, though **FR-AD-01** and **FR-AD-02**
+  are both M1 and **AC-17** — deactivation ends every session — is an MVP-1 acceptance criterion.
+  `deactivateUser` and `revokeInvitation` are both written and neither is reachable.
+
+**What EL is being asked for.** One §8.2 amendment, made once, the way the operator-release row was
+amended on 2026-09-03 — path, namespace and authorization for each row, so `check-route-surface` and
+`ROUTES` can both be brought to it. **The canonical list is the eight-row table in `tasks/todo.md`
+under T-14b**, and it is deliberately not restated here: the first draft of this finding, the task
+note and the resume prompt each named a different set, which is how a decision meant to be taken in
+one pass becomes three. Until it lands, **T-14b is refused, and with it every task downstream
+of it**: T-14c, T-14d, T-14e and T-15 all serve routes to a principal that cannot exist yet.
+
+**The measurement this does not change.** §15.2 stays at **0 of 8**. What changes is the reason:
+until today it was 0 of 8 because the handlers were placeholders, which is a coding gap. It is now
+0 of 8 because the declared surface has no way to authenticate anyone, which is a gap in the
+objective — and a bigger one.
+
+## F-47 — the one public route cannot reach its own row: no anonymous bearer can be resolved to a tenant *(raised 2026-09-05 by the same review; **PARTIALLY REFUTED and narrowed** — the session half is solvable today, the invitation half needs a decision)*
+
+**The mechanism.** `withTenant` is the way to the database and it **requires an organization UUID
+and an actor type before any statement runs** — it refuses a non-UUID and refuses an unknown actor
+type, both before `connect()`. Every table an anonymous request must touch — `app.invitation`,
+`app.session`, `app.app_user`, `app.credential` — carries
+`USING (organization_id = app.current_org() OR app.is_staff())`. **A row cannot be read until its
+organization is already known**, and for someone arriving from an email link it is not known.
+
+It cannot come from the client either. §14.3: *"Email, organization and role live in the invitation
+row, **never in the token or the URL**."* §8.3: *"`organization_id` … structurally unreachable from
+a request body"*, which `clientRequestBody` enforces structurally rather than by convention.
+
+**What the review confirmed, against the schema rather than from memory.** Zero `SECURITY DEFINER`
+functions and zero views across all thirteen migrations. No table with RLS disabled and no
+`USING (true)` **read** policy anywhere — the only `true` in the policy set is
+`audit_event_insert … WITH CHECK (true)`, which is insert-only. One connection string in the API
+process. `app_user` is `NOSUPERUSER … NOBYPASSRLS`, owns nothing, and every tenant table is `ENABLE`
+**and** `FORCE`. No per-tenant hostname, slug or path segment exists to carry the tenant, and
+`organization_select` is itself org-scoped, so the organizations cannot even be enumerated to try
+each. **Every test that redeems an invitation or resolves a session hands the organization in as a
+fixture** — `const ctx = { organizationId: ORG, actorType: 'client' }` — so nothing in the suite
+has ever exercised the case the HTTP path is made of.
+
+**Where the claim was refuted: the session cookie is not blocked.** The session cookie is
+**server-issued**, so the server may also set the tenant beside it — a second `__Host-` cookie
+carrying the organization UUID — and the preHandler opens `withTenant` on that before resolving the
+token. It is a hint that is **verified rather than trusted**: a forged organization with a valid
+token for another one matches no row under RLS, `resolveSession` returns `null`, and the request is
+401. The organization the request then runs under comes from the row, which exists only because RLS
+already proved it matched. Staff need no `'staff'` context here — staff live in the internal
+organization, so the plain organization predicate matches, and the actor type comes from the row's
+own column. No blueprint text forbids it: §8.3 and §14.6 item 4 are scoped to **request bodies**,
+and `request.ts` says of itself *"BODIES ONLY. Query strings, path parameters and headers pass
+nowhere near this."* §14.3 is about the invitation token and URL.
+
+**Where it stands: invitation acceptance.** An invited user arrives cold from an email link. There
+is no prior cookie, and §14.3 closes the only other channel. The options, with their costs:
+
+| | Option | Needs | Cost |
+|---|---|---|---|
+| **A** | A `SECURITY DEFINER` resolver returning the organization for a token hash, and nothing else | A migration and a new entry point, since `withTenant` refuses a missing organization | Authority bounded to a function body that returns one UUID and cannot grow without a migration. Must be migrator-owned, `SET search_path`, `REVOKE EXECUTE FROM PUBLIC` |
+| **B** | Run the anonymous acceptance under `actorType: 'staff'` so `is_staff()` opens the read | Nothing | **Reject.** The blast radius is the whole transaction, on the one route an unauthenticated caller can reach. And it is worse than it looks: **no application query in this repository carries an explicit `organization_id` predicate** — `redeemInvitation` is `WHERE token_hash = $1`, `resolveSession` likewise — so §14.2's "two controls" is currently one for reads, and a staff context would redeem **any** organization's invitation with nothing to stop it |
+| **C** | Encode the organization in the token | A §14.3 amendment | Cheapest and fail-closed, but it is literally what §14.3 forbids, and it puts the organization id in the emailed link |
+| **D** | Present the token hash as a transaction-local setting and widen `app.invitation`'s SELECT policy to accept it | A migration and a `withTenant` variant | Honest model — possession of the token *is* the authorization — and no definer rights. But it widens a **standing** policy forever, breaks the uniform policy shape the checker assumes, and sequential-scans: no index leads on `token_hash` |
+| **E** | A separate unscoped `token_hash → organization_id` lookup table | A migration | Discloses only organization UUIDs, and only to a holder of the 256-bit preimage — but introduces this repository's first `USING (true)` read policy |
+
+**Recommendation.** Session cookie: ship the second `__Host-` cookie in T-14b; it needs no decision
+from anyone. Invitation acceptance: **A**, with **D** as runner-up — A confines the widening to a
+named, auditable function body, where D widens a table policy permanently. **A's precondition is
+F-48**, below, which is why that was built today rather than left in the proposal.
+
+**One overreach in the original claim, corrected rather than quietly dropped.** *"`withTenant` is
+the only permitted database entry point"* is not true as stated: `withoutTenantForMigrations` is
+exported from `@rms/db`, reachable from application code, and **not** covered by the lint rule,
+which bans importing `pg` and calling `Pool.connect()`. It does fail closed as `app_user` —
+`current_org()` returns NULL and every predicate is false — but **by argument, not by test**: the
+suite titled *"an unset tenant context sees nothing, rather than everything"* contains only the two
+argument-validation cases and never queries the database with no context at all. A one-test gap,
+worth closing in the same commit as whichever option lands.
+
+## F-48 — §14.2's SECURITY DEFINER checklist item was a sentence with nothing behind it *(raised 2026-09-05 while sizing F-47's option A; **CLOSED for schema `app`, with three limits stated** — §14.2 item 7 says "every", and this audits one schema)*
+
+**§14.2's RLS correctness checklist, item 7:** *"Audit every SECURITY DEFINER function and view.
+They run as their owner and silently re-open everything."*
+
+**Nothing audited them.** `check-rls` asserted `relrowsecurity`, `relforcerowsecurity`, a policy per
+command, the sensitivity axis (D-02), the privilege axis (F-31), and `rolsuper`/`rolbypassrls` on
+`app_user`. It never read `pg_proc.prosecdef`, and it never looked at views at all. One
+`SECURITY DEFINER` function owned by the table owner makes every other assertion in that checker
+decorative, and the build would have stayed green over it forever — **the recurring shape (F-01,
+F-02, F-08, F-11): a control that states its own method and has no mechanism behind it.**
+
+It was found by asking what F-47's option A would cost, not by reading the checker. The answer was
+"a new privileged surface, and nothing would ever tell us if a second one appeared".
+
+**Closed by a third axis in `check-rls`, `securityDefinerViolations`, pure and self-tested like the
+other two.** Five arms:
+
+1. a `SECURITY DEFINER` function no exemption accounts for;
+2. an **exempted** definer function with no pinned `search_path` — the standard escalation, where
+   the function resolves its identifiers against the caller's path and a caller who can create
+   objects runs their own code as the owner;
+3. a stale exemption naming a function that is gone, or one that is no longer `SECURITY DEFINER`;
+4. a view without `security_invoker = true`, which evaluates its tables' RLS as the **view's owner**
+   — the same hole in different clothes;
+5. a stale view exemption.
+
+Plus a vacuity guard of its own rather than sheltering under the table one, because **zero definer
+functions is the correct answer today**, so "found none" and "the query is broken" are
+indistinguishable from the outcome alone. The schema has carried `app.current_org()`,
+`app.current_actor_type()` and `app.is_staff()` since 0002, so zero functions means the query.
+
+**Proven to fire, against a live PostgreSQL 16.13, not argued.** Seven plants, each reverted and the
+file compared identical afterwards:
+
+| Planted | Result |
+|---|---|
+| `app.resolve_invitation_org(text)` as `SECURITY DEFINER`, unexempted — F-47 option A's exact shape | **FAIL**, named the owner |
+| the same function exempted, `search_path` unpinned | **FAIL** |
+| the same function exempted, `SET search_path = app, pg_catalog` | **PASS** — the audited case must be allowed or the list means nothing |
+| `CREATE VIEW app.all_invitations` over a tenant table | **FAIL** |
+| the same view `SET (security_invoker = true)` | **PASS** |
+| the exemption left behind after the function was dropped | **FAIL** |
+| the function query pointed at schema `apps` so it matched nothing | **FAIL** — the vacuity guard, refusing to report a pass over an inspection of nothing |
+
+**Adversarial review then refused the first version of this axis, and both blockers were real.**
+
+1. **It called two correctly-secured views insecure.** `reloptions` stores an option's value
+   **verbatim as the DDL wrote it**, uncanonicalised, so `WITH (security_invoker = on)` and
+   `= 1` — ordinary Postgres boolean spellings, both fully functional — stored as `on` and `1` and
+   failed a `= 'true'` string comparison. The only escape for the author would have been a false
+   exemption permanently mis-describing the schema: the "annoying rather than useful" failure that
+   gets a checker switched off. Closed with `::boolean`, and all four spellings re-planted against
+   the live database: `true`, bare, `on` and `1` all pass, and the optionless view still fails.
+2. **An OVERLOAD of an exempted function was silently exempt.** `pg_proc` returns one row per
+   overload and the exemption was keyed on `proname`, while an exemption's own contract is a
+   justification about a function **body**. So auditing `resolve_invitation_org(text)` would have
+   waved through `resolve_invitation_org(uuid)` doing anything at all — and that is not
+   hypothetical, because **F-47's recommended option adds a function under exactly that name**.
+   Closed by keying on `oid::regprocedure`, re-planted with two overloads and one exemption: the
+   unexempted signature is named and refused.
+
+Review also found the **honouring** branch of the view arm had no case at all — disabling it left
+the suite green — and that the fixture calling itself "the schema" listed three functions where the
+migrated database has six, omitting 0001's three `refuse_*` trigger functions. Both closed.
+
+**And every arm was proven able to go red**, which is F-41's lesson applied to this session's own
+addition. Each arm neutered in turn, the file md5-compared identical afterwards, and the count of
+self-test cases that stop being caught **measured rather than estimated**: arms 1, 2 and 3 turn **2**
+cases red each, arms 4 and 5 turn **1** each. Every arm is covered. **12 new self-test cases**,
+`selftest-rls` now at **25 cases (7 sensitivity, 6 privilege, 12 definer-authority)**, and
+`check-rls` reports the new counts in its summary line: *"6 function(s) of which 0 SECURITY DEFINER,
+0 view(s)"*.
+
+*(The first version of this paragraph claimed "disabling the definer arm turns 2 of 23 red" from
+memory of a run made before two of the arms existed. Review re-ran all five and one figure did not
+reproduce. The numbers above are the re-run.)*
+
+**The three limits, stated rather than implied away**, and each is in the module docstring beside
+the guarantee:
+
+- **It audits schema `app`.** §14.2 item 7 says *every* function and view. A migrator-created
+  definer function in `public` is outside what this sees. Defensible today — `app_user` holds
+  `CREATE` on no schema and the cluster has no definer function anywhere — but it is a gap this
+  control has not closed, not one it has ruled out.
+- **It asserts a `SET search_path` clause is PRESENT, not that its value is safe.**
+  `SET search_path = "$user", public` is pinned and still ends in a schema a caller may be able to
+  create in. Narrowing the value is a judgement about deployment.
+- **The view query has no vacuity guard**, because unlike the function axis it has no known-nonzero
+  baseline: zero views is both the right answer and what a broken query returns. Pointing it at the
+  wrong `relkind` would disable the arm silently, and nothing here would say so.
+
+**FYI, recorded not fixed.** Migrations run as `postgres`, a superuser, rather than as a separate
+`migrator` role — a deviation from §14.2 item 3's wording (*"Migrations run as a separate migrator
+role"*). Immaterial to tenancy today because `app_user` is correctly separated and owns nothing, and
+it is what makes the definer-function owner in the plants above read as `postgres`. Worth one line
+in T-11's lineage rather than a task of its own.
+
 ## F-42 — the shortlist behind the last open decision was derived from a tally that does not add up *(raised 2026-09-05 while answering OD-20b; **recorded, not corrected**)*
 
 **Where.** `open-decisions.md`, the OD-20b selection-criteria passage.

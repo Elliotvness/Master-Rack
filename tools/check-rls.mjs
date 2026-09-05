@@ -97,6 +97,42 @@ const SENSITIVITY_EXEMPTIONS = {
   },
 };
 
+/**
+ * `SECURITY DEFINER` functions permitted to exist, each with the reason.
+ *
+ * **Empty, and that is the healthy state** — there are none in the schema
+ * today. Same posture as every other exemption list here: an exemption is data
+ * with a justification, never a silent skip.
+ *
+ * §14.2's RLS correctness checklist, item 7: *"Audit every SECURITY DEFINER
+ * function and view. They run as their owner and silently re-open everything."*
+ * That sentence had no mechanism behind it until this axis existed — which is
+ * this repository's recurring defect shape (F-01, F-02, F-08, F-11), and the
+ * one it keeps finding by building the control rather than by reading code.
+ *
+ * The axis matters more from here than it did: resolving an anonymous bearer
+ * (an invitation token, a session cookie) to the tenant that owns it is a
+ * lookup that cannot know its own tenant, and a narrowly-scoped
+ * `SECURITY DEFINER` resolver is the leading candidate (F-47). If one lands,
+ * it lands with an entry here, and this checker is what stops a SECOND one
+ * arriving unremarked.
+ *
+ * A key is the function's bare name. The value must say what it is for and why
+ * its authority cannot be narrowed further.
+ */
+const SECURITY_DEFINER_EXEMPTIONS = {};
+
+/**
+ * Views permitted to run with the definer's rights, each with the reason.
+ *
+ * A Postgres view evaluates the underlying tables — and their RLS policies — as
+ * the VIEW'S OWNER unless it is created with `security_invoker = true`. So a
+ * view over a tenant table is a `SECURITY DEFINER` function wearing different
+ * clothes, and reads every tenant's rows. Empty, and there are no views in the
+ * schema today.
+ */
+const VIEW_INVOKER_EXEMPTIONS = {};
+
 // pg_policy.polcmd: r=SELECT, a=INSERT, w=UPDATE, d=DELETE, *=ALL
 const CMD = { r: 'SELECT', a: 'INSERT', w: 'UPDATE', d: 'DELETE' };
 
@@ -243,6 +279,139 @@ export function grantViolations(tables, grants, exemptions) {
   return violations;
 }
 
+/**
+ * Every `SECURITY DEFINER` function and every definer-rights view that no
+ * exemption accounts for, plus every exemption that no longer names a real
+ * object, plus every exempted function whose `search_path` is not pinned.
+ *
+ * §14.2 item 7 is the criterion. A `SECURITY DEFINER` function runs as its
+ * owner, and the owner of everything in this schema is the migrator — which
+ * owns the tables and is therefore exempt from nothing. One such function is a
+ * hole straight through every policy `sensitivityViolations` and the loop in
+ * `main` spend their time asserting, and NOTHING in this repository looked for
+ * one until now.
+ *
+ * The `search_path` half is not a nicety. A definer function with an unpinned
+ * `search_path` resolves its own identifiers against the CALLER's path, so a
+ * caller who can create objects can shadow a table the function names and have
+ * it run their code as the owner. It is the standard escalation, and an
+ * exemption that does not check for it is a justification for something other
+ * than what is deployed.
+ *
+ * TWO LIMITS, stated beside the guarantee rather than implied away:
+ *
+ *   - It asserts a `SET search_path` clause is PRESENT, not that its value is
+ *     safe. `SET search_path = "$user", public` is pinned and still ends in a
+ *     schema a caller may be able to create in. Narrowing the value is a
+ *     judgement about deployment, and this checker does not make it.
+ *   - It audits schema `app` only, while §14.2 item 7 says "every". Defensible
+ *     today — `app_user` holds `CREATE` on no schema and there is no definer
+ *     function anywhere in the cluster — but a migrator-created definer
+ *     function in `public` is outside what this sees, and that is a real gap
+ *     rather than one this control has closed.
+ *
+ * A THIRD, on the view half: the function axis has a vacuity guard because the
+ * schema's three helpers give it a known-nonzero baseline. The view query has
+ * no such baseline — zero views is both the right answer and what a broken
+ * query returns — so pointing it at the wrong `relkind` would disable the arm
+ * silently. Nothing here catches that; the self-test covers the pure function,
+ * not the SQL that feeds it.
+ *
+ * Exported and PURE, for the reason `sensitivityViolations` states above: the
+ * fixtures are the rows Postgres would have returned, so the self-test needs no
+ * database.
+ *
+ * KEYED ON THE SIGNATURE, NOT THE NAME, and the difference is the whole
+ * exemption. `pg_proc` returns one row per OVERLOAD, and an exemption is a
+ * justification written about a function BODY — "what it is for and why its
+ * authority cannot be narrowed further". Keyed on the bare name, one
+ * justification silently covered every overload of it, so
+ * `resolve_invitation_org(text)` being audited would have waved
+ * `resolve_invitation_org(uuid)` — a different body doing anything at all —
+ * straight through. Review demonstrated exactly that, and it is not
+ * hypothetical: F-47's recommended option adds a function under that very name.
+ * `oid::regprocedure` renders `resolve_invitation_org(text)`, so the key names
+ * the body and two overloads report as two violations rather than as one
+ * message printed twice.
+ *
+ * @param {{identity: string, security_type: string, config: string[] | null, owner: string}[]} functions
+ * @param {{view_name: string, security_invoker: boolean}[]} views
+ * @param {Record<string, string>} functionExemptions
+ * @param {Record<string, string>} viewExemptions
+ * @returns {string[]}
+ */
+export function securityDefinerViolations(
+  functions,
+  views,
+  functionExemptions,
+  viewExemptions,
+) {
+  const violations = [];
+
+  const definers = functions.filter((f) => f.security_type === 'DEFINER');
+  for (const fn of definers) {
+    const reason = functionExemptions[fn.identity];
+    if (reason === undefined) {
+      violations.push(
+        `${fn.identity} is SECURITY DEFINER and no exemption accounts for it. It ` +
+          `runs as ${fn.owner}, which owns the tables and is exempt from no policy, so it ` +
+          'reads and writes every tenant. If it is deliberate, name it in ' +
+          'SECURITY_DEFINER_EXEMPTIONS — keyed on the full signature — with what it is for ' +
+          '(§14.2 item 7).',
+      );
+      continue;
+    }
+    const pinned = (fn.config ?? []).some((c) => c.startsWith('search_path='));
+    if (!pinned) {
+      violations.push(
+        `${fn.identity} is an EXEMPTED SECURITY DEFINER function with no pinned ` +
+          'search_path. It resolves its identifiers against the caller\'s path, so a caller ' +
+          'who can create objects can shadow what it names and run that as its owner. Add ' +
+          'SET search_path to the function, or the exemption describes something safer than ' +
+          'what is deployed.',
+      );
+    }
+  }
+
+  const presentFunctions = new Set(definers.map((f) => f.identity));
+  for (const name of Object.keys(functionExemptions)) {
+    if (!presentFunctions.has(name)) {
+      violations.push(
+        `SECURITY_DEFINER_EXEMPTIONS names ${name}, which is not a SECURITY DEFINER ` +
+          'function in the schema. Remove the exemption — a justification for something that ' +
+          'is gone is not evidence about the schema as it now stands. (The key is the full ' +
+          'signature, as pg_proc renders it: resolve_invitation_org(text), not the bare name.)',
+      );
+    }
+  }
+
+  for (const view of views) {
+    if (view.security_invoker) continue;
+    const reason = viewExemptions[view.view_name];
+    if (reason === undefined) {
+      violations.push(
+        `app.${view.view_name} is a view without security_invoker = true, so it reads its ` +
+          "underlying tables — and evaluates their RLS policies — as the VIEW'S OWNER rather " +
+          'than as the caller. That is a SECURITY DEFINER function in different clothes ' +
+          '(§14.2 item 7). Set the option, or — if it is a MATERIALIZED view, which cannot ' +
+          'carry the option at all — name it in VIEW_INVOKER_EXEMPTIONS.',
+      );
+    }
+  }
+
+  const definerViews = new Set(views.filter((v) => !v.security_invoker).map((v) => v.view_name));
+  for (const name of Object.keys(viewExemptions)) {
+    if (!definerViews.has(name)) {
+      violations.push(
+        `VIEW_INVOKER_EXEMPTIONS names app.${name}, which is not a definer-rights view in the ` +
+          'schema. Remove the exemption.',
+      );
+    }
+  }
+
+  return violations;
+}
+
 async function main() {
   const client = new pg.Client({ connectionString: CONNECTION });
   await client.connect();
@@ -300,10 +469,59 @@ async function main() {
          AND privilege_type = ANY(ARRAY['SELECT','INSERT','UPDATE','DELETE'])
     `);
 
+    // §14.2 item 7. Every function in the schema, with the flag that decides
+    // whose authority it runs under and the config that decides how it resolves
+    // names. `proconfig` is where `SET search_path` lands.
+    const { rows: functions } = await client.query(`
+      SELECT p.oid::regprocedure::text AS identity,
+             CASE WHEN p.prosecdef THEN 'DEFINER' ELSE 'INVOKER' END AS security_type,
+             p.proconfig AS config,
+             pg_get_userbyid(p.proowner) AS owner
+        FROM pg_proc p
+        JOIN pg_namespace n ON n.oid = p.pronamespace
+       WHERE n.nspname = 'app'
+       ORDER BY p.proname
+    `);
+
+    // A view is the same hazard wearing different clothes: without
+    // `security_invoker = true` it reads its tables, and evaluates their RLS,
+    // as the view's owner. A materialized view cannot carry the option at all,
+    // so it reports false and is judged accordingly — and must be exempted
+    // rather than fixed, which is why its message says so.
+    //
+    // `::boolean`, not `= 'true'`. `reloptions` stores the value VERBATIM as
+    // the DDL wrote it, uncanonicalised: `WITH (security_invoker = on)` and
+    // `= 1` are ordinary Postgres boolean spellings, both fully functional and
+    // both stored as written. Comparing against the string `'true'` called two
+    // correctly-secured views insecure, and the only way out would have been a
+    // false exemption permanently mis-describing the schema. Found by review
+    // planting all four spellings against the live database.
+    const { rows: views } = await client.query(`
+      SELECT c.relname AS view_name,
+             COALESCE(
+               (SELECT o.option_value::boolean
+                  FROM pg_options_to_table(c.reloptions) o
+                 WHERE o.option_name = 'security_invoker'),
+               false
+             ) AS security_invoker
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'app' AND c.relkind IN ('v', 'm')
+       ORDER BY c.relname
+    `);
+
     violations.push(
       ...sensitivityViolations(sensitiveColumns, policyExprs, SENSITIVITY_EXEMPTIONS),
     );
     violations.push(...grantViolations(tables, grants, EXEMPTIONS));
+    violations.push(
+      ...securityDefinerViolations(
+        functions,
+        views,
+        SECURITY_DEFINER_EXEMPTIONS,
+        VIEW_INVOKER_EXEMPTIONS,
+      ),
+    );
 
     const byTable = new Map();
     for (const row of policies) {
@@ -343,7 +561,25 @@ async function main() {
       }
     }
 
-    // A query that matched nothing must not report a pass.
+    // A query that matched nothing must not report a pass. The function axis
+    // gets its own guard rather than sheltering under the table one: zero
+    // SECURITY DEFINER functions is the CORRECT answer today, so "found none"
+    // and "the query is broken" are indistinguishable from the outcome alone.
+    // The schema has had `current_org`, `current_actor_type` and `is_staff`
+    // since 0002, so zero functions means the query, not the schema.
+    if (functions.length === 0) {
+      // Pushed rather than returned. An early return here printed this one
+      // message and swallowed every violation already collected, plus the
+      // table-count guard and the app_user role check below it — so a run with
+      // a broken function query AND a real RLS hole reported only the query.
+      violations.push(
+        'found no functions at all in schema "app". Refusing to report that none of them is ' +
+          'SECURITY DEFINER — the schema has carried app.current_org(), ' +
+          'app.current_actor_type() and app.is_staff() since 0002, so this is the query ' +
+          'failing, not the schema being clean.',
+      );
+    }
+
     if (tableCount === 0) {
       console.error(
         'check-rls: found no tables in schema "app". Refusing to report a pass for a ' +
@@ -369,7 +605,10 @@ async function main() {
     console.log(
       `check-rls: inspected ${tableCount} table(s) in schema "app", ` +
         `${sensitiveColumns.length} sensitivity column(s), ` +
-        `${grants.length} privilege grant(s) to app_user.`,
+        `${grants.length} privilege grant(s) to app_user, ` +
+        `${functions.length} function(s) of which ` +
+        `${functions.filter((f) => f.security_type === 'DEFINER').length} SECURITY DEFINER, ` +
+        `${views.length} view(s).`,
     );
 
     if (violations.length > 0) {

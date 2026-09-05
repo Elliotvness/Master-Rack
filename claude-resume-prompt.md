@@ -35,7 +35,7 @@ the blueprint wins.
 6. **Git state** — run `git status`, `git log --oneline -15`, `git branch -vv` and confirm the
    current branch and tip before touching anything.
 
-## Step 2 — Where the project stands (scoreboard, 2026-09-05, session 12)
+## Step 2 — Where the project stands (scoreboard, 2026-09-05, session 13)
 
 Every figure below is measured against the blueprint. The scoreboard's own rule: **0% is the
 answer**; the other percentages are how much of the written plan has been executed. **Re-measure
@@ -48,21 +48,39 @@ before you quote any of these** — this section was six sessions stale until 20
 | Plan-task completion, task count | 24 of 49 — 49% | Same, unweighted |
 | Pre-merge review `R-01…R-11` | **11 of 11 — 100%** | Blueprint §16.1 review gates — one merged branch's checklist, not the project |
 | Route surface vs the blueprint | **22 of 22** MVP-1 routes declared, mounted and checked | Blueprint §8.2 — 24 rows, 2 marked phase 2 |
+| **Routes §8.2 needs and does not have** | **8 proposed, 0 amended** — tabulated in `tasks/todo.md` under T-14b, which is the canonical list | **F-46.** §8.2 cannot authenticate anybody, so Phase 3's server work cannot start |
 
 **No sha is quoted here, deliberately.** `main` moves every time a PR lands, and a sha written into
 this file went stale inside a day twice (drift 45, drift 49). `git ls-remote --heads origin` answers
 it, and `git rev-list --left-right --count origin/main...HEAD` answers the ahead/unpushed pair —
 every documentation commit moves that one too. Phases 0, 1 and 2 are complete.
 
-**Open branch:** `task/s-0-0-studio-gates` — S0.0, four commits, pushed and **CI-green** (run #106,
-every step of `verify` success, read from the Actions API rather than reported). It rebases onto
-`main` and fast-forwards. **Its PR is not open yet**; that is the one outstanding click.
+**`origin` carries three branches besides `main`, and ZERO open pull requests.** Measured
+2026-09-05, not reported — `git ls-remote --heads origin` and `GET /pulls?state=open`:
+`task/gate-the-fifth-copy` @ `ebdbf58` (CI #107 success, **no PR**), `task/s-0-0-studio-gates` @
+`e8e0b8a` (CI #106 success, **no PR**), and `docs/session-11-prose-gate` @ `78c29ef`, which is
+**already merged into `main` and was never deleted** — so the scoreboard section claiming that
+cleanup is done is one branch short (drift 52). **Session 13's branch is local only** and reaches
+EL through the mount, because a scheduled run still cannot push. Merging session 12's edition and
+session 13's conflicts on exactly one line — this file's and `tasks/progress.md`'s header date. Take
+session 13's header and keep both bodies.
 
-**Verified 2026-09-05 in the container against native PostgreSQL 16.13, on that branch:**
+**A scheduled run in this environment cannot read the Actions API either.** The container's GitHub
+access is not enabled for the repository and there is no tool in the session to enable it; the runs
+above were read through the connected Windows device, which can. Anyone quoting a CI result from a
+cloud session should say which side read it.
+
+**Verified 2026-09-05 in the container against native PostgreSQL 16.13 — five `pnpm verify` runs,
+every one exit 0: on clean `main`, on `main` plus the new checker axis, on the session-13 tree, and
+twice more after review:**
 `pnpm verify` **exit 0 — 59 files, 1,491 tests, 0 skipped**,
 **17 self-test invocations covering 16 checkers**, coverage all files
-99.54 / 98.90 / 99.40 / 99.54, 13 migrations. Both occurrences of
-"skipped" in the log are self-test case names — read, not assumed (F-29).
+99.51 / 98.85 / 99.40 / 99.51, 13 migrations, 13 declared claims. Both
+occurrences of "skipped" in the log are self-test case names — read, not
+assumed (F-29). Four of the five runs read that coverage figure and one
+read 99.54 / 98.90 / 99.40 / 99.54 on identical `.ts` sources; v8 is not
+bit-stable across worker scheduling, and the figure published is the one
+from the run at the tree being cited, never the best of them.
 
 *Do not copy the checker count out of this paragraph into a new document.* It is derived from
 `package.json` by `check-claims`, which now gates it **in this file** — the fifth scoreboard copy,
@@ -107,14 +125,38 @@ lands work on the mount and the push ends at GitHub Desktop and at EL.
 reason is not convenience: it makes **CI** the judge of an unattended run's work instead of the
 run's own say-so — the standard everything else in this repository is held to.
 
-### 1. Phase 3, the server, in the container
+### 1. Phase 3 is BLOCKED at its first task. Read F-46 before you pick anything up.
 
-**T-14b — auth and organizations** → **T-14c** → **T-14d + P-01** → **T-14e + P-02** → **T-15**,
-with P-01 and P-02 landing in the same commits as the routes they measure. T-14b turns §15.2 steps
-1 and 2 — invitation, and acceptance and sign-in — from placeholders into responses.
+**Do not start T-14b.** It was refused on 2026-09-05 by the pre-implementation review, and T-14c,
+T-14d, T-14e and T-15 are blocked behind it. All five serve routes to an authenticated principal,
+and **the blueprint declares no route that can produce one** — the whole document has exactly one
+`/api/auth/*` route (`POST /api/auth/invite/accept`), no sign-in, no second-factor enrollment and no
+OIDC callback, while §14.4 makes Entra ID SSO mandatory for staff. So no client principal reaches
+§15.2 steps 3–7 and **no staff principal can exist at all**, which is what steps 1 and 8 are made
+of. `tasks/review-findings.md` F-46 has the evidence and the narrowings a fresh-context review
+insisted on.
 
-Every one of these can be implemented and verified in the container. The Windows lane is one
-publish and one verify per task, and the tree comparison after each publish is not optional.
+**The unblocking move is EL's, not yours: a second §8.2 amendment.** The canonical list is the
+**eight-row table in `tasks/todo.md` under T-14b** — do not restate it anywhere else; three
+documents each naming a different set is how the first draft of this proposal failed review. `check-route-surface` diffs §8.2 against `ROUTES` in both directions
+and `createApp` refuses to boot on a route the registry does not hold, so **the routes cannot be
+added in code first, and must not be.** That control is what stops the target being moved to meet
+the code, which is the failure drift 4 was closed to prevent. When the amendment lands, T-14b is
+re-scoped in the same pass: its current wording says *"single-use token → credential → session"*,
+and §14.3 forbids that auto-login in terms.
+
+**T-14b's second blocker, F-47, is EL's too but smaller.** Nothing can resolve an anonymous bearer
+to its tenant: `withTenant` demands an organization before any statement runs, and §14.3 forbids the
+organization travelling in the token or the URL. The **session-cookie half is settled and needs no
+decision** — a second server-issued `__Host-` cookie carrying the organization, verified rather than
+trusted, fail-closed. The **invitation half** needs a `SECURITY DEFINER` tenant resolver
+(recommended; its audit checker landed 2026-09-05 as F-48, closed for schema `app` with three limits stated) or a token-hash policy predicate. Running
+the anonymous path under a `staff` context is rejected, and F-47 says why in one paragraph worth
+reading before anyone proposes it again.
+
+**What IS landable in the container with no decision from anyone:** F-47's session-cookie half; the
+one-test gap F-47 names, where *"an unset tenant context sees nothing"* is asserted by argument and
+never by a query with no context; and the done-count checker in item 2 below.
 
 **Carried into T-14e, recorded not forgotten:** the operator release route has a policy row, an
 authz rule, a §8.2 row and a mounted placeholder but no handler and no caller; `purgeExpiredOn`

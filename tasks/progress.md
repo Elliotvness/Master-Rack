@@ -1,8 +1,101 @@
-# Progress scoreboard — 2026-09-04 (session 10, T-14a counted on `main`)
+# Progress scoreboard — 2026-09-05 (session 13, the review that refused T-14b)
 
 Derived from `tasks/todo.md`, which stays the source of truth for task detail. This file holds
 only the arithmetic and the ordering. Where a figure was re-measured today it says so; where it is
 the repository's own claim it says that instead.
+
+**Session 13 (2026-09-05) — a scheduled unattended run that wrote almost no code, because the task
+it was sent to do cannot be done yet.** It set out to start **T-14b**, the task every figure on this
+page names as the first that can move §15.2. It read the blueprint first, as the order of work says
+to, and found that **the declared route surface cannot authenticate anybody** — recorded as
+**F-46**, and it is a defect in the objective rather than in the code. The whole blueprint declares
+exactly one `/api/auth/*` route, `POST /api/auth/invite/accept`; there is no sign-in route, no
+second-factor enrollment route and no OIDC callback, while §14.4 makes Entra ID SSO **mandatory**
+for staff. So no client principal can reach steps 3–7 and **no staff principal can exist at all**,
+which is what steps 1 and 8 are made of. Both findings were put to a fresh-context adversarial
+review before they were written down; F-46 came back confirmed with three narrowings, all of which
+are in it, and **F-47 came back partially refuted** — its session-cookie half is solvable today and
+says so.
+
+**This is the route-surface control working, not failing.** `check-route-surface` diffs §8.2 against
+`ROUTES` in both directions and `createApp` refuses to boot on a route the registry does not hold,
+so the missing routes **cannot be added in code first**. That is the mechanism stopping the target
+from being moved to meet the code — the exact failure drift 4 was closed to prevent, and this time
+it stopped it before a line was written. A **§8.2 amendment is what unblocks T-14b**, and it is EL's
+to make: six proposed rows are set out in `tasks/todo.md` under T-14b, to be decided in one pass the
+way the operator-release row was on 2026-09-03.
+
+**The plan had already resolved the gap the forbidden way.** T-14b's own specification reads *"single-use
+token → credential → session"* — auto-login, which §14.3 forbids in terms — and this page then
+reported T-14b as delivering *"acceptance and sign-in"*. The blueprint wins, so **the task
+specification is wrong** and is re-scoped when the amendment lands. Everything downstream is blocked
+with it: T-14c, T-14d, T-14e and T-15 all serve routes to a principal that cannot yet exist.
+
+**One control was found missing and was built, because it is F-47 option A's precondition.** §14.2's
+RLS checklist item 7 — *"Audit every SECURITY DEFINER function and view"* — had **no mechanism**:
+`check-rls` read `rolsuper` and `rolbypassrls` and never `pg_proc.prosecdef`, and never looked at
+views at all. One definer function owned by the table owner makes every other assertion in that
+checker decorative. Closed **for schema `app`, with three limits stated** as **F-48**: a third
+pure axis, `securityDefinerViolations`, with **12 new self-test cases** (`selftest-rls` now 25 — 7
+sensitivity, 6 privilege, 12 definer-authority), plants proven red against a live PostgreSQL 16.13
+including the unpinned-`search_path` escalation and the vacuity guard, and every arm proven able to
+go red by neutering it in turn (2, 2, 2, 1 and 1 cases respectively, measured). **Adversarial review
+then refused the first version of it** and both blockers were real: it called two correctly-secured
+views insecure because `reloptions` stores a boolean verbatim, and an **overload** of an exempted
+function was silently exempt — which F-47's own recommended option would have walked straight into.
+Both closed and re-planted.
+
+**Verified today in the container against native PostgreSQL 16.13 — five `pnpm verify` runs, every
+one at exit 0.** On clean `main` before any edit; on `main` plus the new checker axis; on the
+session-13 tree; and twice more after review, the last on the tree exactly as committed. All five: **59 files, 1,491 tests, 0 skipped**, **17
+self-test invocations covering 16 checkers**, 13 migrations, **13 declared claims**, `check-rls` at
+**22 tables, 8 sensitivity columns, 86 grants, 6 functions of which 0 SECURITY DEFINER, 0 views**.
+Both occurrences of "skipped" in each log are self-test case names — read, not assumed (F-29).
+Coverage all files is **99.51 / 98.85 / 99.40 / 99.51** — re-measured on the tree being committed
+after review, which is the run this edition cites. Of the five runs made today four read that and one
+read **99.54 / 98.90 / 99.40 / 99.54** on identical `.ts` sources: v8 coverage is not bit-stable
+across worker scheduling, as sessions 7, 8 and 10 also found, and **the published figure is the one
+from the run at the tree being cited, not the best of them.** *(The first draft of this paragraph
+published 99.54 and then wrote "the better of the two is not the one published" beside it, which is
+false against the two numbers next to it — a self-refuting honesty note, caught by review re-running
+`pnpm verify` on the tree rather than reading the sentence.)*
+
+*(The self-test case counts in this edition — 25, and the 7/6/12 split — are prose, not derived:
+`check-claims` has no row for them, because the only static derivation available is counting object
+literals in a source file, and a fragile derivation is worse than an honest gap. Named here so the
+next person to add a case knows this figure will not stop them.)*
+
+**No plan task completed, so no figure below moves**: 66
+of 160 and §15.2 at 0 of 8 are unchanged, and the definer axis is an addition to an existing checker
+rather than a task on the plan.
+
+**What changed is the REASON §15.2 is 0 of 8.** Until today it was 0 of 8 because all 22 handlers are
+placeholders — a coding gap, one task from moving. It is 0 of 8 today because the declared surface
+has no way to authenticate anyone, which is a gap in the objective and a bigger one.
+
+**`origin` carries three branches besides `main` and ZERO open pull requests — measured, not
+reported.** `git ls-remote --heads origin`, run 2026-09-05:
+
+```
+78c29ef  refs/heads/docs/session-11-prose-gate     <- already MERGED into main; delete it
+2fe1481  refs/heads/main
+ebdbf58  refs/heads/task/gate-the-fifth-copy       <- CI #107 success, no PR
+e8e0b8a  refs/heads/task/s-0-0-studio-gates        <- CI #106 success, no PR
+```
+
+`GET /pulls?state=open` returned an empty list. So **two branches are pushed and green with no PR on
+either** — two outstanding clicks, not the one the fifth copy claimed — and a third, merged branch
+is still sitting on the server, which is the cleanup §"2. Delete two merged remote branches" below
+declares done. **Session 13's branch is local only**: a scheduled run still cannot push (the git
+proxy refuses this repository, 403), so it reaches EL through the mount, not through `origin`.
+**Session 12's edition re-dates this file's header too**, so merging it and session 13's produces a
+one-line conflict on line 1: take session 13's header and keep both bodies.
+
+**And a cloud session cannot read the Actions API at all** — GitHub access for this repository is
+not enabled for the container and no tool in the session can enable it. The run numbers above were
+read through the connected Windows device, which can reach it. The standing rule *"read the run,
+never report that one exists"* survives, but only from the device side, and a figure quoted from a
+cloud session should say which side read it.
 
 **Session 10 (2026-09-04) — a scheduled unattended run. It built nothing and it landed nothing,
 because it can do neither: the git proxy refuses this repository, and no folder was connected. What
@@ -331,8 +424,11 @@ while it happened**, and that is not a paradox: Phase 2 was repairs and controls
 of done is a client getting through eight screens. **Phase 3 has now opened past the checkpoint
 with T-13b, and §15.2 still did not move** — the contract is what a route will answer with, and no
 route answers yet. **T-14a has since landed, and §15.2 still did not move** — mounting all 22
-routes and authorizing every one of them is not answering one of them. **T-14b is the first point
-that can move it**, and it moves steps 1 and 2 — invitation, and acceptance and sign-in.
+routes and authorizing every one of them is not answering one of them. **T-14b was named here as
+the first point that can move it — and T-14b is now refused (F-46).** It cannot move steps 1 and 2,
+because the blueprint declares no route by which anyone signs in and none at all by which a staff
+principal comes into existence. **The first point that can move §15.2 is EL's §8.2 amendment**,
+which is a decision rather than a task.
 *(This sentence read "the first point that can move it is T-14a's" for a full edition after T-14a
 landed, while the gauge stayed 0 of 8 and the plan section below already named T-14b — **drift 51**,
 and it is the same defect as drift 41: a present-tense sentence about what has not happened yet,
@@ -465,15 +561,22 @@ changelog and tags *are* T-26.)
 
 ## Your queue — EL
 
-**Nine of the ten cleared on 2026-09-03.** Q3 (disclaimer text, contact name, `MS-GOV-YYYY-NNN`
-numbering) and Q4 (B2 bucket, scoped keys) are resolved on EL's word, which unblocks T-20/AC-16 and
-T-24. The **push** (item 1) and the **§8.2 amendment** (item 2) are also done — the merge landed and
-pushed to `origin/main` as `42c8211`, and the operator release route is now a §8.2 row. **One item
-remains** in the waiting table below.
+**Two new items arrived on 2026-09-05, and the first gates everything: a second §8.2
+amendment.** The first (the operator release row, 2026-09-03) is done. This one is bigger — the
+route surface declares no way for anyone to sign in, so T-14b and everything behind it cannot start
+until §8.2 carries the rows. See F-46, and the canonical eight-row table in `tasks/todo.md` under
+T-14b.
+
+**Of the earlier ten, nine cleared on 2026-09-03.** Q3 (disclaimer text, contact name,
+`MS-GOV-YYYY-NNN` numbering) and Q4 (B2 bucket, scoped keys) are resolved on EL's word, which
+unblocks T-20/AC-16 and T-24. The **push** and the **first §8.2 amendment** are also done — the merge
+landed and pushed to `origin/main` as `42c8211`, and the operator release route is now a §8.2 row.
 
 | # | Waiting on you | Why it is yours, not code's | Gates |
 |---|---|---|---|
-| 1 | **Q6 answered as McMurray Stern — which answers OD-20a, not OD-20b.** Read the distinction before closing it | OD-20a is the **internal dogfood** pilot: settled, worth doing, and it measures *usability*. OD-20b is the **external** pilot, and its own recorded criterion is *"outside McMurray Stern"*. Naming McMurray Stern therefore closes the first and leaves the second open — which matters because **R-01 (will a client actually do this work) retires only when an outside organisation completes a submission unaided**, and nothing else retires it | R-01 stays live; P-04's real unit sizes still unsourced |
+| 1 | **The second §8.2 amendment — the eight rows tabulated in `tasks/todo.md` under T-14b, decided in one pass.** That table is the canonical list and is deliberately not restated here; row 8 is the only one that does not block T-14b | The blueprint is the objective and only EL amends it. The code side is already a control: `check-route-surface` diffs §8.2 against `ROUTES` both ways and `createApp` refuses to boot on a route the registry does not hold, so **the routes cannot be written first**. Session 2's instinct — edit the target down to meet the code — is what this control exists to refuse | **T-14b, T-14c, T-14d, T-14e, T-15 — all of Phase 3's server work.** §15.2 steps 1, 2 and 8 directly; 3–7 transitively |
+| 2 | **F-47's invitation-tenant decision** — a `SECURITY DEFINER` resolver (recommended, and its audit checker landed today as F-48) or a token-hash policy predicate. Running the anonymous acceptance path under a `staff` context is rejected and F-47 says why | It is a new privileged surface on the one route an unauthenticated caller can reach, and §14.2 item 7 makes definer functions an audit item by name. The session-cookie half needs no decision and is settled in F-47 | `POST /api/auth/invite/accept`, so §15.2 step 2 |
+| 3 | **Q6 answered as McMurray Stern — which answers OD-20a, not OD-20b.** Read the distinction before closing it | OD-20a is the **internal dogfood** pilot: settled, worth doing, and it measures *usability*. OD-20b is the **external** pilot, and its own recorded criterion is *"outside McMurray Stern"*. Naming McMurray Stern therefore closes the first and leaves the second open — which matters because **R-01 (will a client actually do this work) retires only when an outside organisation completes a submission unaided**, and nothing else retires it | R-01 stays live; P-04's real unit sizes still unsourced |
 
 | Closed by you | What it settled | When |
 |---|---|---|
@@ -821,22 +924,37 @@ newer, adds drift 46 and 47, and carries the first `pnpm verify` ever run on `ma
 one and drop the other** — applying both will conflict, and the conflict would be over identical
 intent, which is the worst kind to resolve by hand.
 
-### 2. ~~Delete two merged remote branches~~ — done 2026-09-05
+### 2. Delete merged remote branches — ~~done 2026-09-05~~ **and it came undone the same day**
 
-`git ls-remote --heads origin` now returns `refs/heads/main` and nothing else: those two, and every
-branch opened since, are gone from the server. `ls-remote` stays the check rather than a local
-`git branch -r`, because it is the one that catches a branch that re-appears — which one already
-has once.
+This section read *"`git ls-remote --heads origin` now returns `refs/heads/main` and nothing else"*.
+Re-run on 2026-09-05 it returns **four** refs, and one of them — `docs/session-11-prose-gate` @
+`78c29ef` — is **merged into `main` and still on the server**. The output is pasted at the top of
+this edition. So the cleanup is one branch short, and this file stated two different `ls-remote`
+results in two places within the same edition until the re-run caught it — **drift 52**, and it is
+the one-quantity-two-figures defect landing just outside what `check-scoreboard-prose` can derive,
+because no command in `verify` reaches the remote.
 
-### 3. Then — Phase 3, the server, in the container
+`ls-remote` stays the check rather than a local `git branch -r`, because it is the one that catches
+a branch that re-appears — which one already has once, and a merged one that never left is the same
+hazard standing still.
 
-**T-14b — auth and organizations** → **T-14c** → **T-14d + P-01** → **T-14e + P-02** → **T-15**,
-with P-01 and P-02 landing in the same commits as the routes they measure.
+### 3. Phase 3 is BLOCKED at its first task — read F-46 before picking anything up
 
-**T-14b is the first point that can move §15.2.** T-14a mounted 22 routes and proved the router and
-the registry cannot disagree; every one of those 22 handlers answers 500. Step 1 of §15.2
-(invitation) and step 2 (acceptance and sign-in) are what T-14b turns from a placeholder into a
-response, and they are the first two of the eight.
+**T-14b is refused (F-46, 2026-09-05), and T-14c, T-14d, T-14e and T-15 are blocked behind it.** All
+five serve routes to an authenticated principal, and **the blueprint declares no route that can
+produce one** — no sign-in, no second-factor enrollment, no OIDC callback, while §14.4 makes staff
+SSO mandatory. `check-route-surface` and `createApp`'s boot gate together mean the missing routes
+cannot be added in code first, which is those controls doing their job.
+
+**The unblocking move is EL's §8.2 amendment** (item 1 of the queue above; the canonical eight-row
+table is in `tasks/todo.md` under T-14b). When it lands, T-14b is re-scoped in the same pass: its current
+specification says *"single-use token → credential → session"*, which is the auto-login §14.3
+forbids.
+
+**What is landable meanwhile, in the container, needing no decision:** F-47's session-cookie half (a
+second server-issued `__Host-` cookie carrying the organization, verified rather than trusted); the
+one-test gap F-47 names, where *"an unset tenant context sees nothing"* is asserted by argument and
+never by a query; and the done-count checker in item 4 below, which is still unowned.
 
 **Carried into T-14e, recorded not forgotten:** the operator release route has a policy row, an
 authz rule, a §8.2 row and a mounted placeholder but **no handler and no caller**; `purgeExpiredOn`
