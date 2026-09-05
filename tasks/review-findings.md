@@ -1656,3 +1656,39 @@ This one was worth having ahead of the app it is about. A boundary rule written 
 the bundle it governs is a rule someone remembered; a checker that refuses an ungoverned bundle is a
 rule nobody has to remember.
 
+## F-45 — the bundle arm had never been run, and its reach was a typed list *(raised and **CLOSED** 2026-09-05 by S0.0)*
+
+`check-front-end-budgets` says of itself, honestly, that it *"cannot fail on a bundle that does not
+exist"* and that wiring the arm to a real artifact is T-16's obligation. Both true. What neither the
+file nor P-05 said is that the arm's *reach* was `BUNDLE_DIRS = Object.freeze(['apps/client-web/dist',
+'apps/internal-web/dist'])` — so it would go on not failing for a bundle that **does** exist, if that
+bundle belonged to an app nobody had added to the array.
+
+**Planted.** A fourth app with a 301 KB gzipped initial bundle — half again over the agreed ceiling —
+in `apps/probe-web/dist`, with an `index.html` naming its script:
+
+```
+check-front-end-budgets: 4 §5.4 front-end row(s); no SPA build (no dist/index.html) — the
+weigh-the-bundle arm is UNPROVEN, T-16's obligation.
+check-front-end-budgets: PASS
+exit 0
+```
+
+*"No SPA build"*, said over an SPA build, 50% over budget.
+
+**Closed** by discovering `apps/*/dist/index.html` instead of listing it, and by splitting the ceiling
+comparison into `bundleProblems()` so it can be exercised without a whole repository around it. The
+self-test now plants a synthetic over-ceiling bundle in a temp tree and asserts red, plants a `dist/`
+of compiler output with no `index.html` and asserts it is **not** counted (the discriminator that
+already caught this checker measuring `tsc` output once), and asserts the boundary — exactly at the
+ceiling passes, one byte over fails.
+
+**One ceiling is applied to every build found, and that is a decision.** §5.4 names two applications
+and says the client bundle is the one the ceiling exists for. A third bundle gets the same 200 KB
+because a bundle with no agreed number should get the agreed number rather than none — the strict
+direction. A *different* ceiling for a different audience is a §5.4 amendment, and `discoverBundleDirs`
+is where the per-app lookup goes when one is agreed.
+
+**Blind spot, unchanged and restated:** this checker has still never weighed a real framework build.
+A synthetic `index.html` is not Vite output. The arm is no longer unexercised, which is not the same
+as proven, and P-05's second half — Lighthouse against a built SPA — remains T-16's obligation.

@@ -12,15 +12,22 @@
  * a FAILURE, not "nothing to check".
  */
 
-import { readFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
 
 import {
   BUDGETS,
+  INITIAL_JS_CEILING_BYTES,
   budgetViolations,
+  bundleProblems,
   check,
+  discoverBundleDirs,
   frontEndBudgetRows,
+  weighBundles,
 } from './check-front-end-budgets.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -95,6 +102,81 @@ cse(
 cse(
   'every budget in BUDGETS is distinct — a duplicated metric would mask a drift',
   new Set(BUDGETS.map((b) => b.metric)).size === BUDGETS.length,
+);
+
+// ---- the bundle arm, which had never been run ------------------------------
+//
+// Until this block the weigh-the-bundle half was unexercised: `BUNDLE_DIRS` was
+// a frozen two-entry array, and a fourth app shipping a 301 KB gzipped bundle
+// went through the real checker at exit 0 with the words "no SPA build". Every
+// case below runs against a temp tree, never inside the repository — same rule
+// as the other self-tests, and for the same reason.
+
+/** A dist that looks like a real SPA build: an index.html that names its script. */
+function spaTree(bytesOfScript) {
+  const root = mkdtempSync(join(tmpdir(), 'rms-selftest-budgets-'));
+  const dist = join(root, 'apps', 'newly-added', 'dist', 'assets');
+  mkdirSync(dist, { recursive: true });
+  // Random base64 is close to incompressible, so the gzipped size lands near the
+  // raw size and the loop settles in one or two doublings rather than crawling.
+  let raw = 64 * 1024;
+  let payload = `//${randomBytes(raw).toString('base64')}`;
+  while (gzipSync(Buffer.from(payload)).length < bytesOfScript) {
+    raw *= 2;
+    payload = `//${randomBytes(raw).toString('base64')}`;
+  }
+  writeFileSync(join(dist, 'main.js'), payload, 'utf8');
+  writeFileSync(
+    join(root, 'apps', 'newly-added', 'dist', 'index.html'),
+    '<!doctype html><script type="module" src="/assets/main.js"></script>',
+    'utf8',
+  );
+  return root;
+}
+
+{
+  const over = spaTree(INITIAL_JS_CEILING_BYTES + 1);
+  try {
+    const found = discoverBundleDirs(over);
+    cse(
+      'an app NOBODY LISTED here still has its bundle discovered and weighed',
+      found.includes('apps/newly-added/dist'),
+    );
+    const weighed = weighBundles(over);
+    cse(
+      'a bundle over the ceiling → FAIL, the arm that had never been run',
+      bundleProblems(weighed).some((p) => p.includes('exceeds the 200 KB ceiling')),
+    );
+    cse(
+      'the weighed figure is the script the index.html NAMES, not the tree',
+      weighed !== null && weighed[0].bytes > INITIAL_JS_CEILING_BYTES,
+    );
+  } finally {
+    rmSync(over, { recursive: true, force: true });
+  }
+}
+
+{
+  // A `dist/` full of tsc output is not an SPA build. The discriminator is the
+  // index.html, and it must keep discriminating — the first version of this
+  // checker weighed compiler output and reported "client-web 16 KB gz".
+  const root = mkdtempSync(join(tmpdir(), 'rms-selftest-budgets-'));
+  try {
+    mkdirSync(join(root, 'apps', 'api', 'dist'), { recursive: true });
+    writeFileSync(join(root, 'apps', 'api', 'dist', 'index.js'), 'export const x = 1;\n', 'utf8');
+    cse(
+      'a dist of compiler output with no index.html is NOT counted as a bundle',
+      discoverBundleDirs(root).length === 0 && weighBundles(root) === null,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+cse(
+  'the ceiling is a ceiling, not a target: exactly at it passes, one byte over fails',
+  bundleProblems([{ dir: 'x', bytes: INITIAL_JS_CEILING_BYTES }]).length === 0 &&
+    bundleProblems([{ dir: 'x', bytes: INITIAL_JS_CEILING_BYTES + 1 }]).length === 1,
 );
 
 // ---- reachability: the REAL tree, read-only --------------------------------

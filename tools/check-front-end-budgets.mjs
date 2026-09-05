@@ -44,16 +44,23 @@
  * way a parser-based checker refuses to rot, and it is the house rule
  * (`check-claims` states the same policy for its patterns).
  *
- * THE BLIND SPOT, stated rather than implied: **this checker cannot fail on a
- * bundle that does not exist.** The bundle arm is unproven against a real build
- * and will stay unproven until T-16 installs the framework and produces one.
- * Wiring the weigh-the-bundle half to a real artifact is **T-16's obligation**,
- * recorded here and in `tasks/todo.md` under P-05 so it is not mistaken for
- * done. What is proven today is the agreement half, and the self-test plants
- * every one of its failure modes.
+ * WHICH BUILDS ARE WEIGHED — discovered, not listed. Any `apps/<app>/dist`
+ * holding an `index.html` is weighed, whoever added it. It was a frozen
+ * two-entry array until a fourth app with a 301 KB gzipped bundle walked
+ * through this checker and it printed "no SPA build ... PASS".
+ *
+ * THE BLIND SPOT, stated rather than implied: **this checker has still never
+ * weighed a real framework build.** The self-test now plants a synthetic
+ * `dist/index.html` over the ceiling and asserts this goes red, so the arm is
+ * no longer unexercised — but a synthetic bundle is not Vite output, and the
+ * discriminator, the ref extraction and the gzip accounting are only proven
+ * against a real one. Running it against a genuine build is still **T-16's
+ * obligation**, recorded here and in `tasks/todo.md` under P-05 so it is not
+ * mistaken for done. Nor does any of this measure INP, LCP or CLS: those need
+ * a browser and a screen, and P-05's second box is where they live.
  */
 
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -75,8 +82,40 @@ export const BUDGETS = Object.freeze([
 /** The initial-JS ceiling in bytes, gzipped. The one number the bundle arm uses. */
 export const INITIAL_JS_CEILING_BYTES = 200 * 1024;
 
-/** Where an SPA build would land. A directory here counts only if it holds an `index.html`. */
-export const BUNDLE_DIRS = Object.freeze(['apps/client-web/dist', 'apps/internal-web/dist']);
+/**
+ * Where SPA builds land, DISCOVERED rather than listed.
+ *
+ * This was a frozen two-entry array, and that is a control whose reach is
+ * whatever somebody last typed. Planted before the change: a fourth app with a
+ * **301 KB gzipped** initial bundle in `apps/probe-web/dist` — half again over
+ * the ceiling — and this checker printed *"no SPA build ... PASS"*, because the
+ * directory was not in the list. The bundle that is not weighed is exactly the
+ * bundle nobody agreed a number for.
+ *
+ * A directory counts only if it holds an `index.html`; see the header on why
+ * the discriminator is that and not "some .js under dist".
+ *
+ * ONE CEILING, APPLIED TO EVERY BUILD FOUND. §5.4 names two applications and
+ * says the client bundle is the one the ceiling exists for. Weighing a third
+ * against the same 200 KB is deliberate and it is the strict direction: a
+ * bundle with no agreed number gets the agreed number rather than none. A
+ * *different* ceiling for a different audience is a §5.4 amendment, and when
+ * one is agreed this function is where the per-app lookup goes.
+ */
+export function discoverBundleDirs(root = ROOT) {
+  let apps;
+  try {
+    apps = readdirSync(join(root, 'apps'), { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name)
+      .sort();
+  } catch {
+    return [];
+  }
+  return apps
+    .map((app) => `apps/${app}/dist`)
+    .filter((rel) => existsSync(join(root, rel, 'index.html')));
+}
 
 /** Strip tags and collapse whitespace, so a target reads the same as it renders. */
 function text(html) {
@@ -196,7 +235,7 @@ export function budgetViolations(html, perfMd) {
  */
 export function weighBundles(root = ROOT) {
   const weighed = [];
-  for (const rel of BUNDLE_DIRS) {
+  for (const rel of discoverBundleDirs(root)) {
     const dir = join(root, rel);
     const index = join(dir, 'index.html');
     if (!existsSync(index)) continue;
@@ -205,12 +244,14 @@ export function weighBundles(root = ROOT) {
   return weighed.length === 0 ? null : weighed;
 }
 
-export function check(root = ROOT) {
-  const html = readFileSync(join(root, 'rack-master-studio-blueprint.html'), 'utf8');
-  const perfMd = readFileSync(join(root, 'PERF.md'), 'utf8');
-  const problems = budgetViolations(html, perfMd);
-  const bundles = weighBundles(root);
-
+/**
+ * The ceiling comparison, separated from `check` so the self-test can plant an
+ * over-ceiling bundle without a blueprint and a PERF.md beside it. An arm that
+ * can only be exercised through a full repository is an arm that stays
+ * unplanted, which is how it went three weeks without ever being run.
+ */
+export function bundleProblems(bundles) {
+  const problems = [];
   for (const b of bundles ?? []) {
     if (b.bytes > INITIAL_JS_CEILING_BYTES) {
       problems.push(
@@ -219,6 +260,15 @@ export function check(root = ROOT) {
       );
     }
   }
+  return problems;
+}
+
+export function check(root = ROOT) {
+  const html = readFileSync(join(root, 'rack-master-studio-blueprint.html'), 'utf8');
+  const perfMd = readFileSync(join(root, 'PERF.md'), 'utf8');
+  const problems = budgetViolations(html, perfMd);
+  const bundles = weighBundles(root);
+  problems.push(...bundleProblems(bundles));
 
   return { problems, rows: frontEndBudgetRows(html).length, bundles };
 }
