@@ -35,7 +35,7 @@ the blueprint wins.
 6. **Git state** — run `git status`, `git log --oneline -15`, `git branch -vv` and confirm the
    current branch and tip before touching anything.
 
-## Step 2 — Where the project stands (scoreboard, 2026-09-04, session 10)
+## Step 2 — Where the project stands (scoreboard, 2026-09-05, session 12)
 
 Every figure below is measured against the blueprint. The scoreboard's own rule: **0% is the
 answer**; the other percentages are how much of the written plan has been executed. **Re-measure
@@ -49,15 +49,24 @@ before you quote any of these** — this section was six sessions stale until 20
 | Pre-merge review `R-01…R-11` | **11 of 11 — 100%** | Blueprint §16.1 review gates — one merged branch's checklist, not the project |
 | Route surface vs the blueprint | **22 of 22** MVP-1 routes declared, mounted and checked | Blueprint §8.2 — 24 rows, 2 marked phase 2 |
 
-`main` @ **`0bb5383`**, level with `origin/main`, clean tree. `origin/task/t-13c-input-dtos` and
-`origin/task/t-13d-idempotency` are merged and 0 ahead; they can be deleted. Phases 0, 1 and 2 are
-complete. Do **not** quote an ahead/unpushed pair from any document: every documentation commit
-moves it — re-run `git rev-list --left-right --count origin/main...HEAD`.
+**No sha is quoted here, deliberately.** `main` moves every time a PR lands, and a sha written into
+this file went stale inside a day twice (drift 45, drift 49). `git ls-remote --heads origin` answers
+it, and `git rev-list --left-right --count origin/main...HEAD` answers the ahead/unpushed pair —
+every documentation commit moves that one too. Phases 0, 1 and 2 are complete.
 
-**Verified 2026-09-04 in the container against native PostgreSQL 16.13:** `pnpm verify` **exit 0 —
-59 files, 1,491 tests, 0 skipped**, 15 checkers behind their self-tests, coverage all files
-99.54 / 98.90 / 99.40 / 99.54, 13 migrations. That run was on `main` itself, which no earlier
-edition of the scoreboard can say.
+**Open branch:** `task/s-0-0-studio-gates` — S0.0, four commits, pushed and **CI-green** (run #106,
+every step of `verify` success, read from the Actions API rather than reported). It rebases onto
+`main` and fast-forwards. **Its PR is not open yet**; that is the one outstanding click.
+
+**Verified 2026-09-05 in the container against native PostgreSQL 16.13, on that branch:**
+`pnpm verify` **exit 0 — 59 files, 1,491 tests, 0 skipped**,
+**17 self-test invocations covering 16 checkers**, coverage all files
+99.54 / 98.90 / 99.40 / 99.54, 13 migrations. Both occurrences of
+"skipped" in the log are self-test case names — read, not assumed (F-29).
+
+*Do not copy the checker count out of this paragraph into a new document.* It is derived from
+`package.json` by `check-claims`, which now gates it **in this file** — the fifth scoreboard copy,
+and until 2026-09-05 the only one nothing checked.
 
 **Why §15.2 is still 0 of 8, and it is no longer a formality.** T-14a built the server:
 `apps/api/src/app.ts` builds a Fastify instance, `createApp` mounts all 22 §8.2 MVP-1 routes and
