@@ -86,8 +86,13 @@ e8e0b8a  refs/heads/task/s-0-0-studio-gates        <- CI #106 success, no PR
 `GET /pulls?state=open` returned an empty list. So **two branches are pushed and green with no PR on
 either** — two outstanding clicks, not the one the fifth copy claimed — and a third, merged branch
 is still sitting on the server, which is the cleanup §"2. Delete two merged remote branches" below
-declares done. **Session 13's branch is local only**: a scheduled run still cannot push (the git
-proxy refuses this repository, 403), so it reaches EL through the mount, not through `origin`.
+declares done. **Session 13's branch is local only**, and the two lanes fail differently — measured with
+real pushes, not dry runs. From the container the git proxy answers **403**, *"not in this session's
+authorized repository set"*. From the bridge shell on the connected Windows device `git push` dies
+with *"could not read Username for 'https://github.com'"*: no credential helper reaches that shell.
+**These are two separate obstacles**, and authorizing the container's proxy — the remedy this page
+has recommended for three editions — would close only the first. GitHub Desktop holds the
+credentials, and it is still the path a branch takes to `origin`.
 **Session 12's edition re-dates this file's header too**, so merging it and session 13's produces a
 one-line conflict on line 1: take session 13's header and keep both bodies.
 

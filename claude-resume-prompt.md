@@ -61,7 +61,12 @@ every documentation commit moves that one too. Phases 0, 1 and 2 are complete.
 `e8e0b8a` (CI #106 success, **no PR**), and `docs/session-11-prose-gate` @ `78c29ef`, which is
 **already merged into `main` and was never deleted** — so the scoreboard section claiming that
 cleanup is done is one branch short (drift 52). **Session 13's branch is local only** and reaches
-EL through the mount, because a scheduled run still cannot push. Merging session 12's edition and
+EL through the mount, because a scheduled run cannot push **and the two lanes fail differently,
+measured 2026-09-05 with real pushes rather than dry runs**: from the container the git proxy
+answers **403** (*"not in this session's authorized repository set"*), and from the bridge shell on
+the Windows device `git push` dies with *"could not read Username for 'https://github.com'"* — no
+credential helper reaches that shell, so it is not the same problem and enabling one lane would not
+fix the other. GitHub Desktop holds the credentials; that is the path. Merging session 12's edition and
 session 13's conflicts on exactly one line — this file's and `tasks/progress.md`'s header date. Take
 session 13's header and keep both bodies.
 
