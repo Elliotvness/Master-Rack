@@ -1465,16 +1465,55 @@ at all** for a product whose premise is a client self-service web app where the 
 *is* the product. The 120 ms preview budget covers the computation; nothing covers the paint. A
 bundle ceiling agreed after the bundle exists is a ceiling nobody meets.
 **Acceptance criteria:**
-- [ ] Budgets written into the blueprint (a §5.4 amendment) rather than invented in a task file:
+- [x] Budgets written into the blueprint (a §5.4 amendment) rather than invented in a task file:
       **LCP ≤ 2.5 s**, **INP ≤ 200 ms**, **CLS ≤ 0.1**, initial JS **≤ 200 KB gzipped**
-- [ ] INP is the one that matters here and is called out as such: a rack configurator is an
+- [x] INP is the one that matters here and is called out as such: a rack configurator is an
       interaction loop, not a page view
 - [ ] Bundle size asserted in CI on every build, with the number recorded in `PERF.md`
+      — **half done: the ceiling is gated, the bundle is not weighed.** See below
 - [ ] Lighthouse or an equivalent runs against the built SPA in CI once a screen exists
-- [ ] A route-level code-splitting decision recorded — before there are routes to split
+      — **T-16**, and it cannot be done before then
+- [x] A route-level code-splitting decision recorded — before there are routes to split
 **Verification:** the bundle gate fails when a large dependency is added.
 **Dependencies:** Q1 (frontend framework — answered: Vite + React Router v7), before T-16.
 **Scope:** S to agree, M to enforce.
+
+**AGREED 2026-09-04 (session 10) — the "S to agree" half is complete; the "M to enforce" half is
+not, and the split is stated rather than blurred.** Blueprint §5.4 now carries a second table, four
+front-end budgets beside the five server-side ones, with **INP ≤ 200 ms called out as the one that
+matters** — a rack configurator is an interaction loop, not a page view. The route-level
+code-splitting decision is recorded in §5.4 in the same amendment: each of the eight §15.2 steps is
+a lazily-loaded route chunk, the ceiling applies to the **initial** bundle (shell + first route) and
+not the sum of all chunks, the renderers load with the preview step that needs them, and the client
+and internal applications are budgeted separately. `PERF.md` gains rows 6–9 and the reasoning.
+
+**The mechanism, and exactly what it proves.** `check-front-end-budgets` + its self-test run
+self-test-first in `verify` and in `ci.yml` (31 checker invocations in each, sets compared by
+difference — drift 38's shape checked for and absent). What it proves **today** is that one ceiling
+is stated in three places that agree: §5.4, the checker's `BUDGETS`, and `PERF.md`.
+
+Proven to fire, against the **real** files, each restored and md5-compared identical:
+
+| Planted | Result |
+|---|---|
+| INP loosened 200 ms → 900 ms in `src/parts/05-s4.html`, blueprint rebuilt | **exit 1**, naming INP and both figures |
+| the 200 KB ceiling removed from `PERF.md` | **exit 1**, naming `PERF.md` |
+| the target-comparison arm of the checker disabled | **self-test exit 1**, one case of eight red — the self-test catches a neutered checker |
+| restored | exit 0 |
+
+Fixture cases in the self-test additionally plant: a budget deleted from §5.4, a budget added that
+nothing enforces, and **§5.4 reworded so the parser matches nothing — which is a FAILURE, not
+"nothing to check"**.
+
+**What is NOT done, so the 🟡 in `PERF.md` is not read as ✅.** The weigh-the-bundle arm has never
+run against a real artifact and **cannot be claimed as proven**. The first draft of the checker
+summed every `.js` under each app's `dist` and passed at "client-web 16 KB gz" — it was weighing
+`tsc --build` output and calling it "initial JavaScript". That is this repository's own recurring
+defect committed by the control written to prevent it, and it was found by *running* the checker,
+not by reading it. A directory now counts as an SPA build only if it holds an `index.html`, and the
+initial payload is the scripts that document references. **Wiring it to a real build, and the
+Lighthouse run for LCP/INP/CLS, is T-16's obligation** — recorded here, in `PERF.md` and in the
+checker's own header.
 
 ### P-04: Re-derive the provisional budgets once real unit sizes are known
 **Description:** §5.4 says its own numbers "are provisional and should be re-derived once a real

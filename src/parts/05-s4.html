@@ -203,6 +203,34 @@
   </div>
   <p class="sub">These are provisional and should be re-derived once a real unit size distribution is known. The <code>rack-studio</code> spikes measured whole-building canvas draw at ~3.3 ms p95 batched and a clearance sweep at 1.34 ms p95 with a span-bucketed index versus 63.79 ms brute force — both under software rasterization in a cloud container, so treat them as a floor rather than a measurement.</p>
 
+  <p><strong>Every budget above is server- or kernel-side.</strong> The 120 ms preview budget covers
+  the <em>computation</em>; nothing above covers the <em>paint</em>. For a product whose premise is a
+  client self-service web app in which the preview interaction <em>is</em> the product, that is a
+  gap, and a ceiling agreed after the bundle exists is a ceiling nobody meets. The front-end budgets
+  are therefore fixed here, before the first screen exists.</p>
+
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Front-end budget</th><th>Target</th><th>Measured how</th></tr></thead>
+    <tbody>
+      <tr><td><strong>INP</strong> — Interaction to Next Paint</td><td><strong>&le; 200 ms</strong></td><td>Lighthouse or equivalent in CI against the built SPA, once a screen exists. <strong>This is the one that matters</strong>: a rack configurator is an interaction loop, not a page view</td></tr>
+      <tr><td>LCP — Largest Contentful Paint</td><td>&le; 2.5 s</td><td>Same run</td></tr>
+      <tr><td>CLS — Cumulative Layout Shift</td><td>&le; 0.1</td><td>Same run</td></tr>
+      <tr><td>Initial JavaScript, gzipped</td><td>&le; 200 KB</td><td>Asserted in CI on every build; the measured number recorded in <code>PERF.md</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="sub"><strong>Route-level code splitting is decided here, before there are routes to
+  split:</strong> each of the eight &sect;15.2 steps is a lazily-loaded route chunk, and the 200 KB
+  ceiling applies to the <em>initial</em> bundle — the shell plus the first route — not to the sum of
+  all chunks. The renderers (<code>render-svg</code>, <code>render-canvas</code>) and the kernel
+  packages they consume load with the preview step that needs them, never in the shell. Two
+  applications, client and internal, are budgeted separately and independently: the client bundle is
+  the one this ceiling exists for.</p>
+  <p class="sub">Both halves of this section are provisional in the same way and for the same
+  reason — see <code>P-04</code>. What is <em>not</em> provisional is that the numbers exist before
+  the code does.</p>
+
   <h3>5.5 Backups and recovery</h3>
   <ul>
     <li><b>NFR-BK-01</b> — Point-in-time recovery on the primary database with a documented RPO of 5 minutes and RTO of 4 hours.</li>

@@ -230,6 +230,17 @@ jobs:
       - name: The registry agrees with blueprint §8.2, row for row
         run: pnpm check:routesurface
 
+      # P-05. The front-end budgets are agreed in blueprint §5.4 before the
+      # first screen exists, and this is the mechanism that keeps §5.4, the
+      # checker and PERF.md stating one ceiling. Self-test first, as always.
+      # The weigh-the-bundle arm is UNPROVEN until T-16 produces a real SPA
+      # build — it reports that out loud rather than passing quietly.
+      - name: Front-end budget self-test
+        run: pnpm check:budgets:selftest
+
+      - name: Front-end budgets agree across §5.4, the checker and PERF.md
+        run: pnpm check:budgets
+
       - name: Kernel coverage gate
         run: pnpm coverage
 
