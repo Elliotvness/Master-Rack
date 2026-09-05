@@ -424,7 +424,7 @@ Record each answer here as it is made — date, decision, who decided, and the r
 | OD-18 | 2026-08-31 | **Per-organization defaults, never restrictions** | EL (recommendation adopted) | Defaults save time; restrictions produce support calls. Phase 2. |
 | OD-19 | 2026-08-31 | **Single-writer with explicit stale-base rejection** | EL (recommendation adopted) | Refuse and reload, never merge. `rack-app/model/edit.py` is the reference. Phase 2. |
 | OD-20a | 2026-08-31 | **Internal dogfood pilot** — McMurray Stern, closed single-environment trial, first three submissions treated as user research | EL | Right framing, and it should happen. |
-| OD-20b | 2026-08-31 (criteria) | **Selection criteria settled**: outside McMurray Stern · new-material job · small enough to finish in one sitting · a live opportunity · a relationship that survives a rough release. **The account name remains yours to pick.** | EL (criteria adopted) | One of the four audited accounts fits all five. `R-01` is only retired when an outside client submits unaided. |
+| OD-20b | 2026-08-31 (criteria) · **2026-09-05 (name)** | **ANSWERED — GuruNanda**, Bldg. G, Buena Park CA. Criteria settled 2026-08-31 (outside McMurray Stern · new-material job · finishable in one sitting · a live opportunity · a relationship that survives a rough release); all five met. 1–3 verified against McMurray Stern drawing R-1, `PROJ # 260903` (2026-09-03): "New pallet rack design", no reused material on the sheet, **320 bays / 2,404 pallet positions**. 4–5 affirmed by EL as commercial judgement | EL | **`R-01` is NOT retired** — it needs a completed unaided submission. Supplies P-04's first real unit-size distribution; 304 type-A bays against the 300-bay fixture |
 | OD-21 | 2026-08-31 | **(c) catalog-only with an explicit off-ramp** — declaring existing material keeps all entered inputs and submits as an off-ramp request | EL | Instrument off-ramp rate and drop-off point; that is the Phase 2 scoping input. |
 | P0-004 | 2026-08-31 | **The Carson acceptance count is the as-built drawing's.** Drawing 0005-01 R-1 governs: 916 bays / 6,980 gross / 156 lost / **6,824 net**. Quotes `Q-38857-1` (916 / 7,196) and `Q-38857-8` (551 / 4,268) are **reference material, not acceptance sources**, and are disregarded | EL | Not an OD, logged here because it is an owner decision that unblocks `C-08`. See the note below. |
 
@@ -543,7 +543,41 @@ Internal dogfooding measures **usability**, which is genuinely valuable and will
 
 Of the four accounts in the OD-17 audit, **one fits all five cleanly** — the small all-new single-unit job, roughly 70 bays across 14 profiles. The two large new-material jobs fail criterion 3, and the used and mixed jobs fail criterion 2.
 
-**What is still yours to decide:** the account itself. Whether that particular relationship suits a pilot ask is a commercial judgement I am not positioned to make, and I am not going to record a client name as a decision on your behalf. The criteria are settled; pick the name against them.
+> **That sentence does not reconcile, and it is left standing rather than quietly corrected — see F-42.** It accounts for 1 + 2 + 2 = **five** jobs, while the OD-17 audit three screens above says *"Four structural racking jobs, not five: one entirely used (Jam-N Carson Phase 4), one mixed (KOAM–IBOCO), two entirely new (The One Rancho, GoPlus Crest Hill)."* There is exactly one large new-material job in that set, not two, and no account in the audit is recorded at ~70 bays — the per-job bay counts on record are 916 and 551. **The account eventually named is a different one, arriving after this passage was written**, so nothing downstream rests on the error; it is recorded because a future reader would otherwise re-derive a shortlist from a tally that does not add up.
+
+**What was still yours to decide:** the account itself. Whether that particular relationship suits a pilot ask is a commercial judgement I am not positioned to make, and I was not going to record a client name as a decision on your behalf. The criteria were settled; the name was picked against them.
+
+---
+
+### OD-20b — ANSWERED 2026-09-05: **GuruNanda**, Bldg. G, Buena Park, CA
+
+**The account:** GuruNanda — Building G. Reference: McMurray Stern drawing **R-1**, `PROJ # 260903`, dated 2026-09-03, drafter E.V., 1 sheet.
+
+**Scale, read off the drawing's own pallet tabulation:**
+
+| Bay type | Bays | Pallets per bay | Total | Lost @ column |
+|---|---|---|---|---|
+| A | 304 | 8 | 2,432 | 28 |
+| B | 16 | 0 | 0 | 0 |
+| **Total** | **320** | | **2,404 pallet positions** | |
+
+**Scored against the five criteria — the first three verified from the document, the last two affirmed by EL:**
+
+| # | Criterion | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Outside McMurray Stern | ✅ | McMurray Stern is the vendor on the title block; GuruNanda is the client |
+| 2 | A new-material job | ✅ | Titled **"NEW PALLET RACK DESIGN FOR:"**. No `existing`, `reuse` or `used` material callout anywhere on the sheet — the only two occurrences of "used" are in the copyright boilerplate. It will not hit OD-21's off-ramp on the first screen |
+| 3 | Finishable in one sitting | ✅ | **320 bays** — the criterion's "low hundreds rather than low thousands". Two bay types maps to its "one or two options"; one building, one unit |
+| 4 | A live opportunity, not a favour | ✅ | **EL, 2026-09-05:** *"Live opportunity, real building."* Drawing is two days old at Rev R-1 with an unsigned client approval block |
+| 5 | A relationship that survives a rough release | ✅ | **EL, 2026-09-05:** *"the relationship survives a rough first release."* |
+
+**EL also confirmed the OD-21 scope reading:** the catalog-only-with-off-ramp question refers to **this one project** — a single building, a single unit — so the pilot is inside MVP-1's scope and does not test the off-ramp.
+
+**A useful coincidence worth keeping.** §5.4's performance fixture is `fixtures/perf/unit-300-bay.json` — **300 bays**, 12 runs × 25 bays. This job is **304 type-A bays**. The pilot lands almost exactly on the size the budgets were written against, which means **P-04** — *re-derive the provisional budgets once a real unit size distribution is known* — gets its first real distribution from this job instead of a plausible guess.
+
+**What this does NOT do, stated so the record cannot be misread later.** It does not retire **R-01**. §19.1 is explicit: the risk is retired by *one external client organization completing a submission unaided*. Naming the account starts the clock; only a completed unaided submission stops it. R-01 stays **Critical** and stays **open**.
+
+**One unresolved detail, deliberately kept out of the blueprint.** The site address is recorded three different ways: the drawing's title block reads `6555 KNOTTS AVE`, the source filename reads `655`, and EL states `6655`. Public records for GuruNanda, LLC list a different street entirely (Caballero Blvd, Buena Park), plausibly a registered address rather than Bldg G. **The decision needs the account name, not the street**, so no address is recorded here — but the discrepancy is on a client-facing drawing and is EL's to settle there.
 
 **When it is needed:** not before Phase 0, and not before MVP-1 is built. It is needed before MVP-1 is called *validated*, and before any conclusion is drawn about whether the premise holds.
 

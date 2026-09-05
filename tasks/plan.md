@@ -383,7 +383,7 @@ the same rule as every checker here, applied to history.
 | **Q3** | **Standing disclaimer text, verbatim**, plus the company/contact name for the title block (`OD-16`) and the document number format. | T-20 / `E-08` / `AC-16` | EL + counsel (RH-06) |
 | **Q4** | **Backblaze B2 credentials**, and permission to run the upload-then-overwrite proof on a Governance test bucket first. | T-24 / `E-07` | EL |
 | ~~**Q5**~~ | **Catalog spot-check. ANSWERED 2026-09-01: Elliott Villacorta**, who read the tool-drawn sample off PSG 2025 p.88 and re-approved `interlake-2026-09` (`eaeb8f0`, `a2f166e`); Nick Heraldez is the recorded fallback approver (`OD-07`/`OD-15`), and the single-point dependency is formally accepted for MVP-1 only. The gate keys on the recorded verification path, not on the digitiser identity. Originally: who performs it, and are they positioned to catch a *capacity-table* error specifically (RH-05)? | T-04 | EL |
-| **Q6** | **External pilot client** (`OD-20b`). Gates no code. Gates the meaning of all of it — R-01 stays open until one outside organization submits unaided. | Nothing technical | EL |
+| **Q6** | ~~**External pilot client** (`OD-20b`)~~ **ANSWERED 2026-09-05 — GuruNanda, Bldg. G.** Gated no code, and still gates the meaning of all of it: **R-01 stays open until one outside organization submits unaided**, which a named account is not. | Nothing technical | EL — answered |
 | ~~**Q7**~~ | **Git remote. ANSWERED: `https://github.com/Elliotvness/Master-Rack.git`.** `main` is pushed and nine CI runs exist. T-00 stays open only because the branch **tip** is unpushed — the Linux workspace holds no credentials, so the push must run from Windows. | T-00 | EL |
 
 ---
@@ -584,7 +584,7 @@ None of these blocks anything above. Listed so they stop being rediscovered.
 |---|---|---|
 | **Q3** | Standing disclaimer text, company and contact name, document number format | T-20, AC-16 |
 | **Q4** | Backblaze B2 credentials + Governance-bucket permission | T-24 |
-| **Q6 / OD-20b** | External pilot client name | No code. Retires R-01; supplies P-04's real unit sizes |
+| ~~**Q6 / OD-20b**~~ **Answered 2026-09-05** | External pilot client name — **GuruNanda**, Bldg. G, Buena Park | No code. **Does NOT retire R-01** (that needs an unaided submission); supplies P-04's real unit sizes — 320 bays, 2,404 pallet positions |
 | **`content_sha256` re-base** | Whether to re-base the 2026-09 digest, reproducible only by Python because `face_height_in: 4.0` hashes differently once any other JSON implementation renders it `4` | Changes an APPROVED release. Recorded, not taken |
 
 ## Proposed plan changes — both need a yes before `tasks/todo.md` moves

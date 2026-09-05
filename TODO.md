@@ -542,7 +542,7 @@ rather than a zero.
 
 ### P2-002 · `D-03` Option builder over the controlled vocabulary
 **Why it matters.** The first screen a client sees, and the first task where a named pilot client
-would change what gets built (`OD-20b` should be named before this starts).
+would change what gets built (`OD-20b` **named 2026-09-05 — GuruNanda, Bldg. G**; build this against that building).
 **Acceptance.** Choices come only from the pinned catalog release; free-text dimensional entry is not
 offered; an unavailable choice **states why**; no silent nearest-match substitution. Scope is
 `OD-03`: back-to-back and single row, floor level plus 2–6 beam levels, uniform bays within a run.
@@ -676,7 +676,7 @@ None of these can be resolved by writing code. Each needs a person, a document o
 
 | ID | Item | Blocks | Owner |
 |---|---|---|---|
-| RH-01 | **Name the external pilot client** (`OD-20b`). Criteria settled; one audited account fits. Blocks no development, but `R-01` — *will a client actually do this work* — stays open until an outside organization submits unaided. Must be a new-material job, or the pilot tests the off-ramp rather than the configurator. | Nothing technical; should be named before P2-002 | EL |
+| ~~RH-01~~ **DONE 2026-09-05** | ~~Name the external pilot client~~ (`OD-20b`) — **GuruNanda, Bldg. G, Buena Park**. All five criteria met; the new-material condition verified on McMurray Stern drawing R-1 (`PROJ # 260903`), 320 bays / 2,404 pallet positions, no reused material on the sheet — so it will not test the off-ramp. **`R-01` still stays open**: *will a client actually do this work* is answered by an unaided submission, not by a name. | Nothing technical | EL — answered |
 | ~~RH-02~~ | ~~Reconcile the three Carson counts (P0-004)~~ **Closed 2026-08-31.** EL: the two quotes are reference only and are disregarded; as-built drawing 0005-01 R-1 governs. 6,824 net is established. | — | EL |
 | ~~RH-03~~ | ~~Read the source chart for 59E face height (P0-005)~~ **Closed 2026-08-31.** EL read the chart as **5.93**, corroborating the 5.928 documentation table over the transcribed 5.92. Parked rather than settled: no page reference yet, rows left as published, and face height is not a lookup key so nothing depends on it. Reopens if face height is ever used dimensionally. | — | EL |
 | RH-04 | Confirm the Entra licence tier. OIDC works on any tier; SCIM needs P1+. Without it, offboarding is a quarterly-review checklist item, not an automated one. | Nothing in MVP-1 | IT |
@@ -726,7 +726,7 @@ Postgres, and the catalog proven against real published data. The next five are:
    currently takes compatibility as an input because this data is not here yet.
 3. **`D-03`** — the option builder over the controlled vocabulary. Choices come only from the
    pinned catalog release; an unavailable choice **states why**; no silent nearest-match. The
-   pilot client (`OD-20b`) should be named before this starts.
+   pilot client (`OD-20b`) is **named as of 2026-09-05 — GuruNanda, Bldg. G** — so build this against that building rather than against assumptions.
 4. **P0-003** — install Playwright and run `verify-visual.py` once, so both documentation gates are
    proven rather than one.
 5. **The rule-pack approver** (`RH-05`, half closed 2026-09-01). ~~Both packs sit in `DRAFT`~~ — the
