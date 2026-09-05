@@ -19,6 +19,46 @@ that leaves no trace gets re-run next quarter.
 | 4 | Internal queue load | p95 **800 ms** at 5,000 submissions | Seeded load test | ⛔ needs T-14 |
 | 5 | Preliminary PDF generation | p95 **6 s**, async with progress | Job queue metric | ⛔ needs the job queue |
 
+## The four front-end budgets — agreed 2026-09-04, before the first screen exists (P-05)
+
+All five budgets above are server- or kernel-side. **The 120 ms preview budget covers the
+computation; nothing above covers the paint** — in a product whose premise is a client self-service
+web app where the preview interaction *is* the product. P-05's argument, and the reason these are
+agreed now rather than later: *a bundle ceiling agreed after the bundle exists is a ceiling nobody
+meets.* Amended into blueprint §5.4 on 2026-09-04.
+
+| # | Front-end budget | §5.4 target | Measured how | Status |
+|---|---|---|---|---|
+| 6 | **INP** — Interaction to Next Paint | **200 ms** | Lighthouse or equivalent in CI against the built SPA | ⛔ needs T-16 (no screen yet) |
+| 7 | LCP — Largest Contentful Paint | **2.5 s** | Same run | ⛔ needs T-16 |
+| 8 | CLS — Cumulative Layout Shift | **0.1** | Same run | ⛔ needs T-16 |
+| 9 | Initial JavaScript, gzipped | **200 KB** | Asserted in CI on every build; the number recorded here | 🟡 **ceiling gated, bundle not yet weighed** |
+
+**INP is the one that matters** and §5.4 says so: a rack configurator is an interaction loop, not a
+page view. LCP and CLS are ordinary hygiene; INP is the product.
+
+**Route-level code splitting, decided before there are routes to split.** Each of the eight §15.2
+steps is a lazily-loaded route chunk. The 200 KB ceiling applies to the **initial** bundle — the
+shell plus the first route — not to the sum of all chunks. The renderers (`render-svg`,
+`render-canvas`, T-17) and the kernel packages they consume load with the preview step that needs
+them, never in the shell. The client and internal applications are budgeted separately; **the
+client bundle is the one this ceiling exists for.**
+
+### What is gated today, and what is not — stated so row 9's 🟡 is not read as ✅
+
+`check-front-end-budgets` runs self-test-first in `verify` and in `ci.yml`. What it proves **today**
+is that one ceiling is stated in three places and they agree: blueprint §5.4, the checker's own
+`BUDGETS`, and this file. A budget loosened in the blueprint without the checker following, a budget
+deleted, a budget added that nothing enforces, this file dropping the number, or §5.4 reworded so
+the parser matches nothing — each is red, and each is planted in `selftest-front-end-budgets`.
+
+**What it does NOT prove: the bundle.** There is no client bundle — zero `.tsx` files, no `vite` or
+`react` in any `package.json` — so the weigh-the-bundle arm has never run against a real artifact
+and **cannot be claimed as proven**. Wiring it to a real build, and adding the Lighthouse run for
+rows 6–8, is **T-16's obligation**, recorded here and under P-05 in `tasks/todo.md`. A gate that has
+never gone red against the thing it names is a name, not evidence — which is the whole reason this
+paragraph exists instead of a green tick.
+
 ## Baseline — 2026-09-01
 
 `pnpm bench` · `fixtures/perf/unit-300-bay.json` · 300 bays, 12 runs × 25 bays, 4 beam levels ·
