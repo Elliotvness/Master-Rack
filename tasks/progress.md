@@ -330,7 +330,13 @@ been executed. A reader who quotes 41.3% without §15.2 beside it is quoting the
 while it happened**, and that is not a paradox: Phase 2 was repairs and controls, and the definition
 of done is a client getting through eight screens. **Phase 3 has now opened past the checkpoint
 with T-13b, and §15.2 still did not move** — the contract is what a route will answer with, and no
-route answers yet. The first point that can move it is T-14a's.
+route answers yet. **T-14a has since landed, and §15.2 still did not move** — mounting all 22
+routes and authorizing every one of them is not answering one of them. **T-14b is the first point
+that can move it**, and it moves steps 1 and 2 — invitation, and acceptance and sign-in.
+*(This sentence read "the first point that can move it is T-14a's" for a full edition after T-14a
+landed, while the gauge stayed 0 of 8 and the plan section below already named T-14b — **drift 51**,
+and it is the same defect as drift 41: a present-tense sentence about what has not happened yet,
+left standing after it happened.)*
 
 **Checkpoint A is closed.** Seven criteria were ticked on evidence at the close-out below; the
 eighth — *review with EL before Phase 3* — was closed by EL's word (*"lets proceed"*, 2026-09-02)
@@ -529,9 +535,12 @@ Even at triple, the figure moves about sixteen points. **The ceiling is real but
 is the number to quote and this one is not. The second row is new and is not a scenario: it is the
 breakdown actually on the table, and it is what this file publishes the day EL confirms it.
 
-**Where the remaining 98 points sit:** Phase 4 42 (42.9%) · Phase 3's residue 40 (40.8%) ·
-Phase 5 16 (16.3%) · Phase 2's residue 0. Neither large block is a majority. *(This paragraph read
-"116 … Phase 2's residue 16" until session 6 while the table above it said 100 — drift 30.)*
+**Where the remaining 94 points sit:** Phase 4 42 (44.7%) · Phase 3's residue 36 (38.3%) ·
+Phase 5 16 (17.0%) · Phase 2's residue 0. Neither large block is a majority. *(This paragraph read
+"116 … Phase 2's residue 16" until session 6 while the table above it said 100 — drift 30. It then
+read "98 … 42.9% · 40.8% · 16.3%" for a full edition after T-14a moved the numerator, while the
+sentence thirty lines above it already said 94 — **drift 50**, and the first defect
+`check-scoreboard-prose` caught, on its first run, before it had ever been green.)*
 
 ## Verified today
 
@@ -616,7 +625,7 @@ Re-measured by running commands against the working tree:
 | Route table | **22 entries** in `apps/api/src/authz/routes.ts` — **12 client, 9 internal, 1 public.** All 22 are §8.2 MVP-1 rows: the two T-14a added, plus EL's operator release, which §8.2 now carries after his amendment. `PENDING_AMENDMENT` is **empty**, which is the healthy state. Re-derived today with the checker's own parser, not by eye: `blueprintRoutes()` finds **24** rows in §8.2, **2** of them flagged phase 2 (`POST /api/internal/v1/submissions/:id/status`, `GET /api/internal/v1/audit`), leaving an MVP-1 surface of **22** — and `ROUTES` declares exactly those 22. **22 of 22.** `createApp` mounts all 22 and `routerCoverageProblems` refuses to boot on any disagreement in either direction, so the registry now has a consumer that is not a barrel re-export. **This cell simultaneously said "22 of 22" and "19 of 21", and its last three sentences described the pre-T-14a world — drift 40** |
 | `apps/api/src/index.ts` | Its own header calls it "The HTTP layer". It is a barrel of **15** re-export blocks (8 until T-13b) and **no HTTP**. Not filed as drift — the file says "and (later) authorization and DTOs" — but it is the sentence a future reader will misread as a server |
 | Git tags · `CHANGELOG.md` · Dependabot | none · none · none, all re-checked today. `version` is `0.0.0`. Expected — `CHANGELOG.md` is T-26's, unstarted — but the house rule is to write the entry **in the commit that makes the change**, and 4 commits have landed since that rule was written down |
-| CI gates present | typecheck, lint, migrate, test, **16** self-tested checkers — re-derived today, and by set difference against `verify` rather than by counting twice (the fourteenth, `check-server-owned`, landed with F-32's remedy; the fifteenth, `check-route-surface`, with the §8.2 amendment; the **sixteenth, `check-front-end-budgets`, with P-05's agreed budgets**; the thirteenth, `check-types-only`, with F-37) — coverage, bench, docs rebuild + `git diff --exit-code`. **Secret scanning (gitleaks, checksum-pinned) is present too and this row omitted it.** Two landed today: `check-content-hash` (recomputes each release's `content_sha256` by the method that manifest declares) and `check-spot-check-record` (asserts every signed spot-check covers the draw that was pinned before it) |
+| CI gates present | typecheck, lint, migrate, test, **17 self-test invocations covering 16 checkers** — re-derived 2026-09-05 from `package.json` itself, by set difference against `ci.yml` rather than by counting twice. The precise shape, because "16 self-tested checkers" was ambiguous and this row carried it: **16 checkers each run with its own self-test**, plus `check:draw:selftest`, which has no separate `check:draw` because *it is* the gate — it asserts the `.mjs` tool and the compiled kernel draw the same cells, and there is nothing else to run. (The fourteenth checker, `check-server-owned`, landed with F-32's remedy; the fifteenth, `check-route-surface`, with the §8.2 amendment; the sixteenth, `check-front-end-budgets`, with P-05's agreed budgets; the **seventeenth, `check-scoreboard-prose`, with drift 50**; the thirteenth, `check-types-only`, with F-37) — coverage, bench, docs rebuild + `git diff --exit-code`. **Secret scanning (gitleaks, checksum-pinned) is present too and this row omitted it.** Two landed today: `check-content-hash` (recomputes each release's `content_sha256` by the method that manifest declares) and `check-spot-check-record` (asserts every signed spot-check covers the draw that was pinned before it) |
 | CI gates absent | dependency audit, bundle-size ceiling, E2E. **Secret scanning is present and this row said it was absent — drift 46.** `ci.yml` has run a checksum-pinned `gitleaks v8.30.1` over the working tree since T-11 (D-20 / NFR-SEC-06), verified today by reading the workflow file; the row has understated the build's own gates for five sessions and no gate could catch it, because `check-claims` reads seven figures from this file and none of them is a list |
 
 ### Not verified today — the repository's own figures
@@ -733,7 +742,19 @@ denominator moving, which is the only reason anyone looked at that table twice.
 | 47 | *(new, session 10 — mine, and it is about this document's channel rather than its contents)* **Session 9 measured all of 39–45, wrote the fix, and none of it reached the repository.** Every one was re-confirmed present in the working tree today, one full edition later | **Half-closed, inside the run that raised it.** The diagnosis held: a scheduled run had no push — a **real** `git push`, not a dry run, returned **403** from the git proxy — and no connected folder, so its only output was a patch delivered into a session nobody was watching. **Two unattended runs in a row produced a correction that could not land.** The same shape as the rest of this document, one level out: the measurement sound, self-tested and green, and the thing it feeds with no mechanism. **EL then connected `C:\Rack Master\rack-master-studio` mid-run, and this edition was committed on the mount** — the bridge half is open and an unattended run can now land work. **The proxy half is still shut:** no scheduled run can push, so every landing still ends at GitHub Desktop and at EL. That remainder is the open part |
 | 48 | *(new, session 10 — mine, found while landing this very edition)* `device_commit_files` reported **`"written"`** for all four files and left `tasks/progress.md` holding the previous transfer's bytes | **Worked around, and the workaround is the one this repository already had written down.** The stale copy would have been committed with the other three, and **both gates would have passed over it** — they compare figures, and the two copies' figures agreed; only prose differed. Found by md5-ing both sides, which is a step in the transfer rule precisely because the tool's own report is not evidence. **This is F-01's shape in the transport layer**: an honest-looking success with nothing behind it. Fixed by `cat` from a staged file under the gitignored `_to_delete/` — truncate-and-write is permitted where overwrite is refused |
 | 49 | *(new, 2026-09-05 — mine, found one edition after drift 42 was closed)* The `main` row read **`0bb5383`** through **three** merges of this session's own making — PRs #21, #22 and #23 — and still named two remote branches that no longer exist | **Fixed — `afd4e8a`, re-derived from `git ls-remote --heads origin`.** Items 5, 11, 15, 26, 36 and 42 are the same defect and this is its **seventh** appearance, this time going stale **inside a single day**. Every one of those fixes was a new value, and **a value is not a mechanism**: nothing in `verify` derives the remote tip, so the row is correct only until the next merge — and the runs that merge are the runs that write this file. The tractable fix is to stop asserting a moving ref in prose: name the PR, which does not move, and let `git ls-remote` answer the sha on demand |
+| 50 | *(new, 2026-09-05 — mine, and the first thing `check-scoreboard-prose` ever printed)* Both copies carried **two** figures for the points remaining: `progress.md` said 94 in one sentence and headed its breakdown *"the remaining 98 points"* thirty lines later; `progress.html` had the same pair the other way round | **Fixed — 94 throughout, and 94 is derived** (`160 − 66`), never typed. The breakdown's components and all three of its percentages were stale with it (42 · 40 · 16 summing to 98, at 42.9 / 40.8 / 16.3%); they are now 42 · 36 · 16 at 44.7 / 38.3 / 17.0%. **`check-scoreboard-sync` was green over all of it for a full edition**, correctly — it compares the two files against each other, and both were wrong in the same place. This is drift 30's exact shape, seven editions later. The new checker derives the remainder from each file's own Total row and compares every prose statement of it against that; it went **red on its first run, before it had ever been green** |
+| 51 | *(new, 2026-09-05 — mine)* The §15.2 section ended *"the first point that can move it is T-14a's"* — while T-14a had landed, was counted in the 66, and the gauge still read **0 of 8**. `progress.html`'s gauge paragraph said **T-14b** in its third sentence and **T-14a** in its last | **Fixed — T-14b, with the reason stated: mounting all 22 routes and authorizing every one of them is not answering one of them.** Drift 41's shape (*"server entry point: none"* after the server existed) in the sentence that matters most, because it is the one a reader uses to decide what to do next. **No gate covers it and none is proposed** — "which task can next move an eight-step gauge" is not derivable from the tree, and saying so is cheaper than a checker that would pretend to |
 | 29 | *(new, session 5 — **mine, found while re-deriving for item 28's commit**)* The sensitivity table's four scenario **denominators** were built on the pre-split base of **145** while its own first row read **147** | **Fixed — all five re-derived from 148.** Item 24 fixed that table's *numerators* earlier the same day and I did not check its denominators, so a table about how the denominator moves was itself carrying a stale one. Two defects in one table in one day, both invisible to `check-scoreboard-sync`, which compares the phase bars and not this |
+
+**One item was queued as drift and is not filed, because it did not survive checking.** A
+previous session listed *"the rewritten dated session-7 and session-8 figures"* as an item to
+file. Re-checked 2026-09-05 against `git diff 0bb5383 92ad8cc` for both copies: the session-7
+and session-8 paragraphs were not touched, and their figures — 52 → 56 → 58 at 35.1% → 37.8% →
+39.2% — are correct on the **148** denominator that was current when they were written, which
+is what a dated observation is supposed to keep. What the session-10 edition did replace was
+the *measure card* ("Session 8: 58→62" → "Session 10: 62→66"), and a live card is a
+present-tense assertion, so replacing it was right. **Nothing to fix; the item is closed as
+unsubstantiated rather than left on the list.**
 
 **Drift 4 was not drift.** Both figures were accurate; the *classification* was wrong. Filed beside
 three doc-vs-reality typos and closed with "all four are R-11 / T-10 work", it read as documentation
@@ -800,11 +821,12 @@ newer, adds drift 46 and 47, and carries the first `pnpm verify` ever run on `ma
 one and drop the other** — applying both will conflict, and the conflict would be over identical
 intent, which is the worst kind to resolve by hand.
 
-### 2. Delete two merged remote branches
+### 2. ~~Delete two merged remote branches~~ — done 2026-09-05
 
-`origin/task/t-13c-input-dtos` and `origin/task/t-13d-idempotency` are both **0 ahead** of `main`,
-measured today. `git ls-remote --heads` is the check that catches a branch that re-appears, which
-one already has once.
+`git ls-remote --heads origin` now returns `refs/heads/main` and nothing else: those two, and every
+branch opened since, are gone from the server. `ls-remote` stays the check rather than a local
+`git branch -r`, because it is the one that catches a branch that re-appears — which one already
+has once.
 
 ### 3. Then — Phase 3, the server, in the container
 
