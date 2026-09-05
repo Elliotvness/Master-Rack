@@ -1581,3 +1581,49 @@ the browser, per step: `Apply migrations` 0s · `Unit and tenancy tests` 14s wit
 `✓` at database durations (tenancy 436ms, submit-effects 1408ms, auth 198ms, part-registry 279ms,
 chain 226ms, outbox 166ms, assumption 216ms) · twelve checker self-tests and checks green ·
 `Kernel coverage gate` 16s green · `Performance budgets` 1s green.
+
+---
+
+## F-43 — the whole gate was blind to the extension the next phase is written in *(raised and **CLOSED** 2026-09-05 by S0.0, from the doubt review of the Rack Studio build plan)*
+
+Found by reading a build plan that proposes a React application, then asking what `pnpm verify`
+would say about one.
+
+**Planted, not argued.** A `packages/kernel-units/src/probe.test.tsx` asserting `expect(1).toBe(2)`,
+dropped into the tree at `db87ad6`:
+
+```
+$ npx vitest run
+ Test Files  59 passed (59)
+      Tests  1491 passed (1491)
+exit 0
+```
+
+Four separate holes, each planted and each confirmed:
+
+| Planted | Before | After |
+|---|---|---|
+| `.test.tsx` asserting `1 === 2` | **not collected** — 59 files, 1,491 tests, exit 0 | `1 failed \| 59 passed (60)`, `1 failed \| 1491 passed (1492)` |
+| `.test.tsx` with `const n: number = 'str'` | `tsc -p tsconfig.tests.json` **exit 0** | `error TS2322: Type 'string' is not assignable to type 'number'` |
+| `.tsx` doing `import { Client } from 'pg'` | **not flagged**; the identical `.ts` was | `error 'pg' import is restricted ... no-restricted-imports` |
+| `.tsx` source file, never called | **absent from the coverage table** | `probe-src.tsx \| 0 \| 0 \| 0 \| 0`, and the 100% kernel threshold fails |
+
+The third is the sharpest: **A-05's only mechanism had a filename escape hatch.** `no-restricted-imports`
+was scoped `files: ['apps/**/*.ts', 'packages/**/*.ts']`, so the rule that keeps a raw `pg` client
+out of the codebase — the rule standing between a query and an unset tenant GUC — simply did not
+apply to `.tsx`. Nothing had to go wrong for that to be true; the extension had only to be the one
+nobody had written yet.
+
+Note what is *not* in the table: eslint's own recommended configs do lint `.tsx`, so the review's
+claim that "eslint does not see `.tsx`" was too broad and is corrected here. The narrow hole was
+real and is the one that mattered.
+
+**Closed** by four one-line reaches: `vitest.config.ts` `include` and `coverage.include`/`exclude`,
+`tsconfig.tests.json`'s `include` (which its own docstring says must mirror vitest's), the two
+`.ts`-only eslint globs, and `jsx: react-jsx` in `tsconfig.base.json` so a `.tsx` compiles at all.
+
+**Blind spot, stated in the same breath:** `environment` is still `node`. A component test that
+touches the DOM needs `jsdom` and a per-file `@vitest-environment` docblock, and that dependency
+lands with the first component test rather than here — installing it now would be a package nothing
+imports.
+

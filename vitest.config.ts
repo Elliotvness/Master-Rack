@@ -6,7 +6,29 @@ import { alias } from './vitest.alias.js';
 export default defineConfig({
   resolve: { alias },
   test: {
-    include: ['packages/**/*.test.ts', 'apps/**/*.test.ts', 'tools/**/*.test.ts'],
+    /**
+     * `.tsx` is in this list because the gate could not see it. Planted before
+     * the change: a `.test.tsx` asserting `1 === 2` sat in `packages/kernel-units`
+     * through `pnpm verify` at **exit 0 — 59 files, 1,491 tests** — because
+     * nothing collected it; the same file was invisible to
+     * `tsc -p tsconfig.tests.json` and a `.tsx` SOURCE file was invisible to
+     * coverage. The interface phase is written in `.tsx`, so a gate blind to
+     * that extension is a control that states its own method and has nothing
+     * behind it.
+     *
+     * The blind spot that remains, stated rather than implied: `environment` is
+     * `node`, so a component test that touches the DOM needs `jsdom` and a
+     * per-file `@vitest-environment` docblock. That dependency lands with the
+     * first component test, not here — installing it now would be a package
+     * nothing imports.
+     */
+    include: [
+      'packages/**/*.test.ts',
+      'packages/**/*.test.tsx',
+      'apps/**/*.test.ts',
+      'apps/**/*.test.tsx',
+      'tools/**/*.test.ts',
+    ],
     environment: 'node',
     // Integration suites share ONE Postgres and each truncates the tables it
     // seeds. Running files in parallel would let one suite wipe another's
@@ -20,11 +42,18 @@ export default defineConfig({
        * number, which reads as no problem — apps/ was excluded here and its
        * authorization layer sat at 71% behind a headline of 100%.
        */
-      include: ['packages/*/src/**/*.ts', 'apps/*/src/**/*.ts'],
+      include: [
+        'packages/*/src/**/*.ts',
+        'packages/*/src/**/*.tsx',
+        'apps/*/src/**/*.ts',
+        'apps/*/src/**/*.tsx',
+      ],
       exclude: [
         'packages/*/src/**/*.test.ts',
+        'packages/*/src/**/*.test.tsx',
         'packages/*/src/index.ts',
         'apps/*/src/**/*.test.ts',
+        'apps/*/src/**/*.test.tsx',
         'apps/*/src/index.ts',
         /**
          * F-37. Modules that hold types and nothing else compile to `export {};`

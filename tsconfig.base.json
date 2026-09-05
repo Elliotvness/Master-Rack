@@ -8,6 +8,9 @@
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
+    /* `.tsx` compiles rather than erroring on the first angle bracket. Set here so a
+       package that adds .tsx inherits it, not per-app where it can be forgotten. */
+    "jsx": "react-jsx",
 
     "strict": true,
     "noUncheckedIndexedAccess": true,

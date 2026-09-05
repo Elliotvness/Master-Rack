@@ -47,7 +47,7 @@ export default tseslint.config(
     // pool checkout skips the transaction-local tenant context, which means
     // every RLS policy compares against an unset GUC and the query sees
     // nothing — or, worse, the previous tenant's context under a pooler.
-    files: ['apps/**/*.ts', 'packages/**/*.ts'],
+    files: ['apps/**/*.{ts,tsx}', 'packages/**/*.{ts,tsx}'],
     ignores: [
       'packages/db/src/with-tenant.ts',
       'packages/db/src/*.test.ts',
@@ -114,7 +114,7 @@ export default tseslint.config(
   },
   {
     // The database package and the api app legitimately touch Node globals.
-    files: ['packages/db/**/*.ts', 'apps/**/*.ts'],
+    files: ['packages/db/**/*.{ts,tsx}', 'apps/**/*.{ts,tsx}'],
     languageOptions: {
       globals: { ...globals.node },
     },
