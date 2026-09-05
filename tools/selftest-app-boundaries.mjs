@@ -442,6 +442,38 @@ function main() {
       else console.log('  caught      [api] a rule whose app directory has vanished');
     }
 
+    // AN APP NO RULE GOVERNS. The mirror of the case above: that one catches a
+    // rule whose app has vanished, this catches an app whose rule was never
+    // written. Planted against the real checker before the arm existed and it
+    // printed "3 restricted app(s) ... PASS" over a fourth app importing the
+    // BOM and binding `submit`.
+    {
+      const unruled = join(TREE, 'apps', 'probe-web', 'src');
+      mkdirSync(unruled, { recursive: true });
+      writeFileSync(
+        join(unruled, 'leak.ts'),
+        "import { deriveBom } from '@rms/kernel-bom';\nexport const submit = deriveBom;\n",
+        'utf8',
+      );
+      const hits = checkAppBoundaries(TREE).violations.filter((v) => v.includes('no rule in RULES'));
+      rmSync(join(TREE, 'apps', 'probe-web'), { recursive: true, force: true });
+      if (hits.length === 0) missed.push('an app in apps/ that no rule governs');
+      else console.log('  caught      an app in apps/ that no rule governs');
+    }
+
+    // ...and the same arm must not fire on a directory that is not an app yet.
+    // A scaffolded folder with no source in it governs nothing and leaks
+    // nothing; failing on it would train people to add empty rules.
+    {
+      const empty = join(TREE, 'apps', 'not-an-app', 'src');
+      mkdirSync(empty, { recursive: true });
+      writeFileSync(join(empty, 'README.md'), 'not source\n', 'utf8');
+      const hits = checkAppBoundaries(TREE).violations.filter((v) => v.includes('not-an-app'));
+      rmSync(join(TREE, 'apps', 'not-an-app'), { recursive: true, force: true });
+      if (hits.length > 0) falsePositives.push(`an apps/ directory with no source files -> ${hits[0]}`);
+      else console.log('  allowed     an apps/ directory with no source files yet');
+    }
+
     // A STALE EXEMPTION. The exempt path is data with a justification; when the
     // thing it names is gone, the justification is honouring nothing.
     {

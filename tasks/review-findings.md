@@ -1627,3 +1627,32 @@ touches the DOM needs `jsdom` and a per-file `@vitest-environment` docblock, and
 lands with the first component test rather than here — installing it now would be a package nothing
 imports.
 
+## F-44 — the app boundary checker's reach was a literal, and an app outside it was scanned by nothing *(raised and **CLOSED** 2026-09-05 by S0.0)*
+
+F-41 closed the case where a **rule's app** vanishes. This is the same defect facing the other way:
+an **app with no rule**. `checkAppBoundaries` iterates `RULES` and nothing else, so which bundles are
+governed is decided by whoever last edited that array.
+
+**Planted.** `apps/probe-web/src/leak.ts`, holding the two things the client rule exists to stop:
+
+```
+import { deriveBom } from '@rms/kernel-bom';
+export const submit = deriveBom;
+```
+
+```
+check-app-boundaries: scanned 54 file(s) across 3 restricted app(s): client-web, api, internal-web.
+check-app-boundaries: PASS
+exit 0
+```
+
+The BOM imported and `submit` bound at the top level of a browser bundle, and the checker reported a
+pass over it — because it never looked. **Closed** by enumerating `apps/` and failing on any app with
+source under `src/` and no rule. `selftest-app-boundaries` now plants both directions: the unruled
+app must be caught, and a scaffolded `apps/<name>/` with no source must *not* be, so nobody is
+trained to add empty rules to silence it.
+
+This one was worth having ahead of the app it is about. A boundary rule written at the same time as
+the bundle it governs is a rule someone remembered; a checker that refuses an ungoverned bundle is a
+rule nobody has to remember.
+

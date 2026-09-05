@@ -17,6 +17,12 @@
  * This is its counterpart for `apps/`, and the two are kept separate because
  * they enforce different rules for different reasons: purity is about
  * determinism, this is about leakage.
+ *
+ * ITS REACH IS `RULES`, AND THAT IS CHECKED BOTH WAYS. A rule whose app
+ * directory has vanished fails, because a rule matching nothing enforces
+ * nothing; and an app in `apps/` with no rule fails, because a scan that never
+ * visits a bundle reports a pass over it. Before the second half existed, a
+ * fourth app could import the BOM and bind `submit` and this file printed PASS.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -360,6 +366,38 @@ export function checkAppBoundaries(root = ROOT) {
         );
       }
     }
+  }
+
+  // AN APP NOBODY WROTE A RULE FOR. `RULES` is the whole of this checker's
+  // reach: the loop above visits the apps named in it and nothing else, so an
+  // application added to `apps/` without an entry here is scanned by NOTHING
+  // and the run still reports a pass over it. Planted before this existed —
+  // `apps/probe-web/src` importing `@rms/kernel-bom` and binding `submit`, the
+  // two things the client rule exists to stop — and the checker printed
+  // "3 restricted app(s) ... PASS".
+  //
+  // This is the same defect as the vacuous pass above, in the other direction:
+  // that one catches a rule whose app is gone, this catches an app whose rule
+  // was never written. Both have to fail, or "which apps are governed" is a
+  // question answered by whoever last edited a literal.
+  const governed = new Set(RULES.map((rule) => rule.app));
+  let appDirs = [];
+  try {
+    appDirs = readdirSync(join(root, 'apps'), { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+  } catch {
+    appDirs = [];
+  }
+  for (const app of appDirs) {
+    if (governed.has(app)) continue;
+    if (listFiles(join(root, 'apps', app, 'src')).length === 0) continue;
+    violations.push(
+      `${app}: an application with source files under apps/${app}/src and no rule in RULES. ` +
+        'This checker reaches exactly as far as that list, so an app missing from it is scanned ' +
+        'by nothing while the run still reports a pass — add a rule naming what this bundle may ' +
+        'not import and may not bind, or move the code out of apps/.',
+    );
   }
 
   // A stale exemption is a justification for something that is no longer
