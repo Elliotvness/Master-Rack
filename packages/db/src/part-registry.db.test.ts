@@ -13,6 +13,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import pg from 'pg';
 
+import { requireDatabase } from '../../../tools/test-support/require-db.js';
+
 import {
   closeDatabase,
   configureDatabase,
@@ -69,11 +71,7 @@ async function probe(): Promise<boolean> {
 }
 
 const available = await probe();
-if (!available) {
-  console.warn(
-    '\n  SKIPPING part registry tests: no migrated database. Run `pnpm db:up && pnpm migrate`.\n',
-  );
-}
+requireDatabase(available, 'part registry', ADMIN_URL);
 const maybe = available ? it : it.skip;
 
 function projection(capacity: number): {

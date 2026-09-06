@@ -18,6 +18,8 @@ import pg from 'pg';
 
 import { closeDatabase, configureDatabase, withTenant } from './index.js';
 
+import { requireDatabase } from '../../../tools/test-support/require-db.js';
+
 const ADMIN_URL =
   process.env['DATABASE_ADMIN_URL'] ?? 'postgresql://postgres:postgres@localhost:55432/rms';
 const APP_URL =
@@ -71,14 +73,16 @@ async function probe(): Promise<boolean> {
 
 const available = await probe();
 
-if (!available) {
-  console.warn(
-    '\n  SKIPPING tenancy tests: no migrated database at ' +
-      ADMIN_URL +
-      '\n  Run `pnpm db:up && pnpm migrate` first. These tests are the ONLY evidence' +
-      '\n  that tenant isolation works — RLS fails silently, so nothing else catches it.\n',
-  );
-}
+/**
+ * These are the ONLY evidence that tenant isolation works — RLS fails silently,
+ * returning an empty result set rather than raising, so nothing else catches it.
+ * That sentence used to live in this file's own skip message, which is exactly
+ * where nobody read it: the message only prints when the tests are NOT running.
+ *
+ * With `RMS_REQUIRE_DB=1` (CI) an absent database is a failure here rather than
+ * a green skip (F-29).
+ */
+requireDatabase(available, 'tenancy', ADMIN_URL);
 
 const maybe = available ? it : it.skip;
 

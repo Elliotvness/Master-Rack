@@ -25,6 +25,8 @@ import { submit, type Derivation, type SubmitInput } from '@rms/workflow';
 
 import { splitOnce, submitEffects, submitRevision, type SubmitContext } from './submit-effects.js';
 
+import { requireDatabase } from '../../../../tools/test-support/require-db.js';
+
 const ADMIN_URL =
   process.env['DATABASE_ADMIN_URL'] ?? 'postgresql://postgres:postgres@localhost:55432/rms';
 const APP_URL =
@@ -93,11 +95,7 @@ async function probe(): Promise<boolean> {
 }
 
 const available = await probe();
-if (!available) {
-  console.warn(
-    '\n  SKIPPING submit-effects tests: no migrated database. Run `pnpm db:up && pnpm migrate`.\n',
-  );
-}
+requireDatabase(available, 'submit-effects', ADMIN_URL);
 const maybe = available ? it : it.skip;
 
 function derivation(over: Partial<Derivation> = {}): Derivation {

@@ -10,6 +10,13 @@ export default tseslint.config(
       '**/dist/**', // build output; the source it came from is already linted
       'coverage/**',
       'src/**', // the documentation toolchain is Python
+      // F-47. `_to_delete/` is gitignored scratch (CLAUDE.md), so its contents
+      // are not in the repository — but eslint had its own ignore list and this
+      // was not on it. 77 errors in four dead files made `pnpm lint`, and
+      // therefore `pnpm verify`, impossible to pass on a machine that happened
+      // to have the directory. Linting files git does not track judges work
+      // nobody can review.
+      '_to_delete/**',
       '**/*.d.ts',
     ],
   },

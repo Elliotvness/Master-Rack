@@ -16,6 +16,8 @@ import { closeDatabase } from '@rms/db';
 
 import { start } from './server.js';
 
+import { requireDatabase } from '../../../tools/test-support/require-db.js';
+
 const ADMIN_URL =
   process.env['DATABASE_ADMIN_URL'] ?? 'postgresql://postgres:postgres@localhost:55432/rms';
 const APP_URL =
@@ -38,6 +40,9 @@ async function probe(): Promise<boolean> {
 }
 
 const available = await probe();
+
+requireDatabase(available, 'server entry point', ADMIN_URL);
+
 const maybe = available ? it : it.skip;
 
 let running: FastifyInstance | undefined;

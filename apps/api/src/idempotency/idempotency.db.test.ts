@@ -14,6 +14,8 @@ import pg from 'pg';
 
 import { closeDatabase, configureDatabase, withTenant, type TenantContext } from '@rms/db';
 
+import { requireDatabase } from '../../../../tools/test-support/require-db.js';
+
 import {
   RETENTION_MS,
   claimIdempotencyKey,
@@ -106,11 +108,7 @@ async function probe(): Promise<boolean> {
 }
 
 const available = await probe();
-if (!available) {
-  console.warn(
-    '\n  SKIPPING idempotency tests: no migrated database. Run `pnpm db:up && pnpm migrate`.\n',
-  );
-}
+requireDatabase(available, 'idempotency', ADMIN_URL);
 const maybe = available ? it : it.skip;
 
 /** Narrow a ClaimResult to the claimed case, so a test can read its epoch. */

@@ -58,7 +58,7 @@
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -297,7 +297,15 @@ async function main() {
         `  source:   ${sourceRule}\n  artifact: ${emittedRule}`,
     );
   }
-  const { isRefusedOnClientBody } = await import(emitted);
+  /**
+   * F-48. `emitted` is an absolute filesystem path. On POSIX that happens to be
+   * a usable ESM specifier; on Windows it is `C:\...`, and the loader reads `c:`
+   * as a URL scheme it does not support — so this checker threw
+   * ERR_UNSUPPORTED_ESM_URL_SCHEME before reaching a single assertion, on one of
+   * the two machines this repository declares. `pathToFileURL` is the portable
+   * form and is correct on both.
+   */
+  const { isRefusedOnClientBody } = await import(pathToFileURL(emitted).href);
   if (typeof isRefusedOnClientBody !== 'function') fail('the emitted module exports no isRefusedOnClientBody');
 
   const sql = readMigrations(dir);

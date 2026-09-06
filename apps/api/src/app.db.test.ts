@@ -17,6 +17,8 @@ import { closeDatabase, configureDatabase, withTenant } from '@rms/db';
 
 import { createApp, databaseDenyRecorder, type Principal } from './app.js';
 
+import { requireDatabase } from '../../../tools/test-support/require-db.js';
+
 const ADMIN_URL =
   process.env['DATABASE_ADMIN_URL'] ?? 'postgresql://postgres:postgres@localhost:55432/rms';
 const APP_URL =
@@ -71,9 +73,7 @@ async function probe(): Promise<boolean> {
 }
 
 const available = await probe();
-if (!available) {
-  console.warn('\n  SKIPPING app deny-audit tests: no migrated database.\n');
-}
+requireDatabase(available, 'app deny-audit', ADMIN_URL);
 const maybe = available ? it : it.skip;
 
 beforeAll(async () => {

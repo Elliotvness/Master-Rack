@@ -21,6 +21,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import pg from 'pg';
 
+import { requireDatabase } from '../../../tools/test-support/require-db.js';
+
 const ADMIN_URL =
   process.env['DATABASE_ADMIN_URL'] ?? 'postgresql://postgres:postgres@localhost:55432/rms';
 
@@ -60,11 +62,7 @@ async function probe(): Promise<boolean> {
 }
 
 const available = await probe();
-if (!available) {
-  console.warn(
-    '\n  SKIPPING assumption record tests: no migrated database. Run `pnpm db:up && pnpm migrate`.\n',
-  );
-}
+requireDatabase(available, 'assumption record', ADMIN_URL);
 const maybe = available ? it : it.skip;
 
 /** One assumption row, with every column the caller did not override. */

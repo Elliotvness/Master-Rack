@@ -49,6 +49,18 @@ jobs:
     env:
       DATABASE_ADMIN_URL: postgresql://postgres:postgres@localhost:55432/rms
       DATABASE_URL: postgresql://app_user:app_user_dev_only@localhost:55432/rms
+      # F-29. The ten `.db.test.ts` suites probe Postgres and, when it is
+      # absent, swap `it` for `it.skip` and report a GREEN count — right on a
+      # laptop, wrong anywhere a result is believed. Observed three times: as
+      # the reason those suites had never run (session 3); live, when the
+      # container's Postgres died mid-session and `pnpm test` reported
+      # 1,359 passed | 132 skipped and stayed green while `check-rls` went red
+      # three steps later (session 12); and again on Windows on 2026-09-05.
+      #
+      # Set here and NOT in vitest.config.ts, deliberately: the switch belongs
+      # to the ENVIRONMENT that believes the answer, not to the runner. A
+      # developer without Postgres still gets the skip; CI cannot.
+      RMS_REQUIRE_DB: '1'
 
     steps:
       - uses: actions/checkout@v4

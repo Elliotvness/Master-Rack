@@ -11,6 +11,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import pg from 'pg';
 
 import { closeDatabase, configureDatabase, withTenant, type TenantContext } from '@rms/db';
+
+import { requireDatabase } from '../../../../tools/test-support/require-db.js';
 import {
   GENESIS_PREV_HASH,
   appendAuditEvent,
@@ -45,9 +47,7 @@ async function probe(): Promise<boolean> {
 }
 
 const available = await probe();
-if (!available) {
-  console.warn('\n  SKIPPING audit tests: no migrated database. Run `pnpm db:up && pnpm migrate`.\n');
-}
+requireDatabase(available, 'audit', ADMIN_URL);
 const maybe = available ? it : it.skip;
 
 async function admin(sql: string, values: readonly unknown[] = []): Promise<pg.QueryResult> {

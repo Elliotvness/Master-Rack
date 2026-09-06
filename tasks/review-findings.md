@@ -726,7 +726,7 @@ records that **locale hostility was attempted and removed** because Node ignores
 Windows — so the first option needs the locale to be forced in-process, not by environment.
 **Owner: E-09 / T-23.**
 
-## F-29 — with no database, the DB suites skip and `pnpm test` reports a green 1,042 *(raised in T-28, open)*
+## F-29 — with no database, the DB suites skip and `pnpm test` reports a green 1,042 *(raised in T-28, **CLOSED** 2026-09-05 by P0-2)*
 
 Found while proving T-28, not by looking for it. The container's Postgres stopped between two runs,
 and `pnpm test` reported:
@@ -1736,3 +1736,81 @@ a scope widening, and it is out of P0's approved scope. **Until it exists, no wo
 client-identifier guard covers `docs/adr/`, and the ADRs are the documents most likely to be shared
 outside the company.** OD-20b names a real client by agreement; the rule that keeps that in
 `open-decisions.md` is currently unenforced everywhere except the blueprint.
+
+## F-29 closure note — the tenth suite skipped without even saying so *(2026-09-05, P0-2)*
+
+`RMS_REQUIRE_DB=1`, set in `ci.yml` and honoured by `tools/test-support/require-db.ts`, turns an
+unavailable database into a collection-time failure. Unset, the skip survives, so a developer
+without Postgres is unaffected.
+
+**Proven red before it counted.** With the switch set and no Postgres on the machine:
+
+```
+Test Files  10 failed | 50 passed (60)
+     Tests  1369 passed (1369)
+exit 1
+```
+
+**Zero skipped.** The control run with the switch unset, same tree: `53 passed | 7 skipped (60)`,
+`1377 passed | 132 skipped (1509)`, **exit 0**.
+
+**The find inside the fix, which is the part worth keeping.** The nine files were located by
+grepping for `SKIPPING`. That grep is wrong, and the tenth file proves it:
+`apps/api/src/server.db.test.ts` had `const maybe = available ? it : it.skip` with **no warning at
+all** — it skipped three tests in total silence, and would have gone on doing so under a fix that
+covered the nine noisy ones. Re-searching for the *mechanism* (`? it : it.skip`) rather than for the
+*message* found it. **A silent skip is strictly worse than a loud one, and searching for the message
+finds only the suites that were already honest.**
+
+**Why per-file and not one global setup**, recorded because the cheaper option looks equivalent: a
+global probe fails fast when the database is down at the *start* of a run, which is not what session
+12 saw. That was a database dying *between* runs, and under a global setup that had already passed,
+a mid-run death leaves later files probing false and skipping green. Each file asking at the moment
+it needs the database is what covers it.
+
+**Not closed by this:** `pnpm test` on a developer machine is still green over 132 skipped tests, by
+design. The guarantee is only that **an environment which believes the answer sets the variable.**
+CI does; nothing forces a future environment to.
+
+## F-47 — eslint judged four files git does not track, and `pnpm lint` could not pass *(raised and **CLOSED** 2026-09-05 by P0-2)*
+
+`_to_delete/` is gitignored — CLAUDE.md says so explicitly and warns to stage explicit paths because
+of it. Eslint keeps its **own** ignore list, and `_to_delete/**` was not on it. On any machine that
+had the directory, `pnpm lint` reported **77 errors in four dead `.mjs` files** and exited 1, which
+makes `pnpm verify` impossible to pass and every gate behind lint unreachable.
+
+Confirmed pre-existing rather than assumed: the working tree was stashed and `pnpm lint` re-run on
+the clean tree, giving the identical **77 problems, exit 1**. Closed by adding `_to_delete/**` to
+the eslint ignore list; `pnpm lint` then exits 0.
+
+**The general shape:** two ignore lists for one repository. Git's and eslint's agreed until a
+directory existed in one and not the other, and the disagreement surfaced as 77 errors about work
+nobody can review.
+
+## F-48 — `check-server-owned` had never run on Windows, on either of the two declared machines *(raised and **CLOSED** 2026-09-05 by P0-2)*
+
+`tools/check-server-owned.mjs` dynamically imports its compiled artifact by absolute filesystem
+path: `await import(emitted)`. On POSIX that is coincidentally a usable ESM specifier. On Windows it
+is `C:\...`, and the loader reads `c:` as a URL scheme:
+
+```
+Error [ERR_UNSUPPORTED_ESM_URL_SCHEME]: Only URLs with a scheme in: file, data, and node are
+supported by the default ESM loader. On Windows, absolute paths must be valid file:// URLs.
+Received protocol 'c:'
+```
+
+It threw before reaching a single assertion. Also confirmed against a stashed clean tree, so it is
+not P0's doing.
+
+**What this cost is more than one checker.** CLAUDE.md declares two machines and says the Windows
+one exists for `git push` and *"a Windows `pnpm verify`"*. That Windows verify has never been able
+to complete — it dies here, and F-47 stops it one step earlier still. Every "verify exit 0" in this
+repository's history was measured in the container. That is not wrong, and none of those rows is
+withdrawn; what is corrected is the implication that the second machine was ever a second opinion.
+
+Closed with `pathToFileURL(emitted).href`. `check-server-owned` now passes on Windows — 17
+server-assigned columns, 10 enum types classified — and its self-test still passes 43 cases.
+
+**Blind spot, stated:** nothing tests the checkers *on Windows*. Both self-tests pass on both
+platforms, because neither exercises the dynamic-import path the way the real run does. A
+cross-platform CI matrix is the control that would have caught this, and it does not exist.
