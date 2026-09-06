@@ -17,6 +17,29 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { App } from './app.js';
 import { HEADER_CONTROL_ORDER, VIEWS } from './nav.js';
 
+/**
+ * jsdom implements neither `ResizeObserver` nor a canvas 2D context.
+ *
+ * The plan viewport uses the first to follow the stage's size — the rail and
+ * the banner change its width without the window resizing — and the second to
+ * draw. Both are stubbed here rather than guarded in the component: a
+ * production code path that exists only to keep a test environment happy is a
+ * branch nothing real ever takes, and it would need its own coverage.
+ *
+ * The stub does NOT fire. Nothing here asserts anything about what is painted —
+ * that is what `packages/render-canvas`'s camera tests and the screenshots
+ * cover. These tests assert the shell: that the route mounts, and that the
+ * accessible summary beside the canvas is present, because a bitmap must never
+ * be the only way to reach the information.
+ */
+class ResizeObserverStub {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+(globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = ResizeObserverStub;
+HTMLCanvasElement.prototype.getContext = (): null => null;
+
 afterEach(cleanup);
 
 function renderApp(at = '/plan'): void {
@@ -104,18 +127,51 @@ describe('the screening-only notice', () => {
   });
 });
 
+/** Views that are still routing targets only. `plan` left this list in S3. */
+const UNIMPLEMENTED_VIEWS = VIEWS.filter((v) => v.path !== 'plan');
+
 describe('routing', () => {
   it.each(VIEWS.map((v) => [v.path, v.label] as const))(
-    '/%s renders the %s view and says it is not implemented',
+    '/%s renders the %s view',
     async (path, label) => {
       renderApp(`/${path}`);
       expect(await screen.findByRole('heading', { level: 1 })).toHaveProperty(
         'textContent',
         label,
       );
+    },
+  );
+
+  it.each(UNIMPLEMENTED_VIEWS.map((v) => [v.path] as const))(
+    '/%s still says it is not implemented',
+    async (path) => {
+      renderApp(`/${path}`);
+      await screen.findByRole('heading', { level: 1 });
       expect(screen.getByText(/Not implemented/)).toBeTruthy();
     },
   );
+
+  /**
+   * The plan view draws. It must NOT claim to be finished either — the document
+   * is the continuity fixture and nothing is saved, so the screen says so.
+   */
+  it('/plan draws and labels its document as a scaffold', async () => {
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByText(/Not implemented/)).toBeNull();
+    expect(screen.getByText(/Scaffold document/)).toBeTruthy();
+    expect(screen.getByText(/nothing here is saved/i)).toBeTruthy();
+  });
+
+  /** A bitmap is never the only way to reach what it shows. */
+  it('/plan states its counts as text beside the canvas', async () => {
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1 });
+    const img = screen.getByRole('img');
+    expect(img.getAttribute('aria-label')).toMatch(/\d+ rack runs/);
+    expect(screen.getByText('runs')).toBeTruthy();
+    expect(screen.getByText('bays')).toBeTruthy();
+  });
 
   it('redirects / to the plan view', async () => {
     renderApp('/');

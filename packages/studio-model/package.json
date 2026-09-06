@@ -10,6 +10,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@rms/kernel-units": "workspace:*"
+    "@rms/kernel-units": "workspace:*",
+    "@rms/kernel-derive": "workspace:*"
   }
 }

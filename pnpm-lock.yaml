@@ -107,9 +107,18 @@ importers:
       '@rms/display-list':
         specifier: workspace:*
         version: link:../../packages/display-list
+      '@rms/kernel-derive':
+        specifier: workspace:*
+        version: link:../../packages/kernel-derive
       '@rms/kernel-units':
         specifier: workspace:*
         version: link:../../packages/kernel-units
+      '@rms/render-canvas':
+        specifier: workspace:*
+        version: link:../../packages/render-canvas
+      '@rms/studio-model':
+        specifier: workspace:*
+        version: link:../../packages/studio-model
       react:
         specifier: ^19.2.0
         version: 19.2.8
@@ -184,8 +193,17 @@ importers:
 
   packages/kernel-units: {}
 
+  packages/render-canvas:
+    dependencies:
+      '@rms/display-list':
+        specifier: workspace:*
+        version: link:../display-list
+
   packages/studio-model:
     dependencies:
+      '@rms/kernel-derive':
+        specifier: workspace:*
+        version: link:../kernel-derive
       '@rms/kernel-units':
         specifier: workspace:*
         version: link:../kernel-units

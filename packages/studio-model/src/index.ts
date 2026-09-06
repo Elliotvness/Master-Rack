@@ -70,6 +70,17 @@ export {
 } from './commands.js';
 
 export {
+  BridgeError,
+  length,
+  runGeometry,
+  toKernel,
+  witnessedQuantity,
+  type AisleGeometry,
+  type KernelScene,
+  type RunGeometry,
+} from './to-kernel.js';
+
+export {
   EMPTY_LEDGER,
   canRedo,
   canUndo,

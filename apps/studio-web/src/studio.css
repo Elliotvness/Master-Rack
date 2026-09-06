@@ -210,3 +210,85 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* --- plan viewport ------------------------------------------------------ */
+
+.plan-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0.5rem;
+}
+
+.scaffold-note {
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  border: 1px dashed var(--border-control);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+}
+
+.plan-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 320px;
+  border: 1px solid var(--border-control);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.plan-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+}
+
+.plan-canvas:active {
+  cursor: grabbing;
+}
+
+.plan-hud {
+  position: absolute;
+  left: 0.5rem;
+  bottom: 0.5rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border-control);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.8rem;
+}
+
+.plan-hud-muted {
+  color: var(--ink-muted);
+}
+
+.plan-fit {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--border-control);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+/* Available to a screen reader, absent from the visual layout. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

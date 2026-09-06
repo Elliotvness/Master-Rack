@@ -40,6 +40,10 @@ const ALSO_PURE = ['display-list', 'contracts', 'workflow', 'studio-model'];
  */
 const KNOWN_IMPURE = Object.freeze({
   db: 'the persistence layer; it exists to talk to Postgres',
+  'render-canvas':
+    'a renderer: it takes a CanvasRenderingContext2D and paints. The purity that matters ' +
+    'here is that it DERIVES nothing, which check-app-boundaries and ADR-003 cover, not ' +
+    'that it avoids the DOM.',
 });
 
 const FORBIDDEN_IMPORTS = [

@@ -215,6 +215,12 @@ jobs:
       - name: Every finding id is allocated once
         run: pnpm check:findings
 
+      # F-50's open half. A package with no coverage threshold is not
+      # unmeasured — it is counted in the global figure, which looks like
+      # coverage while being a floor nobody has to clear.
+      - name: Every package carries a coverage floor
+        run: pnpm check:covconfig
+
       # Sync proves the two copies agree with each other. It cannot tell whether
       # either one agrees with the repository, and two copies of a stale number
       # agree perfectly. check-claims re-derives the declared figures from the

@@ -151,6 +151,30 @@ export default defineConfig({
         // orchestration with injected effects, so every refusal is reachable
         // from its arguments — and every refusal here is one that stops a
         // submission, which is not a place to carry an unexercised branch.
+        /*
+         * S3. 100%, like every other package here, and it was EARNED rather
+         * than set.
+         *
+         * The first draft of this entry guessed a lower floor — 45% lines — on
+         * the reasoning that `draw.ts` takes a CanvasRenderingContext2D and
+         * could not be unit-tested without a mock that asserts the mock. The
+         * premise was wrong. A RECORDING context is not a mock: the assertions
+         * are about what was drawn — which items survived culling, which pen
+         * was chosen, whether an unestablished value printed VERIFY — and those
+         * are the renderer's actual contract, observable no other way without a
+         * browser.
+         *
+         * The guessed floor would have passed at 32.94% measured, certifying a
+         * renderer whose line, dimension and label paths had never run. What it
+         * still does NOT cover is pixel fidelity, DPR and font metrics; those
+         * need a screenshot and are S4's.
+         */
+        'packages/render-canvas/src/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
         // S2. A pure package, so 100% — the same standard as every kernel.
         // It had no entry at all until this line: `check-boundaries` did not
         // classify it, `check-aliases` did not exist, and this table did not

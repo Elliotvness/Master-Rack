@@ -2,9 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "./src",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "lib": ["ES2022", "DOM"]
   },
-  "references": [{ "path": "../kernel-units" }, { "path": "../kernel-derive" }],
+  "references": [{ "path": "../display-list" }],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
 }

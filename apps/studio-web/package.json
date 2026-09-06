@@ -18,6 +18,9 @@
     "@rms/kernel-units": "workspace:*",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router": "^7.9.0"
+    "react-router": "^7.9.0",
+    "@rms/render-canvas": "workspace:*",
+    "@rms/studio-model": "workspace:*",
+    "@rms/kernel-derive": "workspace:*"
   }
 }

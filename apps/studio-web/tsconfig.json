@@ -14,11 +14,14 @@
     "outDir": "./dist-tsc",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
+    "resolveJsonModule": true,
     "types": ["node"]
   },
   "references": [
     { "path": "../../packages/display-list" },
-    { "path": "../../packages/kernel-units" }
+    { "path": "../../packages/kernel-units" },
+    { "path": "../../packages/render-canvas" },
+    { "path": "../../packages/studio-model" }
   ],
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
