@@ -227,6 +227,41 @@
   packages they consume load with the preview step that needs them, never in the shell. Two
   applications, client and internal, are budgeted separately and independently: the client bundle is
   the one this ceiling exists for.</p>
+  <p>Both tables above measure <b>work that happens between interactions</b>. Neither covers the
+  interaction itself, and a Canvas 2D studio (<a href="docs/adr/ADR-016-studio-web-delivery-track.md">ADR-016</a>)
+  lives or dies inside a single animation frame. These are the per-frame budgets, fixed here for the
+  same reason as the front-end ones — a ceiling agreed after the code exists is a ceiling nobody
+  meets.</p>
+
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Interaction budget</th><th>Target</th><th>Measured how</th></tr></thead>
+    <tbody>
+      <tr><td>Pointer hit test</td><td>&lt; 5 ms</td><td><code>pnpm bench:hittest</code> on the 300-bay fixture</td></tr>
+      <tr><td>Drag preview, one frame</td><td>&lt; 16 ms</td><td>Same fixture; the whole frame, not the derivation alone</td></tr>
+      <tr><td>Pan and zoom</td><td><b>No validation, no derivation</b></td><td>An assertion, not a timing: the camera changes and nothing recomputes</td></tr>
+      <tr><td>Full validation, standard layout</td><td>&lt; 250 ms</td><td>Synthetic benchmark, validation path only</td></tr>
+      <tr><td>Full validation, large layout</td><td>&lt; 1 s, with a visible progress state</td><td>Same, at the largest fixture</td></tr>
+      <tr><td>SVG generation, standard sheet</td><td>&lt; 3 s</td><td>End-to-end, from display list</td></tr>
+      <tr><td>Initial large-plan load</td><td>&lt; 3 s</td><td>Named target hardware, stated with the figure</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Two of these need reconciling against the table above rather than sitting beside it, because a
+  reader will otherwise take the smaller number as the rule. <b>The 250 ms validation budget is not a
+  tightening of the 400 ms full-derivation budget</b> — that one covers layout, validation
+  <i>and</i> BOM on the server path; this one covers validation alone, client-side, and the two are
+  measured on different fixtures. Neither supersedes the other. <b>The 16 ms drag frame is not a
+  tightening of the 120 ms preview budget</b> either: 120 ms is the recompute after a parameter
+  change, 16 ms is one frame of a drag that must not recompute at all beyond its local neighbourhood.
+  If a drag ever needs the 120 ms path inside a frame, the design is wrong, not the budget.</p>
+
+  <p class="sub">These are <b>plans, not observations</b>. <code>pnpm bench:hittest</code> does not
+  exist, no spatial index has been written, and the row above is the first time these numbers have
+  been written down. The rack-studio spike's ~3.3 ms batched canvas draw is the only adjacent
+  measurement and it was taken under software rasterization, so it bounds nothing here.</p>
+
   <p class="sub">Both halves of this section are provisional in the same way and for the same
   reason — see <code>P-04</code>. What is <em>not</em> provisional is that the numbers exist before
   the code does.</p>

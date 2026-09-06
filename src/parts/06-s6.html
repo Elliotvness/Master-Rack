@@ -160,9 +160,12 @@
   apps/
     client-web/          React app for CLIENT_USER / CLIENT_ADMIN — cannot import internal DTOs
     internal-web/        React app for INTERNAL_SALES / INTERNAL_ADMIN
+    studio-web/          Canvas 2D layout studio, INTERNAL ONLY          (ADR-016)
     api/                 HTTP layer, authz middleware, DTOs, route policy registry
     worker/              derivation, document and notification jobs
   packages/
+    studio-model/        studio document, commands, undo ledger          (ADR-018)
+    scene/               display list -> pick targets, SpatialIndex      (ADR-017)
     kernel-units/        fixed-point + provenance          (pure)
     kernel-model/        canonical project graph, hashing  (pure)
     kernel-geom/         faces, clearance index            (pure)
@@ -187,4 +190,38 @@
     check-leakage        no client-reachable route emits a forbidden field
     check-determinism    re-render historical manifests, assert byte-identical</code></pre>
   <p class="sub">The five <code>tools/</code> checks are not nice-to-haves. Each one guards an invariant that a human reviewer will eventually miss, and each is cheap to write now and impossible to retrofit meaningfully once there are two hundred routes. <code>rack-studio</code> already ships working versions of the boundary checker and a provenance linter, including self-tests that write a violation and assert it is caught — port that pattern.</p>
+
+  <h3>6.5 The interaction layer, and the two things it must not become</h3>
+
+  <p>The three additions above are the interaction layer, and each exists to stop a specific
+  failure. They are recorded as <a href="docs/adr/ADR-016-studio-web-delivery-track.md">ADR-016</a>,
+  <a href="docs/adr/ADR-017-spatial-index.md">ADR-017</a> and
+  <a href="docs/adr/ADR-018-front-end-state.md">ADR-018</a>.</p>
+
+  <p><b><code>scene</code> holds a <code>SpatialIndex</code> behind an interface</b> —
+  <code>bulkLoad</code>, <code>insert</code>, <code>remove</code>, <code>search</code>,
+  <code>searchPoint</code>, <code>getEntityItems</code>, <code>replaceEntity</code> — with an R-tree
+  as the first implementation confined to a single adapter file. Bounds are integer micrometres, so
+  no float enters the index; screen-space pick tolerance is converted at the call site and never
+  stored. <b>The index is derived state.</b> It is rebuilt from the display list, and it is never an
+  input to a check, a BOM line or an export. Nothing may be true only because the index says so, and
+  an index bug must therefore be a missed click rather than a wrong quantity on a drawing.</p>
+
+  <p>It is <b>not</b> <code>kernel-geom</code>'s clearance index, and the two must not be merged.
+  <i>What is at this point</i> and <i>how far to the nearest obstruction face</i> are different
+  questions with different consumers; merging them gives viewport culling a vote in an engineering
+  clearance result.</p>
+
+  <p><b><code>studio-model</code> separates the two things called state.</b> The document — the
+  entity graph, undoable, hashable, the thing a revision is made of — changes only through typed
+  commands, and the command is the undo unit, so one completed drag is one command rather than one
+  per pointer move. View state — camera, selection, hover, active tool, snap flags — lives in a
+  separate store and is never persisted into a revision. <b>A pan must not be able to change a
+  content hash</b>, or <a href="#s13">§13</a>'s immutability and the audit chain are measuring
+  noise. Drag preview is view state and touches the document exactly once, on commit.</p>
+
+  <p class="sub">Stated as a gap rather than implied: nothing mechanically enforces that last
+  paragraph yet. <code>check-app-boundaries</code> stops an app importing a kernel internal; no
+  checker yet stops a component importing a kernel entry point and doing arithmetic inside a render.
+  Until one exists with a planted failure behind it, ADR-018 is agreed and not enforced.</p>
 </section>

@@ -55,6 +55,23 @@ NOT_FOUND          -&gt; NOT EVALUATED</code></pre>
     <li><b><code>closed_by</code> is mandatory.</b> Every finding must be able to say what would close it. A finding with no path to resolution is a dead end, and clients will call about it.</li>
   </ul>
 
+  <p><b><code>measured</code> and <code>required</code> are reserved parameter names, not extra
+  fields.</b> A shortfall finding is unreadable without both halves of its comparison — <i>measured
+  5<sup>5</sup>&frasl;<sub>16</sub>&nbsp;in. against a required 6&nbsp;in.</i> — and a finding that
+  states only one is a verdict with its evidence withheld. Every check that compares two quantities
+  emits both under these names, in the same unit, each carrying its own
+  <code>established</code>.</p>
+
+  <p>They are <b>parameters and not top-level fields</b>, and the distinction is the point. A flat
+  <code>measured</code> beside <code>parameters[]</code> would be a second place to put a number, and
+  two homes for one quantity is how the value on the badge comes to disagree with the value in the
+  panel. It would also strip <code>established</code> from exactly the two numbers that most need it
+  — which is <b>defect D-F in the as-built prototype</b>, where an aisle was reported
+  <b>Blocking</b> by <sup>5</sup>&frasl;<sub>16</sub>&nbsp;in. against a truck width the same page
+  printed as <code>VERIFY</code>. A shortfall measured against an unestablished requirement is
+  <b>Missing Input</b>, and it must carry the arithmetic in its note so the reader can see the margin
+  without being told it is a failure.</p>
+
   <h3>11.4 MVP-1 check set</h3>
   <p>Deliberately small, and deliberately drawn only from things this product can establish without an authority it does not hold. Checks 1, 2 and 7 apply only to catalog parts; check 12 is what fires in their place on uncatalogued material, and on half of all jobs it will.</p>
   <div class="tw">

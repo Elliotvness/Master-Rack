@@ -867,6 +867,41 @@ details .body{padding:0 14px 12px;border-top:1px solid var(--line-2);margin-top:
   packages they consume load with the preview step that needs them, never in the shell. Two
   applications, client and internal, are budgeted separately and independently: the client bundle is
   the one this ceiling exists for.</p>
+  <p>Both tables above measure <b>work that happens between interactions</b>. Neither covers the
+  interaction itself, and a Canvas 2D studio (<a href="docs/adr/ADR-016-studio-web-delivery-track.md">ADR-016</a>)
+  lives or dies inside a single animation frame. These are the per-frame budgets, fixed here for the
+  same reason as the front-end ones — a ceiling agreed after the code exists is a ceiling nobody
+  meets.</p>
+
+  <div class="tw">
+  <table class="compact">
+    <thead><tr><th>Interaction budget</th><th>Target</th><th>Measured how</th></tr></thead>
+    <tbody>
+      <tr><td>Pointer hit test</td><td>&lt; 5 ms</td><td><code>pnpm bench:hittest</code> on the 300-bay fixture</td></tr>
+      <tr><td>Drag preview, one frame</td><td>&lt; 16 ms</td><td>Same fixture; the whole frame, not the derivation alone</td></tr>
+      <tr><td>Pan and zoom</td><td><b>No validation, no derivation</b></td><td>An assertion, not a timing: the camera changes and nothing recomputes</td></tr>
+      <tr><td>Full validation, standard layout</td><td>&lt; 250 ms</td><td>Synthetic benchmark, validation path only</td></tr>
+      <tr><td>Full validation, large layout</td><td>&lt; 1 s, with a visible progress state</td><td>Same, at the largest fixture</td></tr>
+      <tr><td>SVG generation, standard sheet</td><td>&lt; 3 s</td><td>End-to-end, from display list</td></tr>
+      <tr><td>Initial large-plan load</td><td>&lt; 3 s</td><td>Named target hardware, stated with the figure</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Two of these need reconciling against the table above rather than sitting beside it, because a
+  reader will otherwise take the smaller number as the rule. <b>The 250 ms validation budget is not a
+  tightening of the 400 ms full-derivation budget</b> — that one covers layout, validation
+  <i>and</i> BOM on the server path; this one covers validation alone, client-side, and the two are
+  measured on different fixtures. Neither supersedes the other. <b>The 16 ms drag frame is not a
+  tightening of the 120 ms preview budget</b> either: 120 ms is the recompute after a parameter
+  change, 16 ms is one frame of a drag that must not recompute at all beyond its local neighbourhood.
+  If a drag ever needs the 120 ms path inside a frame, the design is wrong, not the budget.</p>
+
+  <p class="sub">These are <b>plans, not observations</b>. <code>pnpm bench:hittest</code> does not
+  exist, no spatial index has been written, and the row above is the first time these numbers have
+  been written down. The rack-studio spike's ~3.3 ms batched canvas draw is the only adjacent
+  measurement and it was taken under software rasterization, so it bounds nothing here.</p>
+
   <p class="sub">Both halves of this section are provisional in the same way and for the same
   reason — see <code>P-04</code>. What is <em>not</em> provisional is that the numbers exist before
   the code does.</p>
@@ -1065,9 +1100,12 @@ details .body{padding:0 14px 12px;border-top:1px solid var(--line-2);margin-top:
   apps/
     client-web/          React app for CLIENT_USER / CLIENT_ADMIN — cannot import internal DTOs
     internal-web/        React app for INTERNAL_SALES / INTERNAL_ADMIN
+    studio-web/          Canvas 2D layout studio, INTERNAL ONLY          (ADR-016)
     api/                 HTTP layer, authz middleware, DTOs, route policy registry
     worker/              derivation, document and notification jobs
   packages/
+    studio-model/        studio document, commands, undo ledger          (ADR-018)
+    scene/               display list -> pick targets, SpatialIndex      (ADR-017)
     kernel-units/        fixed-point + provenance          (pure)
     kernel-model/        canonical project graph, hashing  (pure)
     kernel-geom/         faces, clearance index            (pure)
@@ -1092,6 +1130,40 @@ details .body{padding:0 14px 12px;border-top:1px solid var(--line-2);margin-top:
     check-leakage        no client-reachable route emits a forbidden field
     check-determinism    re-render historical manifests, assert byte-identical</code></pre>
   <p class="sub">The five <code>tools/</code> checks are not nice-to-haves. Each one guards an invariant that a human reviewer will eventually miss, and each is cheap to write now and impossible to retrofit meaningfully once there are two hundred routes. <code>rack-studio</code> already ships working versions of the boundary checker and a provenance linter, including self-tests that write a violation and assert it is caught — port that pattern.</p>
+
+  <h3>6.5 The interaction layer, and the two things it must not become</h3>
+
+  <p>The three additions above are the interaction layer, and each exists to stop a specific
+  failure. They are recorded as <a href="docs/adr/ADR-016-studio-web-delivery-track.md">ADR-016</a>,
+  <a href="docs/adr/ADR-017-spatial-index.md">ADR-017</a> and
+  <a href="docs/adr/ADR-018-front-end-state.md">ADR-018</a>.</p>
+
+  <p><b><code>scene</code> holds a <code>SpatialIndex</code> behind an interface</b> —
+  <code>bulkLoad</code>, <code>insert</code>, <code>remove</code>, <code>search</code>,
+  <code>searchPoint</code>, <code>getEntityItems</code>, <code>replaceEntity</code> — with an R-tree
+  as the first implementation confined to a single adapter file. Bounds are integer micrometres, so
+  no float enters the index; screen-space pick tolerance is converted at the call site and never
+  stored. <b>The index is derived state.</b> It is rebuilt from the display list, and it is never an
+  input to a check, a BOM line or an export. Nothing may be true only because the index says so, and
+  an index bug must therefore be a missed click rather than a wrong quantity on a drawing.</p>
+
+  <p>It is <b>not</b> <code>kernel-geom</code>'s clearance index, and the two must not be merged.
+  <i>What is at this point</i> and <i>how far to the nearest obstruction face</i> are different
+  questions with different consumers; merging them gives viewport culling a vote in an engineering
+  clearance result.</p>
+
+  <p><b><code>studio-model</code> separates the two things called state.</b> The document — the
+  entity graph, undoable, hashable, the thing a revision is made of — changes only through typed
+  commands, and the command is the undo unit, so one completed drag is one command rather than one
+  per pointer move. View state — camera, selection, hover, active tool, snap flags — lives in a
+  separate store and is never persisted into a revision. <b>A pan must not be able to change a
+  content hash</b>, or <a href="#s13">§13</a>'s immutability and the audit chain are measuring
+  noise. Drag preview is view state and touches the document exactly once, on commit.</p>
+
+  <p class="sub">Stated as a gap rather than implied: nothing mechanically enforces that last
+  paragraph yet. <code>check-app-boundaries</code> stops an app importing a kernel internal; no
+  checker yet stops a component importing a kernel entry point and doing arithmetic inside a render.
+  Until one exists with a planted failure behind it, ADR-018 is agreed and not enforced.</p>
 </section>
 <section id="s7">
   <h2 class="sh"><span class="num">07</span>Canonical data model</h2>
@@ -1763,6 +1835,23 @@ NOT_FOUND          -&gt; NOT EVALUATED</code></pre>
     <li><b><code>established</code> on every parameter.</b> An unestablished parameter renders as <code>VERIFY</code>, never as a numeral. A number on a screen is a claim; if the model does not know it, the screen must not print it.</li>
     <li><b><code>closed_by</code> is mandatory.</b> Every finding must be able to say what would close it. A finding with no path to resolution is a dead end, and clients will call about it.</li>
   </ul>
+
+  <p><b><code>measured</code> and <code>required</code> are reserved parameter names, not extra
+  fields.</b> A shortfall finding is unreadable without both halves of its comparison — <i>measured
+  5<sup>5</sup>&frasl;<sub>16</sub>&nbsp;in. against a required 6&nbsp;in.</i> — and a finding that
+  states only one is a verdict with its evidence withheld. Every check that compares two quantities
+  emits both under these names, in the same unit, each carrying its own
+  <code>established</code>.</p>
+
+  <p>They are <b>parameters and not top-level fields</b>, and the distinction is the point. A flat
+  <code>measured</code> beside <code>parameters[]</code> would be a second place to put a number, and
+  two homes for one quantity is how the value on the badge comes to disagree with the value in the
+  panel. It would also strip <code>established</code> from exactly the two numbers that most need it
+  — which is <b>defect D-F in the as-built prototype</b>, where an aisle was reported
+  <b>Blocking</b> by <sup>5</sup>&frasl;<sub>16</sub>&nbsp;in. against a truck width the same page
+  printed as <code>VERIFY</code>. A shortfall measured against an unestablished requirement is
+  <b>Missing Input</b>, and it must carry the arithmetic in its note so the reader can see the margin
+  without being told it is a failure.</p>
 
   <h3>11.4 MVP-1 check set</h3>
   <p>Deliberately small, and deliberately drawn only from things this product can establish without an authority it does not hold. Checks 1, 2 and 7 apply only to catalog parts; check 12 is what fires in their place on uncatalogued material, and on half of all jobs it will.</p>
@@ -2562,7 +2651,7 @@ Attribute layer     (which fields?) actor_type ∈ {client, staff, service}
       <tbody>
         <tr><td><code>prototype/kernel.js</code> — 15 cited rules (4 PRIMARY, 11 SECONDARY), 11 checks</td><td>rack-studio</td><td>Harvest the rules and the checks the typed packages lack. Do not import the code — it is a second, untyped implementation of the same domain.</td></tr>
         <tr><td><code>research/RESEARCH-us-codes.md</code> — 117 VERIFIED / 32 UNVERIFIED tags</td><td>rack-studio</td><td>The seed for the rule packs, tags intact. Note the honest definition of "verified" there: <em>read on the cited source</em>, not <em>read in the primary standard</em>.</td></tr>
-        <tr><td>14 ADRs (11 accepted, 3 proposed)</td><td>rack-studio</td><td>ADR-002 (screening not design), 003 (display list + the <code>{text, established}</code> amendment), 005 (fixed point), 006 (one aisle datum), 007 (obstruction faces), 008 (entity model), 009 (status vocabulary), 010 (propose never apply), 014 (revision lifecycle) all inform this blueprint. ADR-012's nine deployment questions and ADR-013's eight identity questions are a good questionnaire — the <em>questions</em>, not the answers.</td></tr>
+        <tr><td>14 ADRs (11 accepted, 3 proposed)</td><td>rack-studio</td><td>ADR-002 (screening not design), 003 (display list + the <code>{text, established}</code> amendment), 005 (fixed point), 006 (one aisle datum), 007 (obstruction faces), 008 (entity model), 009 (status vocabulary), 010 (propose never apply), 014 (revision lifecycle) all inform this blueprint. ADR-012's nine deployment questions and ADR-013's eight identity questions are a good questionnaire — the <em>questions</em>, not the answers. <b>Migrated 2026-09-05 and no longer reused from a reference tree.</b> All 14 were copied verbatim into <a href="docs/adr/README.md"><code>docs/adr/</code></a>, byte-verified, and are <b>canonical there</b>; the reference copies are historical. They had been cited as governing while living somewhere the working agreement forbids writing to — readable, unamendable, and outside the version control holding the code they govern. <a href="docs/adr/ADR-015-hosting-and-system-of-record.md">ADR-015</a> now supersedes ADR-012 item 1 and ADR-013 item 1; ADR-012 items 2&ndash;9 and ADR-013 items 2&ndash;8 stay open, and ADR-015 deliberately does not close them by implication. ADR-016 to 019 are new and were written here.</td></tr>
         <tr><td><code>panels.py</code> refusal copy, NOT-RUN chips, gate wording</td><td>rack-engine</td><td>The content decisions — what each screen refuses to show — are the reusable asset. The f-string markup is not.</td></tr>
         <tr><td><code>docs/OUTPUT_FORMAT.md</code> §9 (the BOM <em>is</em> a quote) and §10 (used vs new material)</td><td>rack-app</td><td>§9 is the closest thing in any project to a quote-intake spec. §10 is an unanswered live product question: what share of jobs use used or generic material with no published capacity?</td></tr>
         <tr><td><code>rack-review.html</code> — the red-team strategy review</td><td>rack-app</td><td>Read before finalising scope. Its central warning is directly about this product: <b>the fast-follower risk is CPQ, not another rack startup.</b></td></tr>
