@@ -34,6 +34,7 @@ import {
   enumClassificationGaps,
   readMigrations,
   splitColumns,
+  stripJsComments,
   stripNoise,
   tableBodies,
   uncoveredColumns,
@@ -150,6 +151,68 @@ ok(
     ruleFingerprint(readFileSync(join(ROOT, 'packages/contracts/dist/request.js'), 'utf8')),
 );
 
+/**
+ * The fingerprint survives a COMMENT, and 2026-09-05 is why there are cases
+ * for it. The scan reads to the first `;` and treats every `'…'` as an entry,
+ * so one line comment inside the array — the house style everywhere else here
+ * — could end the match early on a stray semicolon and turn an apostrophe into
+ * an entry. Adding `purpose` with a commented reason did exactly that, and it
+ * failed only by luck: the source was truncated and the built artifact was not,
+ * so they disagreed. **One build later they would have agreed**, both
+ * truncated at the same point, with every entry after the comment drifting
+ * unwatched.
+ *
+ * The first fix reached for `stripNoise`, which is the SQL stripper and blanks
+ * single-quoted strings — turning every fingerprint into `|`, two empty lists
+ * that compare equal. That is the same defect one layer down, and these cases
+ * are what caught it.
+ */
+const COMMENTED = `const SERVER_ASSIGNED_SUFFIXES = Object.freeze(['_at']);
+const SERVER_ASSIGNED_NAMES = new Set([
+  'id',
+  // a session's authority; the highest-value field a body could name
+  'purpose',
+  'audience',
+]);`;
+const BARE = `const SERVER_ASSIGNED_SUFFIXES = Object.freeze(['_at']);
+const SERVER_ASSIGNED_NAMES = new Set(['id', 'purpose', 'audience']);`;
+const DRIFTED = `const SERVER_ASSIGNED_SUFFIXES = Object.freeze(['_at']);
+const SERVER_ASSIGNED_NAMES = new Set(['id', 'purpose']);`;
+const BLOCK_COMMENTED = `const SERVER_ASSIGNED_SUFFIXES = Object.freeze(['_at']);
+const SERVER_ASSIGNED_NAMES = new Set([
+  'id',
+  /* the session's authority; a body naming it escalates */
+  'purpose',
+  'audience',
+]);`;
+
+ok('a comment inside the array does not change the fingerprint', ruleFingerprint(COMMENTED) === ruleFingerprint(BARE));
+ok('a block comment inside the array does not either', ruleFingerprint(BLOCK_COMMENTED) === ruleFingerprint(BARE));
+ok('the fingerprint is not empty — two empty lists compare equal', ruleFingerprint(BARE) === '_at|id,purpose,audience');
+ok('real drift is still caught through a comment', ruleFingerprint(COMMENTED) !== ruleFingerprint(DRIFTED));
+ok('stripJsComments keeps string literals, unlike the SQL stripper', stripJsComments("const a = 'keep'; // drop").trim() === "const a = 'keep';");
+ok('stripJsComments does not eat a // inside a string', stripJsComments(`const url = 'https://x';`) === `const url = 'https://x';`);
+
+/**
+ * A REGEX LITERAL holding an apostrophe. Review found this arm missing from
+ * the first version of the stripper: the scanner took the `'` for the start of
+ * a string, never left it, and comment stripping silently stopped for the rest
+ * of the file — verbatim the failure the stripper exists to prevent, one layer
+ * down, in the control written to close it.
+ */
+const WITH_REGEX = `const CAMEL = /([a-z])(don't)/g;
+const SERVER_ASSIGNED_SUFFIXES = Object.freeze(['_at']);
+const SERVER_ASSIGNED_NAMES = new Set([
+  'id',
+  // the session; its authority
+  'purpose',
+  'audience',
+]);`;
+ok('a regex literal holding an apostrophe does not desynchronise the scanner', ruleFingerprint(WITH_REGEX) === ruleFingerprint(BARE));
+ok('a division is not mistaken for a regex', stripJsComments('const a = b / c; // drop').trim() === 'const a = b / c;');
+ok('a regex character class containing a slash is read to its real end', stripJsComments('const r = /[/]a/; // drop').trim() === 'const r = /[/]a/;');
+ok('an escaped quote inside a string does not end it', stripJsComments("const a = 'it\\'s'; // drop").trim() === "const a = 'it\\'s';");
+
 // ---- reachability: the real tree, PINNED -----------------------------------
 
 /**
@@ -170,6 +233,11 @@ const EXPECTED = Object.freeze({
   lifecycle_state: 'enum app.lifecycle_state',
   outcome: 'enum app.audit_outcome',
   password_updated_at: 'DEFAULT now()',
+  // Migration 0015. A deliberate edit to this list, which is the point of
+  // pinning it: the column that decides a session's authority did not appear
+  // here by accident, and a parser regression that lost it would fail rather
+  // than print 17 and pass.
+  purpose: 'enum app.session_purpose',
   recorded_at: 'DEFAULT now()',
   request_status: 'enum app.request_status',
   role: 'enum app.member_role',

@@ -19,8 +19,10 @@ import {
   type TenantContext,
 } from '@rms/db';
 import {
+  ACCEPTANCE_SESSION_TTL_MS,
   createSession,
   deactivateUser,
+  lifetimeFor,
   hashToken,
   issueInvitation,
   redeemInvitation,
@@ -29,6 +31,7 @@ import {
   resolveSession,
   revokeInvitation,
   revokeSession,
+  sessionCookieOptions,
 } from '../index.js';
 
 const ADMIN_URL =
@@ -287,6 +290,7 @@ describe('sessions', () => {
         organizationId: ORG,
         userId: INVITER,
         actorType: 'client',
+        purpose: 'full',
         now: AT('2026-08-31T00:00:00Z'),
       }),
     );
@@ -311,6 +315,7 @@ describe('sessions', () => {
         organizationId: ORG,
         userId: INVITER,
         actorType: 'client',
+        purpose: 'full',
         now: AT('2026-08-31T00:00:00Z'),
       }),
     );
@@ -328,6 +333,7 @@ describe('sessions', () => {
         organizationId: ORG,
         userId: INVITER,
         actorType: 'client',
+        purpose: 'full',
         now: AT('2026-08-31T00:00:00Z'),
       }),
     );
@@ -345,6 +351,7 @@ describe('sessions', () => {
         organizationId: ORG,
         userId: INVITER,
         actorType: 'client',
+        purpose: 'full',
         now: AT('2026-08-31T00:00:00Z'),
       }),
     );
@@ -371,6 +378,7 @@ describe('sessions', () => {
         organizationId: ORG,
         userId: INVITER,
         actorType: 'client',
+        purpose: 'full',
         now: AT('2026-08-31T00:00:00Z'),
       }),
     );
@@ -393,6 +401,7 @@ describe('AC-17 — deactivation ends every session and pending invitation', () 
         organizationId: ORG,
         userId: INVITEE,
         actorType: 'client',
+        purpose: 'full',
         now: AT('2026-08-31T00:00:00Z'),
       });
       const s2 = await createSession(tx, {
@@ -400,6 +409,7 @@ describe('AC-17 — deactivation ends every session and pending invitation', () 
         organizationId: ORG,
         userId: INVITEE,
         actorType: 'client',
+        purpose: 'full',
         now: AT('2026-08-31T00:00:00Z'),
       });
       // And a pending invitation the invitee sent.
@@ -431,5 +441,152 @@ describe('AC-17 — deactivation ends every session and pending invitation', () 
     // The user is inactive.
     const status = await admin(`SELECT status FROM app.app_user WHERE id = $1`, [INVITEE]);
     expect(status.rows[0]?.['status']).toBe('inactive');
+  });
+});
+
+describe("a session says what it is FOR, and the database holds it to it", () => {
+  /**
+   * Migration 0015. The gate decides what an acceptance session may TOUCH
+   * (`ACCEPTANCE_REACHABLE`, tested in `app.test.ts`); these are the other half
+   * — how long it may last, and whether it may exist without saying what it is
+   * for. Both are in the schema rather than in application code, for AD-3's
+   * reason: a guarantee decided by a constraint is one no refactor can forget.
+   */
+
+  maybe('an acceptance session gets the enrolment window, not the client default', async () => {
+    const { session } = await withTenant(ctx, (tx) =>
+      createSession(tx, {
+        id: crypto.randomUUID(),
+        organizationId: ORG,
+        userId: INVITER,
+        actorType: 'client',
+        purpose: 'acceptance',
+        now: AT('2026-09-05T12:00:00Z'),
+      }),
+    );
+    expect(session.purpose).toBe('acceptance');
+    // ACCEPTANCE_SESSION_TTL_MS, not the client 24h/2h, and not
+    // LOGIN_TOKEN_TTL_MS either — the number is provisional and deliberately
+    // its own constant, so this reads it rather than restating it.
+    const expected = new Date(AT('2026-09-05T12:00:00Z').getTime() + ACCEPTANCE_SESSION_TTL_MS);
+    expect(session.absoluteExpiresAt.toISOString()).toBe(expected.toISOString());
+    expect(session.idleExpiresAt.toISOString()).toBe(expected.toISOString());
+    expect(session.absoluteExpiresAt.getTime()).toBeLessThan(
+      AT('2026-09-05T12:00:00Z').getTime() + 24 * 60 * 60 * 1000,
+    );
+  });
+
+  maybe('the cookie does not outlive the session it carries', async () => {
+    // `lifetimeFor` gained a purpose and `sessionCookieOptions` was the one
+    // caller that did not, so an acceptance session died server-side at its cap
+    // while its cookie sat in the browser for 24 hours.
+    expect(sessionCookieOptions('client', 'acceptance').maxAgeMs).toBe(ACCEPTANCE_SESSION_TTL_MS);
+    expect(sessionCookieOptions('client').maxAgeMs).toBe(lifetimeFor('client').absoluteMs);
+  });
+
+  maybe('the purpose survives the round trip, so the gate reads the row and not a guess', async () => {
+    const { token } = await withTenant(ctx, (tx) =>
+      createSession(tx, {
+        id: crypto.randomUUID(),
+        organizationId: ORG,
+        userId: INVITER,
+        actorType: 'client',
+        purpose: 'acceptance',
+        now: AT('2026-09-05T13:00:00Z'),
+      }),
+    );
+    const resolved = await withTenant(ctx, (tx) =>
+      resolveSession(tx, token, AT('2026-09-05T13:05:00Z')),
+    );
+    expect(resolved?.purpose).toBe('acceptance');
+  });
+
+  maybe('resolving an acceptance session cannot slide it past its own cap', async () => {
+    // `resolveSession` slides the idle window on every use. For a session whose
+    // idle window IS its absolute cap, that must be a no-op rather than a
+    // renewal — otherwise a page that polls keeps it alive for as long as
+    // anyone leaves the tab open.
+    const start = AT('2026-09-05T14:00:00Z');
+    const cap = new Date(start.getTime() + ACCEPTANCE_SESSION_TTL_MS);
+    const { token } = await withTenant(ctx, (tx) =>
+      createSession(tx, {
+        id: crypto.randomUUID(),
+        organizationId: ORG,
+        userId: INVITER,
+        actorType: 'client',
+        purpose: 'acceptance',
+        now: start,
+      }),
+    );
+    const resolved = await withTenant(ctx, (tx) =>
+      resolveSession(tx, token, new Date(cap.getTime() - 60_000)),
+    );
+    expect(resolved?.idleExpiresAt.toISOString()).toBe(cap.toISOString());
+    // Dead at the cap, not a minute after the last poll.
+    const later = await withTenant(ctx, (tx) =>
+      resolveSession(tx, token, new Date(cap.getTime() + 1000)),
+    );
+    expect(later).toBeNull();
+  });
+
+  maybe('a session CANNOT change what it is for — one UPDATE was the whole escalation', async () => {
+    // Review turned an acceptance session into a 24-hour full login in one
+    // statement, and `session_tenant_update` lets the application role reach
+    // its own organization's session rows — so that statement was reachable
+    // from application code. Migration 0015's trigger is what refuses it.
+    const id = crypto.randomUUID();
+    await withTenant(ctx, (tx) =>
+      createSession(tx, {
+        id,
+        organizationId: ORG,
+        userId: INVITER,
+        actorType: 'client',
+        purpose: 'acceptance',
+        now: AT('2026-09-05T16:00:00Z'),
+      }),
+    );
+
+    await expect(
+      admin(
+        `UPDATE app.session
+            SET purpose = 'full', absolute_expires_at = created_at + interval '24 hours'
+          WHERE id = $1`,
+        [id],
+      ),
+    ).rejects.toThrow(/purpose is immutable/);
+
+    // Still what it was, and still short.
+    const after = await admin(
+      `SELECT purpose, absolute_expires_at - created_at AS span FROM app.session WHERE id = $1`,
+      [id],
+    );
+    expect(after.rows[0]?.['purpose']).toBe('acceptance');
+
+    // And an UPDATE that leaves the purpose alone is untouched by the trigger:
+    // revoking an acceptance session must keep working.
+    await withTenant(ctx, (tx) => revokeSession(tx, id, 'abandoned', AT('2026-09-05T16:05:00Z')));
+    const revoked = await admin(`SELECT revoked_at FROM app.session WHERE id = $1`, [id]);
+    expect(revoked.rows[0]?.['revoked_at']).not.toBeNull();
+  });
+
+  maybe('a session that does not say what it is for cannot be created at all', async () => {
+    // NOT NULL with no default. "Forgot to decide" must not mean "full
+    // authority", which is what a DEFAULT would have made it.
+    await expect(
+      admin(
+        `INSERT INTO app.session
+           (id, organization_id, user_id, actor_type, token_hash,
+            created_at, absolute_expires_at, idle_expires_at, last_seen_at)
+         VALUES ($1, $2, $3, 'client', 'nothash-2',
+                 now(), now() + interval '1 hour', now() + interval '1 hour', now())`,
+        [crypto.randomUUID(), ORG, INVITER],
+      ),
+    ).rejects.toThrow(/purpose/);
+
+    const columnDefault = await admin(
+      `SELECT column_default FROM information_schema.columns
+        WHERE table_schema = 'app' AND table_name = 'session' AND column_name = 'purpose'`,
+    );
+    expect(columnDefault.rows[0]?.['column_default']).toBeNull();
   });
 });

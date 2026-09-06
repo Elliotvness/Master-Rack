@@ -195,14 +195,13 @@ const FN = (identity, security_type, config = null, owner = 'rms_migrator') => (
 const VIEW = (view_name, security_invoker) => ({ view_name, security_invoker });
 
 /**
- * The SEVEN functions migrations 0001-0014 leave in schema `app`, as
+ * The EIGHT functions migrations 0001-0015 leave in schema `app`, as
  * `oid::regprocedure` renders them, and the ONE of them that is
  * `SECURITY DEFINER`. `check-rls` prints "7 function(s) of which 1 SECURITY
  * DEFINER" against the migrated database.
  *
- * This fixture has now been caught stale twice, by two different reviews, and
- * both times the pass/fail outcome was unaffected — which is exactly why it
- * rots. The first draft listed the three 0002 helpers and called itself "the
+ * This fixture has now been caught stale THREE times, and every time the
+ * pass/fail outcome was unaffected — which is exactly why it rots. The first draft listed the three 0002 helpers and called itself "the
  * schema", omitting 0001's three `refuse_*` triggers; the second still said
  * 0001-0013 the day 0014 added the resolver. A fixture whose whole job is to be
  * the real shape has to be re-derived when the schema moves, and nothing
@@ -217,6 +216,7 @@ const SCHEMA_FUNCTIONS = [
   FN('app.refuse_audit_mutation()', 'INVOKER'),
   FN('app.refuse_derived_change_when_frozen()', 'INVOKER'),
   FN('app.refuse_frozen_revision_change()', 'INVOKER'),
+  FN('app.refuse_session_purpose_change()', 'INVOKER'),
   FN('app.resolve_invitation_tenant(text)', 'DEFINER', ['search_path=']),
 ];
 
@@ -340,7 +340,7 @@ const DEFINER_CASES = [
     expect: 'FAIL',
   },
   {
-    name: 'the schema as migrations 0001-0014 leave it, resolver exempted',
+    name: 'the schema as migrations 0001-0015 leave it, resolver exempted',
     meaning: 'a checker that fails on everything is no more use than one that fails on nothing',
     functions: [...SCHEMA_FUNCTIONS],
     views: [],

@@ -4,6 +4,39 @@ Derived from `tasks/todo.md`, which stays the source of truth for task detail. T
 only the arithmetic and the ordering. Where a figure was re-measured today it says so; where it is
 the repository's own claim it says that instead.
 
+**Session 13, part three — T-14b started, and its first slice is the question the amendment
+created.** §14.3's *Transport* row opens a session at acceptance; its *No auto-login* row forbids
+that session being the login. So an invited person holds a real client principal before ever signing
+in — and until this slice, that principal could reach **every client route** on the strength of
+clicking a link in an email. Nobody had decided otherwise, because until §8.2 carried a sign-in
+route there was no acceptance session to decide about.
+
+**It is now bounded two ways, and the second one is not the one the first draft shipped.**
+Migration `0015` gives `app.session` a `purpose` — an enum, NOT NULL with **no default**, so
+"forgot to decide" is a failed INSERT rather than full authority — and a trigger making it
+**immutable**: a session cannot change what it is for, so signing in creates a session and revokes
+the acceptance one, which is what §14.3's *"identifier regenerated on authentication"* asks for. The
+gate reads it and refuses every route but the two the enrolment needs, as 401 with an audit event.
+**§15.2 is still 0 of 8** — every handler still answers 500.
+
+**Adversarial review refused the slice, three blockers, recorded as F-50.** The gate's principal
+field was **optional** while the column it mirrors is NOT NULL, and the check tested for the
+dangerous value — a preHandler omitting one field would have compiled clean and handed away the
+client surface. The first draft's fifteen-minute CHECK constraint **stranded people permanently**:
+the acceptance POST spends the single-use token, and resend requires an unaccepted invitation, so a
+person slower than the cliff had no route back and no operator could extend it. And `purpose` was a
+plain mutable column — review promoted an acceptance session to a 24-hour login in **one statement**
+against a migration whose header claimed the schema decided the guarantee.
+
+**Two items are OPEN and EL's, and neither is a constant to tune.** The acceptance session's
+lifetime is **provisional** — thirty minutes, in `ACCEPTANCE_SESSION_TTL_MS`, deliberately not
+§14.3's login number, because the reason the gate bounds this session is that it is *not* a login.
+And **there is no recovery path**: whatever the lifetime, a person who does not finish enrolling has
+a spent invitation and no way in. The shape of an answer is §14.3's self-service resend extended past
+acceptance, which needs its own §8.2 row.
+
+---
+
 **Session 13 (2026-09-05), part two — EL amended §8.2 within hours, and Phase 3 is open again.**
 The refusal below stood for about the length of one review. EL approved the ten-row amendment and
 settled F-47's invitation half, and both landed in the same session: **§8.2 now lists 34 rows, 32 of
@@ -103,12 +136,15 @@ the coverage gate, because four new DTOs had no tests and `apps/api/src/dto/**` 
 `check-rls` refused migration 0014's `SECURITY DEFINER` function on sight — the axis built this
 morning going red on this afternoon's migration, unprompted, before any reviewer looked at it.
 
-**The run cited is the last, on the tree exactly as committed:** exit 0 — **60 files, 1,543 tests,
-0 skipped**, coverage all files **99.52 / 98.83 / 99.42 / 99.52**, **17 self-test invocations
-covering 16 checkers**, **14 migrations**, **15 declared claims**, `check-rls` at **22 tables, 8
-sensitivity columns, 86 grants, 7 functions of which 1 SECURITY DEFINER, 0 views**, and
+**The run cited is the last, on the tree exactly as committed:** exit 0 — **60 files, 1,558 tests,
+0 skipped**, coverage all files **99.53 / 98.88 / 99.42 / 99.53**, **17 self-test invocations
+covering 16 checkers**, **15 migrations**, **15 declared claims**, `check-rls` at **22 tables, 8
+sensitivity columns, 86 grants, 8 functions of which 1 SECURITY DEFINER, 0 views**, and
 `check-route-surface` at **34 §8.2 rows, 32 MVP-1, registry 32 and 1**. All three occurrences of
-"skipped" in the log are self-test case names — read, not assumed (F-29).
+"skipped" in the log are self-test case names — read, not assumed (F-29). *(Two coverage floors were
+raised in this commit — `apps/api/src/app.ts` branches 88 → 90, and `apps/api/src/auth/**` branches 85 → 90 with
+lines 96 → 97 — because the ratchet rule says a floor rises when the number does, and review found
+both left where they were.)*
 
 **No plan task completed, so the plan figures do not move**: 66 of 160 and §15.2 at 0 of 8 are
 unchanged. The amendment is a change to the OBJECTIVE, not progress against it, and the ten new
@@ -640,7 +676,8 @@ landed and pushed to `origin/main` as `42c8211`, and the operator release route 
 |---|---|---|---|
 | 1 | ~~**The second §8.2 amendment**~~ — **DONE 2026-09-05.** Ten rows landed; §8.2 at 34 rows, 32 MVP-1; `ROUTES` at 32 of 32. What is left is a read, not a decision: confirm the two concretizations in `tasks/todo.md` under T-14b — MFA at `/api/client/v1/mfa/*`, and `user.deactivate` at `INTERNAL_ADMIN` | Both are one-line changes in two places | Nothing; T-14b through T-15 are unblocked |
 | 2 | ~~**F-47's invitation-tenant decision**~~ — **DONE 2026-09-05.** Migration `0014`, the recommended `SECURITY DEFINER` resolver, audited by the checker built the same morning | — | Nothing |
-| 3 | **Q6 answered as McMurray Stern — which answers OD-20a, not OD-20b.** Read the distinction before closing it | OD-20a is the **internal dogfood** pilot: settled, worth doing, and it measures *usability*. OD-20b is the **external** pilot, and its own recorded criterion is *"outside McMurray Stern"*. Naming McMurray Stern therefore closes the first and leaves the second open — which matters because **R-01 (will a client actually do this work) retires only when an outside organisation completes a submission unaided**, and nothing else retires it | R-01 stays live; P-04's real unit sizes still unsourced |
+| 3 | **The acceptance session's lifetime, and what happens when it runs out (F-50).** Thirty minutes is a working default this session chose, not a decision: §14.3 states no acceptance-session lifetime, and its 15-minute login rule is the one number that cannot apply, because the whole reason the gate bounds this session is that it is not a login. **The harder half:** the acceptance POST spends the single-use token, so a person who does not finish enrolling is stranded with no self-service route back, whatever the number is | The lifetime is a judgement about how long a person needs to set a password and enrol a factor. The recovery path is a product decision and probably a §8.2 row — §14.3's self-service resend, extended past acceptance | Nothing blocking today; T-14b ships the provisional number. It becomes real the first time a pilot user is slow |
+| 4 | **Q6 answered as McMurray Stern — which answers OD-20a, not OD-20b.** Read the distinction before closing it | OD-20a is the **internal dogfood** pilot: settled, worth doing, and it measures *usability*. OD-20b is the **external** pilot, and its own recorded criterion is *"outside McMurray Stern"*. Naming McMurray Stern therefore closes the first and leaves the second open — which matters because **R-01 (will a client actually do this work) retires only when an outside organisation completes a submission unaided**, and nothing else retires it | R-01 stays live; P-04's real unit sizes still unsourced |
 
 | Closed by you | What it settled | When |
 |---|---|---|
@@ -785,7 +822,7 @@ Re-measured by running commands against the working tree:
 | Packages | **12** — `packages/workflow` added by T-07 |
 | Test files | **60** (`*.test.ts`) — **T-14b’s §8.2 amendment added `tenant-resolver.db.test.ts`**, which proves migration 0014’s resolver resolves and, in the same file, that a no-tenant transaction reads nothing — the one-test gap F-47 named. Re-derived by `check:claims`, not typed |
 | Phase-2 routes | **1** — `GET /api/internal/v1/audit`, held in `PHASE_2_ROUTES`. §8.2's other phase-2 row, `POST /api/internal/v1/submissions/:id/status`, has no `Action` yet and arrives with the status vocabulary F-38 is about. A third §8.2 row *mentions* phase 2 and stays MVP-1 — `GET /api/client/v1/submissions/:id` defers the RFI **thread**, not the route — which is now declared data in `SUB_FEATURE_PHASE_2` with a stale-entry check, instead of an interpretation living in three documents and enforced by none |
-| Migrations | **14** (`0001`–`0014`) — **`0014_invitation_tenant_resolver.sql` is new and is the first `SECURITY DEFINER` function in this schema** (F-47): it takes an invitation token hash and returns one uuid, the organization that owns it, so `POST /api/auth/invite/accept` can open a tenant context at all. `SET search_path = ''`, `STABLE`, EXECUTE revoked from `PUBLIC` and granted only to `app_user`. `check-rls` — which learned to look for exactly this on the same day, as F-48 — **refused the build until the function was named in its exemption list with a justification**, and refuses an overload of it. `0013` added the lease fence (F-40); `0011` added the idempotency key store. `check-rls` inspected **22** tables, **86** grants and **7** functions today and passed |
+| Migrations | **15** (`0001`–`0015`) — **`0015_session_purpose.sql` is the answer to the question the §8.2 amendment created.** §14.3's *Transport* row opens a short-lived session at acceptance and its *No auto-login* row forbids that session being the login, so an invited person holds a real client principal before ever signing in — and until 0015 it could reach **every client route** on the strength of an email link. `app.session.purpose` is an enum, **NOT NULL with no default** (so "forgot to decide" is a failed INSERT, not full authority), with a CHECK that an `acceptance` session cannot outlive **fifteen minutes** — §14.3's number for anything acting as a login, which `LOGIN_TOKEN_TTL_MS` had stated and nothing had ever enforced. **`0014_invitation_tenant_resolver.sql` is the first `SECURITY DEFINER` function in this schema** (F-47): a token hash in, one uuid out, `SET search_path = ''`, EXECUTE revoked from `PUBLIC`. `check-rls` — which learned to look for exactly this the same morning, as F-48 — **refused the build until the function was named in its exemption list with a justification**, and refuses an overload of it. `check-rls` inspected **22** tables, **86** grants and **7** functions today and passed |
 | `.tsx` / `.jsx` / `.vue` / `.svelte` / `.astro` files | **0** |
 | Server entry point | **exists, as of T-14a** — `apps/api/src/app.ts` builds a **Fastify** instance (`createApp`) and `apps/api/src/server.ts` calls `app.listen({ port, host: '127.0.0.1' })`. Re-derived today by the same grep that returned nothing for five sessions. **This row read "none" for a full edition after T-14a landed — drift 41.** What has *not* changed: **all 32 handlers** are placeholders that answer 500, declared as data in `UNIMPLEMENTED`, so the row below about §15.2 is unaffected |
 | Front-end dependency | **none** — no `react`, no `vite` in any `package.json` |

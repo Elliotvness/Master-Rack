@@ -31,6 +31,7 @@ const CLIENT: Principal = {
   organizationId: ORG,
   actorType: 'client',
   role: 'CLIENT_USER',
+  purpose: 'full',
 };
 
 async function admin(sql: string, values: readonly unknown[] = []): Promise<pg.QueryResult> {

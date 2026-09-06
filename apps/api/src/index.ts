@@ -14,6 +14,7 @@ export {
 } from './auth/crypto.js';
 
 export {
+  ACCEPTANCE_SESSION_TTL_MS,
   INVITATION_TTL_MS,
   LOGIN_TOKEN_TTL_MS,
   SESSION_COOKIE_NAME,
@@ -21,6 +22,7 @@ export {
   sessionCookieOptions,
   type CookieOptions,
   type SessionLifetime,
+  type SessionPurpose,
 } from './auth/policy.js';
 
 export {

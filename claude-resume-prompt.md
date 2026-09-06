@@ -78,9 +78,9 @@ cloud session should say which side read it.
 across the session, every completed one at exit 0; three stopped at `check-claims` and one at the
 coverage gate, each time over a figure this session had just made stale — the gates working, not
 failing. The run cited is the last, on the tree as committed:**
-`pnpm verify` **exit 0 — 60 files, 1,543 tests, 0 skipped**,
+`pnpm verify` **exit 0 — 60 files, 1,558 tests, 0 skipped**,
 **17 self-test invocations covering 16 checkers**, coverage all files
-99.52 / 98.83 / 99.42 / 99.52, 14 migrations, 15 declared claims. Both
+99.53 / 98.88 / 99.42 / 99.53, 15 migrations, 15 declared claims. Both
 three occurrences of "skipped" in the log are self-test case names — read,
 not assumed (F-29). v8 coverage is not bit-stable across worker
 scheduling — earlier runs today on other trees read 99.51 and 99.54 — so
@@ -149,10 +149,27 @@ session; signing in is `POST /api/auth/session`.
 one. And `withUnresolvedTenant` is confined by `check-app-boundaries` to `apps/api/src/auth/`: if
 you find yourself wanting it elsewhere, that is the boundary talking, not an obstacle.
 
-**Decide this before you write a handler.** The acceptance session is a client principal, and as the
-gate stands **it can reach every client route**, not just the two MFA ones. Not acceptable, not yet
-designed, and T-14b's first job. Build the control that goes red: an acceptance session refused at
-`GET /projects`.
+**T-14b's first slice is DONE — the acceptance session is scoped.** Migration `0015` gives
+`app.session` a `purpose` (enum, NOT NULL, **no default**, and **immutable** — a session cannot
+change what it is for, so signing in CREATES one and revokes the acceptance row, never promotes it
+in place). The gate refuses an acceptance session on every route but
+`POST /api/client/v1/mfa/{enroll,verify}`, as 401 with an audit event. Read F-50 before touching any
+of it: review found the gate failing OPEN on a missing field, a lifetime CHECK that stranded people
+permanently, and a `purpose` column one UPDATE from being escalated.
+
+**Two things about it are EL's and are OPEN.** The lifetime is **provisional** —
+`ACCEPTANCE_SESSION_TTL_MS`, thirty minutes, deliberately not §14.3's 15-minute login number,
+because the reason the gate bounds this session is that it is *not* a login. And **there is no
+recovery path**: the acceptance POST spends the single-use token, resend requires an unaccepted
+invitation, so a person who does not finish enrolling is stranded whatever the number is. Do not
+solve that in code — it needs a §8.2 row.
+
+**What is left of T-14b**, in order: the session preHandler (cookie pair → principal, organization
+cookie verified rather than trusted); `POST /api/auth/invite/accept` (via
+`resolveInvitationTenant`, issuing the acceptance session and **no** login session);
+`POST /api/auth/session` and `DELETE`; the two MFA handlers; then
+`POST /api/client/v1/invitations`, `POST /api/internal/v1/invitations` and
+`POST /api/internal/v1/organizations` with T-13d idempotency on the two invitation routes.
 
 **Then:** T-14c (which inherits `POST /api/internal/v1/projects` and `.../projects/:id/revisions`)
 → T-14d + P-01 → T-14e (which inherits `.../users/:id/deactivate` and `.../invitations/:id/revoke`)

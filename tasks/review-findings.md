@@ -1289,6 +1289,85 @@ Nothing calls `authorize(actor, 'idempotency.release', …)` outside the matrix 
 still has no caller, and the route is not a §8.2 row. All three belong to T-14a/T-14e and are
 recorded there.
 
+## F-50 — the acceptance session's own review: a gate that failed open, a cliff that stranded people, and a guarantee one UPDATE undid *(raised and **CLOSED** 2026-09-05 by the adversarial review of T-14b's first slice; two items **left OPEN and recorded**)*
+
+The §8.2 amendment created a question it did not answer — §14.3's *Transport* row opens a session at
+acceptance and its *No auto-login* row forbids that session being the login, so an invited person
+holds a real client principal before ever signing in — and the slice that answered it was refused.
+
+**1. The gate failed OPEN, in the exact direction the migration argued against.** BLOCKER.
+`app.session.purpose` is NOT NULL with no default, `Session.purpose` is required, and
+`createSession` refuses to be called without one — three layers failing closed. Then `Principal`
+made the field **optional** and the gate tested `purpose === 'acceptance'`, the DANGEROUS value. A
+preHandler that built a principal and omitted one field would compile clean and hand every
+acceptance session the entire client surface; review demonstrated it. Migration 0015's own header
+had already made the argument: *"a default would make 'forgot to decide' mean 'full authority',
+which is the wrong direction to fail."* True in SQL, and just as true one layer up.
+
+Closed twice: the field is **required**, and the check now tests for the SAFE value —
+`purpose !== 'full'` — so the next purpose anyone adds arrives with no authority until somebody
+decides what it has, rather than with all of it until somebody remembers a case.
+
+**2. The fifteen-minute cap stranded people, permanently, and argued both ways at once.** BLOCKER.
+The first draft put §14.3's *"15 minutes for anything that acts as a login"* into a CHECK
+constraint. Two things wrong with it, and the second is the serious one:
+
+- **It argued both ways.** The entire reason the gate bounds what an acceptance session may reach is
+  that it is **not** a login. Borrowing the login rule for its lifetime asserts the opposite. §14.3
+  states no acceptance-session lifetime at all, so the number was invented in a migration — and a
+  number invented in a migration is not a blueprint decision.
+- **It was a cliff with nothing under it.** The acceptance POST spends the single-use token, and
+  both revocation and §14.3's self-service resend require `accepted_at IS NULL`. So after that POST
+  there is exactly one way in, and a CHECK is a bound no operator can extend: a person who takes
+  sixteen minutes to find their authenticator app has a spent invitation, possibly no credential,
+  and no route back.
+
+Closed by removing the constraint and moving the number to `ACCEPTANCE_SESSION_TTL_MS` — its own
+constant, deliberately not `LOGIN_TOKEN_TTL_MS`, documented as **provisional and EL's to set**, at
+thirty minutes as a working default.
+
+**OPEN, and this is the part a constant does not fix: there is no recovery path.** Whatever the
+number, running out of it strands the invited person. That is a product gap, it is EL's, and it is
+in the queue rather than tuned away. The shape of an answer: a re-issue that revokes the spent
+invitation and mints a new one, which is §14.3's *"self-service resend that revokes the prior
+token"* extended past acceptance — and which needs its own §8.2 row.
+
+**3. The schema decided nothing: one UPDATE turned an acceptance session into a 24-hour login.**
+BLOCKER. The migration claimed *"the guarantee is decided by the schema, not by code that has to
+remember"* and *"neither can be undone by changing the other"*. Neither was true. `purpose` was a
+plain mutable column, `session_tenant_update` lets the application role update its own
+organization's session rows, and review promoted a row and extended its cap in a single statement.
+A purpose held in a mutable column is one UPDATE from being escalated.
+
+Closed with a `BEFORE UPDATE` trigger: **a session cannot change what it is for.** §14.3 already
+prescribed the alternative — *"identifier regenerated on authentication"* — so signing in CREATES a
+session and revokes the acceptance one, and `session.ts` now says so where `regenerateToken` is,
+because regenerating in place preserves both the purpose and the short cap and is the obvious wrong
+move.
+
+**Also closed from the same review.** `DELETE /api/auth/session` was in the allowlist while being a
+**public** route the gate returns from before the purpose check — an entry that granted nothing and
+read as though it did, two lines below the docstring explaining why sign-IN could not be listed for
+that very reason; the test could not catch it, because "not 401" is true of a check that never runs.
+Removed, and `routerCoverageProblems` now refuses a public route in that set. The boot assertion's
+wiring to the real set was untested — emptying the default left 24 of 24 green — and now has a case
+that omits the argument. `sessionCookieOptions` was the one caller of `lifetimeFor` not updated for
+the new parameter, so a thirty-minute session shipped a twenty-four-hour cookie. `app.ts`'s header
+still said flatly *"a 401 is not audited"* three hundred lines above code that audits one. And
+`stripJsComments`, written the same hour to stop a comment truncating the server-owned fingerprint,
+had no regex-literal arm: one apostrophe in `/(don't)/` desynchronised the scanner and truncated the
+fingerprint — **verbatim the failure it was written to prevent, inside the control that closes it.**
+
+**OPEN, recorded not fixed.** §13.6's audit event schema includes `request_id`, a salted
+`session_id_hash`, `source_ip` and `user_agent`. `DenyRecorder` carries none of them, and every
+audited deny in the system inherits that gap — the acceptance denial is simply a new class of event
+inheriting it. It predates this slice and is not this slice's to close, but it is now written down.
+
+**The pattern, three reviews running.** Every blocker in F-48, F-49 and F-50 was found by RUNNING
+something — a forged row committed, a duplicate hash inserted, a session promoted, a principal built
+with a field missing — and the majority were in controls added the same day. A new control is the
+most likely thing in the repository to be wrong, and the least likely to be doubted.
+
 ## F-49 — the amendment's own review: five blockers, and the worst of them was a doorway advertised as a wall *(raised and **CLOSED** 2026-09-05 by the adversarial review of the §8.2 amendment and the F-47 resolver)*
 
 The change that closed F-46 and F-47 was refused twice before it stood. Recorded together because

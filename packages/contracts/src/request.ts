@@ -139,6 +139,14 @@ const SERVER_ASSIGNED_SUFFIXES: readonly string[] = Object.freeze(['_at', '_by',
  *                                it is a body claiming a lease it was not
  *                                granted, which is the whole thing the fence
  *                                stops
+ *   purpose                      a session's AUTHORITY (migration 0015), and
+ *                                so the highest-value field a body could name.
+ *                                A body saying `purpose: full` would turn a
+ *                                click on an email link into a full client
+ *                                session — §14.3's mass assignment aimed at
+ *                                the one thing worth aiming it at. Found by
+ *                                `check-server-owned`, from the DDL, within
+ *                                the hour the column was added
  *   claim_outcome                AD-3's idempotency states. A body that
  *                                names one claims its own intent already
  *                                succeeded — which is a request to skip the
@@ -164,6 +172,7 @@ const SERVER_ASSIGNED_NAMES: ReadonlySet<string> = new Set([
   'severity',
   'claim_outcome',
   'lease_epoch',
+  'purpose',
   'actor_organization_id',
   'subject_organization_id',
   'verification_tier',

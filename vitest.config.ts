@@ -165,7 +165,11 @@ export default defineConfig({
          * raise them when the number rises, never lower them to pass.
          */
         'apps/api/src/app.ts': {
-          branches: 88,
+          // Raised 88 → 90 on 2026-09-05: the acceptance-session gate added
+          // branches and tests for all of them, measured 90.16. The rule is
+          // that a floor rises when the number does, and review caught this one
+          // left where it was.
+          branches: 90,
           functions: 90,
           lines: 98,
           statements: 98,
@@ -192,10 +196,11 @@ export default defineConfig({
         // Session, invitation and password handling. The uncovered lines are
         // driver-fault paths inside scrypt and Postgres error handling.
         'apps/api/src/auth/**': {
-          branches: 85,
+          // Raised 85 → 90 and 96 → 97 on 2026-09-05, measured 92.06 / 97.91.
+          branches: 90,
           functions: 100,
-          lines: 96,
-          statements: 96,
+          lines: 97,
+          statements: 97,
         },
         // The DTO layer is the leakage boundary itself, and the audit chain
         // must be provably complete. Both are fully covered and stay that way.

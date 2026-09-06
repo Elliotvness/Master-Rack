@@ -82,6 +82,15 @@ export const ENUM_CLASSIFICATION = Object.freeze({
   'app.audit_outcome': true,
   'app.finding_severity': true,
   'app.outbox_status': true,
+  /**
+   * PRIVILEGE, and the most consequential one in the schema. `purpose` decides
+   * whether a session may reach three routes or the whole client surface, so a
+   * request body naming it would be privilege escalation in a single field —
+   * the textbook mass assignment §14.3 names, aimed at the one thing worth
+   * aiming it at. Migration 0015 keeps it NOT NULL with no default so the
+   * server must state it; this keeps a client from stating it instead.
+   */
+  'app.session_purpose': true,
 });
 
 /** SQL with comments and string literals blanked out, newlines preserved. */
@@ -262,13 +271,116 @@ export function readMigrations(dir) {
  * a touched source left the checker permanently red. Content is the question;
  * timestamps were a proxy for it.
  */
+/**
+ * JavaScript and TypeScript comments removed, string literals kept.
+ *
+ * NOT `stripNoise`, which is the SQL one: it blanks single-quoted strings,
+ * because in SQL that is what they are. Here they are the entries being read.
+ * Reaching for the wrong stripper turned every fingerprint into `|`, which is
+ * the shape of a checker that compares two empty lists and calls them equal.
+ */
+export function stripJsComments(text) {
+  let out = '';
+  let i = 0;
+  /**
+   * The previous significant character, which is the only way to tell a REGEX
+   * literal from a division. Review found the arm missing: one apostrophe
+   * inside a regex — `/(don't)/` — put the scanner into a string it never
+   * leaves, comment stripping silently stopped for the rest of the file, and
+   * the fingerprint truncated. That is verbatim the failure this function was
+   * written to prevent, one layer down, which is the shape this repository
+   * keeps finding in its own new controls.
+   *
+   * The heuristic is the standard one and is stated rather than assumed: after
+   * a value (an identifier, a literal, a closing bracket) a `/` divides; after
+   * an operator, a comma, or an opening bracket it starts a pattern.
+   */
+  let prev = '';
+  const startsRegex = () => prev === '' || '(,=:[!&|?{};+-*%~^<>'.includes(prev);
+  while (i < text.length) {
+    const two = text.slice(i, i + 2);
+    if (two === '/*') {
+      i += 2;
+      while (i < text.length && text.slice(i, i + 2) !== '*/') {
+        if (text[i] === '\n') out += '\n';
+        i += 1;
+      }
+      i += 2;
+      continue;
+    }
+    if (text[i] === '/' && two !== '//' && startsRegex()) {
+      // A regex literal. Copied through verbatim, including any quote inside
+      // it, so the scanner does not mistake one for the start of a string.
+      out += text[i++];
+      let inClass = false;
+      while (i < text.length) {
+        if (text[i] === '\\') {
+          out += text.slice(i, i + 2);
+          i += 2;
+          continue;
+        }
+        if (text[i] === '[') inClass = true;
+        else if (text[i] === ']') inClass = false;
+        else if (text[i] === '/' && !inClass) {
+          out += text[i++];
+          break;
+        } else if (text[i] === '\n') break;
+        out += text[i++];
+      }
+      while (i < text.length && /[a-z]/.test(text[i])) out += text[i++];
+      prev = '/';
+      continue;
+    }
+    if (two === '//') {
+      while (i < text.length && text[i] !== '\n') i += 1;
+      continue;
+    }
+    const ch = text[i];
+    if (ch === "'" || ch === '"' || ch === '`') {
+      const quote = ch;
+      out += text[i++];
+      while (i < text.length) {
+        if (text[i] === '\\') {
+          out += text.slice(i, i + 2);
+          i += 2;
+          continue;
+        }
+        out += text[i];
+        if (text[i] === quote) {
+          i += 1;
+          break;
+        }
+        i += 1;
+      }
+      prev = quote;
+      continue;
+    }
+    if (!/\s/.test(text[i])) prev = text[i];
+    out += text[i++];
+  }
+  return out;
+}
+
 export function ruleFingerprint(text) {
   // Anchored on the assignment, not the first '[': the TypeScript source
   // carries `: readonly string[]` between the two, and reading that bracket
   // yields an empty list that matches nothing and hides the drift it exists
   // to find.
+  //
+  // COMMENTS ARE STRIPPED FIRST, and that is not tidiness. This scan reads to
+  // the first `;` and treats every `'…'` as an entry, so ONE line comment
+  // inside the array — the house style everywhere else in this repository — can
+  // end the match early on a stray semicolon and turn an apostrophe into a
+  // quoted entry. Adding `purpose` with a commented reason did exactly that on
+  // 2026-09-05, and the failure was benign only by luck: the source was
+  // truncated and the artifact was not, so the two disagreed and it FAILED.
+  // Had the same comment been in both — which it would be, one build later —
+  // both fingerprints would have truncated at the same point and MATCHED,
+  // while every entry after the comment drifted unwatched. A comparison that
+  // agrees about the first half of two lists is not a comparison of the lists.
+  const bare = stripJsComments(text);
   const grab = (label) => {
-    const m = new RegExp(`${label}[^=;]*=([^;]*);`).exec(text);
+    const m = new RegExp(`${label}[^=;]*=([^;]*);`).exec(bare);
     if (m === null) return null;
     return [...m[1].matchAll(/'([^']*)'/g)].map((q) => q[1]).join(',');
   };

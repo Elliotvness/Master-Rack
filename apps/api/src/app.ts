@@ -24,14 +24,28 @@
  *
  * ## Deny-by-default, and what "every deny is an audit event" means here
  *
- * §8.3 requires an audit event for every deny. That is implemented for every
- * AUTHORIZATION denial — 403 and 404 alike — because those have a principal
- * whose organization the event belongs to. A **401 is not audited**, and the
- * distinction is deliberate rather than an omission: an unauthenticated request
- * has no tenant, so there is no organization to scope the row to and no actor
- * to name in it. Recording it would mean either a null-tenant audit row that
- * RLS cannot govern, or attributing an anonymous request to an organization
- * that did not make it. It is logged. When T-14b introduces sessions, revisit.
+ * §8.3 requires an audit event for every deny. The line is drawn at whether a
+ * PRINCIPAL exists, not at the status code, and the two are no longer the same
+ * thing:
+ *
+ *   - An ANONYMOUS 401 is not audited. There is no tenant to scope the row to
+ *     and no actor to name in it, so recording it would mean either a
+ *     null-tenant row RLS cannot govern or attributing a request to an
+ *     organization that did not make it. It is logged.
+ *   - Every AUTHORIZATION denial is audited — 403 and 404 alike.
+ *   - **An acceptance-session 401 IS audited**, and this is the revisit the
+ *     earlier version of this paragraph promised "when T-14b introduces
+ *     sessions". That request has a real principal in a real organization, so
+ *     the stated reason for not auditing does not apply to it. The paragraph
+ *     said flatly "a 401 is not audited" and went on saying it after the code
+ *     stopped agreeing; review caught it.
+ *
+ * WHAT THE DENY EVENT DOES NOT CARRY, stated rather than discovered later:
+ * §13.6's event schema includes `request_id`, a salted `session_id_hash`,
+ * `source_ip` and `user_agent`, and `DenyRecorder` carries none of them. That
+ * gap predates this file and every audited deny inherits it; the acceptance
+ * denial is simply a new class of event inheriting it too. Recorded as a
+ * finding rather than quietly widened.
  */
 
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
@@ -39,14 +53,31 @@ import { errorEnvelope, statusFor, type ErrorCode } from '@rms/contracts';
 import { withTenant, type TenantContext } from '@rms/db';
 
 import { appendAuditEvent } from './audit/chain.js';
+import type { SessionPurpose } from './auth/policy.js';
 import { authorize, type Action, type Actor } from './authz/authorize.js';
 import { ROUTES, namespaceAllows, type RoutePolicy } from './authz/routes.js';
 import { assertConfiguration } from './idempotency/idempotency.js';
 
-/** The principal a session plugin (T-14b) attaches. Absent until it does. */
+/** The principal the session preHandler attaches. Absent until it does. */
 export interface Principal extends Actor {
   readonly userId: string;
   readonly actorType: 'client' | 'staff' | 'service';
+  /**
+   * What the session behind this principal is FOR.
+   *
+   * REQUIRED, and the first draft had it optional. `Session.purpose` is
+   * required, `app.session.purpose` is NOT NULL with no default, and
+   * `createSession` refuses to be called without one — three layers all failing
+   * closed, and then the principal made it optional and the gate tested for
+   * equality with the DANGEROUS value. A preHandler that built a principal and
+   * omitted one field would have compiled clean and handed every acceptance
+   * session the whole client surface. Review demonstrated it.
+   *
+   * Migration 0015's own header makes the argument this field was ignoring:
+   * "a default would make 'forgot to decide' mean 'full authority', which is
+   * the wrong direction to fail." That was true in SQL and just as true here.
+   */
+  readonly purpose: SessionPurpose;
 }
 
 declare module 'fastify' {
@@ -106,6 +137,48 @@ export const UNIMPLEMENTED: ReadonlyMap<string, string> = new Map([
   ['POST /api/internal/v1/idempotency-claims/:key/release', 'T-14e'],
 ]);
 
+/**
+ * The only routes an ACCEPTANCE session may reach.
+ *
+ * §14.3 reconciles its own two rows — *Transport*'s "exchange it for a
+ * short-lived server-side session" and *No auto-login*'s "require an explicit
+ * first sign-in" — exactly one way: acceptance opens a session so the invited
+ * person has a principal to enroll a second factor under, and then they sign in
+ * properly. §15.2 step 2 puts it in that order: "accepts, sets a credential,
+ * enrolls a second factor, AND SIGNS IN".
+ *
+ * **That session is a client principal, and until this list existed it could
+ * reach every client route** — projects, revisions, previews, submit — on the
+ * strength of having clicked a link in an email. Nobody had decided otherwise
+ * because, until §8.2 gained a sign-in route on 2026-09-05, there was no
+ * acceptance session to decide about. The amendment created the question; this
+ * is the answer.
+ *
+ * Held as DATA for the same reason `UNIMPLEMENTED` is: a list nobody wrote down
+ * is a list nobody can review, and `routerCoverageProblems` refuses a key here
+ * that names no real route, so it cannot rot into a permission for something
+ * that no longer exists.
+ *
+ * Sign-IN is deliberately absent and its absence is not an oversight:
+ * `POST /api/auth/session` is a public route, so the gate returns before any of
+ * this runs and an acceptance session neither helps nor hinders it.
+ *
+ * THE OTHER HALF OF THE BOUND IS IN THE DATABASE. This decides what an
+ * acceptance session may touch; migration 0015's CHECK constraint decides how
+ * long it lasts — fifteen minutes, §14.3's number for "anything acting as a
+ * login". Two mechanisms, and neither is undone by changing the other.
+ */
+export const ACCEPTANCE_REACHABLE: ReadonlySet<string> = new Set([
+  // The two the acceptance session exists for.
+  'POST /api/client/v1/mfa/enroll',
+  'POST /api/client/v1/mfa/verify',
+]);
+// `DELETE /api/auth/session` is deliberately NOT here, and its absence is the
+// finding rather than an oversight: it is a PUBLIC route, so the gate returns
+// before the purpose check and abandoning a half-finished acceptance already
+// works. Listing it granted nothing and read as though it did —
+// `routerCoverageProblems` now refuses a public route in this set.
+
 export function routeKey(method: string, path: string): string {
   return `${method.toUpperCase()} ${path}`;
 }
@@ -125,6 +198,7 @@ export function routerCoverageProblems(
   registered: readonly string[],
   registry: readonly RoutePolicy[] = ROUTES,
   unimplemented: ReadonlyMap<string, string> = UNIMPLEMENTED,
+  acceptanceReachable: ReadonlySet<string> = ACCEPTANCE_REACHABLE,
 ): string[] {
   const problems: string[] = [];
   const declared = new Set(registry.map((r) => routeKey(r.method, r.path)));
@@ -160,6 +234,31 @@ export function routerCoverageProblems(
       problems.push(
         `UNIMPLEMENTED names ${key}, which is not in ROUTES. A placeholder for a route that ` +
           'does not exist is a note nobody will delete.',
+      );
+    }
+  }
+  const policyOf = new Map(registry.map((r) => [routeKey(r.method, r.path), r] as const));
+  for (const key of acceptanceReachable) {
+    const route = policyOf.get(key);
+    if (route === undefined) {
+      problems.push(
+        `ACCEPTANCE_REACHABLE names ${key}, which is not in ROUTES. A permission for a route ` +
+          'that does not exist is one nobody will notice pointing at the wrong thing when a ' +
+          'route is renamed.',
+      );
+      continue;
+    }
+    // A PUBLIC route is one the gate returns from before it ever reads the
+    // purpose, so allowlisting one grants nothing and, worse, READS as though
+    // it does. The first draft listed `DELETE /api/auth/session` here while its
+    // own docstring explained two lines above why sign-IN could not be listed,
+    // for exactly this reason. The test could not catch it either: "not 401" is
+    // true of a route the check never runs on.
+    if (route.action === null) {
+      problems.push(
+        `ACCEPTANCE_REACHABLE names ${key}, which is a PUBLIC route. The gate returns before ` +
+          'the purpose check for those, so this entry grants nothing and misleads anyone ' +
+          'reading the list to find out what an acceptance session can do.',
       );
     }
   }
@@ -273,7 +372,11 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
     }
     request.policy = policy;
 
-    if (policy.action === null) return undefined; // the one public route
+    // The FIVE public routes (§8.2's authentication band, less the two MFA
+    // ones). No session exists to authorize, so the gate returns here — which
+    // also means the purpose check below never runs for them, and an entry in
+    // ACCEPTANCE_REACHABLE naming one would be inert.
+    if (policy.action === null) return undefined;
 
     const principal = request.principal;
     if (principal === undefined) {
@@ -287,6 +390,27 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
     if (!namespaceAllows(policy.namespace, principal.actorType)) {
       await audit(principal, policy.action, 'actor type may not reach this namespace');
       return send(reply, 'NOT_FOUND', 'not found');
+    }
+
+    // PURPOSE BEFORE ROLE. An acceptance session is a real principal with a
+    // real role, so every role check below would pass it — which is exactly the
+    // hole this closes. It is refused as UNAUTHENTICATED rather than forbidden
+    // because the accurate statement is that authentication is not FINISHED:
+    // §14.3 requires an explicit first sign-in, and the client app's correct
+    // response is to send the person to it, not to tell them they lack a
+    // permission they will have in thirty seconds.
+    //
+    // 404 would be wrong here for the same reason a 403 is wrong on a
+    // cross-tenant object is right: there is nothing to hide. The route exists,
+    // the caller's own organization owns it, and the only missing thing is a
+    // step they are in the middle of.
+    // `!== 'full'`, not `=== 'acceptance'`. The set of purposes will grow —
+    // an impersonation session, a service-to-service one — and a new member
+    // must arrive with NO authority until somebody decides what it has, rather
+    // than with all of it until somebody remembers to add a case here.
+    if (principal.purpose !== 'full' && !ACCEPTANCE_REACHABLE.has(key)) {
+      await audit(principal, policy.action, 'acceptance session may not reach this route');
+      return send(reply, 'UNAUTHENTICATED', 'authentication is not complete');
     }
 
     // THE GATE AUTHORIZES THE CAPABILITY. THE HANDLER AUTHORIZES THE OBJECT.
