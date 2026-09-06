@@ -1692,3 +1692,47 @@ is where the per-app lookup goes when one is agreed.
 **Blind spot, unchanged and restated:** this checker has still never weighed a real framework build.
 A synthetic `index.html` is not Vite output. The arm is no longer unexercised, which is not the same
 as proven, and P-05's second half — Lighthouse against a built SPA — remains T-16's obligation.
+
+## F-46 — governing decision records enter the repository with no wording guard over them *(raised 2026-09-05 by P0-1, **OPEN**)*
+
+The 14 ADRs the blueprint cites as governing had existed only inside the read-only reference tree.
+P0-1 copies them into `docs/adr/` and adds five more, which is the right fix for a different problem
+(a decision that cannot be superseded is a fossil, not a record) — and it lands 19 governing
+documents in a place **no wording check reaches**.
+
+**Measured, not assumed.** `src/verify.py` guards client identifiers and three forbidden phrases
+against exactly one file: `DEFAULT = HERE.parent / "rack-master-studio-blueprint.html"`. Nothing
+else in the repository is scanned for wording. `docs/`, `README.md`, `HANDOFF.md` and
+`open-decisions.md` have never been.
+
+**A false start, recorded because it is the more useful half.** The first move here was to plant
+`"This layout is code compliant and PE approved."` at the end of `ADR-019` and run
+`pnpm check-language`. It printed **PASS — 83 file(s) scanned, exit 0**, which reads exactly like a
+hole. It is not one. `check-language`'s own docstring scopes it to *shipped string literals* —
+`const SCANNED = ['apps', 'packages']`, `.ts/.mts/.tsx` only — on the stated reasoning that *"a
+document nobody reads cannot mislead a client, and a button label can"*, and it names `src/verify.py`
+as the document-side guard. The checker was honest about its contract; the reader was wrong about it.
+**A control that declines to cover something, in writing, is not the defect this project hunts.**
+No finding against `check-language`.
+
+**Why the obvious fix is refused.** Running `verify.py`'s own patterns across `docs/**/*.md` was
+dry-run before proposing it. It hits `docs/CURRENT_STATE.md` three times:
+
+| Line | Text | What it actually is |
+|---|---|---|
+| 216 | `"tamper-proof" removed from the list` | the row recording that guard **PROVEN RED** |
+| 490 | *prelim turnaround* or *engineering review*, which name an authority this product does not hold | the sentence explaining the ban |
+| 797 | `Q-38857-1` and `Q-38857-8` appear in… | a fixture's rejected-artifact record |
+
+All three are honest discussion *about* the forbidden wording. A naive widening goes red on the
+documents that prove the control works — and `check-language`'s docstring already names the
+consequence: *"a checker that cannot tolerate its own subject matter gets disabled within a week."*
+Shipping that would trade a blind spot for a gate people learn to silence, which is worse.
+
+**Left open deliberately.** The fix needs a distinction between *using* a phrase and *quoting* one —
+a fenced-block/backtick exemption, or an explicit allow-list keyed to file and line with a reason,
+which is the shape `DENYLIST_FILES` already uses in `check-language`. That is a designed control, not
+a scope widening, and it is out of P0's approved scope. **Until it exists, no wording or
+client-identifier guard covers `docs/adr/`, and the ADRs are the documents most likely to be shared
+outside the company.** OD-20b names a real client by agreement; the rule that keeps that in
+`open-decisions.md` is currently unenforced everywhere except the blueprint.
