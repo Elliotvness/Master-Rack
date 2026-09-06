@@ -2146,3 +2146,35 @@ no ruler. It now requires a minimum length and returns null instead.
 1/16" is 1,587.5 µm and `kernel-units` refuses a value that is not a whole micrometre. Eighths and
 coarser are exact; the sixteenths grid is a *display* grid, and a `5 5/16"` read off a drawing is a
 rounding of a value the model never held. Recorded in `display.test.ts` beside the formatter.
+
+## F-53 — a new `ItemKind` would have drawn nothing, and the type system caught it *(2026-09-06, S3.3 — recorded as a control that WORKED)*
+
+Recorded because this register is mostly a list of controls that failed, and a reader should be
+able to see what the good shape looks like.
+
+S3.3 adds `'reference'` to `ItemKind` for the three elevation datums. The obvious risk is the
+silent one: a renderer that does not handle a new kind draws nothing, the tests pass, and the datum
+is simply absent from the sheet — the same class as a badge that exists on screen and not in the
+plot (ADR-019's opening argument).
+
+**It could not happen here, and by construction rather than by care.** `penFor` in
+`render-canvas/draw.ts` is a `switch` over `DisplayItem['item']` with **no `default`**, returning
+`string`. Adding a member turned the typecheck red immediately:
+
+```
+packages/render-canvas/src/draw.ts(54,57): error TS2366: Function lacks ending return statement
+and return type does not include 'undefined'.
+```
+
+The renderer had to *decide* a pen before the code would compile. That is the difference between a
+list that is silent about what it does not list (F-44, F-49, F-50) and one that cannot be.
+
+**A gap the type system does NOT close, and it is the reason this entry is not purely
+congratulatory.** Exhaustiveness proves the arm exists; it says nothing about whether the arm is
+right. The new `case 'reference'` was unexercised by any test, and coverage said so — 97.87% branch
+on `draw.ts`. A test now draws a reference item and asserts it strokes in the reference pen and
+**not** in the beam pen. *Forgotten* was impossible; *wrong* was not.
+
+`--pen-ref` was added to all three theme blocks in the same change, because `use-pens.ts` reads
+tokens with a fallback — a missing token paints the fallback colour and nothing goes red. The pen
+list in `tokens.test.ts` is what catches that, and it now names ten.

@@ -56,6 +56,7 @@
   --pen-dim: #7c8494;
   --pen-grid: #e6e5e0;
   --pen-flue: #a9670a;
+  --pen-ref: #7a5ea8;
   --pen-bldg: #4a5261;
   --pen-lock: #a9670a;
 
@@ -101,6 +102,7 @@
   --pen-dim: #737c8b;
   --pen-grid: #1c222b;
   --pen-flue: #dfa33f;
+  --pen-ref: #7a5ea8;
   --pen-bldg: #a2aab8;
   --pen-lock: #dfa33f;
 
@@ -147,6 +149,7 @@
     --pen-dim: #737c8b;
     --pen-grid: #1c222b;
     --pen-flue: #dfa33f;
+    --pen-ref: #7a5ea8;
     --pen-bldg: #a2aab8;
     --pen-lock: #dfa33f;
 

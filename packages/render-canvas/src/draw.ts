@@ -30,6 +30,13 @@ export interface Pens {
   /** A flue space. Distinct from the aisle pen: they are different clearances. */
   readonly flue: string;
   readonly aisle: string;
+  /**
+   * A reference elevation datum (S3.3) — underside of structure, sprinkler
+   * deflector, maximum top of storage. Its own pen because the sheet is read
+   * AGAINST these lines: they are not rack, and drawing them in the rack pen
+   * invites reading them as something the layout contains.
+   */
+  readonly reference: string;
   readonly obstruction: string;
   readonly noRackZone: string;
   readonly selection: string;
@@ -63,6 +70,8 @@ const penFor = (item: DisplayItem['item'], pens: Pens): string => {
       return pens.flue;
     case 'aisle':
       return pens.aisle;
+    case 'reference':
+      return pens.reference;
     case 'obstruction':
       return pens.obstruction;
     case 'no-rack-zone':

@@ -39,6 +39,16 @@ export type ItemKind =
   | 'unit-load'
   /** A flue space — longitudinal between rows, transverse between loads. S3.1. */
   | 'flue'
+  /**
+   * A reference elevation — underside of structure, sprinkler deflector,
+   * maximum top of storage. S3.3.
+   *
+   * Its own kind rather than an `annotation`, because it is a datum the sheet
+   * is read against and a renderer should be able to pen it distinctly. The
+   * label that names it is a separate `text` item, possibly displaced; the
+   * leader joining them is an `annotation`.
+   */
+  | 'reference'
   | 'aisle'
   | 'obstruction'
   | 'no-rack-zone'

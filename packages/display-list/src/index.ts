@@ -45,5 +45,15 @@ export {
   buildPlan,
   type AisleGeometry,
   type LevelGeometry,
+  type ReferenceElevation,
+  REFERENCE_LABEL_SEPARATION_UM,
   type RunGeometry,
 } from './build.js';
+
+export {
+  StaggerError,
+  narrowestGap,
+  stagger,
+  type StaggerItem,
+  type StaggeredLabel,
+} from './stagger.js';

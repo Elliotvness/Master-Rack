@@ -16,6 +16,8 @@
 
 import { convert, displayText, type Quantity } from '@rms/kernel-units';
 
+import { stagger } from './stagger.js';
+
 import {
   type DisplayItem,
   type DisplayList,
@@ -173,6 +175,33 @@ export interface LevelGeometry {
 }
 
 /**
+ * A datum the elevation is read against: underside of structure, sprinkler
+ * deflector, maximum top of storage.
+ *
+ * `elevation` is `null` when the value has not been established — an unsurveyed
+ * deflector is the common case, and it is the reason the artifact printed
+ * `VERIFY` beside a real-looking number in the panel next to it (the defect
+ * ADR-003's amendment records). A null reference still draws its LABEL, because
+ * a reader must see that the datum exists and is unknown; it draws no LINE,
+ * because there is no elevation to draw one at.
+ */
+export interface ReferenceElevation {
+  readonly id: string;
+  /** What it is, in words. Shown beside the value. */
+  readonly label: string;
+  readonly elevation: Quantity | null;
+}
+
+/**
+ * How far apart reference labels must sit. 6 in, in micrometres.
+ *
+ * A layout constant and not a rule-pack value, deliberately: it is a property
+ * of legible text on a sheet, not of any standard, and putting it in a pack
+ * would imply an authority behind it that does not exist.
+ */
+export const REFERENCE_LABEL_SEPARATION_UM = 152_400;
+
+/**
  * The elevation: one bay in section, with a witnessed dimension per level.
  *
  * One scale on both axes is the renderer's responsibility, but it is possible
@@ -185,6 +214,10 @@ export function buildElevation(input: {
   readonly frameHeight: Quantity;
   readonly bayPitch: Quantity;
   readonly levels: readonly LevelGeometry[];
+  /** S3.3. Absent is treated as none, so existing callers keep working. */
+  readonly references?: readonly ReferenceElevation[];
+  /** S3.3. A load stored on the slab under the first beam level. */
+  readonly floorStorage?: { readonly height: Quantity; readonly depth: Quantity } | null;
 }): DisplayList {
   const items: DisplayItem[] = [];
   const height = um(input.frameHeight);
@@ -236,6 +269,101 @@ export function buildElevation(input: {
         id: `${level.levelId}:load`,
         at: point(width, y),
         text: loadText,
+      }),
+    );
+  }
+
+  // The overall frame height, witnessed from the slab like every other
+  // elevation on this drawing.
+  items.push(
+    dimension({
+      id: `${input.runId}:dim:frame-height`,
+      from: point(width + 100_000, 0),
+      to: point(width + 100_000, height),
+      text: displayText(input.frameHeight, { metric: true }),
+    }),
+  );
+
+  // Floor storage: a load sitting on the slab, drawn dashed by the renderer
+  // because it is stored ON the floor rather than carried by a beam pair. It
+  // occupies a level's worth of height and counts as a position, so leaving it
+  // off the elevation understates what the layout holds.
+  if (input.floorStorage !== null && input.floorStorage !== undefined) {
+    items.push(
+      rect({
+        item: 'unit-load',
+        id: `${input.runId}:floor-load`,
+        origin: point(0, 0),
+        width,
+        height: um(input.floorStorage.height),
+        label: null,
+      }),
+    );
+  }
+
+  // Reference elevations. The LINE is drawn at the true elevation; the LABEL
+  // may be displaced so that two crowded references do not overprint, and a
+  // leader joins the two so the association survives the displacement.
+  const references = input.references ?? [];
+  const established = references.filter(
+    (r): r is ReferenceElevation & { elevation: Quantity } => r.elevation !== null,
+  );
+  const staggered = stagger(
+    established.map((r) => ({ id: r.id, at: um(r.elevation), payload: r })),
+    REFERENCE_LABEL_SEPARATION_UM,
+  );
+  const labelX = width + 400_000;
+
+  // The unestablished ones first, then the established ones driven by the
+  // staggered output. Iterating the RESULT rather than looking each reference
+  // up is what removes the `undefined` branch a Map lookup forces — a branch
+  // for a case `stagger` cannot produce, and so one no test could honestly
+  // cover.
+  for (const reference of references) {
+    if (reference.elevation === null) {
+      // No line: there is no elevation to draw one at. The label still appears,
+      // reading VERIFY, so the sheet shows the datum was expected and is not
+      // known — an absent row would read as "not applicable".
+      items.push(
+        text({
+          id: `${reference.id}:label`,
+          at: point(labelX, height),
+          text: Object.freeze({ text: `${reference.label} VERIFY`, established: false }),
+        }),
+      );
+    }
+  }
+
+  for (const placed of staggered) {
+    const reference = placed.payload;
+    const y = placed.at;
+
+    items.push(
+      line({ item: 'reference', id: `${reference.id}:line`, from: point(0, y), to: point(labelX, y) }),
+    );
+
+    // The leader exists only when the label actually moved. Drawing a
+    // zero-length leader would put a stray mark on every uncrowded sheet.
+    if (placed.displaced !== 0) {
+      items.push(
+        line({
+          item: 'annotation',
+          id: `${reference.id}:leader`,
+          from: point(labelX, y),
+          to: point(labelX, placed.label),
+        }),
+      );
+    }
+
+    const value = displayText(reference.elevation, { metric: true });
+    items.push(
+      text({
+        id: `${reference.id}:label`,
+        at: point(labelX, placed.label),
+        text: Object.freeze({
+          text: `${reference.label} ${value.text}`,
+          established: value.established,
+        }),
       }),
     );
   }

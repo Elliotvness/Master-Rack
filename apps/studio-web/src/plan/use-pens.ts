@@ -28,6 +28,7 @@ export function readPens(root: Element): Pens {
     unitLoad: v('--pen-pallet', '#9aa3b2'),
     flue: v('--pen-flue', '#a9670a'),
     aisle: v('--pen-dim', '#7c8494'),
+    reference: v('--pen-ref', '#7a5ea8'),
     obstruction: v('--pen-anno', '#a93226'),
     noRackZone: v('--pen-bldg', '#4a5261'),
     selection: v('--sel', '#1f3864'),

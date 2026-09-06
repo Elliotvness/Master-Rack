@@ -152,6 +152,7 @@ describe('the drawing pens are defined in both themes', () => {
     '--pen-dim',
     '--pen-grid',
     '--pen-flue',
+    '--pen-ref',
     '--pen-bldg',
     '--pen-lock',
   ];

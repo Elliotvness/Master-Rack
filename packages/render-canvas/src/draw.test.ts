@@ -84,6 +84,7 @@ const PENS: Pens = {
   unitLoad: '#unitload',
   flue: '#flue',
   aisle: '#aisle',
+  reference: 'reference',
   obstruction: '#obstruction',
   noRackZone: '#norack',
   selection: '#selection',
@@ -242,6 +243,31 @@ describe('label', () => {
   it('is VERIFY when unestablished and the text when established', () => {
     expect(label({ text: 'anything', established: false })).toBe('VERIFY');
     expect(label({ text: '96 in', established: true })).toBe('96 in');
+  });
+});
+
+describe('a reference elevation gets its own pen (S3.3)', () => {
+  /**
+   * The elevation is read AGAINST these lines — underside of structure,
+   * sprinkler deflector, maximum top of storage. Drawing them in the rack pen
+   * invites reading them as something the layout contains, and a datum that
+   * looks like a beam is worse than no datum at all.
+   *
+   * This test exists because adding the `reference` kind added an arm to
+   * `penFor` that nothing exercised: the switch is exhaustive by return type,
+   * so it could not be FORGOTTEN, but an unexercised arm can still be wrong.
+   */
+  it('strokes it in the reference pen, not the rack pens', () => {
+    const { ctx, calls } = recorder();
+    draw(
+      ctx,
+      listWith(line({ item: 'reference', id: 'ref', from: point(0, 0), to: point(IN(10), 0) })),
+      { camera: CAMERA, viewport: VIEWPORT, pens: PENS, dpr: 1 },
+    );
+    const strokes = calls.filter((c) => c.op === 'set strokeStyle').map((c) => c.args[0]);
+    expect(strokes).toContain('reference');
+    expect(strokes).not.toContain('#beam');
+    expect(calls.some((c) => c.op === 'stroke')).toBe(true);
   });
 });
 

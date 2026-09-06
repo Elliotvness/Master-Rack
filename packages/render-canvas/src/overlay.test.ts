@@ -62,6 +62,7 @@ const PENS: Pens = {
   unitLoad: '#unitload',
   flue: '#flue',
   aisle: '#aisle',
+  reference: 'reference',
   obstruction: '#obstruction',
   noRackZone: '#norack',
   selection: '#selection',

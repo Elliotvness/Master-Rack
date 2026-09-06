@@ -1,3 +1,67 @@
+# Progress scoreboard — 2026-09-06 (session 13, the interface phase, and five lists that were silent)
+
+Derived from `tasks/todo.md`, which stays the source of truth for task detail. This file holds
+only the arithmetic and the ordering. Where a figure was re-measured today it says so; where it is
+the repository's own claim it says that instead.
+
+**§15.2 is 0 of 8, and nothing in this session could have moved it.** Everything below is
+`apps/studio-web` and the packages under it, which ADR-016 places deliberately off the MVP-1
+critical path. Anyone reading a burn-up chart will see a great deal of motion and no progress; that
+is the arrangement working, not failing. **All 22 API handlers still answer 500.**
+
+**Verified today on Windows, no Postgres:** `pnpm test` **exit 0 — 77 test files, 2,058 tests,
+1,926 passed, 132 skipped**; `pnpm typecheck` exit 0; `pnpm lint` exit 0; every checker and
+self-test PASS. *(77 is the RUNNER's file count and includes `app.test.tsx`; the inventory row
+below reads 76 because `check:claims` derives it from `*.test.ts` alone. Two different quantities,
+and the first draft of this paragraph quoted the second one for the first — a figure that looked
+consistent because it was consistently wrong.)* The 132 skips are the eight `.db.test.ts` suites and are expected without a database —
+`RMS_REQUIRE_DB=1` turns them into failures where a result is believed, which is CI.
+
+**Read, not reported: five CI runs, all `success`**, against a real PostgreSQL 16 with
+`RMS_REQUIRE_DB=1` set. `34020079125` (P0), `34020118282` (S1), `34020203595` (OD-07),
+`34021308497` and `34021682406` (S2), `34023577077` (S2.3 + S3.1/S3.2), `34025961759` (S3.1). That
+is the first independent confirmation that F-29's remedy behaves in the environment that matters.
+
+**What landed since session 12**, none of it a registered task and none of it counted:
+
+| Slice | What |
+|---|---|
+| P0 | the 14 governing ADRs migrated into `docs/adr/` + five new (015–019); F-29 closed; F-47, F-48 |
+| S1 | `apps/studio-web` shell — six lazy routes, three-state theme, contrast gate; P-05's bundle arm weighed a real Vite build for the first time |
+| S2 | `packages/studio-model` — v1→v2 migration, 16 commands, undo ledger; S0.2's continuity fixture |
+| S2.3 / S3.1 / S3.2 | the kernel bridge and `packages/render-canvas`; the plan draws |
+| S3.3 | reference elevations, floor storage, the frame dimension, and the staggering that keeps labels off each other |
+
+**The session's recurring find, and it is one shape seen five times: a list that is silent about
+what it does not list.** F-49: `vitest.alias.ts` named `tools/check-aliases.mjs` as its mechanism
+and that file did not exist. F-50: `studio-model` shipped *"Pure … `check-boundaries` enforces
+that"* and the scan did not include it — **the docstring was written in the same slice that
+discovered it was false**, which is the honest measure of how easy this class is to commit. The
+same package also escaped the coverage thresholds. F-51: two branches off one base each allocated
+**F-46 through F-50** to five different defects, because a shared counter with no allocator hands
+the same number to everyone who asks at once. Each was closed the way F-44 was — **silence must not
+mean exempt** — and `CLAUDE.md` now carries the five-place registration table.
+
+**Three controls caught this session's own work before a human did.** The contrast gate failed on
+the palette it was written for (`--border` at 1.42:1 against a 3:1 minimum) and the token was split
+rather than the threshold lowered. `check-app-boundaries` refused four `export *` re-exports in a
+new barrel, because a star export is invisible to a symbol scan. The fast-check property over
+random command sequences found a `splitRun` inverse that restored the parent and orphaned the tail
+— no example test would plausibly have been written for it.
+
+**S3.3's acceptance is a function, not a screenshot.** *"The three reference lines never
+overprint"* is `stagger()`, with a 200-run property asserting separation, order preservation, and
+that the reference LINE never moves — only its label does, with a leader drawn only when the label
+actually moved. Proven red by setting the separation to zero: labels 50,800 µm apart against a
+152,400 µm minimum, **exit 1**.
+
+**Still not measured, and stated because the bundle ceiling being green invites the opposite
+reading:** INP, LCP and CLS. Three of P-05's four front-end budgets have no measurement and no
+Lighthouse run exists. Nothing tests the checkers themselves on Windows either — there is no
+cross-platform CI matrix.
+
+---
+
 # Progress scoreboard — 2026-09-05 (session 12, three gates that could not see the next phase)
 
 Derived from `tasks/todo.md`, which stays the source of truth for task detail. This file holds
@@ -673,7 +737,7 @@ Re-measured by running commands against the working tree:
 | The ahead/unpushed pair moves as this file is written | Each documentation commit that records this measurement adds one to both counts, so **do not quote ahead/unpushed from this document** — re-run `git rev-list --left-right --count origin/main...HEAD` and `git rev-list --count @{u}..HEAD`. Session 3 added `e488a14`, `c08cca3` and the commit carrying this row. That self-reference is exactly how drift item 5 arose, and naming it is cheaper than chasing it |
 | `main` | **`afd4e8a`** — re-derived 2026-09-05 by `git ls-remote --heads origin`, which returns **`refs/heads/main` and nothing else**: every task branch is now deleted on the server, including the two the previous edition of this row said were still there. Local `main` sits at the same sha, clean tree, `git rev-list --count @{u}..HEAD` **0**. Three merges landed the same day — **PR #21** (the session-10 edition: `92ad8cc`, `c5c2c0c`), **PR #22** (P-05: `c5a7d42`), **PR #23** (OD-20b: `13a5247`) — each with `verify` and `docs` green, read from the check-runs API rather than assumed. *(This row read `0bb5383` through all three — **drift 49**, and drift 42 one edition after it was closed. Every fix so far has been a new value.)* *(It read `162d26e` / "PR #1 … #19" through two merges and two pushes — drift 42.)* Earlier state kept for the lineage: PR #1 … #19 merged, every task branch deleted, `git branch -r` listed `origin/main` alone *(this row read `e86d2bf` / "PR #13 open" through the close-out edition while the tip row above it said `b8d2087` — drift 36's shape, fixed here)* |
 | Packages | **14** — `packages/workflow` added by T-07 |
-| Test files | **74** (`*.test.ts`; the count excludes `*.test.tsx`, of which S1 adds the first) — T-13c added `request.test.ts`; T-13d added `idempotency.test.ts` and `idempotency.db.test.ts`; T-14a added `app.test.ts`, `app.db.test.ts` and `server.db.test.ts`; P0-2 added `tools/test-support/require-db.test.ts`; **S1 added `nav.test.ts`, `theme/theme.test.ts` and `theme/tokens.test.ts` in `apps/studio-web`; S2 added five in `packages/studio-model`; **S3 added `to-kernel.test.ts` and two in `packages/render-canvas`; **S3.1 added `plan.test.ts`, `detail.test.ts` and `overlay.test.ts`**. Re-derived by `check:claims`, not typed |
+| Test files | **76** (`*.test.ts`; the count excludes `*.test.tsx`, of which S1 adds the first) — T-13c added `request.test.ts`; T-13d added `idempotency.test.ts` and `idempotency.db.test.ts`; T-14a added `app.test.ts`, `app.db.test.ts` and `server.db.test.ts`; P0-2 added `tools/test-support/require-db.test.ts`; **S1 added `nav.test.ts`, `theme/theme.test.ts` and `theme/tokens.test.ts` in `apps/studio-web`; S2 added five in `packages/studio-model`; **S3 added `to-kernel.test.ts` and two in `packages/render-canvas`; **S3.1 added `plan.test.ts`, `detail.test.ts` and `overlay.test.ts`**. **S3.3 added `stagger.test.ts` and `elevation.test.ts` in `packages/display-list`**. Re-derived by `check:claims`, not typed |
 | Phase-2 routes | **1** — `GET /api/internal/v1/audit`, held in `PHASE_2_ROUTES`. §8.2's other phase-2 row, `POST /api/internal/v1/submissions/:id/status`, has no `Action` yet and arrives with the status vocabulary F-38 is about. A third §8.2 row *mentions* phase 2 and stays MVP-1 — `GET /api/client/v1/submissions/:id` defers the RFI **thread**, not the route — which is now declared data in `SUB_FEATURE_PHASE_2` with a stale-entry check, instead of an interpretation living in three documents and enforced by none |
 | Migrations | **13** (`0001`–`0013`) — `0013_idempotency_lease_epoch.sql` adds the fence token without which the lease let two effects settle one key (F-40); `0012` added the `abandoned` outcome and the lease index; `0011_idempotency.sql` added `app.idempotency_key`: `UNIQUE (organization_id, key)`, a 64-hex `request_hash` CHECK, three states in `app.idempotency_outcome`, five consistency CHECKs, tenant RLS and the F-31 explicit GRANT. `check-rls` inspected **22** tables and **86** grants today and passed |
 | `.tsx` / `.jsx` / `.vue` / `.svelte` / `.astro` files | **0** — and as of S0.0 the gate would see them if there were any. Until 2026-09-05 it could not: `.tsx` was outside vitest's `include`, outside `tsconfig.tests.json`'s, outside the coverage globs and outside two eslint rule scopes, so a failing `.test.tsx` ran through `pnpm verify` at exit 0 (F-43). The count is the same; what changed is what the count would be worth |
