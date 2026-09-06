@@ -204,6 +204,17 @@ jobs:
       - name: Alias table agrees across tsconfig and the test runner
         run: pnpm check:aliases
 
+      # Two branches off one base each allocated F-46..F-50 to five different
+      # defects on 2026-09-05. Neither did anything wrong: both read the
+      # register, both took the highest number, both were right when they
+      # looked. A shared counter with no allocator hands the same number to
+      # everyone who asks at once, and the collision only shows at merge.
+      - name: Findings register self-test
+        run: pnpm check:findings:selftest
+
+      - name: Every finding id is allocated once
+        run: pnpm check:findings
+
       # Sync proves the two copies agree with each other. It cannot tell whether
       # either one agrees with the repository, and two copies of a stale number
       # agree perfectly. check-claims re-derives the declared figures from the

@@ -290,6 +290,38 @@ have no Linux binaries. Installing the two Linux binaries into scratch got past 
 hit `esbuild`; the attempt was abandoned rather than pursued, and nothing was written into the
 repository. CI covers it instead — see the disposition on each task.
 
+## F-10 — no entry in this register *(gap recorded 2026-09-05; substance NOT reconstructed)*
+
+**This number is allocated and its finding is not here.** `check-findings` found the gap on its
+first run: the register jumps F-09 to F-12 while F-10 and F-11 are cited elsewhere as real.
+
+What is known, and nothing beyond it: `Claude outputs/rev-c-corrections.md` lists `[F-10]` against
+*"browser-side derivation vs the app boundary"* and against *"`check-app-boundaries` gains
+`apps/studio-web`"*. That is a document-review register with its **own** F-numbering, so it is a
+lead, not a source — and treating it as one would be exactly the mistake of reading a number from
+one namespace into another.
+
+**Deliberately not written from the citation.** Reconstructing a finding from a one-line reference
+would put an invented defect into the register that the project's own vocabulary calls a record.
+The number stays allocated so nothing reuses it, and this entry says why it is empty.
+
+## F-11 — no entry in this register *(gap recorded 2026-09-05; substance NOT reconstructed)*
+
+Same gap, and this one matters more: **`CLAUDE.md` names F-11 in the canonical list of the recurring
+defect** — *"Found so far as F-01, F-02, F-08, F-11, F-19, F-26, F-31 …"* — and so do
+`claude-resume-prompt.md` and `claude-resume-prompt-paste.md`. Every other number in that list
+resolves in this file. F-11 does not.
+
+It is also cited twice inside this register as a precedent: *"the same class of overstatement F-11
+found in the spot-check floor, one level up"* and *"the shape of F-02, F-08 and F-11 again"*. So the
+finding was real, it was about an overstated floor in the spot-check mechanism, and its text is not
+here.
+
+**Not reconstructed, for the same reason as F-10.** The two citations describe its *shape*, not its
+evidence, and a finding written from the shape of itself is a summary with no measurement behind
+it. Recovering the original — if it exists in a session transcript or an earlier file — is worth
+doing and is not this slice's work.
+
 ## F-12 — `changes_from_2026_08` denies a change it made to 168 rows
 
 **Required before merge. The data is right; the change log is wrong about it.**
@@ -1998,3 +2030,50 @@ origins it needs (`Witnessed<T>` carries exactly those four states), so the inpu
 S2.3's acceptance is the continuity suite comparing *derived values* against the prototype's, and
 that needs the fixture to carry derived output as well as the document. The fixture generator emits
 the document only. Extending it is the first task of S2.3, not a gap in S2.1 or S2.2.
+
+## F-51 — the findings register is a shared counter with no allocator *(raised and **CLOSED** 2026-09-05)*
+
+On 2026-09-05 two branches off the same base, `2fe1481`, each allocated **F-46 through F-50** to
+five entirely different defects. One is this session's P0/S1/S2 stack; the other is
+`review/t-14b-refused`. Measured:
+
+| Id | This stack | `review/t-14b-refused` |
+|---|---|---|
+| F-46 | governing ADRs land where no wording guard reaches | (allocated, heading empty) |
+| F-47 | eslint judged four gitignored files; `pnpm lint` could not pass | the one public route cannot reach its own row |
+| F-48 | `check-server-owned` had never run on Windows | §14.2's SECURITY DEFINER item had nothing behind it |
+| F-49 | `check-aliases.mjs` was cited and did not exist | the amendment's own review: five blockers |
+| F-50 | one package walked past three hand-maintained lists | a gate that failed open |
+
+**Neither branch did anything wrong**, and that is the finding. Both read the register, both took
+the highest number, and both were correct at the moment they looked. This is not the shape the
+repository usually hunts — it is not a control that fails open — it is the **absence of any control
+over the register itself**, and it surfaces at merge, which is the worst moment to learn that two
+F-47s describe unrelated defects and every commit body citing one has become ambiguous.
+
+**Resolved for these five by EL on 2026-09-05: `review/t-14b-refused` is disregarded**, so this
+stack's numbering stands. Verified before accepting that, rather than assumed — the other branch's
+findings are about `packages/db/migrations/0014_invitation_tenant_resolver.sql` and
+`0015_session_purpose.sql`, **which exist only on that branch**; `main` stops at `0013` and the
+string `purpose` appears nowhere in the current tree. So nothing live is at risk and there is
+nothing to salvage. Those were real defects in code that was never merged.
+
+**Closed with `check-findings` + its self-test**, wired self-test-first into `verify` and CI. It
+asserts three things: no id allocated twice (the collision), no gap in 1..N, and no follow-up
+referring to an id that was never allocated.
+
+**The distinction that makes it usable.** Only `## F-nn — ` allocates. The register already carries
+`## F-12 and F-13 — fixed, values untouched` and `## F-29 closure note — …`, and a checker that
+called those duplicates would be switched off within a week — the failure `check-language`'s
+docstring names. Four of the self-test's nine cases exist to hold that line.
+
+**It found a real gap on its first run: F-10 and F-11 had no entry at all.** `CLAUDE.md` names F-11
+in the canonical list of the recurring defect, and every other number in that list resolves. Both
+are now allocated with entries that say the substance is missing and **deliberately not
+reconstructed** — the surviving citations describe the finding's shape, not its evidence, and a
+finding written from the shape of itself is a summary with nothing measured behind it.
+
+**Not closed by this.** The checker catches a collision once both branches are in one file. It
+cannot stop two people allocating the same number in parallel — that needs the register split per
+finding, or an allocator outside it, and neither is worth doing at this size. What it does
+guarantee is that a collision can no longer reach `main` unnoticed.
