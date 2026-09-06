@@ -11,6 +11,7 @@
     { "path": "./packages/kernel-bom" },
     { "path": "./packages/display-list" },
     { "path": "./packages/contracts" },
+    { "path": "./packages/studio-model" },
     { "path": "./packages/db" },
     { "path": "./apps/api" },
     { "path": "./apps/client-web" },

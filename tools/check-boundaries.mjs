@@ -23,7 +23,24 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const KERNEL_PREFIX = 'kernel-';
 
 /** Additional pure packages that are not named kernel-*. */
-const ALSO_PURE = ['display-list', 'contracts', 'workflow'];
+const ALSO_PURE = ['display-list', 'contracts', 'workflow', 'studio-model'];
+
+/**
+ * Packages that are deliberately NOT pure, each with the reason.
+ *
+ * F-50. Until this list existed, `purePackages` selected `kernel-*` plus a
+ * hand-maintained array and said nothing about anything else — so a new package
+ * under `packages/` was scanned by nothing, and its own docstring was free to
+ * claim "Pure: no I/O, no clock, no RNG. check-boundaries enforces that."
+ * `studio-model` shipped exactly that sentence with nothing behind it.
+ *
+ * This is the same shape as F-44 one level up, and the same remedy: a package
+ * with no classification FAILS. Adding a package now forces a decision — pure,
+ * or impure with a stated reason — instead of allowing silence to mean exempt.
+ */
+const KNOWN_IMPURE = Object.freeze({
+  db: 'the persistence layer; it exists to talk to Postgres',
+});
 
 const FORBIDDEN_IMPORTS = [
   { pattern: /^node:/, why: 'a Node builtin (I/O, clock or platform access)' },
@@ -77,9 +94,30 @@ function purePackages(packagesDir) {
   } catch {
     return [];
   }
+  const dirs = entries.filter((name) => statSync(join(packagesDir, name)).isDirectory());
+  return dirs.filter((name) => name.startsWith(KERNEL_PREFIX) || ALSO_PURE.includes(name));
+}
+
+/**
+ * Packages under `packages/` that are classified neither pure nor impure.
+ *
+ * Returned as violations rather than ignored: silence must not mean exempt.
+ */
+function unclassifiedPackages(packagesDir) {
+  let entries;
+  try {
+    entries = readdirSync(packagesDir);
+  } catch {
+    return [];
+  }
   return entries
-    .filter((name) => name.startsWith(KERNEL_PREFIX) || ALSO_PURE.includes(name))
-    .filter((name) => statSync(join(packagesDir, name)).isDirectory());
+    .filter((name) => statSync(join(packagesDir, name)).isDirectory())
+    .filter(
+      (name) =>
+        !name.startsWith(KERNEL_PREFIX) &&
+        !ALSO_PURE.includes(name) &&
+        !Object.prototype.hasOwnProperty.call(KNOWN_IMPURE, name),
+    );
 }
 
 /** Strip comments and string literals so a mention in prose is not a violation. */
@@ -108,6 +146,17 @@ export function checkBoundaries(root = ROOT) {
   const packagesDir = join(root, 'packages');
   const packages = purePackages(packagesDir);
   const scanned = [];
+
+  // F-50. A package classified neither way is a package this scan says nothing
+  // about — and silence reads as a pass. Reported before any file is opened, so
+  // it cannot be lost among import findings.
+  for (const name of unclassifiedPackages(packagesDir)) {
+    violations.push(
+      `packages/${name}: classified neither pure nor impure. Add it to ALSO_PURE if it is ` +
+        'pure, or to KNOWN_IMPURE with the reason it is not. A package nothing classifies is ' +
+        'scanned by nothing, and its docstring is free to claim a purity no control checks.',
+    );
+  }
 
   for (const pkg of packages) {
     const files = listFiles(join(packagesDir, pkg, 'src'));

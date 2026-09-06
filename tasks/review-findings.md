@@ -1892,3 +1892,109 @@ legitimate future change to the ceiling would leave that arm demanding the old n
 **Still not measured:** INP, LCP and CLS. Those need a browser and a screen. The bundle ceiling is
 one of P-05's four front-end budgets; the other three remain unmeasured and no Lighthouse run
 exists.
+
+## F-50 — one new package walked past three separate hand-maintained lists *(raised and **CLOSED** 2026-09-05 by S2)*
+
+`packages/studio-model` was added, and its own module docstring says, as every kernel package's
+does: *"Pure: no I/O, no clock, no RNG. `check-boundaries` enforces that, and its self-test proves
+the enforcement works."*
+
+**It did not.** `purePackages()` selected `kernel-*` plus `ALSO_PURE = ['display-list', 'contracts',
+'workflow']` and said nothing about anything else, so the scan went from 11 pure packages to 11.
+Measured rather than assumed:
+
+```
+packages scanned: contracts, display-list, kernel-bom, kernel-catalog, kernel-checks,
+                  kernel-derive, kernel-geom, kernel-model, kernel-rules, kernel-units, workflow
+studio-model included? false
+```
+
+**I wrote that docstring myself, in this slice**, which is the useful part of the finding: this
+defect is not something careless people commit. It is what happens when a true sentence is copied
+into a place where it has stopped being true, and nothing re-derives it.
+
+**The same package escaped two more lists in the same commit**, and that is the finding rather than
+the single miss:
+
+| List | Consequence of the omission |
+|---|---|
+| `ALSO_PURE` in `check-boundaries.mjs` | purity claimed, never scanned |
+| coverage `thresholds` in `vitest.config.ts` | no floor; measured in the global figure, held to nothing |
+| `tools/check-aliases.mjs` | did not exist at all — see **F-49** |
+
+Three independent registries, each hand-maintained, each silent about what it does not list. **A
+new package is exempt from all three by default**, which is the shape F-44 found one level up in
+`apps/`.
+
+**Closed with the same remedy F-44 used: silence must not mean exempt.** `check-boundaries` gains a
+`KNOWN_IMPURE` map — one entry, `db`, with its reason — and reports any package under `packages/`
+classified neither way. Adding a package now forces a decision instead of allowing an omission.
+
+**Proven red, both arms, files restored and md5-compared:**
+
+```
+# an I/O import in the previously-unscanned package
+packages/studio-model/src/ids.ts: imports 'node:fs' — a Node builtin … exit 1
+# a package classified neither way
+packages/probe-pkg: classified neither pure nor impure … exit 1
+# clean tree
+check-boundaries: scanned 57 file(s) across 12 pure package(s) … exit 0
+```
+
+Both cases are now permanent in `selftest-boundaries.mjs`, **including the false-positive half** —
+`packages/db`, the one deliberately impure package, must NOT be reported, because a checker that
+goes red on a legitimate tree is a checker somebody silences.
+
+**Not closed by this.** The coverage-threshold list is still hand-maintained and still silent: a new
+package with no entry is measured in the global figure and held to no floor. `studio-model` now has
+its 100% entry, and adding it immediately failed at **97.6% lines / 86.31% branches** — so the
+threshold was worth having and the gap was real — but nothing forces the *next* package to have one.
+That needs the same treatment and is not done.
+
+## S2 notes — the property test paid for itself twice
+
+**A `splitRun` inverse that restored the parent and orphaned the tail.** `splitRun` makes two runs
+from one. Its inverse was `restoreRun`, which removed only the run it was putting back — so undoing
+a split restored the parent and left the tail sitting in the document, with the run count one too
+high. No example test would plausibly have been written for it; the fast-check property over random
+command sequences found it on the first run. Fixed by replacing `restoreRun` with `replaceRuns`, a
+general primitive that removes a set and inserts a set and **is its own inverse with the two lists
+swapped** — correct for `deleteRun` (remove none, insert one) and `splitRun` (remove two, insert
+one) without a special case.
+
+**Redo was not exact, and the tests said so before a user could.** The id counter is deliberately
+monotonic — it does not rewind on undo, so two entities can never share an id within one document's
+history and leave the audit log describing both under one name. But that made redo replay the
+original *intent*: re-running `addRun` minted a **fresh** id, so the redone document was
+structurally identical to the pre-undo one and not equal to it, and any selection or finding naming
+the original run was left dangling. Resolved without giving up either property: undo now replaces
+the ledger entry's `redo` with the inverse it just produced. That inverse is not an intent, it is
+the recorded **effect** — `replaceRuns` carrying the actual `Run`, ids and all — so replaying it
+restores exactly what was there. `redo` already did the mirror of this for `undo`, so the pair is
+symmetric however far the history is walked.
+
+**A dead branch was removed rather than tested around.** `deleteBeamLevel`'s
+`result.ok ? … : result` could not be false: removing a level from an already-ascending list cannot
+break the ascending invariant. Coverage flagged it, and the honest fix was to make it not exist —
+`setBeamLevels` now takes the label — rather than to construct an unreachable state or write an
+ignore comment.
+
+**Four edits that were never commands are now commands.** `setBeamLevel`, `addBeamLevel`,
+`deleteBeamLevel` and the parameter panel's `setPath` were DOM handlers assigning straight into
+`DOC` — `DOC.bayTypes[0].beamLevels[+t.dataset.lvl] = IN(v)`. ADR-018 rule 1 forbids exactly that,
+and until they were promoted the undo ledger was *mostly* complete, which is the kind of gap nobody
+notices until they undo twice and one edit stays.
+
+**S0.2 is done as a side effect, and it was a prerequisite nobody had listed.** S2.1's acceptance
+asks for fixtures that round-trip, and a hand-typed v1 fixture is a second opinion written by
+whoever already holds the first one — it would agree with the migration by construction.
+`tools/make-continuity-fixture.mjs` exports the prototype's real default document, in mil, with the
+kernel's sha256, and `--check` fails if the prototype ever produces something different. Re-running
+gives a byte-identical file.
+
+**Not done in S2, and why.** Build-plan **S2.3** — the `toKernel` bridge producing `Quantity` in µm
+with INPUT / CATALOG / RULE / UNKNOWN origins — is **not started**. The migration establishes the
+origins it needs (`Witnessed<T>` carries exactly those four states), so the input side is ready, but
+S2.3's acceptance is the continuity suite comparing *derived values* against the prototype's, and
+that needs the fixture to carry derived output as well as the document. The fixture generator emits
+the document only. Extending it is the first task of S2.3, not a gap in S2.1 or S2.2.

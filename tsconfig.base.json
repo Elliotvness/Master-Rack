@@ -47,6 +47,7 @@
       "@rms/api": ["apps/api/src/index.ts"],
       "@rms/client-web": ["apps/client-web/src/index.ts"],
       "@rms/internal-web": ["apps/internal-web/src/index.ts"],
+      "@rms/studio-model": ["packages/studio-model/src/index.ts"],
       "@rms/studio-web": ["apps/studio-web/src/index.ts"]
     }
   }

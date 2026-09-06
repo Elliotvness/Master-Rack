@@ -151,6 +151,17 @@ export default defineConfig({
         // orchestration with injected effects, so every refusal is reachable
         // from its arguments — and every refusal here is one that stops a
         // submission, which is not a place to carry an unexercised branch.
+        // S2. A pure package, so 100% — the same standard as every kernel.
+        // It had no entry at all until this line: `check-boundaries` did not
+        // classify it, `check-aliases` did not exist, and this table did not
+        // name it, so one new package slipped past three separate
+        // hand-maintained lists (F-50).
+        'packages/studio-model/src/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
         'packages/workflow/src/**': {
           branches: 100,
           functions: 100,

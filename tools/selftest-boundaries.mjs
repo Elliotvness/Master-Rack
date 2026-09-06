@@ -160,6 +160,40 @@ function run() {
     }
   }
 
+  // 2b. F-50: a package classified neither pure nor impure must FAIL, and a
+  // classified one must not. Silence read as exemption is how `studio-model`
+  // came to claim a purity nothing checked.
+  const unclassified = join(TREE, 'packages', 'probe-unclassified', 'src');
+  mkdirSync(unclassified, { recursive: true });
+  writeFileSync(join(unclassified, 'index.ts'), 'export const x = 1;\n', 'utf8');
+  const withUnclassified = checkBoundaries(TREE);
+  const caughtUnclassified = withUnclassified.violations.some((v) =>
+    v.includes('classified neither pure nor impure'),
+  );
+  rmSync(join(TREE, 'packages', 'probe-unclassified'), { recursive: true, force: true });
+  if (caughtUnclassified) {
+    console.log('  caught      a package classified neither pure nor impure');
+  } else {
+    failures.push('an unclassified package');
+    console.error('  NOT CAUGHT  a package classified neither pure nor impure');
+  }
+
+  // The false-positive half. A checker that goes red on a legitimate tree is a
+  // checker people silence, so `db` — the one deliberately impure package —
+  // must NOT be reported.
+  const dbDir = join(TREE, 'packages', 'db', 'src');
+  mkdirSync(dbDir, { recursive: true });
+  writeFileSync(join(dbDir, 'index.ts'), "import pg from 'pg';\nexport const p = pg;\n", 'utf8');
+  const withDb = checkBoundaries(TREE);
+  const falsePositive = withDb.violations.some((v) => v.includes('packages/db'));
+  rmSync(join(TREE, 'packages', 'db'), { recursive: true, force: true });
+  if (falsePositive) {
+    failures.push('the deliberately impure package was reported');
+    console.error('  FALSE POS   packages/db was reported, though it is KNOWN_IMPURE');
+  } else {
+    console.log('  allowed     the deliberately impure package, with its stated reason');
+  }
+
   // 3. And the probe tree must be clean again afterwards.
   const after = checkBoundaries(TREE);
   if (after.violations.length > 0) {
