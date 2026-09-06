@@ -1814,3 +1814,81 @@ server-assigned columns, 10 enum types classified — and its self-test still pa
 **Blind spot, stated:** nothing tests the checkers *on Windows*. Both self-tests pass on both
 platforms, because neither exercises the dynamic-import path the way the real run does. A
 cross-platform CI matrix is the control that would have caught this, and it does not exist.
+
+## F-49 — `check-aliases.mjs` was cited as the mechanism and did not exist *(raised and **CLOSED** 2026-09-05 by S1)*
+
+`vitest.alias.ts` has said, since it was written, that the alias table *"must agree with `paths` in
+tsconfig.base.json and with the bundler config when apps exist, and **tools/check-aliases.mjs
+asserts that three-way agreement**."*
+
+`tools/check-aliases.mjs` did not exist. `ls tools/*.mjs` returns 38 files and it was not among
+them. The sentence named a mechanism, no mechanism was ever built, and the docstring read as
+evidence for four sessions — **the recurring defect, committed in the file that describes the
+invariant it claims to protect.**
+
+Found while adding `@rms/studio-web`, which is the moment it stopped being theoretical: S1 adds a
+sixteenth specifier that must be written into two hand-maintained tables in two languages, and
+`apps/studio-web/vite.config.ts` creates the **bundler leg for the first time**. Until this slice
+the "three-way agreement" had two legs and no checker.
+
+**Closed by building it**, with a self-test carrying eight cases — six that must go red (a
+specifier in one table and not the other, in either direction; one specifier pointing at two
+different files; a path entry whose target does not exist; a workspace package with no entry at all,
+which is the F-44 shape; and an empty table, because a vacuous pass is a failure) and two that must
+**not** (a legitimate tree, and the real repository). It reports **16 specifiers agreeing across
+both tables and 16 workspace packages present in both**, and is wired into `pnpm verify` and CI
+self-test-first.
+
+**The bundler leg deliberately has no assertion, and that is recorded rather than left as a gap.**
+`vite.config.ts` *imports* the table from `vitest.alias.ts` instead of restating it, so it cannot
+drift; a checker re-verifying a value it knows is the same object would be theatre. **If a future
+bundler config ever restates the table, this checker needs a third arm** — written into
+`check-aliases.mjs`'s own docstring so the omission stays a decision.
+
+## S1 notes — three controls that went red on their first real subject
+
+Not findings against the repository, but worth the register because each is a control being
+exercised for the first time and each caught something real.
+
+**The contrast gate failed on its own palette.** `tokens.test.ts` parses the shipped `tokens.css`
+and checks every declared pair in both themes. First run: **three failures** — `--border` on
+`--surface` at **1.42:1** in light and **1.49:1** in dark against a 3:1 minimum. The two tempting
+fixes were to lower the threshold or darken the token until the number moved; both answer the
+assertion rather than the question. The token was **split** instead: `--border` separates regions
+and is ungated (WCAG 1.4.11 governs components and meaningful graphics, not decorative
+separators, and ruling a drawing surface into 3:1 boxes is worse, not more accessible), while
+`--border-control` bounds anything operable and is gated in both themes against both backgrounds.
+The reasoning is in `pairs.ts` beside the list, because *"we removed the failing pair"* is how a
+gate gets silenced. **Limit stated:** nothing checks that a component picks the right token; an
+input drawn with `--border` passes. That is a composition fact and needs a mechanism in S4.
+
+**`check-app-boundaries` refused the barrel's `export *`.** The first `apps/studio-web/src/index.ts`
+used four star re-exports. The checker refused all four — *"this scan cannot see which names cross,
+so it cannot tell whether a server authority just did"* — which is the same hole a namespace import
+opens, and that checker's docstring already records an adversarial review getting `wf.submit`
+through both it and `tsc`. Every export is now named.
+
+**The new `studio-web` rule made the self-test's own baseline tree fail.** Adding the rule without
+adding a probe directory produced *"studio-web: no application source files … A rule that matches
+nothing enforces nothing"* — F-41's rule firing on the self-test rather than on the repository.
+A fourth probe was added, and the studio rule was then planted red directly:
+`export const deriveOwnAnswer` in `apps/studio-web/src/` turned `check-app-boundaries` to exit 1
+naming ADR-016 and ADR-018, and its removal turned it green.
+
+**P-05's second half is closed.** `check-front-end-budgets` has weighed a real Vite build for the
+first time: `apps/studio-web/dist 78 KB gz` against the 200 KB ceiling. The weighing arm was then
+proven against that real bundle rather than only against the synthetic fixture — the ceiling was
+lowered to 50 KB in all three places it is written, the blueprint rebuilt, and the checker went
+**exit 1** with *"78 KB of gzipped JavaScript exceeds the 50 KB ceiling agreed in §5.4"*; all three
+files were restored and md5-compared identical, and the blueprint rebuilt back to
+`ec5a95d9b6bb2304a886f975533b727a`. A CI step now builds the bundle before the check, because
+without one the arm reports *"no SPA build … PASS"* — the exact vacuous pass F-45 recorded.
+
+**One thing noticed and NOT fixed**, recorded so it is a decision: `check-front-end-budgets` tests
+`perfMd.includes('200 KB')` against a **literal**, not against `INITIAL_JS_CEILING_BYTES`. A
+legitimate future change to the ceiling would leave that arm demanding the old number. It fails
+**closed** — too strict, never falsely green — so it is not urgent, and it is out of S1's scope.
+
+**Still not measured:** INP, LCP and CLS. Those need a browser and a screen. The bundle ceiling is
+one of P-05's four front-end budgets; the other three remain unmeasured and no Lighthouse run
+exists.

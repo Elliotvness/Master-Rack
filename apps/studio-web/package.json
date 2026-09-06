@@ -1,0 +1,23 @@
+{
+  "name": "@rms/studio-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Canvas 2D layout studio. INTERNAL audience only (ADR-016); never reachable by a client.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@rms/display-list": "workspace:*",
+    "@rms/kernel-units": "workspace:*",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router": "^7.9.0"
+  }
+}

@@ -51,5 +51,8 @@ export const alias = {
   '@rms/internal-web': fileURLToPath(
     new URL('./apps/internal-web/src/index.ts', import.meta.url),
   ),
+  '@rms/studio-web': fileURLToPath(
+    new URL('./apps/studio-web/src/index.ts', import.meta.url),
+  ),
 };
 

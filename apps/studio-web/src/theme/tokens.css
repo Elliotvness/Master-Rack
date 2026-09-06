@@ -1,0 +1,88 @@
+/*
+ * Studio design tokens.
+ *
+ * Three-state theme, carried from the artifact's `:root` blocks: an explicit
+ * choice stamps `data-theme` on the root element, and the unset default follows
+ * `prefers-color-scheme`. Every token is defined on bare `:root` first, so a
+ * colour can never have its ONLY definition inside a media query.
+ *
+ * `--chrome` is the reference title block's navy, #1F3864, and it is the one
+ * colour carried verbatim from the drawing set.
+ *
+ * The pairs in `pairs.ts` are checked against these values by `tokens.test.ts`.
+ * Editing a colour here without meeting its ratio fails the suite.
+ */
+
+:root {
+  color-scheme: light;
+
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --border: #d3d9e2;
+  --border-control: #808996;
+
+  --ink: #16202e;
+  --ink-muted: #4a5568;
+
+  --chrome: #1f3864;
+  --chrome-ink: #ffffff;
+  --chrome-ink-muted: #c9d4e8;
+
+  --accent: #1f3864;
+  --focus: #0b57d0;
+
+  --status-ok: #1b6b3a;
+  --status-warning: #8a5a00;
+  --status-danger: #b3261e;
+  --status-review: #5b3aa8;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #12161c;
+  --surface: #1a2029;
+  --border: #333d4c;
+  --border-control: #7d8794;
+
+  --ink: #e8ecf2;
+  --ink-muted: #9aa6b8;
+
+  --chrome: #16233d;
+  --chrome-ink: #e8ecf2;
+  --chrome-ink-muted: #9fb0cc;
+
+  --accent: #9db8e8;
+  --focus: #8ab4f8;
+
+  --status-ok: #7bd69b;
+  --status-warning: #ffc15e;
+  --status-danger: #ff8a80;
+  --status-review: #c3aef2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --bg: #12161c;
+    --surface: #1a2029;
+    --border: #333d4c;
+    --border-control: #7d8794;
+
+    --ink: #e8ecf2;
+    --ink-muted: #9aa6b8;
+
+    --chrome: #16233d;
+    --chrome-ink: #e8ecf2;
+    --chrome-ink-muted: #9fb0cc;
+
+    --accent: #9db8e8;
+    --focus: #8ab4f8;
+
+    --status-ok: #7bd69b;
+    --status-warning: #ffc15e;
+    --status-danger: #ff8a80;
+    --status-review: #c3aef2;
+  }
+}

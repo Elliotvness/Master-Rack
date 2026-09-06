@@ -30,6 +30,18 @@ const PROBE = join(PROBE_DIR, 'probe.ts');
 /** F-36 gave `internal-web` a symbol rule, so it needs its own probe. */
 const INTERNAL_PROBE_DIR = join(TREE, 'apps', 'internal-web', 'src');
 const INTERNAL_PROBE = join(INTERNAL_PROBE_DIR, 'probe.ts');
+/**
+ * S1 gave `studio-web` a symbol rule, so it needs one too.
+ *
+ * Not optional, and the checker said so before this line existed: adding the
+ * rule without adding this probe made the self-test's own BASELINE tree fail
+ * with "studio-web: no application source files ... A rule that matches nothing
+ * enforces nothing". That is the F-41 rule doing its job on the self-test
+ * rather than on the repository — every rule must match something, including in
+ * the synthetic tree the probes run against.
+ */
+const STUDIO_PROBE_DIR = join(TREE, 'apps', 'studio-web', 'src');
+const STUDIO_PROBE = join(STUDIO_PROBE_DIR, 'probe.ts');
 
 /**
  * Extensions the scan must not skip.
@@ -292,6 +304,11 @@ function writeInternalProbe(source) {
   writeFileSync(INTERNAL_PROBE, source, 'utf8');
 }
 
+function writeStudioProbe(source) {
+  mkdirSync(STUDIO_PROBE_DIR, { recursive: true });
+  writeFileSync(STUDIO_PROBE, source, 'utf8');
+}
+
 function internalProbeViolations() {
   return checkAppBoundaries(TREE).violations.filter((v) =>
     v.includes('internal-web/src/probe.'),
@@ -323,6 +340,7 @@ function main() {
   // inconvenience around them.
   writeProbe('export const x = 1;\n');
   writeInternalProbe('export const x = 1;\n');
+  writeStudioProbe('export const x = 1;\n');
   writeApiProbe('export const x = 1;\n');
   writeApiOwnedProbe('export const x = 1;\n');
   const baseline = checkAppBoundaries(TREE);

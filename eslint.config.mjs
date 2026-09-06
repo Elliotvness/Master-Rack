@@ -8,6 +8,9 @@ export default tseslint.config(
     ignores: [
       'node_modules/**',
       '**/dist/**', // build output; the source it came from is already linted
+      // Declaration output from apps/studio-web, kept out of `dist/` so the
+      // bundle checker can never confuse compiler output for an SPA build.
+      '**/dist-tsc/**',
       'coverage/**',
       'src/**', // the documentation toolchain is Python
       // F-47. `_to_delete/` is gitignored scratch (CLAUDE.md), so its contents

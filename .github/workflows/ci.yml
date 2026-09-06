@@ -193,6 +193,17 @@ jobs:
       - name: Scoreboard copies agree
         run: pnpm check:scoreboard
 
+      # F-49. vitest.alias.ts has always SAID "tools/check-aliases.mjs asserts
+      # that three-way agreement". The file did not exist. S1 adds
+      # @rms/studio-web and, with apps/studio-web/vite.config.ts, creates the
+      # bundler leg for the first time - so the sentence is now built rather
+      # than deleted. Self-test first, as always.
+      - name: Alias table self-test
+        run: pnpm check:aliases:selftest
+
+      - name: Alias table agrees across tsconfig and the test runner
+        run: pnpm check:aliases
+
       # Sync proves the two copies agree with each other. It cannot tell whether
       # either one agrees with the repository, and two copies of a stale number
       # agree perfectly. check-claims re-derives the declared figures from the
@@ -249,6 +260,13 @@ jobs:
       # build — it reports that out loud rather than passing quietly.
       - name: Front-end budget self-test
         run: pnpm check:budgets:selftest
+
+      # The bundle has to EXIST for the weighing arm to weigh anything. Without
+      # this step check-front-end-budgets reports "no SPA build ... PASS" — the
+      # exact vacuous pass F-45 recorded — and the arm proven against a real
+      # Vite build in S1 would quietly stop being exercised in CI.
+      - name: Build the studio bundle
+        run: pnpm build:web
 
       - name: Front-end budgets agree across §5.4, the checker and PERF.md
         run: pnpm check:budgets

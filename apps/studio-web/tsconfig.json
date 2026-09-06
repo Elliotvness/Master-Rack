@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    /*
+     * Vite owns `dist/`. This project emits its declarations somewhere else on
+     * purpose: `check-front-end-budgets` decides what is an SPA build by looking
+     * for `dist/index.html`, and the first version of that checker weighed `tsc`
+     * output and reported "client-web 16 KB gz" for a bundle that did not exist
+     * (F-45). Keeping compiler output out of `dist/` entirely means the two can
+     * never be confused, rather than relying on the discriminator to tell them
+     * apart after the fact.
+     */
+    "outDir": "./dist-tsc",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["node"]
+  },
+  "references": [
+    { "path": "../../packages/display-list" },
+    { "path": "../../packages/kernel-units" }
+  ],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
+}

@@ -14,6 +14,7 @@
     { "path": "./packages/db" },
     { "path": "./apps/api" },
     { "path": "./apps/client-web" },
-    { "path": "./apps/internal-web" }
+    { "path": "./apps/internal-web" },
+    { "path": "./apps/studio-web" }
   ]
 }

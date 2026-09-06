@@ -141,6 +141,42 @@ const RULES = [
       { pattern: /^strip/, why: 'deciding what an audience may see is a server authority' },
     ],
   },
+  {
+    /**
+     * `apps/studio-web` — the Canvas 2D layout studio (ADR-016). Internal
+     * audience, so no import is forbidden on audience grounds, exactly as for
+     * `internal-web`.
+     *
+     * THIS RULE LANDS WITH THE SCAFFOLD, NOT AFTER IT. F-44 is the reason: an
+     * app in `apps/` with no entry here was scanned by nothing, and this
+     * checker printed PASS over a fourth application that imported
+     * `@rms/kernel-bom` and bound `submit` at the top level. A rule written a
+     * slice later would have left exactly that window open.
+     */
+    app: 'studio-web',
+    forbidden: [],
+    /**
+     * The same four server authorities as the other two browser bundles, for
+     * the reason that has nothing to do with audience: this is a browser
+     * bundle, and a browser bundle that can drive the submit sequence decides
+     * for itself when a revision freezes.
+     *
+     * `derive` matters more here than anywhere else, and is the one to read
+     * twice. A drawing surface is under constant pressure to recompute its own
+     * answer for responsiveness — that is precisely what ADR-018 rule 4 and
+     * ADR-017's "the index is derived state" forbid. The studio renders a
+     * display list the server derived; it does not derive one.
+     */
+    forbiddenSymbols: [
+      { pattern: /^submit$/, why: 'the submit transaction; the server owns the sequence (D-01, AD-1)' },
+      { pattern: /^freeze/, why: 'freezing a revision is a server authority, not a drawing surface\'s' },
+      {
+        pattern: /^derive/,
+        why: 'derivation is a server authority — a studio that re-derives its own geometry is a second kernel (ADR-016), and ADR-018 rule 4 forbids arithmetic in a render',
+      },
+      { pattern: /^strip/, why: 'deciding what an audience may see is a server authority' },
+    ],
+  },
 ];
 
 /** `export { a, b as c }` and `export { a } from '...'`. Captures the clause. */

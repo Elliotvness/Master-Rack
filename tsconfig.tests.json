@@ -31,7 +31,22 @@
     "declaration": false,
     "declarationMap": false,
     "sourceMap": false,
-    "types": ["node"]
+    "types": ["node"],
+    /*
+     * S1. `lib.dom` is here because `apps/studio-web/src/app.test.tsx` is a
+     * component test and genuinely needs `document`. F-43's lesson was that the
+     * type gate must be able to SEE `.tsx`; being able to see it and not being
+     * able to check it is the same hole one step further in.
+     *
+     * THE WIDENING, stated rather than discovered later: every test file in the
+     * repository can now reference `document` and `window` and will type-check.
+     * A kernel test that did so would be wrong. Two things bound it — the
+     * purity scan (`check-boundaries`) covers kernel SOURCE, which is where the
+     * invariant actually lives, and `vitest.config.ts` sets `environment: 'node'`
+     * globally, so a kernel test touching the DOM fails at run time rather than
+     * passing quietly. Neither is a type-level guard, and there is none.
+     */
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
   "include": [
     "packages/**/*.test.ts",

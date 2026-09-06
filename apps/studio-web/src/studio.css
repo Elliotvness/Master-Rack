@@ -1,0 +1,212 @@
+/*
+ * The shell's layout. Colours come from tokens.css and nothing here declares a
+ * literal colour — a hex in this file would be a value the contrast gate never
+ * sees.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.studio {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* --- chrome ------------------------------------------------------------- */
+
+.chrome {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 0.75rem;
+  min-height: 44px;
+  background: var(--chrome);
+  color: var(--chrome-ink);
+}
+
+.jobtag {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.jobtag[data-established='false'] {
+  color: var(--chrome-ink-muted);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.tab {
+  padding: 0.35rem 0.7rem;
+  border-radius: 4px 4px 0 0;
+  color: var(--chrome-ink-muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tab:hover {
+  color: var(--chrome-ink);
+}
+
+/*
+ * The active tab is marked by weight and an underline as well as colour.
+ * Never colour alone — the same rule ADR-019 states for badges.
+ */
+.tab-active {
+  color: var(--chrome-ink);
+  font-weight: 600;
+  box-shadow: inset 0 -3px 0 currentColor;
+}
+
+.chrome-actions {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.chrome-btn {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--chrome-ink-muted);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--chrome-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.chrome-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* --- focus -------------------------------------------------------------- */
+
+/*
+ * One visible focus style for everything focusable. `:focus-visible` rather
+ * than `:focus` so a pointer user does not get a ring on every click, and an
+ * outline with an offset rather than a background change so it is legible on
+ * both the chrome bar and the page.
+ */
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* --- banner ------------------------------------------------------------- */
+
+.banner-note {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  color: var(--ink);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+/* --- body --------------------------------------------------------------- */
+
+.studio-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.stage {
+  flex: 1;
+  padding: 1rem;
+  min-width: 0;
+}
+
+.rail {
+  width: 320px;
+  flex-shrink: 0;
+  padding: 1rem;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+}
+
+@media (max-width: 900px) {
+  .studio-body {
+    flex-direction: column;
+  }
+
+  .rail {
+    width: auto;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}
+
+/* --- placeholders ------------------------------------------------------- */
+
+.view-placeholder h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
+}
+
+.lede {
+  margin: 0 0 1rem;
+  color: var(--ink-muted);
+}
+
+.not-implemented {
+  padding: 0.6rem 0.75rem;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink-muted);
+}
+
+.loading {
+  color: var(--ink-muted);
+}
+
+/* --- toast -------------------------------------------------------------- */
+
+.toast-region {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  pointer-events: none;
+}
+
+.toast {
+  margin: 0;
+  padding: 0.5rem 0.9rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.toast-refusal {
+  border-color: var(--status-danger);
+  color: var(--status-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
