@@ -1,88 +1,155 @@
 /*
- * Studio design tokens.
+ * Studio design tokens — lifted verbatim from the published artifact.
  *
- * Three-state theme, carried from the artifact's `:root` blocks: an explicit
- * choice stamps `data-theme` on the root element, and the unset default follows
- * `prefers-color-scheme`. Every token is defined on bare `:root` first, so a
- * colour can never have its ONLY definition inside a media query.
+ * Chrome navy #1F3864 is the reference drawing set's title-block banner (PDF
+ * fill 0.121569 0.219608 0.392157). The canvas pens are real plot-table
+ * colours. Neutrals are biased cool toward the navy.
  *
- * `--chrome` is the reference title block's navy, #1F3864, and it is the one
- * colour carried verbatim from the drawing set.
+ * **These values are copied, not chosen.** The artifact is the design of record
+ * and matching it exactly is the requirement; where a pair falls below WCAG AA
+ * that is recorded in `pairs.ts` with its measured ratio rather than corrected
+ * here, because silently altering a brand palette is not this file's decision
+ * to make.
  *
- * The pairs in `pairs.ts` are checked against these values by `tokens.test.ts`.
- * Editing a colour here without meeting its ratio fails the suite.
+ * Three-state theme: an explicit choice stamps `data-theme` on the root, and
+ * the unset default follows `prefers-color-scheme`. Every token is defined on
+ * bare `:root` first, so no colour has its only definition inside a media
+ * query.
  */
 
 :root {
   color-scheme: light;
 
-  --bg: #f7f8fa;
-  --surface: #ffffff;
-  --border: #d3d9e2;
-  --border-control: #808996;
+  --paper: #fbfaf8;
+  --panel: #ffffff;
+  --sunk: #f2f1ee;
+  --raise: #ffffff;
 
-  --ink: #16202e;
-  --ink-muted: #4a5568;
+  --ink: #14181f;
+  --ink-2: #4a5261;
+  --ink-3: #7c8494;
 
-  --chrome: #1f3864;
-  --chrome-ink: #ffffff;
-  --chrome-ink-muted: #c9d4e8;
+  --rule: #deddd8;
+  --rule-2: #eae9e5;
 
-  --accent: #1f3864;
-  --focus: #0b57d0;
+  --navy: #1f3864;
+  --navy-2: #35548c;
+  --navy-soft: #e8edf6;
 
-  --status-ok: #1b6b3a;
-  --status-warning: #8a5a00;
-  --status-danger: #b3261e;
-  --status-review: #5b3aa8;
+  --pass: #2f6b4f;
+  --warn: #a9670a;
+  --block: #a93226;
+  --na: #8a9099;
+
+  --pass-bg: #e7f0ea;
+  --warn-bg: #fbf0dc;
+  --block-bg: #f8e7e4;
+  --na-bg: #efefef;
+
+  --sel: #1f3864;
+  --sel-bg: rgba(31, 56, 100, 0.1);
+
+  --pen-upright: #1f3864;
+  --pen-beam: #2f6b4f;
+  --pen-pallet: #9aa3b2;
+  --pen-anno: #a93226;
+  --pen-dim: #7c8494;
+  --pen-grid: #e6e5e0;
+  --pen-flue: #a9670a;
+  --pen-bldg: #4a5261;
+  --pen-lock: #a9670a;
+
+  --shadow: 0 1px 2px rgba(20, 24, 31, 0.06), 0 4px 14px rgba(20, 24, 31, 0.05);
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #12161c;
-  --surface: #1a2029;
-  --border: #333d4c;
-  --border-control: #7d8794;
+  --paper: #0e1218;
+  --panel: #161b23;
+  --sunk: #11161d;
+  --raise: #1b212b;
 
-  --ink: #e8ecf2;
-  --ink-muted: #9aa6b8;
+  --ink: #e6e8ec;
+  --ink-2: #a2aab8;
+  --ink-3: #737c8b;
 
-  --chrome: #16233d;
-  --chrome-ink: #e8ecf2;
-  --chrome-ink-muted: #9fb0cc;
+  --rule: #262d38;
+  --rule-2: #1e242d;
 
-  --accent: #9db8e8;
-  --focus: #8ab4f8;
+  --navy: #8fb0e8;
+  --navy-2: #6d93d4;
+  --navy-soft: #1a2436;
 
-  --status-ok: #7bd69b;
-  --status-warning: #ffc15e;
-  --status-danger: #ff8a80;
-  --status-review: #c3aef2;
+  --pass: #63b287;
+  --warn: #dfa33f;
+  --block: #e07868;
+  --na: #7d8593;
+
+  --pass-bg: #14261c;
+  --warn-bg: #2a2010;
+  --block-bg: #2c1714;
+  --na-bg: #1c2028;
+
+  --sel: #8fb0e8;
+  --sel-bg: rgba(143, 176, 232, 0.14);
+
+  --pen-upright: #8fb0e8;
+  --pen-beam: #63b287;
+  --pen-pallet: #5c6474;
+  --pen-anno: #e07868;
+  --pen-dim: #737c8b;
+  --pen-grid: #1c222b;
+  --pen-flue: #dfa33f;
+  --pen-bldg: #a2aab8;
+  --pen-lock: #dfa33f;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --bg: #12161c;
-    --surface: #1a2029;
-    --border: #333d4c;
-    --border-control: #7d8794;
+    --paper: #0e1218;
+    --panel: #161b23;
+    --sunk: #11161d;
+    --raise: #1b212b;
 
-    --ink: #e8ecf2;
-    --ink-muted: #9aa6b8;
+    --ink: #e6e8ec;
+    --ink-2: #a2aab8;
+    --ink-3: #737c8b;
 
-    --chrome: #16233d;
-    --chrome-ink: #e8ecf2;
-    --chrome-ink-muted: #9fb0cc;
+    --rule: #262d38;
+    --rule-2: #1e242d;
 
-    --accent: #9db8e8;
-    --focus: #8ab4f8;
+    --navy: #8fb0e8;
+    --navy-2: #6d93d4;
+    --navy-soft: #1a2436;
 
-    --status-ok: #7bd69b;
-    --status-warning: #ffc15e;
-    --status-danger: #ff8a80;
-    --status-review: #c3aef2;
+    --pass: #63b287;
+    --warn: #dfa33f;
+    --block: #e07868;
+    --na: #7d8593;
+
+    --pass-bg: #14261c;
+    --warn-bg: #2a2010;
+    --block-bg: #2c1714;
+    --na-bg: #1c2028;
+
+    --sel: #8fb0e8;
+    --sel-bg: rgba(143, 176, 232, 0.14);
+
+    --pen-upright: #8fb0e8;
+    --pen-beam: #63b287;
+    --pen-pallet: #5c6474;
+    --pen-anno: #e07868;
+    --pen-dim: #737c8b;
+    --pen-grid: #1c222b;
+    --pen-flue: #dfa33f;
+    --pen-bldg: #a2aab8;
+    --pen-lock: #dfa33f;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.35);
   }
 }

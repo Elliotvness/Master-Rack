@@ -115,3 +115,68 @@ describe('display entries carry establishment, never a bare string', () => {
     expect(d).toEqual({ text: VERIFY, established: false });
   });
 });
+
+describe('formatLength — feet, inches and sixteenths', () => {
+  /**
+   * The convention a drawing uses. Ported from the v1 prototype's `fmtFtIn`,
+   * and these are the exact strings the published artifact prints.
+   */
+  it.each([
+    [132, `11'-0"`],
+    [126, `10'-6"`],
+    [99, `8'-3"`],
+    [99 * 12 + 3, `99'-3"`],
+    [96, `8'-0"`],
+    [12, `1'-0"`],
+  ])('%i in renders as %s', (value, expected) => {
+    expect(formatLength(inches(value), { feetInches: true })).toBe(expected);
+  });
+
+  it('omits the feet below one foot', () => {
+    expect(formatLength(inches(6), { feetInches: true })).toBe('6"');
+    expect(formatLength(inches(0), { feetInches: true })).toBe('0"');
+  });
+
+  it('keeps a zero inches, because 11\'-0" is what a dimension string looks like', () => {
+    expect(formatLength(inches(24), { feetInches: true })).toBe(`2'-0"`);
+  });
+
+  it('reduces the fraction to lowest terms', () => {
+    expect(formatLength(inches(5.125), { feetInches: true })).toBe('5 1/8"');
+    expect(formatLength(inches(5.25), { feetInches: true })).toBe('5 1/4"');
+    expect(formatLength(inches(5.375), { feetInches: true })).toBe('5 3/8"');
+    expect(formatLength(inches(5.5), { feetInches: true })).toBe('5 1/2"');
+    expect(formatLength(inches(5.75), { feetInches: true })).toBe('5 3/4"');
+  });
+
+  /**
+   * **A sixteenth of an inch cannot be stored.** 1/16" is 1,587.5 µm, and this
+   * package refuses a value that is not a whole micrometre rather than rounding
+   * it silently. So the sixteenths grid is a DISPLAY grid: eighths and coarser
+   * are exact, and anything finer is a rounding on the way to the screen of a
+   * value that was never a sixteenth.
+   *
+   * Worth knowing before someone reads `5 5/16"` off a drawing and assumes the
+   * model holds it exactly. It does not, and it cannot.
+   */
+  it('refuses to store a true sixteenth, so a displayed one is always a rounding', () => {
+    expect(() => inches(5.3125)).toThrow();
+    // The nearest storable value below it renders as the sixteenth it rounds to.
+    expect(formatLength(um(134_937), { feetInches: true })).toBe('5 5/16"');
+  });
+
+  it('signs a negative with a minus, not a hyphen that reads as the feet dash', () => {
+    expect(formatLength(inches(-18), { feetInches: true })).toBe(`−1'-6"`);
+  });
+
+  /** VERIFY wins over every format option. An unestablished value has no shape. */
+  it('still refuses an unestablished value', () => {
+    expect(formatLength(um(1000, 'UNKNOWN'), { feetInches: true })).toBe(VERIFY);
+  });
+
+  it('can still append the metric equivalent', () => {
+    expect(formatLength(inches(132), { feetInches: true, metric: true })).toBe(
+      `11'-0" (3352.8 mm)`,
+    );
+  });
+});

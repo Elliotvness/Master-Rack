@@ -35,6 +35,10 @@ export interface Point {
 export type ItemKind =
   | 'upright'
   | 'beam'
+  /** A unit load at its true footprint, overhang included. S3.1. */
+  | 'unit-load'
+  /** A flue space — longitudinal between rows, transverse between loads. S3.1. */
+  | 'flue'
   | 'aisle'
   | 'obstruction'
   | 'no-rack-zone'

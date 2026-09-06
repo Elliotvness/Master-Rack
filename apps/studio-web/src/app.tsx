@@ -38,10 +38,10 @@ function Loading(): React.JSX.Element {
 /**
  * The shell.
  *
- * Three regions, which is the frame every later slice fills: the chrome bar,
- * the view, and the inspector rail. The rail is empty in S1 and says so — an
- * empty region that explains itself is honest; one that is simply blank reads
- * as broken.
+ * Two regions: the chrome bar and the view. S1 carried a third — an inspector
+ * rail that announced its own emptiness — and S3.1 removed it: the plan route
+ * now renders its own parameter panel inside the stage, and a rail saying
+ * "Empty" beside the thing that fills it is worse than no rail.
  */
 export function App(): React.JSX.Element {
   const { messages } = useToasts();
@@ -75,12 +75,12 @@ export function App(): React.JSX.Element {
           </Suspense>
         </main>
 
-        <aside className="rail" aria-label="Inspector">
-          <p className="not-implemented">
-            <b>Empty.</b> The parameter panel, findings list and provenance popover arrive in later
-            slices.
-          </p>
-        </aside>
+        {/*
+          The inspector rail is per-view: the plan route renders its own
+          parameter panel inside the stage, so a second empty rail beside it
+          would be a region announcing its own emptiness next to the thing that
+          fills it. Views without one say so themselves.
+        */}
       </div>
 
       <ToastRegion messages={messages} />

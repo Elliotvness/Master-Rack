@@ -81,6 +81,8 @@ const PENS: Pens = {
   inkMuted: '#muted',
   upright: '#upright',
   beam: '#beam',
+  unitLoad: '#unitload',
+  flue: '#flue',
   aisle: '#aisle',
   obstruction: '#obstruction',
   noRackZone: '#norack',
@@ -362,5 +364,49 @@ describe('the item kinds the plan actually emits', () => {
     );
     expect(r.culled).toBe(2);
     expect(r.drawn).toBe(0);
+  });
+});
+
+describe('unit loads and flues get their own pen and fill weight', () => {
+  /**
+   * A unit load is an OUTLINE — filling it solid hides the frame beneath and
+   * with it the overhang, which is the one thing drawing loads at true
+   * footprint exists to show.
+   */
+  it('a unit load strokes in its pen and fills at zero alpha', () => {
+    const { ctx, calls } = recorder();
+    draw(
+      ctx,
+      listWith(
+        rect({ item: 'unit-load', id: 'u', origin: point(0, 0), width: IN(40), height: IN(48), label: null }),
+      ),
+      { camera: CAMERA, viewport: VIEWPORT, pens: PENS, dpr: 1 },
+    );
+    expect(calls.some((c) => c.op === 'set strokeStyle' && c.args[0] === '#unitload')).toBe(true);
+    expect(calls.some((c) => c.op === 'set globalAlpha' && c.args[0] === 0)).toBe(true);
+  });
+
+  it('a flue uses the flue pen and a readable wash', () => {
+    const { ctx, calls } = recorder();
+    draw(
+      ctx,
+      listWith(
+        rect({ item: 'flue', id: 'f', origin: point(0, 0), width: IN(300), height: IN(6), label: null }),
+      ),
+      { camera: CAMERA, viewport: VIEWPORT, pens: PENS, dpr: 1 },
+    );
+    expect(calls.some((c) => c.op === 'set fillStyle' && c.args[0] === '#flue')).toBe(true);
+    expect(calls.some((c) => c.op === 'set globalAlpha' && c.args[0] === 0.3)).toBe(true);
+  });
+
+  it('an aisle wash stays light enough to read dimensions through', () => {
+    const { ctx, calls } = recorder();
+    draw(ctx, listWith(aRect('a', 0, 0, 'aisle')), {
+      camera: CAMERA,
+      viewport: VIEWPORT,
+      pens: PENS,
+      dpr: 1,
+    });
+    expect(calls.some((c) => c.op === 'set globalAlpha' && c.args[0] === 0.1)).toBe(true);
   });
 });

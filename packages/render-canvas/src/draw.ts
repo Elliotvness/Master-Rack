@@ -25,6 +25,10 @@ export interface Pens {
   readonly inkMuted: string;
   readonly upright: string;
   readonly beam: string;
+  /** A unit load, drawn at its true footprint including overhang. */
+  readonly unitLoad: string;
+  /** A flue space. Distinct from the aisle pen: they are different clearances. */
+  readonly flue: string;
   readonly aisle: string;
   readonly obstruction: string;
   readonly noRackZone: string;
@@ -53,6 +57,10 @@ const penFor = (item: DisplayItem['item'], pens: Pens): string => {
       return pens.upright;
     case 'beam':
       return pens.beam;
+    case 'unit-load':
+      return pens.unitLoad;
+    case 'flue':
+      return pens.flue;
     case 'aisle':
       return pens.aisle;
     case 'obstruction':
@@ -135,7 +143,20 @@ export function draw(
         const w = item.width * camera.scale;
         const h = item.height * camera.scale;
         ctx.fillStyle = pen;
-        ctx.globalAlpha = item.item === 'aisle' || item.item === 'no-rack-zone' ? 0.16 : 0.9;
+        /*
+         * Fill weight by kind. A unit load is an OUTLINE — filling it solid
+         * hides the frame beneath and with it the overhang, which is the one
+         * thing drawing loads at true footprint exists to show. The aisle and
+         * flue washes stay light enough to read dimensions through.
+         */
+        ctx.globalAlpha =
+          item.item === 'unit-load'
+            ? 0
+            : item.item === 'aisle' || item.item === 'no-rack-zone'
+              ? 0.1
+              : item.item === 'flue'
+                ? 0.3
+                : 0.85;
         ctx.fillRect(tl.x, tl.y, w, h);
         ctx.globalAlpha = 1;
         // Hairlines are stroked at a constant device width, not scaled with the

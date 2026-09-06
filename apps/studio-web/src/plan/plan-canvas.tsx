@@ -1,22 +1,61 @@
-import { buildPlan } from '@rms/display-list';
+import { buildDetailedPlan } from '@rms/display-list';
 import {
   draw,
+  drawOverlays,
   fitExtent,
   panByScreen,
-  screenToWorld,
   zoomAbout,
   type Camera,
 } from '@rms/render-canvas';
-import { toKernel, type StudioDocument } from '@rms/studio-model';
+import { planGeometry, type StudioDocument } from '@rms/studio-model';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { readPens } from './use-pens.js';
 
 /**
+ * Feet and inches, for the HUD only.
+ *
+ * The DRAWING never formats — every string it prints arrives as a `DisplayText`
+ * from the display list, so an unestablished value renders VERIFY. This is
+ * chrome beside the drawing, showing values that are derived and established by
+ * construction (a position count cannot be "unknown"), so a local formatter is
+ * honest here and would not be inside `draw`.
+ */
+function formatFeetInches(micrometres: number): string {
+  const totalInches = Math.round(micrometres / 25_400);
+  const feet = Math.floor(totalInches / 12);
+  const inches = totalInches - feet * 12;
+  return `${feet}'-${inches}"`;
+}
+
+/** One HUD chip. `pending` marks a measure this build does not yet produce. */
+function Chip({
+  label,
+  value,
+  pending = false,
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly pending?: boolean;
+}): React.JSX.Element {
+  return (
+    <span
+      className={pending ? 'chip chip-pending' : 'chip'}
+      aria-disabled={pending || undefined}
+      title={pending ? 'Not implemented — arrives with the screening checks' : undefined}
+    >
+      <span className="chip-label">{label}</span>
+      <b className="chip-value">{value}</b>
+      {pending && <span className="visually-hidden">not implemented</span>}
+    </span>
+  );
+}
+
+/**
  * The plan viewport.
  *
- * The chain, in one place so it can be read: **document → `toKernel` →
- * `buildPlan` → `draw`**. Each arrow is a package boundary, and the component
+ * The chain, in one place so it can be read: **document → `planGeometry` →
+ * `buildDetailedPlan` → `draw`**. Each arrow is a package boundary, and the component
  * crosses them without doing arithmetic of its own — no bay pitch, no clear
  * width, no formatting. ADR-018 rule 4 forbids arithmetic in a render, and
  * `check-app-boundaries` forbids this app binding anything named `derive*`.
@@ -42,15 +81,38 @@ export function PlanCanvas({ document: doc }: { readonly document: StudioDocumen
    * camera, not on the viewport — so pan and zoom cost a redraw and never a
    * re-derivation, which is blueprint §21's first performance rule.
    */
-  const list = useMemo(() => {
-    const scene = toKernel(doc);
-    return buildPlan({
-      revisionHash: `doc:${doc.id}:${doc.revision}`,
-      runs: scene.runs,
-      aisles: scene.aisles,
-      extent: scene.extent,
-    });
-  }, [doc]);
+  const plan = useMemo(() => planGeometry(doc), [doc]);
+
+  const list = useMemo(
+    () =>
+      buildDetailedPlan({
+        revisionHash: `doc:${doc.id}:${doc.revision}`,
+        runs: plan.runs.map((r) => ({
+          runId: r.runId,
+          label: r.label,
+          x: r.x,
+          y: r.y,
+          runLength: r.runLength,
+          bayPitch: r.bayPitch,
+          uprightFace: r.uprightFace,
+          rows: r.rows,
+          bays: r.bays,
+          pallets: r.pallets,
+          longitudinalFlue: r.longitudinalFlue,
+        })),
+        aisles: plan.aisles.map((a) => ({
+          aisleId: a.aisleId,
+          x: a.x,
+          y: a.y,
+          length: a.length,
+          frameToFrame: a.frameToFrame,
+          clearBetweenLoads: a.clearBetweenLoads,
+        })),
+        extent: plan.extent,
+        overallLength: plan.overallLength,
+      }),
+    [doc.id, doc.revision, plan],
+  );
 
   // Track the element's size rather than the window's: the rail and the banner
   // both change the stage's width without the window resizing.
@@ -89,12 +151,11 @@ export function PlanCanvas({ document: doc }: { readonly document: StudioDocumen
     canvas.style.width = `${viewport.width}px`;
     canvas.style.height = `${viewport.height}px`;
 
-    draw(ctx, list, {
-      camera,
-      viewport,
-      dpr,
-      pens: readPens(window.document.documentElement),
-    });
+    const pens = readPens(window.document.documentElement);
+    draw(ctx, list, { camera, viewport, dpr, pens });
+    // Screen-space, and drawn AFTER the world so they are never culled and hold
+    // their size as the camera zooms.
+    drawOverlays(ctx, { camera, viewport, dpr, pens });
   }, [camera, list, viewport]);
 
   useEffect(() => {
@@ -150,9 +211,6 @@ export function PlanCanvas({ document: doc }: { readonly document: StudioDocumen
     if (viewport.width > 0) setCamera(fitExtent(viewport, list.extent));
   }, [viewport, list.extent]);
 
-  const cursorWorld =
-    camera === null ? null : screenToWorld(camera, viewport, { x: viewport.width / 2, y: viewport.height / 2 });
-
   return (
     <div className="plan-wrap" ref={wrapRef}>
       <canvas
@@ -169,24 +227,30 @@ export function PlanCanvas({ document: doc }: { readonly document: StudioDocumen
         role="img"
         aria-label={`Plan view: ${doc.runs.length} rack runs, ${list.items.length} drawn items`}
       />
-      <div className="plan-hud">
-        <span>
-          <b>{doc.runs.length}</b> runs
-        </span>
-        <span>
-          <b>{doc.runs.reduce((n, r) => n + r.bays.length, 0)}</b> bays
-        </span>
-        <span>
-          <b>{list.items.length}</b> items
-        </span>
-        <span>
+      <div className="plan-hud" role="group" aria-label="Layout summary">
+        <Chip label="Pallet positions" value={String(plan.totalPositions)} />
+        <Chip label="Bays" value={String(plan.totalBays)} />
+        <Chip
+          label="Narrowest clear aisle"
+          value={
+            plan.narrowestClearAisle === null
+              ? 'No aisle'
+              : formatFeetInches(plan.narrowestClearAisle.value)
+          }
+        />
+        {/*
+          The three finding chips are PLACEHOLDERS, and they say so rather than
+          showing a zero. A zero here would read as "nothing failing", which is
+          a claim about the layout; "not implemented" is a claim about the
+          build. They become real in S5, when kernel-checks is wired.
+        */}
+        <Chip label="Failing" value="—" pending />
+        <Chip label="Awaiting input" value="—" pending />
+        <Chip label="Awaiting source" value="—" pending />
+        <span className="plan-hud-sep" aria-hidden="true" />
+        <span className="plan-hud-muted">
           {camera === null ? 'fitting…' : `${(camera.scale * 25_400).toFixed(2)} px/in`}
         </span>
-        {cursorWorld !== null && (
-          <span className="plan-hud-muted">
-            centre {(cursorWorld.x / 25_400).toFixed(0)}, {(cursorWorld.y / 25_400).toFixed(0)} in
-          </span>
-        )}
         <button type="button" className="plan-fit" onClick={fit}>
           Fit
         </button>

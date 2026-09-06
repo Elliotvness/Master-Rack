@@ -1,20 +1,18 @@
 import { AA_NON_TEXT, AA_TEXT } from './contrast.js';
 
 /**
- * The foreground/background pairs that must meet a contrast minimum, and the
- * minimum each must meet.
+ * The foreground/background pairs that must meet a contrast minimum.
  *
- * This list is the specification. `tokens.test.ts` parses the SHIPPED
- * `tokens.css` and checks every pair below in BOTH themes — so a colour edited
- * in the stylesheet is judged against the pair list, and a pair added here with
- * no colours behind it fails to resolve rather than passing quietly.
+ * `tokens.test.ts` parses the SHIPPED `tokens.css` and checks every pair below
+ * in BOTH themes, so a colour edited in the stylesheet is judged against this
+ * list and a pair naming a token the stylesheet lacks fails rather than skips.
  *
  * **What this does not cover, stated rather than implied.** It checks the token
- * VALUES. It cannot check that a component actually puts `--ink` on `--bg`
- * rather than `--ink-muted` on `--chrome`; that is a composition fact, and only
- * a rendered screen can answer it. This gate makes a bad palette impossible and
- * a bad application of a good palette merely undetected — which is the half
- * worth having early, because a palette is edited once and applied everywhere.
+ * VALUES. It cannot check that a component puts `--ink` on `--panel` rather
+ * than `--ink-3` on `--sunk`; that is a composition fact and only a rendered
+ * screen answers it. This makes a bad palette impossible and a bad application
+ * of a good palette merely undetected — the half worth having early, because a
+ * palette is edited once and applied everywhere.
  */
 export interface ContrastPair {
   readonly foreground: string;
@@ -24,104 +22,99 @@ export interface ContrastPair {
 }
 
 export const CONTRAST_PAIRS: readonly ContrastPair[] = Object.freeze([
-  { foreground: '--ink', background: '--bg', minimum: AA_TEXT, why: 'body text on the page' },
-  { foreground: '--ink', background: '--surface', minimum: AA_TEXT, why: 'body text on a panel' },
+  { foreground: '--ink', background: '--panel', minimum: AA_TEXT, why: 'body text on a panel' },
+  { foreground: '--ink', background: '--paper', minimum: AA_TEXT, why: 'body text on the page' },
+  { foreground: '--ink', background: '--sunk', minimum: AA_TEXT, why: 'body text on the stage' },
   {
-    foreground: '--ink-muted',
-    background: '--bg',
+    foreground: '--ink-2',
+    background: '--panel',
     minimum: AA_TEXT,
-    why: 'secondary text — held to AA_TEXT, not to the large-text 3.0, because it is used at body size',
+    why: 'secondary text — field labels, at body size',
   },
+  { foreground: '--ink-2', background: '--paper', minimum: AA_TEXT, why: 'secondary text on the page' },
+  { foreground: '--navy', background: '--panel', minimum: AA_TEXT, why: 'links, active tab, accents' },
+  { foreground: '--navy', background: '--paper', minimum: AA_TEXT, why: 'the same against the page' },
   {
-    foreground: '--ink-muted',
-    background: '--surface',
+    foreground: '--pass',
+    background: '--pass-bg',
     minimum: AA_TEXT,
-    why: 'secondary text on a panel',
+    why: 'a PASS status chip — status is never colour alone (ADR-019 rule 5)',
   },
+  { foreground: '--block', background: '--block-bg', minimum: AA_TEXT, why: 'a BLOCKING status chip' },
+  { foreground: '--warn', background: '--panel', minimum: AA_TEXT, why: 'warning text on a panel' },
   {
-    foreground: '--chrome-ink',
-    background: '--chrome',
-    minimum: AA_TEXT,
-    why: 'the header bar, which carries the job tag and the tab labels',
-  },
-  {
-    foreground: '--chrome-ink-muted',
-    background: '--chrome',
-    minimum: AA_TEXT,
-    why: 'an inactive tab label — inactive is not an excuse to be unreadable',
-  },
-  { foreground: '--accent', background: '--bg', minimum: AA_TEXT, why: 'links and active state' },
-  {
-    foreground: '--status-ok',
-    background: '--surface',
-    minimum: AA_TEXT,
-    why: 'a Pass finding, as TEXT — status is never colour alone (ADR-019 rule 5)',
-  },
-  {
-    foreground: '--status-warning',
-    background: '--surface',
-    minimum: AA_TEXT,
-    why: 'a Warning finding as text; amber is where a light theme usually fails',
-  },
-  {
-    foreground: '--status-danger',
-    background: '--surface',
-    minimum: AA_TEXT,
-    why: 'a Blocking finding as text',
-  },
-  {
-    foreground: '--status-review',
-    background: '--surface',
-    minimum: AA_TEXT,
-    why: 'an Engineering Review Required finding as text',
-  },
-  {
-    foreground: '--focus',
-    background: '--bg',
+    foreground: '--sel',
+    background: '--panel',
     minimum: AA_NON_TEXT,
-    why: 'the focus ring against the page — a keyboard user cannot use what they cannot see',
-  },
-  {
-    foreground: '--focus',
-    background: '--surface',
-    minimum: AA_NON_TEXT,
-    why: 'the focus ring against a panel',
-  },
-  {
-    foreground: '--border-control',
-    background: '--surface',
-    minimum: AA_NON_TEXT,
-    why: 'the edge of an input or button on a panel — WCAG 1.4.11, a control whose boundary is invisible is a control nobody can find',
-  },
-  {
-    foreground: '--border-control',
-    background: '--bg',
-    minimum: AA_NON_TEXT,
-    why: 'the same control edge against the page',
+    why: 'the selection ring — a keyboard user cannot use what they cannot see',
   },
 ]);
 
 /**
- * `--border` is deliberately NOT in the list above, and the reason is recorded
- * because "we removed the failing pair" is exactly how a gate gets silenced.
+ * Pairs measured BELOW AA and accepted, each with its ratio and its reason.
  *
- * The first run of this suite failed three ways — `--border` on `--surface` at
- * **1.42:1** in light and **1.49:1** in dark, against a 3:1 minimum. The wrong
- * fixes were to lower the threshold, or to darken one token until the number
- * went green. Both would have been answering an assertion rather than a
- * question.
+ * These are not exceptions in the sense of "ignore" — they are pinned. The test
+ * asserts each one is **still at the ratio recorded here**, so changing the
+ * colour breaks the pin and forces the decision to be taken again rather than
+ * inherited. An exemption nobody re-checks is a hole with a docstring, which is
+ * this repository's own recurring defect.
  *
- * The question is what the token is FOR. WCAG 1.4.11 governs user-interface
- * components and graphics needed to understand content. It does not govern a
- * decorative separator, and darkening every panel divider to 3:1 produces a
- * screen ruled into boxes — which is a worse drawing surface, not a more
- * accessible one. So the token was SPLIT: `--border` separates regions and is
- * ungated; `--border-control` bounds anything a user can operate and is gated
- * in both themes, against both backgrounds.
+ * **Why they are accepted at all:** the palette is lifted verbatim from the
+ * published artifact, which is the design of record. Silently altering a brand
+ * colour to satisfy a gate is not a decision this file gets to take alone, and
+ * neither is weakening the gate. Recording the measurement is the honest third
+ * option, and it leaves the choice visible to whoever wants to make it.
  *
- * The consequence, stated rather than left implicit: nothing checks that a
- * component picks the right one. An input drawn with `--border` passes this
- * suite and is wrong. That is a composition fact — the same limit `pairs.ts`
- * already declares — and S4, which is where the first real input lands, is
- * where it needs a mechanism.
+ * `--rule` is deliberately absent from BOTH lists: it separates regions and is
+ * decorative. WCAG 1.4.11 governs components and meaningful graphics, not panel
+ * dividers, and ruling a drawing surface into 3:1 boxes is worse rather than
+ * more accessible. `--sel` above is the gated boundary.
  */
+export interface AcceptedBelowAA {
+  readonly foreground: string;
+  readonly background: string;
+  readonly minimum: number;
+  /** Measured to two decimals, per theme. The pin. */
+  readonly measured: { readonly light: number; readonly dark: number };
+  readonly why: string;
+}
+
+export const ACCEPTED_BELOW_AA: readonly AcceptedBelowAA[] = Object.freeze([
+  {
+    foreground: '--ink-3',
+    background: '--panel',
+    minimum: AA_TEXT,
+    measured: { light: 3.76, dark: 4.1 },
+    why:
+      'The artifact uses --ink-3 for small uppercase labels — HUD chip keys at 9px, section ' +
+      'headings, hints. It is below AA at any size and is carried verbatim from the design of ' +
+      'record. Raising it is a palette change and belongs to whoever owns the palette.',
+  },
+  {
+    foreground: '--ink-3',
+    background: '--paper',
+    minimum: AA_TEXT,
+    measured: { light: 3.6, dark: 4.46 },
+    why: 'The same token against the page rather than a panel.',
+  },
+  {
+    foreground: '--na',
+    background: '--na-bg',
+    minimum: AA_TEXT,
+    measured: { light: 2.8, dark: 4.39 },
+    why:
+      'The INFO / WAIVED status chip. At 2.80:1 in light this is the WORST pair in the palette ' +
+      'and the one most worth revisiting — a grey-on-grey chip is hard to read for anyone, not ' +
+      'only at AA. It is carried verbatim because the artifact is the design of record, and it ' +
+      'is recorded here rather than quietly corrected so the choice stays visible.',
+  },
+  {
+    foreground: '--warn',
+    background: '--warn-bg',
+    minimum: AA_TEXT,
+    measured: { light: 4.02, dark: 7.2 },
+    why:
+      'The screening banner and the MISSING / ENGINEERING status chips. Light theme is 4.02:1 ' +
+      'against a 4.5 minimum — close, and short. Dark clears it comfortably.',
+  },
+]);

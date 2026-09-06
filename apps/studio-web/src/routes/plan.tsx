@@ -2,6 +2,7 @@ import { migrate, type StudioDocument } from '@rms/studio-model';
 import { useMemo } from 'react';
 
 import { PlanCanvas } from '../plan/plan-canvas.js';
+import { ParamsPanel } from '../plan/params-panel.js';
 import fixture from '../../../../fixtures/continuity/rack-studio-v1.json';
 
 /**
@@ -27,7 +28,10 @@ export default function PlanView(): React.JSX.Element {
         load. Editing, persistence and the revision API arrive in later slices — nothing here is
         saved.
       </p>
-      <PlanCanvas document={doc} />
+      <div className="plan-layout">
+        <ParamsPanel document={doc} />
+        <PlanCanvas document={doc} />
+      </div>
     </section>
   );
 }

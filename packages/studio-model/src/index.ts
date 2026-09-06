@@ -59,6 +59,19 @@ export {
   type Witnessed,
 } from './document.js';
 
+export {
+  allocateGaps,
+  overhangOf,
+  planGeometry,
+  type AislePlan,
+  type BayRect,
+  type FlueRect,
+  type PalletRect,
+  type PlanGeometry,
+  type RowRect,
+  type RunPlan,
+} from './plan.js';
+
 export { MigrationError, migrate, migrateV1ToV2, type Migrated } from './migrate.js';
 
 export {
@@ -73,10 +86,7 @@ export {
   BridgeError,
   length,
   runGeometry,
-  toKernel,
   witnessedQuantity,
-  type AisleGeometry,
-  type KernelScene,
   type RunGeometry,
 } from './to-kernel.js';
 

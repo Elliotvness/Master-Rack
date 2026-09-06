@@ -169,8 +169,38 @@ describe('routing', () => {
     await screen.findByRole('heading', { level: 1 });
     const img = screen.getByRole('img');
     expect(img.getAttribute('aria-label')).toMatch(/\d+ rack runs/);
-    expect(screen.getByText('runs')).toBeTruthy();
-    expect(screen.getByText('bays')).toBeTruthy();
+    expect(screen.getByText('Pallet positions')).toBeTruthy();
+    expect(screen.getByText('Bays')).toBeTruthy();
+    expect(screen.getByText('Narrowest clear aisle')).toBeTruthy();
+  });
+
+  /**
+   * The three finding chips are placeholders until S5 wires kernel-checks. They
+   * must read as not-implemented rather than as a zero, because a zero is a
+   * claim about the LAYOUT and "not implemented" is a claim about the build.
+   */
+  it('/plan marks the finding chips as not implemented rather than showing zero', async () => {
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1 });
+    for (const label of ['Failing', 'Awaiting input', 'Awaiting source']) {
+      const chip = screen.getByText(label).closest('.chip');
+      expect(chip?.getAttribute('aria-disabled')).toBe('true');
+    }
+  });
+
+  it('/plan renders the read-only parameter panel', async () => {
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.getByText(/Editing arrives with the/)).toBeTruthy();
+    expect(screen.getByText('Job')).toBeTruthy();
+    expect(screen.getByText('Client')).toBeTruthy();
+  });
+
+  /** Unestablished values read VERIFY in the panel, exactly as on the drawing. */
+  it('/plan shows VERIFY for an unestablished field, never a numeral', async () => {
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.getAllByText('VERIFY').length).toBeGreaterThan(0);
   });
 
   it('redirects / to the plan view', async () => {
@@ -213,10 +243,14 @@ describe('the theme toggle', () => {
 });
 
 describe('the inspector rail', () => {
-  it('explains its emptiness rather than being blank', () => {
+  /**
+   * S1 carried a rail that announced its own emptiness. S3.1 removed it: the
+   * plan route renders its own parameter panel, and a region saying "Empty"
+   * beside the thing that fills it is worse than no region.
+   */
+  it('no longer exists as an empty region', () => {
     renderApp();
-    const rail = screen.getByRole('complementary', { name: 'Inspector' });
-    expect(rail.textContent).toMatch(/Empty/);
+    expect(screen.queryByRole('complementary', { name: 'Inspector' })).toBeNull();
   });
 });
 

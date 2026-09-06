@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { StudioDocument, V1Document } from './document.js';
 import { IN } from './length.js';
 import { migrateV1ToV2 } from './migrate.js';
-import { BridgeError, length, runGeometry, toKernel, witnessedQuantity } from './to-kernel.js';
+import { BridgeError, length, runGeometry, witnessedQuantity } from './to-kernel.js';
 
 const V1 = (
   JSON.parse(
@@ -93,73 +93,5 @@ describe('runGeometry derives rather than reads', () => {
   it('refuses a run with no bays', () => {
     const empty = { ...run, bays: [] };
     expect(() => runGeometry({ ...d, runs: [empty] }, empty)).toThrow(/no bays/);
-  });
-});
-
-describe('toKernel assembles the whole plan', () => {
-  const scene = toKernel(doc());
-
-  it('produces one geometry per run', () => {
-    expect(scene.runs).toHaveLength(3);
-  });
-
-  it('derives an aisle between each vertically adjacent pair', () => {
-    expect(scene.aisles).toHaveLength(2);
-  });
-
-  /**
-   * ADR-006's datum is load face to load face. The pallet envelope is not
-   * modelled yet, so a load-face clear width cannot be derived without
-   * inventing an overhang — and `null` is what makes `display-list` print
-   * VERIFY instead of a number that would look like a compliance answer.
-   */
-  it('reports every clear width as null, not as a frame-to-frame number', () => {
-    expect(scene.aisles.every((a) => a.clearWidth === null)).toBe(true);
-  });
-
-  it('places each aisle at the end of the run above it', () => {
-    const first = scene.runs[0]!;
-    expect(scene.aisles[0]!.offsetY.value).toBe(first.offsetY.value + first.frameDepth.value);
-  });
-
-  it('the extent covers every run', () => {
-    for (const r of scene.runs) {
-      expect(scene.extent.width.value).toBeGreaterThanOrEqual(r.offsetX.value + r.runLength.value);
-      expect(scene.extent.height.value).toBeGreaterThanOrEqual(r.offsetY.value + r.frameDepth.value);
-    }
-  });
-
-  /**
-   * Defect D-B produced overlapping runs and a NEGATIVE frame-to-frame gap. A
-   * non-positive gap is not an aisle and must not be reported as one — a split
-   * sibling sits beside its parent, not across an aisle from it.
-   */
-  it('reports no aisle between two runs at the same y', () => {
-    const d = doc();
-    const [a, b] = [d.runs[0]!, d.runs[1]!];
-    const overlapping = { ...d, runs: [a, { ...b, y: a.y }] };
-    expect(toKernel(overlapping).aisles).toHaveLength(0);
-  });
-
-  it('handles a document with a single run', () => {
-    const d = doc();
-    const one = { ...d, runs: [d.runs[0]!] };
-    const s = toKernel(one);
-    expect(s.runs).toHaveLength(1);
-    expect(s.aisles).toHaveLength(0);
-  });
-
-  it('handles a document with no runs at all', () => {
-    const s = toKernel({ ...doc(), runs: [] });
-    expect(s.runs).toEqual([]);
-    expect(s.extent.width.value).toBe(0);
-  });
-
-  it('orders aisles top to bottom regardless of the runs array order', () => {
-    const d = doc();
-    const reversed = { ...d, runs: [...d.runs].reverse() };
-    const a = toKernel(d).aisles.map((x) => x.offsetY.value);
-    const b = toKernel(reversed).aisles.map((x) => x.offsetY.value);
-    expect(b).toEqual(a);
   });
 });

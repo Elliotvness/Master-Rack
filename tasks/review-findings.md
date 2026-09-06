@@ -2077,3 +2077,72 @@ finding written from the shape of itself is a summary with nothing measured behi
 cannot stop two people allocating the same number in parallel — that needs the register split per
 finding, or an allocator outside it, and neither is worth doing at this size. What it does
 guarantee is that a collision can no longer reach `main` unnoticed.
+
+## F-52 — a commit body claimed a slice that was not done, and an omission was dressed as a principle *(raised and **CLOSED** 2026-09-06 by S3.1)*
+
+Commit `b9d01e8` reads **`feat(studio-web,render-canvas): the plan draws (S2.3 + S3.1/S3.2)`**.
+S3.1 was not done. The renderer (S3.2) and the bridge (S2.3) landed; the slice that makes the
+display list emit what a drawing actually shows did not. The plan drew a run as one flat block with
+bay divisions and nothing else — no rows, no unit loads, no flue, one aisle datum — and it looked
+plausible, which is the whole difficulty.
+
+**A false claim in a commit body, in a repository whose discipline is not making false claims.** It
+is the recurring shape at its purest: the name was right, the mechanism was absent, and the build
+was green.
+
+**The second half is worse, because it was reasoned.** `to-kernel.ts` set every aisle's
+`clearWidth` to `null` and explained:
+
+> *"the pallet envelope is not modelled yet, so a load-face aisle cannot be derived without
+> inventing an overhang."*
+
+Untrue. Overhang is `(palletD − frameDepth) ÷ 2` — `kernel.js:316` — the pallet data is in the
+document, and the prototype had derived it all along. An omission was written up as a principled
+refusal, complete with a citation to ADR-006. That reads as rigour and functions as cover, and it
+is harder to catch than a missing feature because it argues for itself.
+
+**Closed.** `planGeometry` derives rows, bays, unit loads at true footprint, both flues and both
+aisle datums; `buildDetailedPlan` emits them; the superseded `toKernel` and its comment are deleted
+rather than left standing beside working code.
+
+**The guard that would have caught it, now permanent.** `plan.test.ts` asserts the figures printed
+on the published artifact's own screen: **576 pallet positions, 36 bays, 10'-6" narrowest clear
+aisle, 11'-0" frame to frame, 99'-3" overall, 3 in. overhang, 6 in. longitudinal flue.** A drawing
+that is merely plausible fails those; the first version would have failed all seven.
+
+## S3.1 notes — what the gates caught, including in themselves
+
+**A guessed coverage floor, corrected.** `render-canvas` was first given 45% lines on the reasoning
+that `draw.ts` takes a `CanvasRenderingContext2D` and could not be tested without a mock that
+asserts the mock. The premise was wrong: a **recording** context is not a mock when the assertions
+are about what was *drawn*. Measured against the guess, coverage was **32.94%** — the guessed floor
+would have certified a renderer whose line, dimension and label paths had never run. Tests were
+written; both files now measure 100.
+
+**`ACCEPTED_BELOW_AA` was a hole with a docstring for one commit.** The exemption list said it
+pinned each ratio so a colour change would break the pin — and `tokens.test.ts` did not reference
+the list. The mechanism was prose. It now asserts each accepted pair still measures exactly what was
+recorded, that no pair is both enforced and excused, and that the excused list stays smaller than
+the enforced one.
+
+**The artifact palette carries four sub-AA pairs**, measured rather than assumed: `--na` on
+`--na-bg` at **2.80:1** light (the worst in the palette), `--ink-3` on `--panel` at **3.76:1** and on
+`--paper` at **3.60:1**, `--warn` on `--warn-bg` at **4.02:1**. They are carried verbatim because
+the artifact is the design of record, and recorded rather than corrected because silently altering
+a brand colour is not a decision this repository takes alone. `--rule` at 1.36:1 is excluded from
+both lists as a decorative separator, which is the distinction `--sel` exists to keep honest.
+
+**Two pieces of dead code removed rather than tested around.** `plan.ts` carried the prototype's
+`seen` de-duplication set for aisle pairs; the outer loop visits each run as `a` exactly once, so it
+could never fire. `deleteBeamLevel`'s `result.ok ? … : result` could not be false. A guard no input
+can trigger is a guard nobody can test.
+
+**A real bug the tests found in the scale bar.** `chooseScale` had only an upper bound, so at a
+small camera scale every step in the 1-2-5 sequence "fitted" and it chose 1000 ft — returning a bar
+**0.3 pixels long** captioned with a distance it did not span. A ruler nobody can see is worse than
+no ruler. It now requires a minimum length and returns null instead.
+
+**A sixteenth of an inch cannot be stored**, which surfaced while adding the feet-inch formatter:
+1/16" is 1,587.5 µm and `kernel-units` refuses a value that is not a whole micrometre. Eighths and
+coarser are exact; the sixteenths grid is a *display* grid, and a `5 5/16"` read off a drawing is a
+rounding of a value the model never held. Recorded in `display.test.ts` beside the formatter.

@@ -25,3 +25,5 @@ export {
 } from './camera.js';
 
 export { draw, label, type DrawOptions, type DrawResult, type Pens } from './draw.js';
+
+export { chooseScale, drawOverlays, type OverlayOptions } from './overlay.js';

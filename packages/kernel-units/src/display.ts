@@ -48,6 +48,54 @@ export interface FormatOptions {
   readonly precision?: number;
   /** Append the metric equivalent in parentheses. */
   readonly metric?: boolean;
+  /**
+   * Feet, inches and sixteenths — `11'-0"`, `8'-3"`, `5 5/16"`.
+   *
+   * The convention a drawing uses, and the one the v1 prototype's `fmtFtIn`
+   * produces. It is here rather than in a renderer because a second length
+   * formatter is a second place a number can be rounded differently, and this
+   * package's whole job is that there is one.
+   *
+   * Sixteenths, not decimals: a rack drawing is dimensioned in sixteenths and a
+   * reader converting 5.3125" back to 5 5/16" in their head is a reader who
+   * will get it wrong once.
+   */
+  readonly feetInches?: boolean;
+}
+
+/**
+ * Feet, inches and sixteenths from micrometres.
+ *
+ * Ported from `rack-studio-v1/prototype/kernel.js:18`, which works in mil; the
+ * only change is the source unit. Rounds to the nearest sixteenth ONCE, on the
+ * way out — never in the data.
+ *
+ * Feet are omitted below one foot (`5 5/16"`, not `0'-5 5/16"`) and inches are
+ * kept when they are zero (`11'-0"`, not `11'`), which is what a dimension
+ * string on a drawing looks like.
+ */
+function feetInchSixteenths(inchesValue: number): string {
+  const negative = inchesValue < 0;
+  const abs = Math.abs(inchesValue);
+  const sixteenths = Math.round(abs * 16);
+  const feet = Math.floor(sixteenths / 192);
+  const remainder = sixteenths - feet * 192;
+  const whole = Math.floor(remainder / 16);
+
+  const sixteen = remainder - whole * 16;
+  let fraction = '';
+  if (sixteen > 0) {
+    let numerator = sixteen;
+    let denominator = 16;
+    while (numerator % 2 === 0) {
+      numerator /= 2;
+      denominator /= 2;
+    }
+    fraction = ` ${numerator}/${denominator}`;
+  }
+
+  const sign = negative ? '−' : '';
+  return feet > 0 ? `${sign}${feet}'-${whole}${fraction}"` : `${sign}${whole}${fraction}"`;
 }
 
 function trimZeros(s: string): string {
@@ -65,7 +113,10 @@ export function formatLength(q: Quantity, options: FormatOptions = {}): string {
   if (!isEstablishedOrigin(q.origin)) return VERIFY;
 
   const precision = options.precision ?? 3;
-  const primary = `${trimZeros(convert(q, 'in').toFixed(precision))}"`;
+  const primary =
+    options.feetInches === true
+      ? feetInchSixteenths(convert(q, 'in'))
+      : `${trimZeros(convert(q, 'in').toFixed(precision))}"`;
   if (options.metric !== true) return primary;
 
   const mm = trimZeros(convert(q, 'mm').toFixed(1));

@@ -292,3 +292,141 @@ body {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* --- plan layout: panel beside the stage -------------------------------- */
+
+.plan-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 0.75rem;
+}
+
+.params {
+  width: 290px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  border-right: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+
+@media (max-width: 1100px) {
+  .plan-layout {
+    flex-direction: column;
+  }
+
+  .params {
+    width: auto;
+    max-height: 260px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+.pf-note {
+  margin: 0 0 0.75rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px dashed var(--border-control);
+  border-radius: 4px;
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+}
+
+.pf-heading {
+  margin: 0.9rem 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.pf-sub {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.pf-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.22rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.pf-label {
+  color: var(--ink-muted);
+}
+
+.pf-value {
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.pf-suffix {
+  margin-left: 0.2rem;
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+/* Never colour alone: the badge carries the word, not just the hue. */
+.pf-badge {
+  display: inline-block;
+  padding: 0 0.3rem;
+  border: 1px solid var(--status-warning);
+  border-radius: 3px;
+  color: var(--status-warning);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.pf-not-established {
+  margin-left: 0.35rem;
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+.pf-flag {
+  margin-right: 0.3rem;
+  color: var(--ink-muted);
+}
+
+.pf-flag-on {
+  color: var(--status-ok);
+}
+
+/* --- HUD chips ---------------------------------------------------------- */
+
+.chip {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.chip-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.chip-value {
+  font-size: 0.95rem;
+}
+
+.chip-pending .chip-value,
+.chip-pending .chip-label {
+  color: var(--ink-muted);
+  opacity: 0.65;
+}
+
+.plan-hud-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+}

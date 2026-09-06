@@ -30,6 +30,17 @@ export {
 } from './model.js';
 
 export {
+  buildDetailedPlan,
+  gridRef,
+  type DetailAisle,
+  type DetailBay,
+  type DetailFlue,
+  type DetailPallet,
+  type DetailRow,
+  type DetailRun,
+} from './detail.js';
+
+export {
   buildElevation,
   buildPlan,
   type AisleGeometry,

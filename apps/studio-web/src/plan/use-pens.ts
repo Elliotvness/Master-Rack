@@ -17,18 +17,20 @@ export function readPens(root: Element): Pens {
   };
 
   return {
-    // Fallbacks are the light-theme token values. They matter in exactly one
-    // case — a canvas drawn before the stylesheet has applied — and a black
+    // Fallbacks are the artifact's light-theme values. They matter in exactly
+    // one case — a canvas drawn before the stylesheet applies — and a black
     // rectangle would read as a broken viewport rather than an unstyled one.
-    background: v('--bg', '#f7f8fa'),
-    ink: v('--ink', '#16202e'),
-    inkMuted: v('--ink-muted', '#4a5568'),
-    upright: v('--chrome', '#1f3864'),
-    beam: v('--accent', '#1f3864'),
-    aisle: v('--ink-muted', '#4a5568'),
-    obstruction: v('--status-danger', '#b3261e'),
-    noRackZone: v('--status-warning', '#8a5a00'),
-    selection: v('--focus', '#0b57d0'),
-    unestablished: v('--status-warning', '#8a5a00'),
+    background: v('--sunk', '#f2f1ee'),
+    ink: v('--ink', '#14181f'),
+    inkMuted: v('--ink-2', '#4a5261'),
+    upright: v('--pen-upright', '#1f3864'),
+    beam: v('--pen-beam', '#2f6b4f'),
+    unitLoad: v('--pen-pallet', '#9aa3b2'),
+    flue: v('--pen-flue', '#a9670a'),
+    aisle: v('--pen-dim', '#7c8494'),
+    obstruction: v('--pen-anno', '#a93226'),
+    noRackZone: v('--pen-bldg', '#4a5261'),
+    selection: v('--sel', '#1f3864'),
+    unestablished: v('--warn', '#a9670a'),
   };
 }

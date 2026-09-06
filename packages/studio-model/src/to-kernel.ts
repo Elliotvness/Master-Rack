@@ -1,11 +1,19 @@
 /**
  * The bridge: a studio document becomes provenanced quantities.
  *
- * Build-plan **S2.3**. One direction only — `toKernel` exists and `fromKernel`
- * deliberately does not. A quantity that could be written back into the document
- * would let a derived number become an input on the next save, and the
- * provenance chain would close into a loop that says every value came from
- * itself.
+ * Build-plan **S2.3**. One direction only — this module converts document values
+ * INTO quantities, and a `fromKernel` deliberately does not exist. A quantity
+ * written back into the document would let a derived number become an input on
+ * the next save, closing the provenance chain into a loop that says every value
+ * came from itself.
+ *
+ * **The scene builder that used to live here is gone.** It assembled runs and
+ * aisles and set every aisle's clear width to `null`, explaining that load-face
+ * clearance "cannot be derived without inventing an overhang". That was untrue —
+ * overhang is `(palletD − frameDepth) ÷ 2`, the pallet data is in the document,
+ * and the prototype had derived it all along. `plan.ts` does it properly, and
+ * the false claim is withdrawn rather than left standing beside working code
+ * (F-52).
  *
  * **What the origins mean here**, and they are the whole point of the bridge:
  *
@@ -65,7 +73,7 @@ export function witnessedQuantity(w: Witnessed<Micrometres>): Quantity {
   return length(w.value, w.established);
 }
 
-/** One run, in the shape `@rms/display-list`'s `buildPlan` consumes. */
+/** One run's coarse geometry. `plan.ts` builds the full drawing on top of it. */
 export interface RunGeometry {
   readonly runId: string;
   readonly offsetX: Quantity;
@@ -119,62 +127,4 @@ export function runGeometry(doc: StudioDocument, run: Run): RunGeometry {
     frameDepth: depth,
     uprightFace,
   };
-}
-
-/** One aisle, in `buildPlan`'s shape. `clearWidth` is null when not derivable. */
-export interface AisleGeometry {
-  readonly aisleId: string;
-  readonly offsetX: Quantity;
-  readonly offsetY: Quantity;
-  readonly length: Quantity;
-  readonly clearWidth: Quantity | null;
-}
-
-export interface KernelScene {
-  readonly runs: readonly RunGeometry[];
-  readonly aisles: readonly AisleGeometry[];
-  readonly extent: { readonly width: Quantity; readonly height: Quantity };
-}
-
-/**
- * The whole document as plan geometry.
- *
- * Aisles are derived between vertically adjacent runs, measured **frame face to
- * frame face**. ADR-006's datum is load face to load face, and this is not that
- * — the pallet envelope is not modelled yet, so a load-face aisle cannot be
- * derived without inventing an overhang. Reporting the frame-to-frame gap under
- * a name that says `frameToFrame` is honest; reporting it as the ADR-006 clear
- * width would be a number that looks like a compliance answer and is not one.
- *
- * `clearWidth` is therefore **null** on every aisle here, which is what makes
- * `display-list` print VERIFY rather than a numeral. That is deliberate and it
- * is the correct state until pallet envelopes land.
- */
-export function toKernel(doc: StudioDocument): KernelScene {
-  const runs = doc.runs.map((r) => runGeometry(doc, r));
-
-  const ordered = [...runs].sort((a, b) => a.offsetY.value - b.offsetY.value);
-  const aisles: AisleGeometry[] = [];
-  for (let i = 0; i < ordered.length - 1; i += 1) {
-    const above = ordered[i] as RunGeometry;
-    const below = ordered[i + 1] as RunGeometry;
-    const gapStart = above.offsetY.value + above.frameDepth.value;
-    const gap = below.offsetY.value - gapStart;
-    // A split sibling sits beside its parent at the same y, not across an
-    // aisle from it. A non-positive gap is not an aisle and is not reported as
-    // one — least of all as a negative width, which is what defect D-B produced.
-    if (gap <= 0) continue;
-    aisles.push({
-      aisleId: `aisle:${above.runId}->${below.runId}`,
-      offsetX: length(Math.min(above.offsetX.value, below.offsetX.value)),
-      offsetY: length(gapStart),
-      length: length(Math.max(above.runLength.value, below.runLength.value)),
-      clearWidth: null,
-    });
-  }
-
-  const width = runs.reduce((m, r) => Math.max(m, r.offsetX.value + r.runLength.value), 0);
-  const height = runs.reduce((m, r) => Math.max(m, r.offsetY.value + r.frameDepth.value), 0);
-
-  return { runs, aisles, extent: { width: length(width), height: length(height) } };
 }
