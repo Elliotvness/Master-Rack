@@ -1289,6 +1289,106 @@ Nothing calls `authorize(actor, 'idempotency.release', …)` outside the matrix 
 still has no caller, and the route is not a §8.2 row. All three belong to T-14a/T-14e and are
 recorded there.
 
+## F-49 — the amendment's own review: five blockers, and the worst of them was a doorway advertised as a wall *(raised and **CLOSED** 2026-09-05 by the adversarial review of the §8.2 amendment and the F-47 resolver)*
+
+The change that closed F-46 and F-47 was refused twice before it stood. Recorded together because
+they share one shape: **four of the five are a claim that was true of the tables somebody happened
+to check, and false of the one they did not.**
+
+**1. `withUnresolvedTenant`'s room was not empty. It contained the audit log.** BLOCKER.
+The function's docstring, the migration, the boundary rule's comment and the scoreboard all said the
+same thing: with no tenant context every RLS policy evaluates not-true, so the transaction reads and
+writes nothing. **`app.audit_event`'s insert policy is `WITH CHECK (true)`** — deliberately, because
+a deny by any actor must be recordable — and `app_user` holds INSERT. Review committed a forged
+`catalog.approve` row through the new doorway and **then could not delete it**, because
+`app.refuse_audit_mutation()` refuses DELETE. A write that is both possible and irreversible, into
+the evidence store, reachable from the one path an unauthenticated request takes.
+
+The test written to prove the room empty named **five tables by hand** and passed. The one it
+omitted was the one that mattered — the same defect as a hand-written count, one level up.
+
+Closed twice over: `withUnresolvedTenant` now opens **`BEGIN READ ONLY`**, which costs nothing (the
+resolver only reads) and makes the claim true by construction rather than by an inventory somebody
+must keep current; and the test now enumerates **every table in `app` from the catalog** rather than
+from a list, and asserts the audit-log write is refused. Planted red: dropping `READ ONLY` turns the
+test red and commits the forged row.
+
+**2. The resolver's "one uuid" rested on a uniqueness the database does not have.** BLOCKER.
+`token_hash` is unique only **per organization** — §14.2 item 5 requires every uniqueness constraint
+to be composite with `organization_id`, because a global unique index leaks another tenant's row
+existence through a constraint-violation message. So two tenants holding one hash is a shape the
+schema **accepts**, and a scalar `SELECT … WHERE token_hash = $1` returns whichever row comes first,
+silently. The acceptance path would open a **stranger's tenant** and redeem there. A 256-bit token
+makes it infeasible, not impossible, and "infeasible" is not what a tenant-selection authority on an
+unauthenticated route should rest on.
+
+Review's proposed fix was a global unique index. **That fix was declined and a different one taken**,
+because the blueprint governs: a global unique index is exactly what §14.2 item 5 forbids. The
+function fails closed instead — `CASE WHEN count(*) = 1 THEN … ELSE NULL END` — so two matches
+resolve to NULL and the caller reports the same generic refusal as an unknown token. Nobody is
+misdirected, and no blueprint rule is bent. A **non-unique** index on `token_hash` was added in the
+same migration, which is not a uniqueness constraint and closes review's separate finding that the
+one anonymous route full-scanned a composite index it could not use.
+
+**3. A rule-level exemption switched off a different control in the same directory.** BLOCKER.
+`check-app-boundaries`'s `exempt` list is matched **before** any symbol check and applies to the
+whole rule. Adding `apps/api/src/auth/` to it so one symbol could live there also turned off F-39's
+`claimOn` / `settleOn` rule for that entire directory — **the directory T-14b's acceptance handler
+will be written in, and the likeliest place in the codebase to reach for an idempotent claim.** The
+change that cited F-39 as its precedent disabled F-39.
+
+Closed by making exemptions **per symbol**: a `forbiddenSymbols` entry may carry its own `exempt`,
+counted on the same axis as rule-level ones so a stale symbol exemption fails like any other. Proven
+both ways against the real tree — `claimOn` in `auth/` is refused again, `withUnresolvedTenant`
+outside `auth/` is refused — and both directions are now self-test cases, which they were not: the
+self-test called the new probe once, with a clean file, and printed a coverage headline that had not
+moved.
+
+**4. Four new actions, none of them in `INTERNAL_ONLY_ACTIONS`.** BLOCKER, and the third time this
+exact omission has happened. That set is what `assertRouteCoverage`'s misfiling guard consults, and
+its own comment records review catching `idempotency.release` missing from it while every comparable
+action was in it. The amendment added `user.deactivate`, `invitation.revoke`,
+`project.create_revision` and gave `project.create` its first route, and filed none of them — so the
+guard could not refuse `POST /api/client/v1/users/:id/deactivate` at boot.
+
+Closed, and **closed so it cannot happen a fourth time**: `matrix.test.ts` now derives the
+membership — every action both client roles are denied must be in the set, and no others. The
+interesting negative is `credential.enroll_factor`, which clients may do and staff may not, the one
+inversion in the table. Proven red by removing one name, and proven to catch the misfiling by moving
+`user.deactivate` onto a client-namespace route: the app refuses to boot.
+
+**5. The scoreboard published 22 and 32 as today's route surface, in the same table.** BLOCKER.
+Three copies, superseded rows left in place beside new ones — including two adjacent rows of one
+headline table in the file a cold session reads first. `check-claims` had a route-table claim for
+`progress.md` and **for neither of the others**, and `check-scoreboard-sync` printed PASS correctly:
+it compares phase bars, the §15.2 headline and the measure cards, not this row, and says so in its
+own docstring. Closed by superseding the rows rather than appending, and by two new claims — one for
+`progress.html`, one for `claude-resume-prompt.md` — both deriving `routeTableEntries`, both proven
+red. **A claim for one copy of a figure is a claim for one copy of a figure.**
+
+**Also closed, from the same review:** the MFA rows were filed under §8.2's *Internal surface* band
+while the registry called them client routes — so the blueprint said the opposite of the code, and
+`POST /api/client/v1/invitations` had been misfiled the same way since the table was written. Fixed,
+and made a **control**: `check-route-surface` now checks each row's band against its path prefix,
+with nine self-test cases. A TOTP provisioning URI — the first credential-bearing field any DTO has
+carried — would have been printed verbatim by `redactForLog`, whose only list is AC-02's
+commercial-confidentiality one, while the test *asserted* that blindness as a pass; closed with a
+second list, `NEVER_LOG_FIELDS`, unioned into the redactor, because extending AC-02's list would
+have made the outbound guard refuse the field the route exists to return. `enroll` and `verify`
+shared one `Action`, so one matrix row governed two operations; split. The internal `User` schema
+was an operation result wearing an entity's name — `sessions_revoked` is not a column of
+`app.app_user` — which would have forced T-14e's `GET /users/:id` to invent two counters or register
+a second `User`; renamed `Deactivation`, with the entity nested and the name left free. Three DTO
+fields were open `string()` against a file-wide convention of closed enums; closed. Two security
+docstrings cited test files that **do not exist**; corrected. And `routes.ts`'s own docstring, the
+primary explanation of the registry, still described a 23-row §8.2 — two amendments stale.
+
+**What this round is evidence for.** Every one of the five blockers was found by running something,
+not by reading: a forged row committed, a duplicate hash inserted, a probe file planted in two
+directories, a route moved onto the wrong namespace, `ls-remote` re-run. Four of them were in
+**controls added the same day** — the review of a control is not optional because the control is
+new; it is most necessary then.
+
 ## F-46 — **Critical:** §8.2's route inventory cannot run §15.2, and the gap is in the objective, not the code *(raised 2026-09-05 by the pre-implementation review of T-14b; **OPEN — needs a blueprint amendment from EL, which is a decision, not a code change**)*
 
 **Found by reading the blueprint before writing the task, which is the only reason it was found at

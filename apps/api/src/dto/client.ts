@@ -31,6 +31,7 @@ import {
   clientResponse,
   integer,
   isForbiddenClientField,
+  isNeverLoggedField,
   nullable,
   number,
   object,
@@ -631,6 +632,94 @@ export function toInvitationClientDTO(entity: InvitationEntity): InvitationClien
 }
 
 // --------------------------------------------------------------------------
+// Second-factor enrollment (§8.2 POST /api/auth/mfa/enroll and /verify,
+// amended 2026-09-05)
+// --------------------------------------------------------------------------
+//
+// NFR-SEC-03 makes a second factor mandatory for anyone who can reach client
+// data, and §15.2 step 2 is "accepts, sets a credential, ENROLLS A SECOND
+// FACTOR, and signs in". Until the amendment there was no route for it and so
+// no shape for it either.
+//
+// Two DTOs rather than one, because enrolment is two round trips and they
+// return different things: `MfaEnrollment` hands out the material the
+// authenticator app or the browser needs, `MfaFactor` states what is now
+// enrolled. A single schema covering both would have to declare every field
+// optional, which is a closed schema that closes nothing.
+//
+// WHAT IS DELIBERATELY NOT HERE. No recovery codes and no `mfa_secret_hash`.
+// The provisioning URI carries the shared secret ONCE, to the person enrolling
+// it, and is never re-readable — there is no route that returns it again, and
+// the stored column is a hash. A "show me my factor secret" route would be a
+// second chance to steal it and is not in §8.2.
+
+/**
+ * §14.4's ladder for a client: "NIST-compliant password PLUS passkey or TOTP —
+ * mandatory, not optional". Email OTP is a break-glass recovery path only and
+ * is deliberately absent from this set, so a route cannot enroll one.
+ */
+export const MFA_FACTOR_TYPES = ['totp', 'passkey'] as const;
+
+export interface MfaEnrollmentClientDTO {
+  readonly factor_type: (typeof MFA_FACTOR_TYPES)[number];
+  /** TOTP only: the `otpauth://` URI, issued once and never re-readable. */
+  readonly provisioning_uri: string | null;
+  /** Passkey only: the registration challenge, base64url. */
+  readonly challenge: string | null;
+  readonly expires_at: string;
+}
+
+interface MfaEnrollmentEntity {
+  factor_type: (typeof MFA_FACTOR_TYPES)[number];
+  provisioning_uri: string | null;
+  challenge: string | null;
+  expires_at: string;
+  /** The stored hash never leaves the server, for the enrolling user either. */
+  mfa_secret_hash?: string;
+  [extra: string]: unknown;
+}
+
+const MfaEnrollment = clientResponse('MfaEnrollment', {
+  factor_type: string({ enum: MFA_FACTOR_TYPES }),
+  provisioning_uri: nullable(string()),
+  challenge: nullable(string()),
+  expires_at: string(),
+});
+
+export function toMfaEnrollmentClientDTO(entity: MfaEnrollmentEntity): MfaEnrollmentClientDTO {
+  return {
+    factor_type: entity.factor_type,
+    provisioning_uri: entity.provisioning_uri,
+    challenge: entity.challenge,
+    expires_at: entity.expires_at,
+  };
+}
+
+export interface MfaFactorClientDTO {
+  readonly factor_type: (typeof MFA_FACTOR_TYPES)[number];
+  readonly enrolled_at: string;
+}
+
+interface MfaFactorEntity {
+  factor_type: (typeof MFA_FACTOR_TYPES)[number];
+  enrolled_at: string;
+  mfa_secret_hash?: string;
+  [extra: string]: unknown;
+}
+
+const MfaFactor = clientResponse('MfaFactor', {
+  factor_type: string({ enum: MFA_FACTOR_TYPES }),
+  enrolled_at: string(),
+});
+
+export function toMfaFactorClientDTO(entity: MfaFactorEntity): MfaFactorClientDTO {
+  return {
+    factor_type: entity.factor_type,
+    enrolled_at: entity.enrolled_at,
+  };
+}
+
+// --------------------------------------------------------------------------
 // The registry — every client schema, keyed by name, for the guard and the document
 // --------------------------------------------------------------------------
 
@@ -644,6 +733,8 @@ export const CLIENT_SCHEMAS = Object.freeze({
   Submission,
   Document,
   Invitation,
+  MfaEnrollment,
+  MfaFactor,
 } satisfies Readonly<Record<string, ResponseSchema>>);
 
 // --------------------------------------------------------------------------
@@ -651,9 +742,16 @@ export const CLIENT_SCHEMAS = Object.freeze({
 // --------------------------------------------------------------------------
 
 /**
- * Redact forbidden fields from a value before it reaches an application log.
- * Returns a copy; never mutates. Uses the same constant as the DTOs and the
- * contract test, so a field added to one is covered by all three.
+ * Redact from a value before it reaches an application log. Returns a copy;
+ * never mutates.
+ *
+ * TWO LISTS, and it must stay two. `FORBIDDEN_CLIENT_FIELDS` is AC-02's
+ * confidentiality boundary — what may never be in a client response.
+ * `NEVER_LOG_FIELDS` is credential hygiene — what may go to the client and must
+ * never be written down. The MFA enrollment response is the case that needed
+ * the second: `provisioning_uri` carries a TOTP shared secret, it is the whole
+ * point of the response, and until review found it this function would have
+ * printed it verbatim.
  */
 export function redactForLog(value: unknown): unknown {
   if (value === null || typeof value !== 'object') return value;
@@ -661,7 +759,8 @@ export function redactForLog(value: unknown): unknown {
 
   const out: Record<string, unknown> = {};
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-    out[key] = isForbiddenClientField(key) ? '[REDACTED]' : redactForLog(child);
+    out[key] =
+      isForbiddenClientField(key) || isNeverLoggedField(key) ? '[REDACTED]' : redactForLog(child);
   }
   return out;
 }

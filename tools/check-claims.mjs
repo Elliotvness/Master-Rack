@@ -202,6 +202,33 @@ export const CLAIMS = Object.freeze([
     pattern: /^\| Route table \| \*\*(\d+) entries\*\*/m,
     derive: 'routeTableEntries',
   },
+  /**
+   * THE ROUTE SURFACE, in all three copies, added 2026-09-05.
+   *
+   * There was a claim for `progress.md` and for neither of the others, and the
+   * §8.2 amendment walked straight through the gap: `progress.md` was corrected
+   * to 32 while `progress.html` went on saying "Route table holds 22 entries
+   * (12 client · 9 internal · 1 public)" and `claude-resume-prompt.md` carried
+   * "22 of 22" in the row ABOVE the new one — two answers to one question in
+   * one table, in the file a cold session reads first. `check-scoreboard-sync`
+   * printed PASS over it, correctly: it compares the phase bars, the §15.2
+   * headline and the measure cards, not this row, and says so in its own
+   * docstring.
+   *
+   * A claim for one copy of a figure is a claim for one copy of a figure.
+   */
+  {
+    id: 'progress.html · route table entries',
+    file: 'tasks/progress.html',
+    pattern: /Route table holds <strong>(\d+)<\/strong> entries/,
+    derive: 'routeTableEntries',
+  },
+  {
+    id: 'claude-resume-prompt.md · route table entries',
+    file: 'claude-resume-prompt.md',
+    pattern: /\*\*(\d+) of \d+\*\* MVP-1 routes declared, mounted and checked/,
+    derive: 'routeTableEntries',
+  },
   {
     id: 'progress.md · phase-2 routes held separately',
     file: 'tasks/progress.md',

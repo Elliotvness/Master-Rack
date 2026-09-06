@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  INTERNAL_ONLY_ACTIONS,
   KNOWN_ACTIONS,
   authorize,
   type Action,
@@ -128,7 +129,63 @@ const EXPECTED_OWN_ORG: Readonly<Record<Action, Readonly<Record<Role, boolean>>>
     CLIENT_USER: false, CLIENT_ADMIN: false, INTERNAL_SALES: true, INTERNAL_ADMIN: true,
     SERVICE_ENGINE: false,
   },
+
+  // --- Added with the §8.2 amendment of 2026-09-05 (F-46) ---
+
+  // Clients only, and this is the one row in the table where staff are denied
+  // something clients may do. §14.4 puts staff on Entra ID with the factor held
+  // by the identity provider, so a staff factor enrolled here would authenticate
+  // nothing.
+  'credential.enroll_factor': {
+    CLIENT_USER: true, CLIENT_ADMIN: true, INTERNAL_SALES: false, INTERNAL_ADMIN: false,
+    SERVICE_ENGINE: false,
+  },
+  'credential.verify_factor': {
+    CLIENT_USER: true, CLIENT_ADMIN: true, INTERNAL_SALES: false, INTERNAL_ADMIN: false,
+    SERVICE_ENGINE: false,
+  },
+  'project.create_revision': {
+    CLIENT_USER: false, CLIENT_ADMIN: false, INTERNAL_SALES: true, INTERNAL_ADMIN: true,
+    SERVICE_ENGINE: false,
+  },
+  // AC-17: ending every session an account holds is the strongest thing any
+  // route does to a person, so it sits with catalog approval at INTERNAL_ADMIN.
+  'user.deactivate': {
+    CLIENT_USER: false, CLIENT_ADMIN: false, INTERNAL_SALES: false, INTERNAL_ADMIN: true,
+    SERVICE_ENGINE: false,
+  },
+  // CLIENT_ADMIN is false deliberately: revoking an invitation you issued is a
+  // real requirement and §8.2 carries no client-namespace route for it, so the
+  // authority is not granted ahead of the route.
+  'invitation.revoke': {
+    CLIENT_USER: false, CLIENT_ADMIN: false, INTERNAL_SALES: true, INTERNAL_ADMIN: true,
+    SERVICE_ENGINE: false,
+  },
 };
+
+describe('INTERNAL_ONLY_ACTIONS is derived from the rules, not remembered', () => {
+  // THE CONTROL FOR THE OMISSION THIS TEST WAS ADDED AFTER. `assertRouteCoverage`
+  // refuses an internal-only action filed on a client-namespace route — the
+  // misfiling guard — and it can only refuse what INTERNAL_ONLY_ACTIONS names.
+  // The §8.2 amendment of 2026-09-05 added four actions and put none of them in
+  // that set, which is the identical omission the set's own comment records
+  // catching for `idempotency.release` a session earlier. A hand-maintained
+  // list beside a hand-maintained table is two things that can disagree; this
+  // derives one from the other.
+  //
+  // The rule: if NEITHER client role may perform an action on its own
+  // organization, the action is internal-only and a client route must not carry
+  // it. `credential.enroll_factor` is the interesting negative — clients may,
+  // staff may not — and it correctly stays out.
+  it('every action both client roles are denied is named internal-only, and no others', () => {
+    const clientDenied = (Object.keys(EXPECTED_OWN_ORG) as Action[]).filter(
+      (action) => !EXPECTED_OWN_ORG[action].CLIENT_USER && !EXPECTED_OWN_ORG[action].CLIENT_ADMIN,
+    );
+    expect([...INTERNAL_ONLY_ACTIONS].sort()).toEqual(clientDenied.sort());
+    // Guard against a vacuous pass: two empty sets are equal.
+    expect(clientDenied.length).toBeGreaterThanOrEqual(10);
+  });
+});
 
 describe('the table covers every action, so a new action cannot skip its policy', () => {
   it('has an expectation for every known action, and no extras', () => {
@@ -221,9 +278,11 @@ describe('AC-02 \u2014 a client never learns an internal ARTIFACT exists', () =>
    *     the endpoint does not exist when it plainly does.
    *
    * An earlier draft of this test asserted 404 for BOTH, which is wrong, and it
-   * failed against correct code. The nine capability actions are listed
-   * explicitly so the distinction is a decision on the record rather than an
-   * accident of implementation.
+   * failed against correct code. The capability actions are listed explicitly
+   * so the distinction is a decision on the record rather than an accident of
+   * implementation. *(The comment said "nine" while listing five, from the
+   * draft before the list was cut; the count is derived below instead of
+   * restated, so it cannot drift again.)*
    */
   const CAPABILITY_ACTIONS: readonly Action[] = [
     'project.create',
@@ -231,9 +290,27 @@ describe('AC-02 \u2014 a client never learns an internal ARTIFACT exists', () =>
     'invitation.create',
     'invitation.create_any_org',
     'organization.create',
+    // Added 2026-09-05 with the §8.2 amendment. All three are ACTS, not reads:
+    // creating the first revision, deactivating a user, revoking an invitation.
+    // There is no object whose existence a plain denial could leak, and a 404
+    // would tell a client an endpoint does not exist when it plainly does.
+    'project.create_revision',
+    'user.deactivate',
+    'invitation.revoke',
   ];
 
   const ARTIFACT_ACTIONS = KNOWN_ACTIONS.filter((a) => !CAPABILITY_ACTIONS.includes(a));
+
+  it('the two lists partition every known action, and neither is empty', () => {
+    // Guards the split itself. A capability action that fell out of the list
+    // would be asserted as a 404 and fail loudly; an artifact action added to
+    // it would stop being asserted at all, silently, which is the direction
+    // that matters.
+    expect(CAPABILITY_ACTIONS.length + ARTIFACT_ACTIONS.length).toBe(KNOWN_ACTIONS.length);
+    expect(CAPABILITY_ACTIONS.length).toBeGreaterThanOrEqual(8);
+    expect(ARTIFACT_ACTIONS.length).toBeGreaterThanOrEqual(8);
+    for (const action of CAPABILITY_ACTIONS) expect(KNOWN_ACTIONS).toContain(action);
+  });
 
   it('denies every client role every ARTIFACT action on an internal resource, as 404', () => {
     for (const action of ARTIFACT_ACTIONS) {

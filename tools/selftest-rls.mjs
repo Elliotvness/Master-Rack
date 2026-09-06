@@ -195,14 +195,20 @@ const FN = (identity, security_type, config = null, owner = 'rms_migrator') => (
 const VIEW = (view_name, security_invoker) => ({ view_name, security_invoker });
 
 /**
- * The SIX functions migrations 0001-0013 leave in schema `app`, as
- * `oid::regprocedure` renders them. All SECURITY INVOKER, and must stay a pass.
+ * The SEVEN functions migrations 0001-0014 leave in schema `app`, as
+ * `oid::regprocedure` renders them, and the ONE of them that is
+ * `SECURITY DEFINER`. `check-rls` prints "7 function(s) of which 1 SECURITY
+ * DEFINER" against the migrated database.
  *
- * The first draft of this fixture listed the three 0002 helpers and called
- * itself "the schema", which was false: the three `refuse_*` trigger functions
- * from 0001 were missing, and `check-rls` prints "6 function(s)" against the
- * migrated database. The outcome was unaffected, which is exactly why it would
- * have rotted unnoticed — a fixture whose whole job is to be the real shape.
+ * This fixture has now been caught stale twice, by two different reviews, and
+ * both times the pass/fail outcome was unaffected — which is exactly why it
+ * rots. The first draft listed the three 0002 helpers and called itself "the
+ * schema", omitting 0001's three `refuse_*` triggers; the second still said
+ * 0001-0013 the day 0014 added the resolver. A fixture whose whole job is to be
+ * the real shape has to be re-derived when the schema moves, and nothing
+ * derives it. **Re-derive with:**
+ * `SELECT p.oid::regprocedure, p.prosecdef FROM pg_proc p JOIN pg_namespace n
+ *  ON n.oid = p.pronamespace WHERE n.nspname = 'app' ORDER BY 1;`
  */
 const SCHEMA_FUNCTIONS = [
   FN('app.current_actor_type()', 'INVOKER'),
@@ -211,13 +217,21 @@ const SCHEMA_FUNCTIONS = [
   FN('app.refuse_audit_mutation()', 'INVOKER'),
   FN('app.refuse_derived_change_when_frozen()', 'INVOKER'),
   FN('app.refuse_frozen_revision_change()', 'INVOKER'),
+  FN('app.resolve_invitation_tenant(text)', 'DEFINER', ['search_path=']),
 ];
+
+/** The exemption the real `check-rls` carries for the one definer function. */
+const SCHEMA_DEFINER_EXEMPTIONS = {
+  'app.resolve_invitation_tenant(text)': 'F-47, migration 0014 — the invitation tenant resolver',
+};
+
+const INVOKER_ONLY = SCHEMA_FUNCTIONS.filter((f) => f.security_type === 'INVOKER');
 
 const DEFINER_CASES = [
   {
     name: '§14.2 item 7 itself: an unexempted SECURITY DEFINER function',
     meaning: 'one function reads and writes every tenant and every policy above it is decorative',
-    functions: [...SCHEMA_FUNCTIONS, FN('app.resolve_invitation_org(text)', 'DEFINER', ['search_path=app'])],
+    functions: [...INVOKER_ONLY, FN('app.resolve_invitation_org(text)', 'DEFINER', ['search_path=app'])],
     views: [],
     functionExemptions: {},
     viewExemptions: {},
@@ -226,7 +240,7 @@ const DEFINER_CASES = [
   {
     name: 'an EXEMPTED definer function with no pinned search_path',
     meaning: 'the standard escalation: a caller shadows a name and runs their code as the owner',
-    functions: [...SCHEMA_FUNCTIONS, FN('app.resolve_invitation_org(text)', 'DEFINER', null)],
+    functions: [...INVOKER_ONLY, FN('app.resolve_invitation_org(text)', 'DEFINER', null)],
     views: [],
     functionExemptions: { 'app.resolve_invitation_org(text)': 'resolves an anonymous bearer to its tenant' },
     viewExemptions: {},
@@ -236,7 +250,7 @@ const DEFINER_CASES = [
     name: 'search_path set on something else is not search_path set',
     meaning: 'a config entry that merely contains the words would pass a looser test',
     functions: [
-      ...SCHEMA_FUNCTIONS,
+      ...INVOKER_ONLY,
       FN('app.resolve_invitation_org(text)', 'DEFINER', ['role=app_owner', 'statement_timeout=5s']),
     ],
     views: [],
@@ -248,7 +262,7 @@ const DEFINER_CASES = [
     name: 'an exempted definer function WITH a pinned search_path',
     meaning: 'the audited, deliberate case must be allowed or the exemption list means nothing',
     functions: [
-      ...SCHEMA_FUNCTIONS,
+      ...INVOKER_ONLY,
       FN('app.resolve_invitation_org(text)', 'DEFINER', ['search_path=app, pg_catalog']),
     ],
     views: [],
@@ -268,7 +282,7 @@ const DEFINER_CASES = [
   {
     name: 'an exemption for a function that has since been made SECURITY INVOKER',
     meaning: 'the exemption would go on excusing a definer function if one were ever restored under that name',
-    functions: [...SCHEMA_FUNCTIONS, FN('app.resolve_invitation_org(text)', 'INVOKER')],
+    functions: [...INVOKER_ONLY, FN('app.resolve_invitation_org(text)', 'INVOKER')],
     views: [],
     functionExemptions: { 'app.resolve_invitation_org(text)': 'resolves an anonymous bearer to its tenant' },
     viewExemptions: {},
@@ -277,7 +291,7 @@ const DEFINER_CASES = [
   {
     name: 'a view without security_invoker over a tenant table',
     meaning: 'the same hole in different clothes — the view reads every tenant as its owner',
-    functions: [...SCHEMA_FUNCTIONS],
+    functions: [...INVOKER_ONLY],
     views: [VIEW('all_invitations', false)],
     functionExemptions: {},
     viewExemptions: {},
@@ -286,7 +300,7 @@ const DEFINER_CASES = [
   {
     name: 'the same view with security_invoker = true',
     meaning: 'a view that evaluates RLS as the caller is not the hazard and must not be flagged',
-    functions: [...SCHEMA_FUNCTIONS],
+    functions: [...INVOKER_ONLY],
     views: [VIEW('all_invitations', true)],
     functionExemptions: {},
     viewExemptions: {},
@@ -295,7 +309,7 @@ const DEFINER_CASES = [
   {
     name: 'a stale view exemption',
     meaning: 'a justification outlives the thing it justified, silently',
-    functions: [...SCHEMA_FUNCTIONS],
+    functions: [...INVOKER_ONLY],
     views: [VIEW('all_invitations', true)],
     functionExemptions: {},
     viewExemptions: { all_invitations: 'the view was given security_invoker in a later migration' },
@@ -304,7 +318,7 @@ const DEFINER_CASES = [
   {
     name: 'an EXEMPTED definer-rights view',
     meaning: 'the honouring branch of the view arm had no case at all — disabling it left the suite green',
-    functions: [...SCHEMA_FUNCTIONS],
+    functions: [...INVOKER_ONLY],
     views: [VIEW('all_invitations', false)],
     functionExemptions: {},
     viewExemptions: { all_invitations: 'a materialized view, which cannot carry the option' },
@@ -314,7 +328,7 @@ const DEFINER_CASES = [
     name: 'an OVERLOAD of an exempted definer function',
     meaning: 'one justification would cover a second body under the same name — F-47 option A adds exactly that name',
     functions: [
-      ...SCHEMA_FUNCTIONS,
+      ...INVOKER_ONLY,
       FN('app.resolve_invitation_org(text)', 'DEFINER', ['search_path=app, pg_catalog']),
       FN('app.resolve_invitation_org(uuid)', 'DEFINER', ['search_path=app, pg_catalog']),
     ],
@@ -326,13 +340,22 @@ const DEFINER_CASES = [
     expect: 'FAIL',
   },
   {
-    name: 'the schema as migrations 0001-0013 leave it',
+    name: 'the schema as migrations 0001-0014 leave it, resolver exempted',
     meaning: 'a checker that fails on everything is no more use than one that fails on nothing',
+    functions: [...SCHEMA_FUNCTIONS],
+    views: [],
+    functionExemptions: SCHEMA_DEFINER_EXEMPTIONS,
+    viewExemptions: {},
+    expect: 'PASS',
+  },
+  {
+    name: 'the real schema with the resolver UNEXEMPTED — the state check-rls actually refused',
+    meaning: '0014 landed and the build stayed green, which is the whole axis not working',
     functions: [...SCHEMA_FUNCTIONS],
     views: [],
     functionExemptions: {},
     viewExemptions: {},
-    expect: 'PASS',
+    expect: 'FAIL',
   },
 ];
 

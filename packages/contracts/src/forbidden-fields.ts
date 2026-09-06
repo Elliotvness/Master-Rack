@@ -46,6 +46,46 @@ export const FORBIDDEN_CLIENT_FIELDS: readonly string[] = Object.freeze([
   'internal_note',
 ]);
 
+/**
+ * Keys that must never reach an APPLICATION LOG, whoever they are being shown
+ * to. A different list from the one above, and the difference is the point.
+ *
+ * `FORBIDDEN_CLIENT_FIELDS` is AC-02's: §9.2's Hidden rows, the commercial
+ * confidentiality boundary, fields that must never be in a client RESPONSE.
+ * These are the opposite case — fields that legitimately go to the client, once,
+ * and must never be written down anywhere on the way. A TOTP provisioning URI
+ * carries the shared secret in its query string; it is the whole point of the
+ * enrollment response and it is a credential.
+ *
+ * Review found the gap the day the first credential-bearing DTO was written:
+ * `redactForLog` consulted only AC-02's list, `isForbiddenClientField('provisioning_uri')`
+ * was false, and `audiences.test.ts` asserted `findForbiddenFields(dto)` was
+ * empty over a payload containing `secret=JBSWY3DP` — so the suite told a reader
+ * the secret-bearing response was clean.
+ *
+ * Extending AC-02's list would have been the wrong fix twice over: it would
+ * have made the outbound guard REFUSE the field the route exists to return, and
+ * it would have muddled a confidentiality boundary with a credential-hygiene
+ * one. Two lists, one redactor.
+ */
+export const NEVER_LOG_FIELDS: readonly string[] = Object.freeze([
+  'provisioning_uri',
+  'challenge',
+  'mfa_secret_hash',
+  'password',
+  'password_hash',
+  'secret',
+  'token',
+  'token_hash',
+]);
+
+const NEVER_LOG_SET: ReadonlySet<string> = new Set(NEVER_LOG_FIELDS);
+
+/** Whether a key must be redacted before it reaches a log, for any audience. */
+export function isNeverLoggedField(key: string): boolean {
+  return NEVER_LOG_SET.has(key);
+}
+
 const FORBIDDEN_SET: ReadonlySet<string> = new Set(FORBIDDEN_CLIENT_FIELDS);
 
 export function isForbiddenClientField(key: string): boolean {

@@ -1405,8 +1405,13 @@ details .body{padding:0 14px 12px;border-top:1px solid var(--line-2);margin-top:
   <table class="compact">
     <thead><tr><th>Method + path</th><th>Purpose</th><th>Authorization</th></tr></thead>
     <tbody>
+      <tr><td colspan="3" style="background:var(--panel-2);font-weight:650">Authentication surface <span style="font-weight:400">&mdash; amended 2026-09-05 (F-46). Until this band existed the inventory carried one auth route and no way for anyone to sign in, so &sect;15.2 could not run: no client reached steps 3&ndash;7 and no staff principal could exist for steps 1 and 8. Every row here is anonymous by definition &mdash; each one exists to CREATE or END a session, so none of them can have one to be authorized by. Second-factor enrollment is <em>not</em> here: it happens under a session and lives in the client namespace below.</span></td></tr>
+      <tr><td><code>POST /api/auth/invite/accept</code></td><td>Redeem an invitation and set a credential. Opens the <em>short-lived acceptance session</em> &sect;14.3's Transport row describes &mdash; never a login session</td><td>Anonymous + valid single-use token</td></tr>
+      <tr><td><code>POST /api/auth/session</code></td><td>Sign in: credential <em>plus</em> second factor, exchanged for a session. This is &sect;14.3's <em>&ldquo;explicit first sign-in with the new credential&rdquo;</em>, and the reason acceptance must not auto-login</td><td>Anonymous + credential + second factor</td></tr>
+      <tr><td><code>DELETE /api/auth/session</code></td><td>Sign out. Revokes the session server-side and writes &sect;13.6's <em>&ldquo;Session terminated&rdquo;</em> event</td><td>Any caller; a request with no live session is a no-op, never an error</td></tr>
+      <tr><td><code>GET /api/auth/oidc/start</code></td><td>Begin staff SSO against Microsoft Entra ID</td><td>Anonymous; the IdP decides who is staff</td></tr>
+      <tr><td><code>GET /api/auth/oidc/callback</code></td><td>The relying party's <code>redirect_uri</code>. Mints the staff session &mdash; the only way a staff principal comes into existence, which &sect;14.4 makes mandatory and this table did not carry</td><td>Anonymous + a valid IdP response</td></tr>
       <tr><td colspan="3" style="background:var(--panel-2);font-weight:650">Client surface</td></tr>
-      <tr><td><code>POST /api/auth/invite/accept</code></td><td>Redeem an invitation, set a credential</td><td>Anonymous + valid single-use token</td></tr>
       <tr><td><code>GET /api/client/v1/projects</code></td><td>Projects assigned to my organization</td><td><code>client</code>, org-scoped query</td></tr>
       <tr><td><code>GET /api/client/v1/projects/:id/revisions</code></td><td>My revision history (<code>audience='client'</code> only)</td><td><code>client</code>, org-scoped</td></tr>
       <tr><td><code>POST /api/client/v1/revisions/:id/facility</code></td><td>Upsert facility input</td><td><code>client</code>, revision must be <code>DRAFT</code></td></tr>
@@ -1418,6 +1423,9 @@ details .body{padding:0 14px 12px;border-top:1px solid var(--line-2);margin-top:
       <tr><td><code>POST /api/client/v1/revisions/:id/clone</code></td><td>Clone a frozen revision to a new draft</td><td><code>client</code></td></tr>
       <tr><td><code>GET  /api/client/v1/submissions/:id</code></td><td>Status and disposition. RFI thread is <b>phase 2</b>.</td><td><code>client</code>, org-scoped</td></tr>
       <tr><td><code>GET  /api/client/v1/documents/:id</code></td><td>Signed, short-lived URL for a watermarked PDF</td><td><code>client</code>; access is an audit event</td></tr>
+      <tr><td><code>POST /api/client/v1/mfa/enroll</code></td><td>Begin second-factor enrollment &mdash; a TOTP provisioning URI or a passkey registration challenge. Reached under the short-lived acceptance session, which is why it sits in the <em>client</em> namespace and not with the anonymous auth rows</td><td><code>client</code></td></tr>
+      <tr><td><code>POST /api/client/v1/mfa/verify</code></td><td>Complete enrollment by proving possession of the factor. NFR-SEC-03 makes a second factor mandatory, not optional</td><td><code>client</code></td></tr>
+      <tr><td><code>POST /api/client/v1/invitations</code></td><td>Client admin invites a colleague into their own organization</td><td><code>client_admin</code>, own org enforced server-side</td></tr>
       <tr><td colspan="3" style="background:var(--panel-2);font-weight:650">Internal surface</td></tr>
       <tr><td><code>GET  /api/internal/v1/queue</code></td><td>Submissions across all organizations</td><td><code>staff</code></td></tr>
       <tr><td><code>GET  /api/internal/v1/submissions/:id</code></td><td>Full package incl. BOM, citations, notes</td><td><code>staff</code></td></tr>
@@ -1426,7 +1434,10 @@ details .body{padding:0 14px 12px;border-top:1px solid var(--line-2);margin-top:
       <tr><td><code>POST /api/internal/v1/revisions/:id/notes</code></td><td>Internal note</td><td><code>staff</code></td></tr>
       <tr><td><code>POST /api/internal/v1/submissions/:id/status</code></td><td>Set status / decline with reason — <b>phase 2</b></td><td><code>staff</code></td></tr>
       <tr><td><code>POST /api/internal/v1/organizations</code></td><td>Create a client organization</td><td><code>staff</code></td></tr>
-      <tr><td><code>POST /api/client/v1/invitations</code></td><td>Client admin invites a colleague into their own organization</td><td><code>client_admin</code>, own org enforced server-side</td></tr>
+      <tr><td><code>POST /api/internal/v1/projects</code></td><td>Create a project for a client organization. &sect;15.2 step 1 is <em>&ldquo;creates a client organization <strong>and project</strong>&rdquo;</em>, and OD-04 settles internal-created projects only for MVP-1</td><td><code>staff</code></td></tr>
+      <tr><td><code>POST /api/internal/v1/projects/:id/revisions</code></td><td>Create the first draft revision on a project. <code>clone</code> needs a frozen revision and <code>derive</code> produces an internal one, so neither can make the first</td><td><code>staff</code></td></tr>
+      <tr><td><code>POST /api/internal/v1/users/:id/deactivate</code></td><td>Deactivate a user: terminates every session and revokes their pending invitations, in one transaction (FR-AD-01, AC-17)</td><td><code>internal_admin</code></td></tr>
+      <tr><td><code>POST /api/internal/v1/invitations/:id/revoke</code></td><td>Revoke a pending invitation (FR-AD-02). Idempotent; never deletes</td><td><code>staff</code></td></tr>
       <tr><td><code>POST /api/internal/v1/invitations</code></td><td>Issue an invitation into any organization</td><td><code>staff</code></td></tr>
       <tr><td><code>POST /api/internal/v1/catalog/releases/:id/approve</code></td><td>Approve a catalog or rule release</td><td><code>internal_admin</code>, checker ≠ digitiser, re-auth</td></tr>
       <tr><td><code>GET  /api/internal/v1/audit</code></td><td>Audit browser — <b>phase 2</b>. MVP-1 reads the audit table directly.</td><td><code>internal_admin</code>; export re-auths</td></tr>

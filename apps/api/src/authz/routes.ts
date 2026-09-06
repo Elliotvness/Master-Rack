@@ -64,35 +64,72 @@ export function namespaceAllows(namespace: Namespace, actorType: ActorType): boo
  * The route table: the A-08/A-09 policy registry. Each entry is a promise that
  * the route is covered; the assertion below proves the promise is kept.
  *
- * **This IS the MVP-1 surface now (T-14a).** §8.2 lists 23 rows and marks two
- * phase 2, so the MVP-1 surface is 21, and this table carries all 21. Drift 4
- * — open since session 3 — is closed the way it always had to be, by adding
- * the two missing routes rather than editing 21 down to 20:
+ * **THIS IS THE MVP-1 SURFACE, and it is 32 rows as of 2026-09-05.** §8.2 lists
+ * **34**, two marked phase 2 (held in `PHASE_2_ROUTES` below), so the MVP-1
+ * surface is 32 and this table carries all 32. `tools/check-route-surface.mjs`
+ * derives those numbers on every run; this paragraph is the only place they are
+ * written in prose, which is itself a hazard — review found the previous
+ * version of it still describing a 23-row §8.2 and a 21-row registry, two
+ * amendments out of date.
  *
- *   - `GET /api/client/v1/documents/:id`  the signed watermarked-PDF URL that
- *     §15.2 step 6, E-08 and AC-16 depend on. Its absence also kept the one
- *     client route that hands out a document URL outside AC-02's leakage walk.
- *   - `POST /api/internal/v1/revisions/:id/notes` (E-05)
+ * TWO AMENDMENTS GOT IT HERE, and the lineage is the argument for the checker:
  *
- * Both now have an `Action` in `authorize.ts`, which neither had before.
+ *   - **2026-09-03**, EL: the operator release route,
+ *     `POST /api/internal/v1/idempotency-claims/:key/release`. Before it, T-14a
+ *     closed **drift 4** the way it always had to be closed — by adding the two
+ *     routes §8.2 listed and the registry lacked (`GET .../documents/:id` and
+ *     `POST .../revisions/:id/notes`), never by editing 21 down to 20. Session
+ *     2's proposed remedy would have hidden two missing MVP-1 routes by moving
+ *     the target to meet the code.
+ *   - **2026-09-05**, EL: ten routes, after **F-46** found the inventory
+ *     declared no way for ANYONE to sign in — one `/api/auth/*` route in the
+ *     whole blueprint, no second-factor enrollment, no OIDC callback — so no
+ *     client principal could reach §15.2 steps 3–7 and no staff principal could
+ *     exist at all for steps 1 and 8. The same shape as drift 4 one level up,
+ *     and the code could not be written first: `check-route-surface` and
+ *     `createApp`'s boot gate both refuse a route §8.2 does not carry. That is
+ *     the control working, not obstructing.
  *
- * The phase-2 rows live in `PHASE_2_ROUTES` below, so the registry and §8.2
- * agree row for row instead of agreeing on a total that happened to match.
+ * `PENDING_AMENDMENT` is empty, which is the healthy state.
  *
- * EL amended §8.2 on 2026-09-03 to carry `POST /api/internal/v1/idempotency-claims/:key/release`,
- * so the blueprint now lists **24** rows, two marked phase 2, and this table
- * carries all **22** MVP-1 ones. `PENDING_AMENDMENT` is empty, which is the
- * healthy state.
- *
- * **And the agreement is now a control rather than a count.**
- * `tools/check-route-surface.mjs` parses §8.2 out of the built blueprint and
- * diffs it against these two lists in both directions. Drift 4 lived for five
- * sessions because every session that noticed it noticed it by hand; a number
- * in a document is not a control, and this is the control.
+ * **And the agreement is a control rather than a count.** `check-route-surface`
+ * parses §8.2 out of the built blueprint and diffs it against these two lists
+ * in both directions, and since the second amendment it also checks each row is
+ * filed under the BAND its path belongs to — the amendment put two
+ * `/api/client` rows under "Internal surface", where a reader deciding an
+ * authorization question would have read the opposite of what this file says.
  */
 export const ROUTES: readonly RoutePolicy[] = [
-  // Public — no session required, single-use token instead.
+  // ------------------------------------------------------------------------
+  // Authentication surface (§8.2 amended 2026-09-05 — F-46).
+  //
+  // FOUR of these are `public`, where there was one, and that is a real
+  // widening of the surface the gate does not authorize — so it is stated
+  // rather than left to be noticed. A `public` route means only "no session
+  // exists yet to authorize", and every one of the four is a route whose whole
+  // job is to CREATE or DESTROY that session:
+  //
+  //   invite/accept   holds a single-use token instead of a session
+  //   POST session    presents a credential and a second factor instead
+  //   DELETE session  ends the caller's own session; with none it is a no-op,
+  //                   so there is nothing to authorize and nothing to leak
+  //   oidc/start      begins a redirect to the identity provider
+  //   oidc/callback   carries the IdP's signed response instead
+  //
+  // Each therefore authenticates by its OWN evidence, and none of them may
+  // ever read a tenant row on the strength of being public. The two MFA routes
+  // are deliberately NOT here: enrollment happens under the short-lived
+  // acceptance session §14.3's Transport row describes, so a principal exists,
+  // and they sit at `/api/client/v1/mfa/*` in the client namespace — which
+  // keeps the property `authorize.test.ts` asserts, that a client-namespace
+  // route is always a `/api/client` path. Namespace follows the path, so a
+  // leak stays a routing bug (loud, greppable) rather than one.
+  // ------------------------------------------------------------------------
   { method: 'POST', path: '/api/auth/invite/accept', namespace: 'public', action: null, response: null },
+  { method: 'POST', path: '/api/auth/session', namespace: 'public', action: null, response: null },
+  { method: 'DELETE', path: '/api/auth/session', namespace: 'public', action: null, response: null },
+  { method: 'GET', path: '/api/auth/oidc/start', namespace: 'public', action: null, response: null },
+  { method: 'GET', path: '/api/auth/oidc/callback', namespace: 'public', action: null, response: null },
 
   // Client surface. A list route names its ITEM schema; the pagination
   // envelope around it is `@rms/contracts`' and is T-14's to apply.
@@ -107,6 +144,8 @@ export const ROUTES: readonly RoutePolicy[] = [
   { method: 'POST', path: '/api/client/v1/revisions/:id/clone', namespace: 'client', action: 'revision.clone', response: 'Revision' },
   { method: 'GET', path: '/api/client/v1/submissions/:id', namespace: 'client', action: 'submission.read', response: 'Submission' },
   { method: 'GET', path: '/api/client/v1/documents/:id', namespace: 'client', action: 'document.read', response: 'Document' },
+  { method: 'POST', path: '/api/client/v1/mfa/enroll', namespace: 'client', action: 'credential.enroll_factor', response: 'MfaEnrollment' },
+  { method: 'POST', path: '/api/client/v1/mfa/verify', namespace: 'client', action: 'credential.verify_factor', response: 'MfaFactor' },
   { method: 'POST', path: '/api/client/v1/invitations', namespace: 'client', action: 'invitation.create', response: 'Invitation' },
 
   // Internal surface.
@@ -115,6 +154,10 @@ export const ROUTES: readonly RoutePolicy[] = [
   { method: 'GET', path: '/api/internal/v1/revisions/:id/bom', namespace: 'internal', action: 'bom.read', response: 'BomLine' },
   { method: 'POST', path: '/api/internal/v1/submissions/:id/derive', namespace: 'internal', action: 'revision.derive_internal', response: 'Revision' },
   { method: 'POST', path: '/api/internal/v1/organizations', namespace: 'internal', action: 'organization.create', response: 'Organization' },
+  { method: 'POST', path: '/api/internal/v1/projects', namespace: 'internal', action: 'project.create', response: 'Project' },
+  { method: 'POST', path: '/api/internal/v1/projects/:id/revisions', namespace: 'internal', action: 'project.create_revision', response: 'Revision' },
+  { method: 'POST', path: '/api/internal/v1/users/:id/deactivate', namespace: 'internal', action: 'user.deactivate', response: 'Deactivation' },
+  { method: 'POST', path: '/api/internal/v1/invitations/:id/revoke', namespace: 'internal', action: 'invitation.revoke', response: 'Invitation' },
   { method: 'POST', path: '/api/internal/v1/invitations', namespace: 'internal', action: 'invitation.create_any_org', response: 'Invitation' },
   { method: 'POST', path: '/api/internal/v1/catalog/releases/:id/approve', namespace: 'internal', action: 'catalog.approve', response: 'CatalogRelease' },
   { method: 'POST', path: '/api/internal/v1/revisions/:id/notes', namespace: 'internal', action: 'note.create', response: 'InternalNote' },
@@ -225,8 +268,17 @@ export function assertRouteCoverage(
   }
 }
 
-/** Actions that must never appear on a client-namespace route. */
-const INTERNAL_ONLY_ACTIONS: ReadonlySet<Action> = new Set<Action>([
+/**
+ * Actions that must never appear on a client-namespace route.
+ *
+ * **KEPT IN STEP BY A TEST, not by memory.** The §8.2 amendment of 2026-09-05
+ * added four actions and put none of them here — the identical omission this
+ * list's own note below records catching for `idempotency.release`, repeated by
+ * the change that read the note. `matrix.test.ts` now derives the membership:
+ * every action whose rule denies BOTH client roles must be in this set, so the
+ * next one cannot be forgotten either.
+ */
+export const INTERNAL_ONLY_ACTIONS: ReadonlySet<Action> = new Set<Action>([
   // Releasing a stranded claim overrides a safety control; it may never appear
   // on a client route. Review found it absent from this set while every
   // comparable action was in it — the assertion would have waved it through.
@@ -239,4 +291,13 @@ const INTERNAL_ONLY_ACTIONS: ReadonlySet<Action> = new Set<Action>([
   'revision.derive_internal',
   'organization.create',
   'invitation.create_any_org',
+  // Added 2026-09-05 with the §8.2 amendment. `project.create` is here for the
+  // first time because the amendment gave it its first route; the other three
+  // arrived with it. `credential.enroll_factor` and `credential.verify_factor`
+  // are deliberately absent — clients may do those and staff may not, which is
+  // the one inversion in the whole table.
+  'project.create',
+  'project.create_revision',
+  'user.deactivate',
+  'invitation.revoke',
 ]);

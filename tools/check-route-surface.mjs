@@ -76,7 +76,16 @@ export function blueprintRoutes(html, exemptions = SUB_FEATURE_PHASE_2) {
   const out = [];
   const rowRe = /<tr>(.*?)<\/tr>/gs;
   let row;
+  let band = null;
   while ((row = rowRe.exec(body)) !== null) {
+    // A full-width row is a BAND heading — "Client surface", "Internal
+    // surface" — not a route. Carried forward so each route knows which
+    // section of the table it was filed under.
+    const heading = /colspan="3"[^>]*>([^<]+)/.exec(row[1]);
+    if (heading !== null) {
+      band = heading[1].split('&mdash;')[0].split('—')[0].trim();
+      continue;
+    }
     const cell = /<td><code>\s*(GET|POST|PUT|DELETE)\s+([^<]+?)\s*<\/code><\/td>/.exec(row[1]);
     if (cell === null) continue;
     // §8.2 writes the query string on one row; the router registers the path.
@@ -84,12 +93,83 @@ export function blueprintRoutes(html, exemptions = SUB_FEATURE_PHASE_2) {
     const key = routeKey(cell[1], path);
     out.push({
       key,
+      band,
+      path,
       phase2:
         /<b>phase 2<\/b>/i.test(row[1]) && !Object.hasOwn(exemptions, key),
       marked: /<b>phase 2<\/b>/i.test(row[1]),
     });
   }
   return out;
+}
+
+/**
+ * Which path prefix each §8.2 band is for.
+ *
+ * WHY THIS IS A CONTROL AND NOT A TIDY-UP. The bands are how a reader decides
+ * what a route IS — the table's own subtitle says the client and internal
+ * namespaces are "hard-separated by actor_type", and the band is where that
+ * separation is visible at a glance. The registry keys `namespace` off the same
+ * distinction, `authorize.test.ts` asserts a client-namespace route is always a
+ * `/api/client` path, and `NAMESPACE_ACTORS` decides who may reach it.
+ *
+ * The §8.2 amendment of 2026-09-05 filed two `/api/client` routes inside the
+ * Internal surface band, and `POST /api/client/v1/invitations` had been sitting
+ * there since the table was written. Nothing noticed, because this checker
+ * compared rows and never asked which band they were in — so the blueprint said
+ * two client routes were internal surface while the code said otherwise, and
+ * both were green. A reader deciding an authorization question from the
+ * blueprint would have got it wrong.
+ */
+export const BAND_PREFIXES = Object.freeze({
+  'Authentication surface': '/api/auth/',
+  'Client surface': '/api/client/',
+  'Internal surface': '/api/internal/',
+});
+
+/**
+ * Every §8.2 row filed under a band its path does not belong to, plus any band
+ * heading this rule does not know.
+ *
+ * Pure, for the reason every other function here is: the self-test feeds it
+ * rows rather than a blueprint.
+ */
+export function bandViolations(rows, prefixes = BAND_PREFIXES) {
+  const problems = [];
+  let placed = 0;
+  for (const row of rows) {
+    if (row.band === null || row.band === undefined) {
+      problems.push(
+        `${row.key} appears in §8.2 before any band heading. Every route belongs to a band — ` +
+          'the band is how a reader tells a client route from an internal one.',
+      );
+      continue;
+    }
+    const prefix = prefixes[row.band];
+    if (prefix === undefined) {
+      problems.push(
+        `§8.2 has a band this checker does not know: "${row.band}". Add it to BAND_PREFIXES with ` +
+          'the path prefix it is for, or the rows under it are unchecked.',
+      );
+      continue;
+    }
+    placed += 1;
+    if (!row.path.startsWith(prefix)) {
+      problems.push(
+        `${row.key} is filed under "${row.band}", whose rows are ${prefix}… . The band is where ` +
+          'a reader sees the client/internal separation, and the registry keys `namespace` off ' +
+          'the same distinction — a row in the wrong band says the opposite of what the code does.',
+      );
+    }
+  }
+  // A rule that placed nothing checked nothing.
+  if (rows.length > 0 && placed === 0) {
+    problems.push(
+      'no §8.2 row was matched to a known band — refusing to report that every row is filed ' +
+        'correctly when none of them was checked.',
+    );
+  }
+  return problems;
 }
 
 /** `ROUTES` and `PHASE_2_ROUTES` from the registry source, as key lists. */
@@ -189,7 +269,14 @@ export function check(root = ROOT) {
   const src = readFileSync(join(root, 'apps', 'api', 'src', 'authz', 'routes.ts'), 'utf8');
   const blueprint = blueprintRoutes(html);
   return {
-    problems: surfaceViolations(html, src),
+    // TWO independent questions, reported together and kept apart in code.
+    // `surfaceViolations` diffs §8.2 against the registry, row for row.
+    // `bandViolations` asks whether §8.2 is internally consistent — whether each
+    // row is filed under the band its path belongs to — which needs no registry
+    // and is not a diff. Folding the second into the first made the first's
+    // self-test fixtures, which are synthetic paths with no bands, start
+    // failing a rule they were never written about.
+    problems: [...surfaceViolations(html, src), ...bandViolations(blueprint)],
     counted: {
       blueprintRows: blueprint.length,
       blueprintMvp1: blueprint.filter((r) => !r.phase2).length,

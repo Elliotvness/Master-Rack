@@ -69,6 +69,18 @@ declare module 'fastify' {
  */
 export const UNIMPLEMENTED: ReadonlyMap<string, string> = new Map([
   ['POST /api/auth/invite/accept', 'T-14b'],
+  // The §8.2 amendment of 2026-09-05 (F-46). Mounted and authorized from the
+  // day the rows exist, answering 500 until their task fills them — the same
+  // posture as every other row here, so "the inventory grew" can never be read
+  // as "the product grew".
+  ['POST /api/auth/session', 'T-14b'],
+  ['DELETE /api/auth/session', 'T-14b'],
+  ['GET /api/auth/oidc/start', 'T-14b'],
+  ['GET /api/auth/oidc/callback', 'T-14b'],
+  ['POST /api/internal/v1/projects', 'T-14c'],
+  ['POST /api/internal/v1/projects/:id/revisions', 'T-14c'],
+  ['POST /api/internal/v1/users/:id/deactivate', 'T-14e'],
+  ['POST /api/internal/v1/invitations/:id/revoke', 'T-14e'],
   ['GET /api/client/v1/projects', 'T-14c'],
   ['GET /api/client/v1/projects/:id/revisions', 'T-14c'],
   ['POST /api/client/v1/revisions/:id/facility', 'T-14c'],
@@ -80,6 +92,8 @@ export const UNIMPLEMENTED: ReadonlyMap<string, string> = new Map([
   ['POST /api/client/v1/revisions/:id/clone', 'T-14d'],
   ['GET /api/client/v1/submissions/:id', 'T-14d'],
   ['GET /api/client/v1/documents/:id', 'T-14d'],
+  ['POST /api/client/v1/mfa/enroll', 'T-14b'],
+  ['POST /api/client/v1/mfa/verify', 'T-14b'],
   ['POST /api/client/v1/invitations', 'T-14b'],
   ['GET /api/internal/v1/queue', 'T-14e'],
   ['GET /api/internal/v1/submissions/:id', 'T-14e'],

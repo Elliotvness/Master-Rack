@@ -61,7 +61,14 @@ export type Action =
   | 'document.read'
   | 'note.create'
   | 'idempotency.release'
-  | 'organization.create';
+  | 'organization.create'
+  // Added 2026-09-05 with the §8.2 amendment (F-46). Each is a route the
+  // inventory did not carry and an MVP-1 requirement needed.
+  | 'credential.enroll_factor'
+  | 'credential.verify_factor'
+  | 'project.create_revision'
+  | 'user.deactivate'
+  | 'invitation.revoke';
 
 export type Decision =
   | { readonly allow: true }
@@ -179,6 +186,72 @@ const RULES: Readonly<Record<Action, Rule>> = {
 
   'organization.create': (actor) =>
     STAFF_ROLES.has(actor.role) ? ALLOW : deny('only staff create organizations'),
+
+  // --- Added with the §8.2 amendment of 2026-09-05 (F-46) ---
+
+  // Enrolling one's OWN second factor. A client role only: §14.4 puts staff on
+  // Entra ID with phishing-resistant MFA held by the IdP, so a staff principal
+  // reaching this route would be enrolling a factor this system does not
+  // authenticate against. Staff are denied rather than allowed-and-ignored,
+  // because a factor that exists and decides nothing is worse than none.
+  //
+  // WHICH user's factor is not decided here. At the GATE, `resource` is the
+  // caller's own organization, so `clientOwnOrg` can only allow — this rule
+  // answers "may this role enroll a factor at all", and the handler enrolls the
+  // factor of the PRINCIPAL, taking no user id from anywhere. That is the
+  // object half, and the reason this cannot become an account-takeover route.
+  //
+  // `clientOwnOrg` is NOT dead weight, and review's first read that it was a
+  // tautology is wrong in one place that matters: `matrix.test.ts`'s AC-03
+  // sweep calls every action with ANOTHER organization's resource, and this
+  // rule has to deny there. It is also what will hold when a `resourceLoader`
+  // lands on `RoutePolicy` and the gate starts passing the real object.
+  'credential.enroll_factor': (actor, resource) =>
+    CLIENT_ROLES.has(actor.role)
+      ? clientOwnOrg(actor, resource)
+      : deny('staff second factors are held by the identity provider (§14.4)'),
+
+  // Completing the enrollment by proving possession. A SEPARATE action from
+  // beginning it, with the same rule body today, and the separation is the
+  // point: two routes sharing one action means one matrix row for two
+  // operations, so any future narrowing of enrollment — "only under an
+  // acceptance session", say — would silently narrow verification too, and a
+  // narrowing of verification would silently widen nothing anyone noticed. The
+  // cost of keeping them apart is three lines; the cost of merging them is a
+  // policy change nobody can see.
+  'credential.verify_factor': (actor, resource) =>
+    CLIENT_ROLES.has(actor.role)
+      ? clientOwnOrg(actor, resource)
+      : deny('staff second factors are held by the identity provider (§14.4)'),
+
+  // Creating the first draft revision on a project. Staff only, and 404 to a
+  // client rather than 403: OD-04 settles internal-created projects for MVP-1,
+  // so the route does not exist as far as a client is concerned. A client's
+  // own new drafts come from `revision.clone`, which it does have.
+  //
+  // No `notFound`: the namespace gate refuses a client before this rule is
+  // reached, so the flag could only ever be observed by a SERVICE_ENGINE, which
+  // `authorize` short-circuits above. `organization.create` and
+  // `catalog.approve` — the closest neighbours — are plain denials for the same
+  // reason, and a flag that cannot fire reads as a control that does.
+  'project.create_revision': (actor) =>
+    STAFF_ROLES.has(actor.role) ? ALLOW : deny('only staff create the first revision'),
+
+  // AC-17. Deactivation ends every session at once and revokes every pending
+  // invitation, which is the strongest thing any route in this system does to
+  // an account — so it sits at INTERNAL_ADMIN with catalog approval and the
+  // idempotency release, not with the staff reads. INTERNAL_SALES may see that
+  // an account should go and must escalate rather than pull it.
+  'user.deactivate': (actor) =>
+    actor.role === 'INTERNAL_ADMIN' ? ALLOW : deny('only an internal admin deactivates a user'),
+
+  // Revoking a pending invitation. Staff, for the §8.2 row the amendment adds.
+  // A client_admin revoking an invitation it issued is a real requirement and
+  // is deliberately NOT granted here: §8.2 carries no client-namespace revoke
+  // route, and inventing the authority before the route would be the mistake
+  // F-46 is about, in reverse.
+  'invitation.revoke': (actor) =>
+    STAFF_ROLES.has(actor.role) ? ALLOW : deny('only staff revoke invitations'),
 };
 
 /** Every action that has a rule. Used by the boot-time coverage assertion. */

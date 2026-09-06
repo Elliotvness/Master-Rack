@@ -1383,11 +1383,19 @@ M, each leaving the app bootable:
   a second accept of the same token → refused; a client_admin inviting into another org → 404 and
   an audit row.
 
-  **REFUSED 2026-09-05 by pre-implementation review — F-46 and F-47. Do not start this task.** Two
-  things must be settled first, and one of them is EL's alone.
+  **REFUSED 2026-09-05 by pre-implementation review (F-46, F-47) — and UNBLOCKED the same day.**
+  EL amended §8.2 and settled F-47's invitation half within hours. What follows is kept as the
+  record of why the task could not be written as specified, with each blocker marked as it closed.
+  **The task is re-scoped below and may now be started.**
 
-  **1. The route surface cannot authenticate anybody (F-46, needs a §8.2 amendment).** The whole
-  blueprint declares one `/api/auth/*` route, the one above. There is no sign-in route, no
+  **1. ~~The route surface cannot authenticate anybody~~ — CLOSED 2026-09-05 by EL's second §8.2
+  amendment.** Ten rows landed: sign-in, sign-out, staff OIDC start and callback, second-factor
+  enroll and verify, project creation, first-revision creation, user deactivation and invitation
+  revocation. §8.2 now lists 34 rows, 32 MVP-1, and `ROUTES` carries all 32 with an `Action` and a
+  response schema each; `check-route-surface` passes in both directions and `createApp` mounts and
+  authorizes every one. **All 32 handlers are still placeholders that answer 500** — the inventory
+  grew, the product did not. *The finding as raised, kept because the lineage matters:* the whole
+  blueprint declared one `/api/auth/*` route, the one above. There is no sign-in route, no
   second-factor enrollment route and no OIDC callback — so no client can reach steps 3–7 and **no
   staff principal can exist at all**, which is what steps 1 and 8 are made of. `check-route-surface`
   diffs §8.2 against `ROUTES` in both directions and `createApp` refuses to boot on a route the
@@ -1399,40 +1407,83 @@ M, each leaving the app bootable:
   the new credential."* When the amendment lands, this line is re-scoped: accept issues the
   credential and **no** login session, and signing in is the new route's job.
 
-  **3. Nothing can resolve an anonymous bearer to its tenant (F-47).** `withTenant` demands an
-  organization before any statement runs, and §14.3 forbids the organization travelling in the token
-  or the URL. The session cookie half is solvable today — a second server-issued `__Host-` cookie
-  carrying the organization, verified rather than trusted, fail-closed — and needs no decision. The
-  invitation half needs one: a `SECURITY DEFINER` tenant resolver (recommended; its checker landed
-  today as F-48) or a token-hash policy predicate. Running the anonymous path under a `staff`
-  context is **rejected** and F-47 says why.
+  **3. ~~Nothing can resolve an anonymous bearer to its tenant~~ — CLOSED 2026-09-05, both halves.**
+  The **invitation** half took the recommended option: migration `0014` adds
+  `app.resolve_invitation_tenant(text)`, the one `SECURITY DEFINER` function in the schema —
+  `SET search_path = ''`, `STABLE`, EXECUTE revoked from `PUBLIC` and granted only to `app_user`,
+  returning **one uuid and nothing else**. `withUnresolvedTenant` in `@rms/db` is the no-tenant
+  transaction it runs in, confined by `check-app-boundaries` to `apps/api/src/auth/`, and
+  `resolveInvitationTenant(token)` in `auth/invitation.ts` is the only caller — it owns the
+  transaction rather than taking one, so no handler can be inside the unscoped context. It does
+  **not** filter expired, used or revoked tokens, deliberately, so `redeemInvitation` still runs
+  under the right tenant and records the distinct audit reason AC-01 keeps from the client but not
+  from the log. The **session-cookie** half still needs no decision: a second server-issued
+  `__Host-` cookie carrying the organization, verified rather than trusted, fail-closed — build it
+  in this task.
 
-  **THE CANONICAL LIST. Eight rows, decided in one pass.** This table is the single statement of
-  what the amendment covers; `tasks/review-findings.md`, `tasks/progress.md` and
-  `claude-resume-prompt.md` all point here rather than restating it, because the first draft of this
-  proposal named a different set in each of the three and a request nobody can enumerate is not one
-  anybody can decide. Each row needs a path, a namespace and an authorization column from EL; the
-  shapes below are a proposal, not a decision.
+  **THE AMENDMENT AS LANDED, 2026-09-05.** EL approved the proposal and it is in the blueprint;
+  `src/parts/08-s8.html` is the source and `check-route-surface` is what keeps it and `ROUTES`
+  honest. Ten routes, and the two concretizations this task made rather than EL — **flag them at
+  merge if either is wrong, both are one-line changes in two places**:
 
-  | # | Proposed row | Why MVP-1 needs it |
-  |---|---|---|
-  | 1 | `POST /api/auth/session` — anonymous + credential and second factor → session | §15.2 step 2 *"signs in"*; §14.3 *"No auto-login"*; §16.3 demo beat 2 |
-  | 2 | `DELETE /api/auth/session` — sign out | §13.6 requires a *"Session terminated"* audit event on day one |
-  | 3 | `POST /api/auth/mfa/enroll` and its verify half — client TOTP or passkey registration | §15.2 step 2 *"enrolls a second factor"*; NFR-SEC-03 makes it mandatory, not optional |
-  | 4 | `GET /api/auth/oidc/start` — staff Entra ID | §14.4 makes staff SSO mandatory and there is no other way for staff to hold a session |
-  | 5 | `GET /api/auth/oidc/callback` — the relying party's `redirect_uri` | Same; without it steps 1 and 8 have no principal at all |
-  | 6 | `POST /api/internal/v1/projects` — staff creates a project | §15.2 step 1 is *"creates a client organization **and project**"*; OD-04 settles internal-created projects only |
-  | 7 | `POST /api/internal/v1/projects/:id/revisions` — the first draft revision | Step 3 POSTs into `revisions/:id`; today only `clone` and `derive` create revisions, and neither can make the first one |
-  | 8 | A deactivate-user route and an invitation-revoke route | **FR-AD-01 / FR-AD-02** are both M1 and **AC-17** — deactivation terminates every session — is an MVP-1 acceptance criterion. `deactivateUser` and `revokeInvitation` are both written and neither is reachable from any declared route |
+  | Row | Namespace | Action | Answers with |
+  |---|---|---|---|
+  | `POST /api/auth/session` | public | *(null)* | *(null)* |
+  | `DELETE /api/auth/session` | public | *(null)* | *(null)* |
+  | `GET /api/auth/oidc/start` | public | *(null)* | *(null)* |
+  | `GET /api/auth/oidc/callback` | public | *(null)* | *(null)* |
+  | `POST /api/client/v1/mfa/enroll` | client | `credential.enroll_factor` | `MfaEnrollment` |
+  | `POST /api/client/v1/mfa/verify` | client | `credential.enroll_factor` | `MfaFactor` |
+  | `POST /api/internal/v1/projects` | internal | `project.create` | `Project` *(new internal DTO)* |
+  | `POST /api/internal/v1/projects/:id/revisions` | internal | `project.create_revision` | `Revision` |
+  | `POST /api/internal/v1/users/:id/deactivate` | internal | `user.deactivate` | `User` *(new internal DTO)* |
+  | `POST /api/internal/v1/invitations/:id/revoke` | internal | `invitation.revoke` | `Invitation` |
 
-  Row 8 is one row because the two are one decision — an administration surface §8.2 has none of —
-  and it is the only row that does not block T-14b, so EL may split it out without stalling
-  anything else.
+  **Concretization 1 — the MFA routes are `/api/client/v1/mfa/*`, not `/api/auth/mfa/*`.** The
+  proposal put them with the auth rows. `authorize.test.ts` asserts that a client-namespace route is
+  always a `/api/client` path, and enrollment happens under a session, so it is a client route and
+  the auth band is anonymous by definition. Namespace follows the path, which is what keeps a leak a
+  routing bug rather than a serialization one.
 
-  **Everything downstream is blocked with it**: T-14c, T-14d, T-14e and T-15 all serve routes to a
-  principal that cannot yet exist. **§15.2 stays at 0 of 8**, and the reason has changed from "the
-  handlers are placeholders" to "the declared surface cannot authenticate anyone" — a gap in the
-  objective, not in the code.
+  **Concretization 2 — `user.deactivate` sits at `INTERNAL_ADMIN`, not `staff`.** Ending every
+  session an account holds is the strongest thing any route in this system does to a person, so it
+  is filed with catalog approval and the idempotency release. `INTERNAL_SALES` escalates.
+
+  **And one authority deliberately NOT granted: a `client_admin` cannot revoke an invitation it
+  issued.** That is a real requirement and §8.2 carries no client-namespace route for it. Granting
+  the authority before the route exists would be F-46 in reverse.
+
+  **FOUR public routes where there was one**, which is a real widening of the surface the gate does
+  not authorize and is written down in `routes.ts` rather than left to be noticed. Each is a route
+  whose whole job is to create or end a session, so none of them can have one to be authorized by;
+  each authenticates by its own evidence, and none may read a tenant row on the strength of being
+  public.
+
+  **THE OPEN QUESTION THE AMENDMENT CREATED, for this task to answer.** §14.3's *Transport* row and
+  its *No auto-login* row reconcile only one way: acceptance opens a **short-lived acceptance
+  session**, enrollment happens under it, and the user then signs in properly at
+  `POST /api/auth/session`. So an acceptance session exists and it is a client principal — which
+  means, as the gate stands today, **it can reach every client route**, not just the two MFA ones.
+  That is not acceptable and is not yet designed. Decide it in T-14b: a scope or purpose on the
+  session row that the gate reads, or a separate principal kind. Whatever it is, build the control
+  that can go red — a test in which an acceptance session is refused at `GET /projects`.
+
+  **THE RE-SCOPED TASK.** `POST /api/auth/invite/accept` (single-use token → credential → **the
+  short-lived acceptance session, and no login session**, refusing a reused or expired token, via
+  `resolveInvitationTenant`); the session `preHandler` that turns the cookie pair into the principal
+  `authorize()` consumes, with the organization cookie verified rather than trusted;
+  `POST /api/auth/session` (credential + second factor → session, with regeneration on
+  authentication per NFR-SEC-04); `DELETE /api/auth/session`; the two MFA routes;
+  `POST /api/client/v1/invitations` (own org enforced server-side, client_admin only);
+  `POST /api/internal/v1/invitations`; `POST /api/internal/v1/organizations`. Idempotency (T-13d) on
+  both invitation routes. **Proof:** a second accept of the same token → refused; a client_admin
+  inviting into another org → 404 and an audit row; a forged organization cookie with a valid token
+  → 401 and no session; an acceptance session refused at a client route it has no business reaching.
+
+  **T-14c, T-14d, T-14e and T-15 are unblocked with it.** §15.2 stays at **0 of 8** — the inventory
+  grew and every handler is still a placeholder — but the reason is back to being "the handlers are
+  placeholders", which is a coding gap and one task from moving, rather than "the declared surface
+  cannot authenticate anyone", which was a gap in the objective.
 
 - **T-14c — client reads and drafting** *(M)*. `GET projects`, `GET projects/:id/revisions`
   (`audience='client'` only — `stripInternalRevisions` is the pure half, the query is the other),

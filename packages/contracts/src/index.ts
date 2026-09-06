@@ -38,8 +38,10 @@ export {
 
 export {
   FORBIDDEN_CLIENT_FIELDS,
+  NEVER_LOG_FIELDS,
   findForbiddenFields,
   isForbiddenClientField,
+  isNeverLoggedField,
 } from './forbidden-fields.js';
 
 export {

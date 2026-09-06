@@ -117,10 +117,27 @@ const SENSITIVITY_EXEMPTIONS = {
  * it lands with an entry here, and this checker is what stops a SECOND one
  * arriving unremarked.
  *
- * A key is the function's bare name. The value must say what it is for and why
- * its authority cannot be narrowed further.
+ * A key is the function's FULL SIGNATURE as `oid::regprocedure` renders it —
+ * `app.f(text)`, never `f` — because an exemption is a justification about a
+ * function BODY and a bare name does not identify one. Review demonstrated the
+ * hole this closes: keyed on the name, auditing `resolve_invitation_tenant(text)`
+ * would have waved through an overload taking a uuid and doing anything at all.
+ * The value must say what it is for and why its authority cannot be narrowed
+ * further.
  */
-const SECURITY_DEFINER_EXEMPTIONS = {};
+const SECURITY_DEFINER_EXEMPTIONS = {
+  'app.resolve_invitation_tenant(text)':
+    'F-47, migration 0014. Resolves an invitation token hash to the organization that owns ' +
+    'it — ONE uuid, nothing else — so `POST /api/auth/invite/accept` can open a tenant ' +
+    'context at all. §14.3 forbids the organization travelling in the token or the URL and ' +
+    '`withTenant` requires one before any statement runs, so an anonymous acceptance request ' +
+    'has no other way in. Its authority cannot be narrowed further: RLS applies to every role ' +
+    'except the table owner, so a lower-privileged owner would read nothing, and the ' +
+    'alternatives are a permanent permissive policy on app.invitation or BYPASSRLS. It is ' +
+    'bounded instead by its BODY — one fully-qualified SELECT of one column, with ' +
+    "search_path = '' so nothing in it can be shadowed — which cannot change without another " +
+    'migration, and this checker sees that migration.',
+};
 
 /**
  * Views permitted to run with the definer's rights, each with the reason.

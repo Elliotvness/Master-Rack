@@ -1,11 +1,60 @@
-# Progress scoreboard — 2026-09-05 (session 13, the review that refused T-14b)
+# Progress scoreboard — 2026-09-05 (session 13, the review that refused T-14b and the amendment that unblocked it)
 
 Derived from `tasks/todo.md`, which stays the source of truth for task detail. This file holds
 only the arithmetic and the ordering. Where a figure was re-measured today it says so; where it is
 the repository's own claim it says that instead.
 
-**Session 13 (2026-09-05) — a scheduled unattended run that wrote almost no code, because the task
-it was sent to do cannot be done yet.** It set out to start **T-14b**, the task every figure on this
+**Session 13 (2026-09-05), part two — EL amended §8.2 within hours, and Phase 3 is open again.**
+The refusal below stood for about the length of one review. EL approved the ten-row amendment and
+settled F-47's invitation half, and both landed in the same session: **§8.2 now lists 34 rows, 32 of
+them MVP-1, and `ROUTES` carries all 32** — sign-in, sign-out, staff OIDC start and callback,
+second-factor enroll and verify, project creation, first-revision creation, user deactivation and
+invitation revocation, each with an `Action`, a response schema and a mounted placeholder. Four new
+`Action`s, four new DTOs, and `check-route-surface` green in both directions.
+
+**§15.2 is still 0 of 8 and the amendment did not move it by one step.** That is the honest reading
+and the important one: **all 32 handlers answer 500**. The inventory grew; the product did not. What
+changed is that the reason is a coding gap again — one task from moving — rather than a gap in the
+objective, which is what it was this morning.
+
+**F-47's invitation half is closed by migration `0014`, and it is the first `SECURITY DEFINER`
+function this schema has ever had.** `app.resolve_invitation_tenant(text)` takes a token hash and
+returns one uuid. It reads no row itself: `withUnresolvedTenant` — the no-tenant transaction it runs
+in, confined by `check-app-boundaries` to `apps/api/src/auth/` — sees nothing at all under RLS, and
+`tenant-resolver.db.test.ts` **proves that by querying five tenant tables and getting five zeroes**,
+with a tenant-scoped read beside it returning 1 so the zeroes are RLS refusing rather than an empty
+database. That closes the one-test gap F-47 named, where *"an unset tenant context sees nothing"* was
+asserted in prose and by argument and never by a statement.
+
+**And the checker built this morning caught the afternoon's own work, unprompted.** `check-rls`
+refused the build the moment `0014` applied — *"is SECURITY DEFINER and no exemption accounts for
+it"* — and would not pass until the function was named with a justification. It then refused a
+planted overload of that exact function, which is the hole review found in F-48's first version and
+the reason the exemption is keyed on the signature. A control written in the morning going red on
+the afternoon's migration, without anybody pointing it at it, is the whole argument for building
+them.
+
+**Two plants, both red, both restored and md5-compared.** `withUnresolvedTenant` given a tenant
+context → 2 tests red. The resolver taught to filter out accepted invitations → 1 test red, the one
+asserting a used token still resolves so `redeemInvitation` can record *which* refusal it was.
+
+**What EL is still owed, and it is small.** Two concretizations this session made rather than he
+did, both one-line changes in two places if either is wrong: the MFA routes are
+`/api/client/v1/mfa/*` rather than `/api/auth/mfa/*` (a client-namespace route must be a
+`/api/client` path, and `authorize.test.ts` asserts it), and `user.deactivate` sits at
+`INTERNAL_ADMIN` rather than `staff`. Both are recorded in `tasks/todo.md` under T-14b.
+
+**And one question the amendment created rather than answered.** §14.3's *Transport* and
+*No auto-login* rows reconcile only one way — acceptance opens a short-lived session, enrollment
+happens under it, and the user then signs in properly — which means an acceptance session exists,
+is a client principal, and **as the gate stands can reach every client route**. That is not
+acceptable and is not yet designed. It is written into T-14b as the first thing to decide, with the
+control it needs: a test in which an acceptance session is refused at `GET /projects`.
+
+---
+
+**Session 13 (2026-09-05), part one — a scheduled unattended run that wrote almost no code, because
+the task it was sent to do could not be done yet.** It set out to start **T-14b**, the task every figure on this
 page names as the first that can move §15.2. It read the blueprint first, as the order of work says
 to, and found that **the declared route surface cannot authenticate anybody** — recorded as
 **F-46**, and it is a defect in the objective rather than in the code. The whole blueprint declares
@@ -45,22 +94,29 @@ views insecure because `reloptions` stores a boolean verbatim, and an **overload
 function was silently exempt — which F-47's own recommended option would have walked straight into.
 Both closed and re-planted.
 
-**Verified today in the container against native PostgreSQL 16.13 — five `pnpm verify` runs, every
-one at exit 0.** On clean `main` before any edit; on `main` plus the new checker axis; on the
-session-13 tree; and twice more after review, the last on the tree exactly as committed. All five: **59 files, 1,491 tests, 0 skipped**, **17
-self-test invocations covering 16 checkers**, 13 migrations, **13 declared claims**, `check-rls` at
-**22 tables, 8 sensitivity columns, 86 grants, 6 functions of which 0 SECURITY DEFINER, 0 views**.
-Both occurrences of "skipped" in each log are self-test case names — read, not assumed (F-29).
-Coverage all files is **99.51 / 98.85 / 99.40 / 99.51** — re-measured on the tree being committed
-after review, which is the run this edition cites. Of the five runs made today four read that and one
-read **99.54 / 98.90 / 99.40 / 99.54** on identical `.ts` sources: v8 coverage is not bit-stable
-across worker scheduling, as sessions 7, 8 and 10 also found, and **the published figure is the one
-from the run at the tree being cited, not the best of them.** *(The first draft of this paragraph
-published 99.54 and then wrote "the better of the two is not the one published" beside it, which is
-false against the two numbers next to it — a self-refuting honesty note, caught by review re-running
-`pnpm verify` on the tree rather than reading the sentence.)*
+**Verified today in the container against native PostgreSQL 16.13. Thirteen `pnpm verify` runs
+across the session, every completed one at exit 0.** The ones that did not complete are worth a line
+each, because every one was a gate catching this session's own work rather than a build being
+broken: three stopped at `check-claims` over figures the session had just made stale (the route
+table at 22 when the registry had grown to 32, then test files at 59 and migrations at 13); one at
+the coverage gate, because four new DTOs had no tests and `apps/api/src/dto/**` is held at 100%; and
+`check-rls` refused migration 0014's `SECURITY DEFINER` function on sight — the axis built this
+morning going red on this afternoon's migration, unprompted, before any reviewer looked at it.
 
-*(The self-test case counts in this edition — 25, and the 7/6/12 split — are prose, not derived:
+**The run cited is the last, on the tree exactly as committed:** exit 0 — **60 files, 1,543 tests,
+0 skipped**, coverage all files **99.52 / 98.83 / 99.42 / 99.52**, **17 self-test invocations
+covering 16 checkers**, **14 migrations**, **15 declared claims**, `check-rls` at **22 tables, 8
+sensitivity columns, 86 grants, 7 functions of which 1 SECURITY DEFINER, 0 views**, and
+`check-route-surface` at **34 §8.2 rows, 32 MVP-1, registry 32 and 1**. All three occurrences of
+"skipped" in the log are self-test case names — read, not assumed (F-29).
+
+**No plan task completed, so the plan figures do not move**: 66 of 160 and §15.2 at 0 of 8 are
+unchanged. The amendment is a change to the OBJECTIVE, not progress against it, and the ten new
+routes make T-14b through T-14e larger rather than closer — **a denominator move the plan has not
+been re-sized for.** Flagged rather than guessed at: T-14b–e were sized at 4 × M = 16 against a
+22-route surface, and they now cover 32.
+
+*(The self-test case counts in this edition — 26, and the 7/6/13 split — are prose, not derived:
 `check-claims` has no row for them, because the only static derivation available is counting object
 literals in a source file, and a fragile derivation is worse than an honest gap. Named here so the
 next person to add a case knows this figure will not stop them.)*
@@ -69,7 +125,7 @@ next person to add a case knows this figure will not stop them.)*
 of 160 and §15.2 at 0 of 8 are unchanged, and the definer axis is an addition to an existing checker
 rather than a task on the plan.
 
-**What changed is the REASON §15.2 is 0 of 8.** Until today it was 0 of 8 because all 22 handlers are
+**What changed is the REASON §15.2 is 0 of 8.** Until today it was 0 of 8 because all 32 handlers are
 placeholders — a coding gap, one task from moving. It is 0 of 8 today because the declared surface
 has no way to authenticate anyone, which is a gap in the objective and a bigger one.
 
@@ -122,7 +178,7 @@ moved out of `onReady` into the body of `createApp` → **2 failed**. The last i
 having: it is the exact hole T-14a's own commit body calls *"the whole control"*, and it is the
 only one of the three a reader could not predict from the diff. **The numerator moves 62 → 66 and
 the published figure 38.8% → 41.3%. The denominator did not move.** §15.2 did not move and could
-not: `createApp` mounts all 22 routes, authorizes every one of them, and **all 22 handlers are
+not: `createApp` mounts all 32 routes, authorizes every one of them, and **all 32 handlers are
 placeholders that answer 500**, declared as data in `UNIMPLEMENTED` so *"the app boots"* can never
 be read as *"the app works"*.
 
@@ -419,7 +475,7 @@ The procedure, so it is reproducible:
 | Plan-task completion, effort-weighted | 66 of 160 pts — **41.3%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
 | Plan-task completion, task count | 24 of 49 — 49% | Same, unweighted | Same |
 | Pre-merge review `R-01…R-11` | **11 of 11 — 100%** | **§16.1** review gates | A sub-checklist of one merged branch, not the project. All eleven closed on their own criteria. R-09 and R-10 closed at Checkpoint A in the container; **R-07 closed last**, by fixing L-3 and L-5 to throw (`6696f5f`, PR #16) rather than leaving them dispositioned — the dissent on the record won |
-| Route surface vs the blueprint | 22 of 22 MVP-1 routes declared, mounted, **and checked** | **§8.2** (24 rows, 2 marked phase 2) | **Drift 4 is closed, and it now has a mechanism.** T-14a added the two missing routes; EL amended §8.2 to carry the operator release; and `check-route-surface` — the 15th self-tested checker — parses §8.2 out of the built blueprint and diffs it against the registry in both directions on every run. Drift 4 lived five sessions because every session that found it found it by hand. A Fastify router mounts all 22 rows; every handler is still a declared placeholder. Since T-13b every entry also names the response schema it answers with, and `assertRouteCoverage` refuses one that does not |
+| Route surface vs the blueprint | **32 of 32** MVP-1 routes declared, mounted, **and checked** | **§8.2** (34 rows, 2 marked phase 2) | **Drift 4 is closed and F-46 is closed, and both now have the same mechanism.** EL amended §8.2 twice: the operator release row on 2026-09-03, and ten routes on 2026-09-05 after F-46 found the inventory declared no way for anyone to sign in. `check-route-surface` parses §8.2 out of the built blueprint and diffs it against the registry in both directions on every run — and since the second amendment also checks each row is filed under the BAND its path belongs to, which caught two `/api/client` rows the amendment had put under *Internal surface*. A Fastify router mounts all 32; **every handler is still a declared placeholder.** Every entry names the response schema it answers with, and `assertRouteCoverage` refuses one the registry does not hold |
 
 These are not competing answers. **0% is the answer**; 41.3% is how much of the written plan has
 been executed. A reader who quotes 41.3% without §15.2 beside it is quoting the wrong number.
@@ -428,12 +484,13 @@ been executed. A reader who quotes 41.3% without §15.2 beside it is quoting the
 while it happened**, and that is not a paradox: Phase 2 was repairs and controls, and the definition
 of done is a client getting through eight screens. **Phase 3 has now opened past the checkpoint
 with T-13b, and §15.2 still did not move** — the contract is what a route will answer with, and no
-route answers yet. **T-14a has since landed, and §15.2 still did not move** — mounting all 22
-routes and authorizing every one of them is not answering one of them. **T-14b was named here as
-the first point that can move it — and T-14b is now refused (F-46).** It cannot move steps 1 and 2,
-because the blueprint declares no route by which anyone signs in and none at all by which a staff
-principal comes into existence. **The first point that can move §15.2 is EL's §8.2 amendment**,
-which is a decision rather than a task.
+route answers yet. **T-14a landed, and §15.2 did not move** — mounting the then-22
+routes and authorizing every one of them is not answering one of them. **T-14b was refused on
+2026-09-05 (F-46) and unblocked the same day by EL's second §8.2 amendment**, which added the ten
+routes the inventory lacked — a sign-in route above all. **The amendment did not move §15.2 either,
+and could not**: it took the mounted-and-authorized surface from 22 routes to 32, and all 32
+handlers answer 500. **T-14b is once again the first point that can move it**, and it moves steps 1
+and 2 — invitation, and acceptance and sign-in, which is now a route that exists.
 *(This sentence read "the first point that can move it is T-14a's" for a full edition after T-14a
 landed, while the gauge stayed 0 of 8 and the plan section below already named T-14b — **drift 51**,
 and it is the same defect as drift 41: a present-tense sentence about what has not happened yet,
@@ -566,8 +623,10 @@ changelog and tags *are* T-26.)
 
 ## Your queue — EL
 
-**Two new items arrived on 2026-09-05, and the first gates everything: a second §8.2
-amendment.** The first (the operator release row, 2026-09-03) is done. This one is bigger — the
+**Two items arrived on 2026-09-05 and EL closed both the same day.** The second §8.2 amendment is
+in the blueprint and F-47's invitation half is migration `0014`. What remains of them is a review
+question, not a decision: two concretizations this session made on EL's behalf, listed in
+`tasks/todo.md` under T-14b, either of which is a one-line change if wrong. The first (the operator release row, 2026-09-03) is done. This one is bigger — the
 route surface declares no way for anyone to sign in, so T-14b and everything behind it cannot start
 until §8.2 carries the rows. See F-46, and the canonical eight-row table in `tasks/todo.md` under
 T-14b.
@@ -579,8 +638,8 @@ landed and pushed to `origin/main` as `42c8211`, and the operator release route 
 
 | # | Waiting on you | Why it is yours, not code's | Gates |
 |---|---|---|---|
-| 1 | **The second §8.2 amendment — the eight rows tabulated in `tasks/todo.md` under T-14b, decided in one pass.** That table is the canonical list and is deliberately not restated here; row 8 is the only one that does not block T-14b | The blueprint is the objective and only EL amends it. The code side is already a control: `check-route-surface` diffs §8.2 against `ROUTES` both ways and `createApp` refuses to boot on a route the registry does not hold, so **the routes cannot be written first**. Session 2's instinct — edit the target down to meet the code — is what this control exists to refuse | **T-14b, T-14c, T-14d, T-14e, T-15 — all of Phase 3's server work.** §15.2 steps 1, 2 and 8 directly; 3–7 transitively |
-| 2 | **F-47's invitation-tenant decision** — a `SECURITY DEFINER` resolver (recommended, and its audit checker landed today as F-48) or a token-hash policy predicate. Running the anonymous acceptance path under a `staff` context is rejected and F-47 says why | It is a new privileged surface on the one route an unauthenticated caller can reach, and §14.2 item 7 makes definer functions an audit item by name. The session-cookie half needs no decision and is settled in F-47 | `POST /api/auth/invite/accept`, so §15.2 step 2 |
+| 1 | ~~**The second §8.2 amendment**~~ — **DONE 2026-09-05.** Ten rows landed; §8.2 at 34 rows, 32 MVP-1; `ROUTES` at 32 of 32. What is left is a read, not a decision: confirm the two concretizations in `tasks/todo.md` under T-14b — MFA at `/api/client/v1/mfa/*`, and `user.deactivate` at `INTERNAL_ADMIN` | Both are one-line changes in two places | Nothing; T-14b through T-15 are unblocked |
+| 2 | ~~**F-47's invitation-tenant decision**~~ — **DONE 2026-09-05.** Migration `0014`, the recommended `SECURITY DEFINER` resolver, audited by the checker built the same morning | — | Nothing |
 | 3 | **Q6 answered as McMurray Stern — which answers OD-20a, not OD-20b.** Read the distinction before closing it | OD-20a is the **internal dogfood** pilot: settled, worth doing, and it measures *usability*. OD-20b is the **external** pilot, and its own recorded criterion is *"outside McMurray Stern"*. Naming McMurray Stern therefore closes the first and leaves the second open — which matters because **R-01 (will a client actually do this work) retires only when an outside organisation completes a submission unaided**, and nothing else retires it | R-01 stays live; P-04's real unit sizes still unsourced |
 
 | Closed by you | What it settled | When |
@@ -724,13 +783,13 @@ Re-measured by running commands against the working tree:
 | The ahead/unpushed pair moves as this file is written | Each documentation commit that records this measurement adds one to both counts, so **do not quote ahead/unpushed from this document** — re-run `git rev-list --left-right --count origin/main...HEAD` and `git rev-list --count @{u}..HEAD`. Session 3 added `e488a14`, `c08cca3` and the commit carrying this row. That self-reference is exactly how drift item 5 arose, and naming it is cheaper than chasing it |
 | `main` | **`afd4e8a`** — re-derived 2026-09-05 by `git ls-remote --heads origin`, which returns **`refs/heads/main` and nothing else**: every task branch is now deleted on the server, including the two the previous edition of this row said were still there. Local `main` sits at the same sha, clean tree, `git rev-list --count @{u}..HEAD` **0**. Three merges landed the same day — **PR #21** (the session-10 edition: `92ad8cc`, `c5c2c0c`), **PR #22** (P-05: `c5a7d42`), **PR #23** (OD-20b: `13a5247`) — each with `verify` and `docs` green, read from the check-runs API rather than assumed. *(This row read `0bb5383` through all three — **drift 49**, and drift 42 one edition after it was closed. Every fix so far has been a new value.)* *(It read `162d26e` / "PR #1 … #19" through two merges and two pushes — drift 42.)* Earlier state kept for the lineage: PR #1 … #19 merged, every task branch deleted, `git branch -r` listed `origin/main` alone *(this row read `e86d2bf` / "PR #13 open" through the close-out edition while the tip row above it said `b8d2087` — drift 36's shape, fixed here)* |
 | Packages | **12** — `packages/workflow` added by T-07 |
-| Test files | **59** (`*.test.ts`) — T-13c added `request.test.ts`; T-13d added `idempotency.test.ts` and `idempotency.db.test.ts`; **T-14a added `app.test.ts`, `app.db.test.ts` and `server.db.test.ts`**. Re-derived by `check:claims`, not typed |
+| Test files | **60** (`*.test.ts`) — **T-14b’s §8.2 amendment added `tenant-resolver.db.test.ts`**, which proves migration 0014’s resolver resolves and, in the same file, that a no-tenant transaction reads nothing — the one-test gap F-47 named. Re-derived by `check:claims`, not typed |
 | Phase-2 routes | **1** — `GET /api/internal/v1/audit`, held in `PHASE_2_ROUTES`. §8.2's other phase-2 row, `POST /api/internal/v1/submissions/:id/status`, has no `Action` yet and arrives with the status vocabulary F-38 is about. A third §8.2 row *mentions* phase 2 and stays MVP-1 — `GET /api/client/v1/submissions/:id` defers the RFI **thread**, not the route — which is now declared data in `SUB_FEATURE_PHASE_2` with a stale-entry check, instead of an interpretation living in three documents and enforced by none |
-| Migrations | **13** (`0001`–`0013`) — `0013_idempotency_lease_epoch.sql` adds the fence token without which the lease let two effects settle one key (F-40); `0012` added the `abandoned` outcome and the lease index; `0011_idempotency.sql` added `app.idempotency_key`: `UNIQUE (organization_id, key)`, a 64-hex `request_hash` CHECK, three states in `app.idempotency_outcome`, five consistency CHECKs, tenant RLS and the F-31 explicit GRANT. `check-rls` inspected **22** tables and **86** grants today and passed |
+| Migrations | **14** (`0001`–`0014`) — **`0014_invitation_tenant_resolver.sql` is new and is the first `SECURITY DEFINER` function in this schema** (F-47): it takes an invitation token hash and returns one uuid, the organization that owns it, so `POST /api/auth/invite/accept` can open a tenant context at all. `SET search_path = ''`, `STABLE`, EXECUTE revoked from `PUBLIC` and granted only to `app_user`. `check-rls` — which learned to look for exactly this on the same day, as F-48 — **refused the build until the function was named in its exemption list with a justification**, and refuses an overload of it. `0013` added the lease fence (F-40); `0011` added the idempotency key store. `check-rls` inspected **22** tables, **86** grants and **7** functions today and passed |
 | `.tsx` / `.jsx` / `.vue` / `.svelte` / `.astro` files | **0** |
-| Server entry point | **exists, as of T-14a** — `apps/api/src/app.ts` builds a **Fastify** instance (`createApp`) and `apps/api/src/server.ts` calls `app.listen({ port, host: '127.0.0.1' })`. Re-derived today by the same grep that returned nothing for five sessions. **This row read "none" for a full edition after T-14a landed — drift 41.** What has *not* changed: all 22 handlers are placeholders that answer 500, declared as data in `UNIMPLEMENTED`, so the row below about §15.2 is unaffected |
+| Server entry point | **exists, as of T-14a** — `apps/api/src/app.ts` builds a **Fastify** instance (`createApp`) and `apps/api/src/server.ts` calls `app.listen({ port, host: '127.0.0.1' })`. Re-derived today by the same grep that returned nothing for five sessions. **This row read "none" for a full edition after T-14a landed — drift 41.** What has *not* changed: **all 32 handlers** are placeholders that answer 500, declared as data in `UNIMPLEMENTED`, so the row below about §15.2 is unaffected |
 | Front-end dependency | **none** — no `react`, no `vite` in any `package.json` |
-| Route table | **22 entries** in `apps/api/src/authz/routes.ts` — **12 client, 9 internal, 1 public.** All 22 are §8.2 MVP-1 rows: the two T-14a added, plus EL's operator release, which §8.2 now carries after his amendment. `PENDING_AMENDMENT` is **empty**, which is the healthy state. Re-derived today with the checker's own parser, not by eye: `blueprintRoutes()` finds **24** rows in §8.2, **2** of them flagged phase 2 (`POST /api/internal/v1/submissions/:id/status`, `GET /api/internal/v1/audit`), leaving an MVP-1 surface of **22** — and `ROUTES` declares exactly those 22. **22 of 22.** `createApp` mounts all 22 and `routerCoverageProblems` refuses to boot on any disagreement in either direction, so the registry now has a consumer that is not a barrel re-export. **This cell simultaneously said "22 of 22" and "19 of 21", and its last three sentences described the pre-T-14a world — drift 40** |
+| Route table | **32 entries** in `apps/api/src/authz/routes.ts` — **14 client, 13 internal, 5 public.** All 32 are §8.2 MVP-1 rows. **EL amended §8.2 a second time on 2026-09-05 (F-46)**, adding the ten routes the inventory needed and did not have: sign-in, sign-out, staff OIDC start and callback, second-factor enroll and verify, project creation, first-revision creation, user deactivation and invitation revocation. Re-derived today with the checker’s own parser, not by eye: `blueprintRoutes()` finds **34** rows in §8.2, **2** flagged phase 2, leaving an MVP-1 surface of **32** — and `ROUTES` declares exactly those 32. **32 of 32.** `createApp` mounts all 32 and `routerCoverageProblems` refuses to boot on any disagreement in either direction. Every entry names the response schema it answers with; four new `Action`s and four new DTOs arrived with the rows. **All 32 handlers are still placeholders that answer 500** — the inventory grew, the product did not. `PENDING_AMENDMENT` is **empty**, which is the healthy state |
 | `apps/api/src/index.ts` | Its own header calls it "The HTTP layer". It is a barrel of **15** re-export blocks (8 until T-13b) and **no HTTP**. Not filed as drift — the file says "and (later) authorization and DTOs" — but it is the sentence a future reader will misread as a server |
 | Git tags · `CHANGELOG.md` · Dependabot | none · none · none, all re-checked today. `version` is `0.0.0`. Expected — `CHANGELOG.md` is T-26's, unstarted — but the house rule is to write the entry **in the commit that makes the change**, and 4 commits have landed since that rule was written down |
 | CI gates present | typecheck, lint, migrate, test, **17 self-test invocations covering 16 checkers** — re-derived 2026-09-05 from `package.json` itself, by set difference against `ci.yml` rather than by counting twice. The precise shape, because "16 self-tested checkers" was ambiguous and this row carried it: **16 checkers each run with its own self-test**, plus `check:draw:selftest`, which has no separate `check:draw` because *it is* the gate — it asserts the `.mjs` tool and the compiled kernel draw the same cells, and there is nothing else to run. (The fourteenth checker, `check-server-owned`, landed with F-32's remedy; the fifteenth, `check-route-surface`, with the §8.2 amendment; the sixteenth, `check-front-end-budgets`, with P-05's agreed budgets; the **seventeenth, `check-scoreboard-prose`, with drift 50**; the thirteenth, `check-types-only`, with F-37) — coverage, bench, docs rebuild + `git diff --exit-code`. **Secret scanning (gitleaks, checksum-pinned) is present too and this row omitted it.** Two landed today: `check-content-hash` (recomputes each release's `content_sha256` by the method that manifest declares) and `check-spot-check-record` (asserts every signed spot-check covers the draw that was pinned before it) |
@@ -880,7 +939,7 @@ session and put through a fresh-context adversarial review (AD-7):
   `AC-16` depend on) and `POST /api/internal/v1/revisions/:id/notes` (`E-05`), and it *carried* the
   phase-2 audit route. Neither missing route had an `Action` in `authorize.ts`. Coverage then:
   **19 of 21**. **T-14a added both routes with their Actions and `check-route-surface` now diffs
-  §8.2 against the registry on every run: 22 of 22, measured today.** The three sentences above
+  §8.2 against the registry on every run: **32 of 32, measured today**, and the band rule besides.** The three sentences above
   stayed in the present tense for a full edition after that — drift 40's other half.
 - The arithmetic coincidence that makes "20" look right — 23 minus the three rows containing the
   string "phase 2" — selects a *different* twenty than the code has. It does not survive naming the
@@ -943,23 +1002,32 @@ because no command in `verify` reaches the remote.
 a branch that re-appears — which one already has once, and a merged one that never left is the same
 hazard standing still.
 
-### 3. Phase 3 is BLOCKED at its first task — read F-46 before picking anything up
+### 3. Phase 3, the server, in the container — unblocked, and T-14b is re-scoped
 
-**T-14b is refused (F-46, 2026-09-05), and T-14c, T-14d, T-14e and T-15 are blocked behind it.** All
-five serve routes to an authenticated principal, and **the blueprint declares no route that can
-produce one** — no sign-in, no second-factor enrollment, no OIDC callback, while §14.4 makes staff
-SSO mandatory. `check-route-surface` and `createApp`'s boot gate together mean the missing routes
-cannot be added in code first, which is those controls doing their job.
+**T-14b → T-14c → T-14d + P-01 → T-14e + P-02 → T-15**, with P-01 and P-02 landing in the same
+commits as the routes they measure. **Read T-14b's entry in `tasks/todo.md` before starting it** —
+it was refused and rewritten on 2026-09-05 and the rewrite is not cosmetic:
 
-**The unblocking move is EL's §8.2 amendment** (item 1 of the queue above; the canonical eight-row
-table is in `tasks/todo.md` under T-14b). When it lands, T-14b is re-scoped in the same pass: its current
-specification says *"single-use token → credential → session"*, which is the auto-login §14.3
-forbids.
+- **Acceptance issues the short-lived acceptance session and NO login session.** The old wording,
+  *"single-use token → credential → session"*, was the auto-login §14.3 forbids in terms. Signing in
+  is now `POST /api/auth/session`, which exists.
+- **The tenant resolution is already built.** `resolveInvitationTenant(token)` owns the unscoped
+  transaction; the handler passes a token and gets an organization or null.
+- **The session cookie is a pair.** A second server-issued `__Host-` cookie carries the
+  organization, verified rather than trusted — a forged one matches no row under RLS and the request
+  is 401. That half needed no decision from anyone and is T-14b's to build.
+- **Decide the acceptance session's scope first.** It is a client principal and can currently reach
+  every client route. Build the control that goes red: an acceptance session refused at
+  `GET /projects`.
 
-**What is landable meanwhile, in the container, needing no decision:** F-47's session-cookie half (a
-second server-issued `__Host-` cookie carrying the organization, verified rather than trusted); the
-one-test gap F-47 names, where *"an unset tenant context sees nothing"* is asserted by argument and
-never by a query; and the done-count checker in item 4 below, which is still unowned.
+**The four routes the amendment added to other tasks:** `POST /api/internal/v1/projects` and
+`.../projects/:id/revisions` fall to T-14c; `.../users/:id/deactivate` and
+`.../invitations/:id/revoke` to T-14e. They are in `UNIMPLEMENTED` under those task names, so
+nothing is relying on memory.
+
+**Still landable with no decision from anyone:** the done-count checker in item 4 below, which
+remains unowned — and is worth more than it was this morning, because the plan just grew ten routes
+whose completion nothing derives.
 
 **Carried into T-14e, recorded not forgotten:** the operator release route has a policy row, an
 authz rule, a §8.2 row and a mounted placeholder but **no handler and no caller**; `purgeExpiredOn`

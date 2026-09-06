@@ -241,6 +241,15 @@ const API_PROBE_DIR = join(TREE, 'apps', 'api', 'src', 'routes');
 const API_PROBE = join(API_PROBE_DIR, 'probe.ts');
 const API_OWNED_DIR = join(TREE, 'apps', 'api', 'src', 'idempotency');
 const API_OWNED_PROBE = join(API_OWNED_DIR, 'probe.ts');
+/**
+ * The api rule's SECOND exempt directory (F-47): `apps/api/src/auth` owns the
+ * acceptance path and is the only place `withUnresolvedTenant` may be named.
+ * The baseline tree has to carry it, because an exemption that matches no
+ * scanned file is itself a violation — which is how this self-test caught the
+ * exemption being added before anything justified it.
+ */
+const API_AUTH_DIR = join(TREE, 'apps', 'api', 'src', 'auth');
+const API_AUTH_PROBE = join(API_AUTH_DIR, 'probe.ts');
 
 function writeApiProbe(source) {
   mkdirSync(API_PROBE_DIR, { recursive: true });
@@ -251,9 +260,18 @@ function apiProbeViolations() {
   return checkAppBoundaries(TREE).violations.filter((v) => v.includes('api/src/routes/probe.'));
 }
 
+function writeApiAuthProbe(source) {
+  mkdirSync(API_AUTH_DIR, { recursive: true });
+  writeFileSync(API_AUTH_PROBE, source, 'utf8');
+}
+
 function writeApiOwnedProbe(source) {
   mkdirSync(API_OWNED_DIR, { recursive: true });
   writeFileSync(API_OWNED_PROBE, source, 'utf8');
+}
+
+function apiAuthProbeViolations() {
+  return checkAppBoundaries(TREE).violations.filter((v) => v.includes('api/src/auth/probe.'));
 }
 
 function apiOwnedProbeViolations() {
@@ -272,6 +290,21 @@ const MUST_CATCH_API = [
   {
     name: 're-exporting claimOn, which is how it reaches a handler without an import line',
     source: "export { claimOn } from '../idempotency/idempotency.js';\n",
+  },
+  // F-47's no-tenant transaction. Three spellings, because the rule reads
+  // import clauses, export clauses and top-level bindings, and a rule that
+  // caught only the first would be walked past by the second line anyone wrote.
+  {
+    name: 'a route module importing withUnresolvedTenant, the no-tenant transaction',
+    source: "import { withUnresolvedTenant } from '@rms/db';\nexport const x = withUnresolvedTenant;\n",
+  },
+  {
+    name: 'reaching the no-tenant transaction by relative path instead of by package',
+    source: "import { withUnresolvedTenant } from '../../../packages/db/src/with-tenant.js';\nexport const x = withUnresolvedTenant;\n",
+  },
+  {
+    name: 're-exporting withUnresolvedTenant, which hands it to every module downstream',
+    source: "export { withUnresolvedTenant } from '@rms/db';\n",
   },
 ];
 
@@ -325,6 +358,11 @@ function main() {
   writeInternalProbe('export const x = 1;\n');
   writeApiProbe('export const x = 1;\n');
   writeApiOwnedProbe('export const x = 1;\n');
+  // The baseline probe under auth/ NAMES the symbol, because that is what the
+  // per-symbol exemption exists to permit — and an exemption matching no
+  // scanned file is itself a violation, so a clean file here would make the
+  // baseline dirty. The self-test caught exactly that on its first run.
+  writeApiAuthProbe("import { withUnresolvedTenant } from '@rms/db';\nexport const ok = withUnresolvedTenant;\n");
   const baseline = checkAppBoundaries(TREE);
   if (baseline.violations.length > 0) {
     console.error(
@@ -422,6 +460,25 @@ function main() {
       console.log('  caught      [api] a sibling directory is still refused while the owner is exempt');
     }
     writeApiProbe('export const x = 1;\n');
+
+    // F-47's exemption is PER SYMBOL, and these two cases are the difference.
+    // Review found the first draft had granted it at RULE level, which let
+    // apps/api/src/auth name `claimOn` and `settleOn` too — the F-39 control
+    // switched off in the directory T-14b's acceptance handler will live in, by
+    // the change that cited F-39 as its precedent.
+    writeApiAuthProbe("import { withUnresolvedTenant } from '@rms/db';\nexport const x = withUnresolvedTenant;\n");
+    if (apiAuthProbeViolations().length > 0) {
+      falsePositives.push('[api] the acceptance directory may name withUnresolvedTenant');
+    } else {
+      console.log('  allowed     [api] the acceptance directory, which owns the no-tenant path');
+    }
+    writeApiAuthProbe("import { claimOn } from '../idempotency/idempotency.js';\nexport const y = claimOn;\n");
+    if (apiAuthProbeViolations().length === 0) {
+      missed.push('[api] the per-symbol exemption leaks: auth/ may now name claimOn as well');
+    } else {
+      console.log('  caught      [api] the exemption covers ONE symbol, not the directory');
+    }
+    writeApiAuthProbe("import { withUnresolvedTenant } from '@rms/db';\nexport const ok = withUnresolvedTenant;\n");
 
     // A RULE THAT MATCHES NOTHING. Renaming an app's src directory used to
     // leave the other rules checked, a non-zero app count, and a green build

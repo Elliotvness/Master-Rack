@@ -99,9 +99,39 @@ const RULES = [
      */
     app: 'api',
     forbidden: [],
-    /** The module that defines them, and its tests. Nothing else. */
+    /**
+     * The module that defines `claimOn`/`settleOn`, and its tests. Nothing else.
+     *
+     * RULE-LEVEL, and that is why the second entry this needed is NOT here.
+     * Adversarial review demonstrated the cost: adding `apps/api/src/auth/` to
+     * this list to let one symbol through switched off `claimOn` and
+     * `settleOn` for the whole directory — the directory T-14b's acceptance
+     * handler will live in, and the likeliest place in the codebase to reach
+     * for an idempotent claim. A rule-level exemption granted for one symbol
+     * silently exempts every symbol, which is the F-39 control being turned
+     * off by the change that cited it.
+     */
     exempt: [/^apps\/api\/src\/idempotency\//],
     forbiddenSymbols: [
+      {
+        /**
+         * F-47's unscoped entry point. `withUnresolvedTenant` opens a READ ONLY
+         * transaction with NO tenant context, which exists so the acceptance
+         * path can call `app.resolve_invitation_tenant` before it knows whose
+         * invitation it holds.
+         *
+         * The hazard is not what it can read today. It is a handler somewhere
+         * else reaching for it because a tenant context was inconvenient, and
+         * a later migration adding a second definer function that this one
+         * then also reaches. Confined by name to the directory that owns the
+         * acceptance path, the same remedy F-39 applied to `claimOn` — but
+         * confined PER SYMBOL, so it exempts this name in that directory and
+         * nothing else anywhere.
+         */
+        pattern: /^withUnresolvedTenant$/,
+        exempt: [/^apps\/api\/src\/auth\//],
+        why: 'the no-tenant transaction belongs to the acceptance path in apps/api/src/auth; everywhere else, use withTenant',
+      },
       {
         pattern: /^claimOn$/,
         why: 'claiming inside the effect\'s transaction destroys AD-3\'s third outcome; use claimIdempotencyKey, which owns its own',
@@ -231,6 +261,17 @@ function listFiles(dir) {
  * The rules themselves are module constants, not files, so a temp tree exercises
  * the REAL configuration rather than a simplified copy of it.
  */
+/**
+ * Whether `rule`'s symbol entry excuses this file, and the exemption that did.
+ *
+ * Per-symbol rather than per-rule: see the `exempt` docstring on the api rule.
+ * Returns the matching pattern so the caller can count the hit, because an
+ * exemption that matches nothing must fail like any other stale justification.
+ */
+function symbolExemptionFor(sym, rel) {
+  return (sym.exempt ?? []).find((pattern) => pattern.test(rel));
+}
+
 export function checkAppBoundaries(root = ROOT) {
   const violations = [];
   const scanned = [];
@@ -256,6 +297,14 @@ export function checkAppBoundaries(root = ROOT) {
     }
     appsChecked.push(rule.app);
     for (const pattern of rule.exempt ?? []) exemptHits.set(`${rule.app}:${pattern}`, 0);
+    // Per-symbol exemptions are counted on the same axis as rule-level ones, so
+    // a symbol exemption that stops matching fails exactly like a stale rule
+    // exemption rather than lingering as a permission nobody uses.
+    for (const sym of rule.forbiddenSymbols ?? []) {
+      for (const pattern of sym.exempt ?? []) {
+        exemptHits.set(`${rule.app}:${sym.pattern} @ ${pattern}`, 0);
+      }
+    }
 
     for (const file of files) {
       const rel = relative(root, file).split(sep).join('/');
@@ -297,8 +346,14 @@ export function checkAppBoundaries(root = ROOT) {
         let m;
         while ((m = re.exec(raw)) !== null) {
           for (const name of clauseNames(m[1])) {
-            for (const { pattern, why } of rule.forbiddenSymbols ?? []) {
-              if (pattern.test(name)) {
+            for (const sym of rule.forbiddenSymbols ?? []) {
+              const { pattern, why } = sym;
+              if (!pattern.test(name)) continue;
+              const excused = symbolExemptionFor(sym, rel);
+              if (excused !== undefined) {
+                const key = `${rule.app}:${pattern} @ ${excused}`;
+                exemptHits.set(key, (exemptHits.get(key) ?? 0) + 1);
+              } else {
                 violations.push(
                   `${rel}: ${verb} '${name}' — ${why}. Moving a server authority out of ` +
                     `the ${rule.app} bundle is worth exactly as much as keeping it moved.`,
@@ -321,8 +376,14 @@ export function checkAppBoundaries(root = ROOT) {
         while ((d = re.exec(raw)) !== null) boundNames.add(d[1]);
       }
       for (const name of boundNames) {
-        for (const { pattern, why } of rule.forbiddenSymbols ?? []) {
-          if (pattern.test(name)) {
+        for (const sym of rule.forbiddenSymbols ?? []) {
+          const { pattern, why } = sym;
+          if (!pattern.test(name)) continue;
+          const excused = symbolExemptionFor(sym, rel);
+          if (excused !== undefined) {
+            const key = `${rule.app}:${pattern} @ ${excused}`;
+            exemptHits.set(key, (exemptHits.get(key) ?? 0) + 1);
+          } else {
             violations.push(
               `${rel}: binds '${name}' at the top level — ${why}. Moving a server authority ` +
                 `out of the ${rule.app} bundle is worth exactly as much as keeping it moved.`,
@@ -370,7 +431,9 @@ export function checkAppBoundaries(root = ROOT) {
       const [app, pattern] = key.split(/:(.*)/s);
       violations.push(
         `${app}: the exemption ${pattern} matched no scanned file. An exemption for something ` +
-          'that no longer exists is not evidence — remove it, or fix the path it names.',
+          'that no longer exists is not evidence — remove it, or fix the path it names. ' +
+          '(A "<symbol> @ <path>" key is a PER-SYMBOL exemption: the path exists but no file ' +
+          'under it names that symbol any more.)',
       );
     }
   }
