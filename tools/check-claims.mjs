@@ -68,6 +68,25 @@ export const DERIVATIONS = Object.freeze({
       (n, d) => n + walk(join(root, d), (f) => f.endsWith('.test.ts')).length,
       0,
     ),
+  /**
+   * Front-end source files — `.tsx`, `.jsx`, `.vue`, `.svelte`, `.astro`.
+   *
+   * WHY THIS EXISTS (F-54). For eight sessions the scoreboard's own inventory
+   * row read `0` and was RIGHT, so nobody looked at it. S1 through S3.3 put
+   * sixteen `.tsx` files in `apps/studio-web`, and the row went on reading `0`
+   * for three editions with every gate green — because the claim registry
+   * covered packages, test files, migrations and the two route counts, which is
+   * to say it covered every row that had not moved and not the one that had.
+   *
+   * That is F-08's shape a third time at the documentation layer: the control
+   * ran, passed, and did not reach the figure that was wrong. A registry is a
+   * list, and a list is silent about what it does not list.
+   */
+  frontEndFiles: (root) =>
+    ['packages', 'apps', 'tools'].reduce(
+      (n, d) => n + walk(join(root, d), (f) => /\.(tsx|jsx|vue|svelte|astro)$/.test(f)).length,
+      0,
+    ),
   packages: (root) => {
     try {
       return readdirSync(join(root, 'packages')).filter((p) =>
@@ -165,6 +184,18 @@ export const CLAIMS = Object.freeze([
     file: 'tasks/progress.md',
     pattern: /^\| Phase-2 routes \| \*\*(\d+)\*\*/m,
     derive: 'phase2Routes',
+  },
+  {
+    id: 'progress.md · front-end files',
+    file: 'tasks/progress.md',
+    pattern: /^\| Front-end files \| \*\*(\d+)\*\*/m,
+    derive: 'frontEndFiles',
+  },
+  {
+    id: 'progress.html · front-end files',
+    file: 'tasks/progress.html',
+    pattern: /<strong>(\d+)<\/strong> front-end files/,
+    derive: 'frontEndFiles',
   },
   {
     id: 'progress.html · packages',

@@ -2178,3 +2178,49 @@ on `draw.ts`. A test now draws a reference item and asserts it strokes in the re
 `--pen-ref` was added to all three theme blocks in the same change, because `use-pens.ts` reads
 tokens with a fallback — a missing token paints the fallback colour and nothing goes red. The pen
 list in `tokens.test.ts` is what catches that, and it now names ten.
+
+## F-54 — the claim registry covered every row that had not moved, and not the one that had *(raised and **CLOSED** 2026-09-07 by an unattended scheduled run)*
+
+`tasks/progress.md` published a front-end inventory row reading **`0`** — *".tsx / .jsx / .vue /
+.svelte / .astro files | **0**"* — while `apps/studio-web` held **16 `.tsx` files**. The companion
+row read *"Front-end dependency | **none** — no `react`, no `vite` in any `package.json`"* while
+`react` 19.2 and `react-dom` 19.2 sat in `apps/studio-web/package.json` and `vite` 8.2 in the root.
+`progress.html` carried the same defect in the Phase 4 bar (*"Zero `.tsx` files exist"*) and in the
+front-end-engineering note. Four statements in the markdown, two in the HTML, all false, all
+present tense, for three editions.
+
+**Every gate was green over it, and correctly so.** `check-claims` passed with 8 declared claims —
+packages, test files, migrations, route-table entries, phase-2 routes, and three of those repeated
+for the HTML copy. `check-scoreboard-sync` passed because both copies were equally wrong.
+`check-scoreboard-prose` passed because it derives what it can derive and the front-end count is
+not derivable from the phase table.
+
+**The shape.** This is F-08 at the documentation layer for the third time (drift 18 and drift 44
+were the first two), and it is the shape F-44, F-49, F-50 and F-51 already named: *a list is silent
+about what it does not list.* The claim registry is a list. It grew to cover packages, tests,
+migrations and routes because each of those was wrong once. The front-end count was never wrong —
+it read `0` and was **right** for eight sessions — so it was never added, and it was therefore the
+one row with no mechanism behind it on the day it went wrong. **A registry assembled from past
+failures is blind to exactly the figure that has not failed yet.**
+
+**Remedy, and it is proven red.** A `frontEndFiles` derivation was added to
+`tools/check-claims.mjs`, with one claim over each copy. The declared claim count moves 8 → 10.
+Three plants, each run before the fix was believed:
+
+| Plant | Result |
+|---|---|
+| markdown row edited to state `0` | `check-claims` **exit 1** — *"progress.md · front-end files: states 0, the code says 16"* |
+| HTML row edited to state `0` | `check-claims` **exit 1** — same message against `progress.html` |
+| markdown row renamed `Front-end files` → `Frontend files` | `check-claims` **exit 1** — *"its pattern matched NOTHING … the sentence was probably reworded, which means this claim stopped being checked"* |
+
+Restored, `check-claims` returns **PASS — 10 declared claim(s) match the code**. The third plant
+matters most: it is the failure mode that would otherwise re-open this finding silently.
+
+**What this remedy does NOT do, stated rather than implied.** It gates one count. It does not make
+the registry self-extending, and the next figure to go wrong will again be one nobody thought to
+list. No mechanism is proposed for that, because "every number a document might state" is not
+enumerable — what is proposed instead is the rule already in `CLAUDE.md`: a present-tense assertion
+about the tree either carries a derivation or carries its date.
+
+**Registered in the five places** required by `CLAUDE.md`'s registration table, and this entry is
+the register's own.
