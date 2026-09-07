@@ -94,6 +94,15 @@ unchanged since session 13, and now with sixteen `.tsx` files in the tree rather
   have been proven, and this project does not count a task whose acceptance criteria were not met.
 - **`check-test-run` was not rebuilt.** It is session 15's highest-value recommendation and it
   remains open: it must be proven against a real vitest run, which this session could not execute.
+- **The published copy could not be republished — drift 54, and it is the third copy going stale.**
+  The two repo copies and the Claude Project doc were updated. The artifact at claude.ai still
+  publishes the **session 12** masthead and, with it, *"Zero `.tsx` files exist"*, *"12 packages ·
+  59 test files"* and *"14 self-tested checkers"*. The republish was **refused by this run's own
+  tooling**, not skipped: the artifact was read in full and diffed against the repo copy first, and
+  every difference is the published page carrying older text, so nothing published-only would have
+  been lost. **This is the update-cadence step that CI cannot reach, failing for a new reason** —
+  earlier editions missed it by forgetting; this one was stopped. An attended session can republish
+  `tasks/progress.html` to the same URL in one action.
 
 ## Next, in order
 
