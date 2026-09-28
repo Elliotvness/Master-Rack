@@ -30,6 +30,39 @@ What the `unlink` refusal actually costs is **loose temporary objects**: `git ad
 `warning: unable to unlink '.git/objects/xx/tmp_obj_…': Operation not permitted` and leaves a few
 bytes behind. That is accumulating litter, not a lock, and it does not fail the operation.
 
+**The real commit is the proof.** `1a4a98f` was made from a scheduled run, on this mount, and a
+`git fsck --connectivity-only` over the result reported no broken links.
+
+### The exception, found by breaking it — operations that DELETE a ref do fail
+
+The rename argument holds for writes that *create or update* a ref. It does **not** hold for writes
+that **remove** one, because removal is an unlink by definition. Measured *verified-today*:
+
+```
+$ git branch -D probe/lock-test
+error: Unable to create '.../.git/packed-refs.lock': File exists.
+error: could not remove reference refs/heads/probe/lock-test
+```
+
+The branch survives and a `packed-refs.lock` is left behind, which **will** block the next ref write
+until it is moved aside. So:
+
+| Operation | On this mount |
+|---|---|
+| `git add`, `git commit`, `git checkout`, `git checkout -b`, `git config` | **work** |
+| `git branch -d/-D`, `git tag -d`, anything that removes a ref | **fail, and leave a lock** |
+
+A run that deletes a branch must move `.git/packed-refs.lock` aside afterwards, or every later git
+write in that clone fails with *"Another git process seems to be running"*. **Prefer not creating
+throwaway branches at all**: one cannot be cleaned up from here. This run left `probe/lock-test`
+behind for exactly that reason, and it is EL's to delete.
+
+Check for a stale lock at the start of every run and move any found into `_to_delete/`:
+
+```sh
+find .git -maxdepth 2 -name '*.lock'
+```
+
 **Consequence for future runs:** a scheduled run may branch and commit on the mount. The commits
 persist on EL's disk. Do not carry forward the "read-and-report only" conclusion.
 

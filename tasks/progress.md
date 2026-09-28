@@ -21,9 +21,18 @@ them over their target, and rename is permitted here. Measured *verified-today*,
 no lock left behind by any of them. What the `unlink` refusal actually costs is a few bytes of loose
 temporary object in `.git/objects/`: litter, not a lock.
 
+**The exception, found by breaking it.** The rename argument holds for writes that *create or
+update* a ref. It fails for writes that **remove** one, because removal is an unlink by definition:
+`git branch -D` returned `could not remove reference` and left a `packed-refs.lock` that blocks
+every later ref write until it is moved aside *(verified-today)*. A throwaway branch made here
+cannot be cleaned up from here — this run left `probe/lock-test` behind proving it, and it is EL's
+to delete. **The corrected rule is narrower than "git works" and wider than "git is blocked", and
+neither of the two slogans would have survived contact with it.**
+
 That misdiagnosis stood for two weeks and carried a recommendation with it — *treat a scheduled run
 as read-and-report only* — which is one step stronger than the measurement ever supported, and which
-is now withdrawn. **This is the same shape the page keeps finding in itself: a true observation, a
+is now withdrawn. This edition was itself committed on the mount, at `1a4a98f`, which is the
+counterexample rather than an argument for one. **This is the same shape the page keeps finding in itself: a true observation, a
 conclusion wider than the observation, and nothing built to catch the gap.**
 
 **The real blocker was one directory.** `node_modules` in the working tree is a **Windows** install,
