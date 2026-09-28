@@ -1,4 +1,93 @@
-# Progress scoreboard — 2026-09-07 (session 16, scheduled run: the inventory row that was right for eight sessions)
+# Progress scoreboard — 2026-09-28 (session 17, scheduled run: the blocker that was misdiagnosed for two weeks)
+
+An unattended scheduled run, working entirely through the device bridge on `C:\Rack Master`, with a
+Linux dependency install built in the session's own scratch outside the mount. Every figure labelled
+*verified-today* was produced by a command run in this session; every figure labelled
+*repository-claim* was read off an earlier document and is not a measurement of this run.
+
+**§15.2 is 0 of 8, re-derived not re-read.** `UNIMPLEMENTED` in `apps/api/src/app.ts` holds **22**
+entries *(verified-today, counted as map entries rather than matching lines)*; every MVP-1 handler
+still answers 500. **No task landed this session and no phase figure moved.** This edition changes
+no number on this page; it corrects a diagnosis and records a verification path.
+
+## The finding: the last three runs reported the wrong blocker
+
+Sessions 15, 16 and the 09-14 and 09-21 scheduled runs concluded that a Cowork scheduled session
+**cannot commit** on the mount, reasoning that git takes a `.lock` file and releases it by removing
+it, and this mount refuses `unlink`. The refusal is real and was re-observed today. **The conclusion
+drawn from it is wrong.** Git releases `index.lock`, `HEAD.lock` and `config.lock` by **renaming**
+them over their target, and rename is permitted here. Measured *verified-today*, each at exit 0:
+`git config` write and read-back, `git add`, `git checkout --detach`, `git checkout <branch>` — with
+no lock left behind by any of them. What the `unlink` refusal actually costs is a few bytes of loose
+temporary object in `.git/objects/`: litter, not a lock.
+
+That misdiagnosis stood for two weeks and carried a recommendation with it — *treat a scheduled run
+as read-and-report only* — which is one step stronger than the measurement ever supported, and which
+is now withdrawn. **This is the same shape the page keeps finding in itself: a true observation, a
+conclusion wider than the observation, and nothing built to catch the gap.**
+
+**The real blocker was one directory.** `node_modules` in the working tree is a **Windows** install,
+so `vitest` cannot start under the Linux bridge shell — the platform-specific `rollup` binary is
+absent. A Linux install built in session scratch, outside the mount and leaving EL's tree untouched,
+runs the suite. The procedure is recorded in `docs/scheduled-run-verification.md`, written this
+session, including the three traps that cost this run time: `pnpm` is reachable only through
+`corepack` **and** `pnpm verify` shells out to `pnpm` by name so a PATH shim is required; `rsync`
+carries `*.tsbuildinfo` across so `tsc --build` emits nothing and four checkers then fail on a
+missing `dist/`; and `pkill -f "pnpm verify"` matches its own command line and kills the caller.
+
+## Verified today, and what could not be
+
+*Verified-today* on `docs/session-16-f54` @ `3540dd9`, against a Linux install of the pinned
+lockfile:
+
+| Gate | Result |
+|---|---|
+| `pnpm typecheck` | **exit 0** |
+| `pnpm lint` | **exit 0** |
+| `pnpm test` | **exit 0** — 77 files, 2,058 tests: **1,926 passed, 132 skipped** |
+| 21 checkers, each run after its own self-test | **PASS** |
+| `pnpm check:rls` | **could not run** — needs a live PostgreSQL on `localhost:55432` |
+| `pnpm coverage` | **exit 1**, and the reason is the line below |
+
+The 132 skipped tests are the database-backed suites. `pnpm coverage` then misses its
+per-directory thresholds on exactly the directories those suites cover — `apps/api/src/audit/**`,
+`apps/api/src/outbox/**`, `apps/api/src/workflow/**` and `packages/db/src/**`. **That is the absence
+of a database, not a coverage regression, and it is not recorded as one.** No PostgreSQL can be
+reached or installed from the bridge shell *(verified-today)*: no `docker`, no `pg_ctl`/`initdb`/
+`postgres`, and `sudo` refused under `no new privileges`. **A scheduled run reaches every gate
+except the database-backed ones.** The last full run including those remains session 15's, against
+PostgreSQL 16.13 with `RMS_REQUIRE_DB=1` — a *repository-claim* here.
+
+**Counts re-derived today** *(verified-today)*, all agreeing with session 16: 14 packages · 76
+`*.test.ts` files · 16 front-end `.tsx` files · 13 migrations · 22 `UNIMPLEMENTED` entries · 54
+findings, F-01 to F-54, **no gaps** · `tasks/todo.md` 102 ticked / 40 unticked raw checkboxes *(a
+raw checkbox count, not comparable to the task-count or effort-weighted figures below)*.
+
+**These are a prose restatement, and prose is outside the gate.** `check-claims` keys on the
+**inventory table** rows below — `| Packages | **14** |` and its siblings — not on this sentence.
+It ran green today, which is what establishes those four figures; a number typed here and nowhere
+else is watched by nothing. That distinction is F-54's lesson and is written down rather than
+assumed. A planted edit confirmed the reach of each gate *(verified-today)*: the §15.2 headline
+edited to claim one completed step took `check-scoreboard` to **exit 1**, and a figure altered in
+this paragraph alone left `check-claims` **green** — the gap named here, observed rather than
+reasoned about.
+
+**Still not measured, and repeated because a green gate invites the opposite reading:** INP, LCP and
+CLS. Three of P-05's four front-end budgets have no measurement and no Lighthouse run exists —
+unchanged since session 13.
+
+## Delivery is still blocked, and this is the fifth consecutive scheduled run to report it
+
+`git push` from the bridge shell ends at `fatal: could not read Username` *(verified-today)*;
+`credential.helper` is empty and there is no prompt to answer. `HEAD` is **17 commits ahead of
+`origin/main`** and **0 behind** *(verified-today)*; `origin/main` is unmoved at `2fe1481`. Those 17
+commits exist on EL's disk and in one bundle, and nowhere else. **One action closes this and it is
+EL's:** add `Elliotvness/Master-Rack` to the scheduled session's authorized repository set, or
+configure a credential helper for the bridge shell.
+
+---
+
+## The previous edition — 2026-09-07 (session 16), kept for its findings
 
 An unattended scheduled run, in a cloud clone of `origin/task/s-3-1-plan-parity` @ `b8347d2` and in
 the working clone on `C:\Rack Master` through the device bridge. Every figure below was

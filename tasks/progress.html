@@ -163,11 +163,12 @@ code{font-family:"IBM Plex Mono",monospace; font-size:.86em; background:var(--su
   <header class="mast">
     <div class="meta">
       <span class="lbl">Rack Master Studio</span>
-      <span class="lbl">2026-09-07 &middot; session 16 &mdash; the inventory row that was right for eight sessions</span>
+      <span class="lbl">2026-09-28 &middot; session 17 &mdash; the blocker that was misdiagnosed for two weeks</span>
       <span class="lbl">branch <code>docs/session-16-f54</code>, on <code>task/s-3-1-plan-parity</code> @ S3.3 &middot; <strong>&sect;15.2 unmoved &mdash; 22 <code>UNIMPLEMENTED</code> handlers still answer 500</strong> &middot; <strong>F-54</strong>: the front-end inventory row read <code>0</code> against sixteen <code>.tsx</code> files, every gate green over it &mdash; now gated, declared claims <strong>8 &rarr; 10</strong>, proven red on three plants &middot; <strong>delivery still blocked both ways</strong>, second consecutive scheduled run to report it &middot; <strong>no sha or ahead-count quoted here &mdash; re-run it</strong></span>
     </div>
     <h1>The foundations are strong.<br>The product does not exist yet.</h1>
     <p class="sub">A scoreboard measured against the repository, not against the plan documents. Where a figure was re-run today it says so; where it is the repo's own claim, it says that instead.</p>
+    <p class="sub"><strong>Session 17 changes no number on this page.</strong> No task landed. What it corrects is a diagnosis: three consecutive scheduled runs reported that a Cowork session <em>cannot commit</em> on the mount, because git takes a lock file and this mount refuses <code>unlink</code>. Git releases its locks by <strong>renaming</strong> them, and rename is permitted &mdash; <code>git config</code>, <code>git add</code> and <code>git checkout</code> were each measured at <strong>exit 0</strong> today. The real blocker was one directory: <code>node_modules</code> is a Windows install, so <code>vitest</code> cannot start under the Linux bridge shell. Built fresh in session scratch, the suite runs: <strong>typecheck exit 0, lint exit 0, 1,926 tests passed and 132 skipped, 21 checkers PASS</strong>. Only the database-backed gates are out of reach &mdash; no PostgreSQL can be reached or installed there. Procedure in <code>docs/scheduled-run-verification.md</code>.</p>
   </header>
 
   <div class="gauge">
