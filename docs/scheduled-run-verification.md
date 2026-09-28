@@ -57,6 +57,34 @@ write in that clone fails with *"Another git process seems to be running"*. **Pr
 throwaway branches at all**: one cannot be cleaned up from here. This run left `probe/lock-test`
 behind for exactly that reason, and it is EL's to delete.
 
+### The rule that actually matters: every commit leaves two locks
+
+This is the detail that made git look broken, and it took a third pass to find. A commit on this
+mount **succeeds** and then leaves **both** `.git/HEAD.lock` and `.git/index.lock` behind, because
+releasing them is an unlink. The commit is sound — but **the next git write in that clone fails**:
+
+```
+fatal: Unable to create '.../.git/index.lock': File exists.
+Another git process seems to be running in this repository…
+```
+
+That is the whole illusion. A run that made one commit, then tried a second operation, saw a message
+naming a phantom concurrent git process and concluded the mount forbids git writes. It does not. It
+forbids *cleaning up after* them, and the failure surfaces one operation later than its cause.
+
+**So: sweep the locks after every git write.** Put this in the run, not in a person's memory:
+
+```sh
+clean_locks() {
+  for l in .git/HEAD.lock .git/index.lock .git/packed-refs.lock .git/config.lock; do
+    [ -e "$l" ] && mv "$l" "_to_delete/session-17/$(basename $l).$(date +%s%N)"
+  done
+}
+```
+
+Call it before the first git write of the run and after every one that follows. With that in place a
+run can commit repeatedly; this file and the scoreboard were landed across three commits that way.
+
 Check for a stale lock at the start of every run and move any found into `_to_delete/`:
 
 ```sh

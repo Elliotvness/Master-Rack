@@ -29,6 +29,16 @@ cannot be cleaned up from here — this run left `probe/lock-test` behind provin
 to delete. **The corrected rule is narrower than "git works" and wider than "git is blocked", and
 neither of the two slogans would have survived contact with it.**
 
+**And the detail that made git look broken took a third pass to find.** A commit here succeeds and
+then leaves **both** `.git/HEAD.lock` and `.git/index.lock` behind, because releasing a lock is an
+unlink. The commit is sound; **the next git write in that clone fails**, naming a phantom concurrent
+git process — *"Another git process seems to be running in this repository"* *(verified-today,
+reproduced on a pair of empty probe commits and then unwound)*. **That is the whole illusion.** A run
+that committed once and then did anything else saw that message and concluded the mount forbids git
+writes. It forbids *cleaning up after* them, and the failure surfaces one operation later than its
+cause — which is why three runs read it as the wrong thing. Sweeping the four lock paths after every
+git write is the fix, and this edition landed across three commits with that sweep in place.
+
 That misdiagnosis stood for two weeks and carried a recommendation with it — *treat a scheduled run
 as read-and-report only* — which is one step stronger than the measurement ever supported, and which
 is now withdrawn. This edition was itself committed on the mount, at `1a4a98f`, which is the
