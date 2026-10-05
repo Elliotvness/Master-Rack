@@ -1,3 +1,172 @@
+# Progress scoreboard — 2026-10-05 (session 18, scheduled run: a month of no commits, and the published copy caught up)
+
+An unattended scheduled run against `C:\Rack Master\rack-master-studio` over the device bridge.
+Every figure labelled *verified-today* was produced by a command run in this session; every figure
+labelled *repository-claim* was read off an earlier document and is not a measurement of this run.
+
+**§15.2 is 0 of 8, re-derived not re-read.** `UNIMPLEMENTED` in `apps/api/src/app.ts` holds **22**
+entries *(verified-today)* against a `ROUTES` registry of **23** *(verified-today)*; the single
+difference is `GET /api/internal/v1/audit`, which §8.2 marks **phase 2** and which is therefore not
+one of the eight. **Every MVP-1 handler still answers 500.** No task landed, no phase figure moved,
+and the denominator did not move: **66 of 160 points — 41.3%**, **24 of 49 tasks**, both re-derived
+from `tasks/todo.md` this session rather than carried forward.
+
+## The finding: the build has not been touched in a month, and the delivery path is still shut
+
+*Verified-today.* The last commit of any kind is dated **2026-09-28** — seven days ago, and it is
+session 17's own documentation commit. **The last commit that changed behaviour is dated 2026-09-06**
+(S3.3, reference elevations), **twenty-nine days ago.** Every commit since is this page and its
+companion documents writing about the build rather than advancing it.
+
+**And none of the recent work has left the machine.** `git rev-list HEAD --not --remotes` returns
+**6** *(verified-today)*; across every local branch, `--all --not --remotes` returns **8**. Those
+commits exist in exactly one place: EL's working clone. The oldest of them is dated 2026-09-07,
+**twenty-eight days unpushed**. This project has already lost a commit once, which is why the
+re-measure procedure puts the unpushed count first.
+
+**Both delivery paths were re-tested today rather than carried forward, and both are shut.**
+
+| Path | Measured today | Result |
+|---|---|---|
+| Device-bridge shell → `origin` | `git ls-remote origin HEAD` | **exit 0** — reading GitHub works; `origin/main` is `2fe1481` and level with local `main` |
+| Device-bridge shell → `origin` | `git push --dry-run`, `GIT_TERMINAL_PROMPT=0` | **fatal: could not read Username** — `git config --get credential.helper` is still **empty** |
+| Cloud container → `origin` | `gh api repos/Elliotvness/Master-Rack/...` | **HTTP 403** — *"GitHub access to this repository is not enabled for this session"*. Not the proxy this time: the repository is simply not in the session's authorized set |
+| Cloud container → GitHub Actions | plain web fetch of the Actions page | **unusable** — the page returned nine runs on two long-merged branches, which cannot be reconciled with this page's own record of runs #10 through #81. **No CI figure in this edition is a measurement**, and none is quoted as one |
+
+The ask in session 15, 16 and 17's "next" list has not changed and is now the only thing gating an
+unattended run from being useful: **add `Elliotvness/Master-Rack` to the scheduled session's
+authorized repository set, or give the bridge shell a credential helper.** Everything else an
+unattended run can do, it did today.
+
+## Drift 54 is closed — the published copy was a month behind and is now current
+
+*Verified-today, and this is the one thing this run changed outside its own page.* The artifact at
+claude.ai was read in full and diffed line-for-line against `tasks/progress.html` before anything was
+published: the two differ in **13 lines**, of which 11 are substantive and **every one is the
+published page carrying older text** — the **session 12** masthead (2026-09-05), *"Zero `.tsx` files
+exist"*, *"98 points remain"*, *"12 packages · 59 test files"*, *"14 self-tested checkers"*, and a
+request to delete two branches merged a month ago. Nothing existed only on the published copy, so
+nothing was lost. It was then republished to the **same URL**.
+
+**Drift 54 was raised on 2026-09-07 and has been open for four editions** — the third copy going
+stale while the two CI can reach stayed current. Session 17 recorded that its own tooling refused the
+republish and that *"an attended session can republish in one action"*. That turned out to understate
+what was available: an **unattended** run could do it, and the reason this one could is simply that it
+held the tool. **The recommendation was wider than the measurement that produced it — the same shape
+this page keeps finding in itself, and the second time in two sessions.**
+
+## F-55 — one quantity, two figures, and a control that could not see the file
+
+*Verified-today, and it is not a concealed error.* The inventory row read **76** test files while the
+evidence table two sections above read **77**, and the page **already named the gap** and reconciled
+it in prose as *"two different quantities"*: 76 is `*.test.ts`, 77 is what `vitest` collects. Both
+statements were true. The problem is what sat underneath them.
+
+`check-claims`'s `testFiles` derivation matched `.test.ts` alone, so `apps/studio-web/src/app.test.tsx`
+— *"the first component test in this repository"*, and the file `vitest.config.ts` added
+`apps/**/*.test.tsx` to its `include` globs **for** — was invisible to the claim registry. A second
+component test could land, or that one be deleted, and the row would stay correct by its own
+definition while saying less and less about the suite. **A documented exclusion is not a control**,
+and `check-scoreboard-prose` exists to enforce one quantity, one figure, in one file.
+
+**The control was proven before either number moved.** Widening the derivation to carry both globs,
+and changing nothing else, turned `check-claims` red on both copies at once — *"progress.md · test
+files: states 76, the code says 77"*, *"progress.html · test files: states 76, the code says 77"*.
+Then the figures were corrected and it went green. The row now states **77**, the reconciling
+parenthetical is retired, and the glob list is pinned to `vitest.config.ts`'s with a comment saying so.
+
+This lands one screen below the `frontEndFiles` derivation added five weeks ago to close **F-54** —
+*"the claim registry covered every row that had not moved, and not the one that had"* — and it is
+**F-43**'s shape as well, the gates that could not see `.tsx`. Three findings, one blind spot,
+arriving in the same file in the same quarter.
+
+## Drift 56 — the plan's route arithmetic disagrees with the blueprint
+
+*Verified-today.* `tasks/todo.md`'s T-14 acceptance criteria read: *"all **21** §8.2 routes mounted —
+the **23** rows in §8.2 less the two the blueprint itself marks phase 2"*. Parsing §8.2 out of the
+governing document today returns **24** rows, **2** flagged phase 2, leaving **22** — which is what
+`ROUTES` declares, what `createApp` mounts, and what `check-route-surface` passed on today. **The
+blueprint wins, so the plan is what gets corrected**, and it has been corrected. The stale figures
+predate EL's §8.2 amendment on 2026-09-03, which added the operator-release row and is the reason the
+count moved 23 → 24; the T-14 criteria were never updated with it.
+
+Two further lines in `tasks/todo.md` were stale the same way and are now fixed: T-13c's and T-14's
+notes both read that *"the denominator stays 148 until EL confirms"* and that *"the scoreboard keeps
+T-14 at L = 8"*. **EL confirmed T-14a–e at 160 points on 2026-09-03** — recorded in both scoreboard
+copies ever since — so the plan had been contradicting the measured truth for five weeks on a
+question that was already settled.
+
+## Two more, both found by reading the published page line by line
+
+The read-before-republish step is not a formality, and this is the second time it has paid. Diffing
+the live artifact against `tasks/progress.html` turned up two things no figure-comparing gate can see:
+
+- **The HTML footer's Method paragraph read "the 45 tasks"** while every headline on the same page
+  read **24 of 49**. 45 was correct until EL confirmed the T-14a–e split on 2026-09-03 — the same
+  amendment behind F-56 — which took the count 45 to 49 and the denominator 148 to 160. `progress.md`'s
+  Method paragraph was updated with it and the HTML footer was not, so **one page carried the
+  pre-split task count in its footer and the post-split count in its masthead for five weeks.**
+  `check-scoreboard-sync` compares the phase bars, the measure cards and the §15.2 statements; a
+  count inside footer prose is outside all three. Drift 20 and drift 27 are this same paragraph in
+  this same file, which makes this its **third** appearance. Fixed, and the footer now names the
+  split that moved it.
+- **The Phase 3 arithmetic was re-derived rather than accepted, and it pins down two sizes the plan
+  states ambiguously.** 62 points with 26 done resolves on exactly one assignment: **T-13c scored
+  S = 2** and **P-00 scored M = 4**. T-13c is the one worth stating, because its own plan note reads
+  *"S as planned, M as built"* — and the scoreboard scores it **S**, which is what that note's next
+  clause, *"the size is recorded, not re-scored"*, means. A later re-derivation that reads "M as
+  built" as a size will land on 162 and report a regression that did not happen. `tasks/todo.md` now
+  says so where the ambiguity lives.
+
+## Verified today, and what could not be
+
+*Verified-today* on the working tree at `docs/session-17-scheduled-run-verification`:
+
+| Gate | Result |
+|---|---|
+| 17 checkers, each run after its own self-test | **PASS** — boundaries, app-boundaries, provenance, language, content-hash, spot-check-record, lockfile, scoreboard-sync, claims, prose, types-only, server-owned, route-surface, budgets, aliases, findings, coverage-config |
+| `check:draw` self-test | **PASS** (its checker is invoked by the suite, not standalone) |
+| `check:routesurface` | **PASS** — *"the registry and §8.2 agree row for row"*, which is the mechanism behind the 22-of-22 figure |
+| `check:findings` | **PASS** — 54 findings allocated once each, F-01…F-54 with no gaps, every reference resolving |
+| `check:rls` | **could not run** — needs a live PostgreSQL; none is reachable from the bridge shell |
+| `check:determinism` | **could not run** — it shells out to `vitest` |
+| `pnpm typecheck`, `lint`, `test`, `coverage` | **not run this session** |
+
+The four not run all have one cause, and it is the one session 17 diagnosed: `node_modules` in the
+working tree is a **Windows** install, so `vitest` cannot start under the Linux bridge shell — the
+platform-specific `rollup` binary is absent, and `check-determinism` fails with
+*"Cannot find module '@rollup/rollup-linux-x64-gnu'"* rather than on anything about the code. The
+procedure for building a Linux install in session scratch is in `docs/scheduled-run-verification.md`;
+it was **not** executed this run, because the suite was measured green seven days ago on a tree that
+has not changed since. **No test, coverage or CI figure in this edition is presented as a measurement
+of this run.**
+
+Counts re-derived today, all agreeing with session 17 except the one F-55 moved: **14** packages ·
+**77** test files · **13** migrations · **16** front-end files · **23** `ROUTES` entries · **24**
+§8.2 rows, 2 phase 2.
+
+## What this run did not do
+
+- **No push**, by either path — see the table above. The six unpushed commits are still unpushed.
+- **No new feature work**, and none was attempted: a scheduled run cannot meet an acceptance
+  criterion it cannot test, and this project does not count a task whose criteria were not met.
+- **`probe/lock-test` is still on the machine.** Session 17 left it behind and proved why it had to:
+  deleting a branch is an `unlink`, which the mount refuses. It is EL's to delete.
+- **`check-test-run` was not rebuilt.** Session 15's highest-value recommendation, open for four
+  sessions: it must be proven against a real `vitest` run, which this session could not execute.
+
+## Next, in order
+
+1. **Push the six commits.** They are twenty-eight days old at the oldest and exist in one place.
+2. **Unblock delivery** so this stops recurring — authorize the repository for the scheduled session,
+   or give the bridge shell a credential helper. Items 1 and 2 are the same problem at two scales.
+3. **Then T-14b.** It is the first point on the board that can move §15.2 off zero, and it has been
+   the first such point for five weeks. Nothing on this page matters as much as that.
+4. **Rebuild `check-test-run`**, which closes the hole where an absent database yields
+   *"2,058 tests, exit 0"* with 132 of them skipped.
+
+---
+
 # Progress scoreboard — 2026-09-28 (session 17, scheduled run: the blocker that was misdiagnosed for two weeks)
 
 An unattended scheduled run, working entirely through the device bridge on `C:\Rack Master`, with a
@@ -238,10 +407,9 @@ is the arrangement working, not failing. **All 22 API handlers still answer 500.
 
 **Verified today on Windows, no Postgres:** `pnpm test` **exit 0 — 77 test files, 2,058 tests,
 1,926 passed, 132 skipped**; `pnpm typecheck` exit 0; `pnpm lint` exit 0; every checker and
-self-test PASS. *(77 is the RUNNER's file count and includes `app.test.tsx`; the inventory row
-below reads 76 because `check:claims` derives it from `*.test.ts` alone. Two different quantities,
-and the first draft of this paragraph quoted the second one for the first — a figure that looked
-consistent because it was consistently wrong.)* The 132 skips are the eight `.db.test.ts` suites and are expected without a database —
+self-test PASS. *(77 is the runner's file count and includes `app.test.tsx`. The inventory row
+below read 76 against it for four editions, deriving from `*.test.ts` alone; since 2026-10-05 the
+derivation carries both globs and both figures read 77 — F-55.)* The 132 skips are the eight `.db.test.ts` suites and are expected without a database —
 `RMS_REQUIRE_DB=1` turns them into failures where a result is believed, which is CI.
 
 **Read, not reported: five CI runs, all `success`**, against a real PostgreSQL 16 with
@@ -967,7 +1135,7 @@ Re-measured by running commands against the working tree:
 | The ahead/unpushed pair moves as this file is written | Each documentation commit that records this measurement adds one to both counts, so **do not quote ahead/unpushed from this document** — re-run `git rev-list --left-right --count origin/main...HEAD` and `git rev-list --count @{u}..HEAD`. Session 3 added `e488a14`, `c08cca3` and the commit carrying this row. That self-reference is exactly how drift item 5 arose, and naming it is cheaper than chasing it |
 | `main` | **`afd4e8a`** — re-derived 2026-09-05 by `git ls-remote --heads origin`, which returns **`refs/heads/main` and nothing else**: every task branch is now deleted on the server, including the two the previous edition of this row said were still there. Local `main` sits at the same sha, clean tree, `git rev-list --count @{u}..HEAD` **0**. Three merges landed the same day — **PR #21** (the session-10 edition: `92ad8cc`, `c5c2c0c`), **PR #22** (P-05: `c5a7d42`), **PR #23** (OD-20b: `13a5247`) — each with `verify` and `docs` green, read from the check-runs API rather than assumed. *(This row read `0bb5383` through all three — **drift 49**, and drift 42 one edition after it was closed. Every fix so far has been a new value.)* *(It read `162d26e` / "PR #1 … #19" through two merges and two pushes — drift 42.)* Earlier state kept for the lineage: PR #1 … #19 merged, every task branch deleted, `git branch -r` listed `origin/main` alone *(this row read `e86d2bf` / "PR #13 open" through the close-out edition while the tip row above it said `b8d2087` — drift 36's shape, fixed here)* |
 | Packages | **14** — `packages/workflow` added by T-07 |
-| Test files | **76** (`*.test.ts`; the count excludes `*.test.tsx`, of which S1 adds the first) — T-13c added `request.test.ts`; T-13d added `idempotency.test.ts` and `idempotency.db.test.ts`; T-14a added `app.test.ts`, `app.db.test.ts` and `server.db.test.ts`; P0-2 added `tools/test-support/require-db.test.ts`; **S1 added `nav.test.ts`, `theme/theme.test.ts` and `theme/tokens.test.ts` in `apps/studio-web`; S2 added five in `packages/studio-model`; **S3 added `to-kernel.test.ts` and two in `packages/render-canvas`; **S3.1 added `plan.test.ts`, `detail.test.ts` and `overlay.test.ts`**. **S3.3 added `stagger.test.ts` and `elevation.test.ts` in `packages/display-list`**. Re-derived by `check:claims`, not typed |
+| Test files | **77** — every file `vitest` collects, `*.test.ts` **and** `*.test.tsx`. This row read **76** for four editions, counting `*.test.ts` alone, while the evidence table above read **77** from the runner. Both were defensible and the page reconciled them in prose as *"two different quantities"*; **today the derivation was widened instead** (F-55), so there is now one quantity with one figure and `check:claims` can finally see `apps/studio-web/src/app.test.tsx` — the file `vitest.config.ts` added a glob for. The control was proven first: widening the derivation alone turned `check-claims` **red on both copies** (*"states 76, the code says 77"*) before either figure was touched. — T-13c added `request.test.ts`; T-13d added `idempotency.test.ts` and `idempotency.db.test.ts`; T-14a added `app.test.ts`, `app.db.test.ts` and `server.db.test.ts`; P0-2 added `tools/test-support/require-db.test.ts`; **S1 added `nav.test.ts`, `theme/theme.test.ts` and `theme/tokens.test.ts` in `apps/studio-web`; S2 added five in `packages/studio-model`; **S3 added `to-kernel.test.ts` and two in `packages/render-canvas`; **S3.1 added `plan.test.ts`, `detail.test.ts` and `overlay.test.ts`**. **S3.3 added `stagger.test.ts` and `elevation.test.ts` in `packages/display-list`**. Re-derived by `check:claims`, not typed |
 | Phase-2 routes | **1** — `GET /api/internal/v1/audit`, held in `PHASE_2_ROUTES`. §8.2's other phase-2 row, `POST /api/internal/v1/submissions/:id/status`, has no `Action` yet and arrives with the status vocabulary F-38 is about. A third §8.2 row *mentions* phase 2 and stays MVP-1 — `GET /api/client/v1/submissions/:id` defers the RFI **thread**, not the route — which is now declared data in `SUB_FEATURE_PHASE_2` with a stale-entry check, instead of an interpretation living in three documents and enforced by none |
 | Migrations | **13** (`0001`–`0013`) — `0013_idempotency_lease_epoch.sql` adds the fence token without which the lease let two effects settle one key (F-40); `0012` added the `abandoned` outcome and the lease index; `0011_idempotency.sql` added `app.idempotency_key`: `UNIQUE (organization_id, key)`, a 64-hex `request_hash` CHECK, three states in `app.idempotency_outcome`, five consistency CHECKs, tenant RLS and the F-31 explicit GRANT. `check-rls` inspected **22** tables and **86** grants today and passed |
 | Front-end files | **16** (`.tsx` / `.jsx` / `.vue` / `.svelte` / `.astro`) — every one in `apps/studio-web`, from S1 through S3.3. **This row read `0` for three editions while the tree held sixteen — drift 52, and it is the row the claim registry did not cover (F-54).** It is inside `check:claims` as of today. As of S0.0 the gate would see them. Until 2026-09-05 it could not: `.tsx` was outside vitest's `include`, outside `tsconfig.tests.json`'s, outside the coverage globs and outside two eslint rule scopes, so a failing `.test.tsx` ran through `pnpm verify` at exit 0 (F-43). The count is the same; what changed is what the count would be worth |

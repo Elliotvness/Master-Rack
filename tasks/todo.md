@@ -1051,7 +1051,12 @@ field are structurally unreachable from a request body. No mass assignment. A te
 is refused.
 **Verification:** `vitest run packages/contracts`. **Dependencies:** T-13a. **Scope:** S as planned,
 **M as built** — three fresh-context adversarial reviews turned it up. The size is recorded, not
-re-scored: the denominator stays 148 until EL confirms, as with T-14a–e.
+re-scored — and it is still **scored S** in the denominator, which is what "recorded, not re-scored"
+means. *(This read "the denominator stays 148 until EL confirms, as with T-14a–e" until 2026-10-05 —
+**F-56**. **EL confirmed T-14a–e at 160 points on 2026-09-03**, so the current denominator is **160**,
+not 148. T-13c's own size did not change with it: the scoreboard's Phase 3 arithmetic — 62 points,
+26 done — resolves only with T-13c at **S = 2** and P-00 at **M = 4**. Read the figure off the
+scoreboard's phase table, never off this line.)*
 
 **Done.** Container-verified 2026-09-03: `pnpm verify` **exit 0 — 54 files, 1,385 tests, 0 skipped**,
 `packages/contracts/src` and `request.ts` at **100 / 100 / 100 / 100**, **15** checkers green behind
@@ -1308,8 +1313,12 @@ nothing yet returns. `submit`, `derive`, `clone` and `invite` are unguarded unti
 `purgeExpiredOn`. Both belong to T-14a–e and are listed there.
 
 ### T-14: The server
-**Acceptance criteria:** all **21** §8.2 routes mounted — the 23 rows in §8.2 less the two the
-blueprint itself marks phase 2 (`POST /api/internal/v1/submissions/:id/status`, `GET /api/internal/v1/audit`);
+**Acceptance criteria:** all **22** §8.2 routes mounted — the 24 rows in §8.2 less the two the
+blueprint itself marks phase 2 (`POST /api/internal/v1/submissions/:id/status`, `GET /api/internal/v1/audit`).
+*(Corrected 2026-10-05, **F-56**: this read "21 … the 23 rows" from before EL's §8.2 amendment of
+2026-09-03, which added `POST /api/internal/v1/idempotency-claims/:key/release` — an amendment T-14e
+below asked for — and took §8.2 from 23 rows to 24. Re-parsed from the governing document: 24 rows,
+2 phase 2, surface of 22, which is what `ROUTES` declares and what `check-route-surface` passes on.)*;
 the boot-time route-coverage assertion runs
 against the **real** router so `AC-06` becomes live; deny-by-default middleware; 404-not-403;
 every deny writes an audit event; scoped fetch only — `currentOrg.revisions.find(id)`, never
@@ -1404,8 +1413,11 @@ M, each leaving the app bootable:
 
 **Arithmetic if confirmed:** T-14 goes from L = 8 to 5 × M = 20; the denominator moves 148 → 160
 and the published figure 35.1% → **32.5%** with nothing getting worse — the sensitivity table's
-"T-14 ×2.5" row, roughly. **Until EL confirms the sizes, the scoreboard keeps T-14 at L = 8 and
-says so.** T-15 is unchanged and still follows T-14e.
+"T-14 ×2.5" row, roughly. **EL confirmed the sizes on 2026-09-03**, so this is history rather than a
+proposal: T-14's single L = 8 is retired, the five M sub-tasks count, and the scoreboard has published
+**66 of 160 — 41.3%** over that denominator ever since. *(This paragraph ended "Until EL confirms the
+sizes, the scoreboard keeps T-14 at L = 8 and says so" for five weeks after he had — **F-56**.)*
+T-15 is unchanged and still follows T-14e.
 
 ### T-15: Re-assert AC-02, AC-03 and AC-06 against the running system
 **Acceptance criteria:** the contract test enumerates routes from the real router, calls each as a

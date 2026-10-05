@@ -63,9 +63,29 @@ function walk(dir, predicate, out = []) {
 }
 
 export const DERIVATIONS = Object.freeze({
+  /**
+   * Test files, as VITEST collects them.
+   *
+   * WHY THE `.tsx` ARM EXISTS (F-55). This derivation matched `.test.ts` only,
+   * so `apps/studio-web/src/app.test.tsx` — the repository's first component
+   * test, and the file `vitest.config.ts` widened its `include` globs for —
+   * was invisible to it. Both scoreboard copies published `76` while vitest
+   * ran `77`, and `check-claims` blessed the 76 because the claim and the
+   * derivation shared one blind spot. Session 17's own evidence table already
+   * said `77 files`, so the page contradicted itself in two places with every
+   * gate green. This is F-43's shape (gates that could not see `.tsx`) and
+   * F-54's shape (a registry covering every row that had not moved) arriving
+   * together, in the derivation added to close F-54, one screen below it.
+   *
+   * The glob list is kept in step with `vitest.config.ts` deliberately: if a
+   * `.test.mts` or `.test.jsx` is ever collected there, it belongs here too.
+   */
   testFiles: (root) =>
     ['packages', 'apps', 'tools'].reduce(
-      (n, d) => n + walk(join(root, d), (f) => f.endsWith('.test.ts')).length,
+      (n, d) =>
+        n +
+        walk(join(root, d), (f) => f.endsWith('.test.ts') || f.endsWith('.test.tsx'))
+          .length,
       0,
     ),
   /**

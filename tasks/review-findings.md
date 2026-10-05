@@ -2224,3 +2224,95 @@ about the tree either carries a derivation or carries its date.
 
 **Registered in the five places** required by `CLAUDE.md`'s registration table, and this entry is
 the register's own.
+
+---
+
+## F-55 — one quantity, two figures, and a claim registry that could not see the file *(raised and **CLOSED** 2026-10-05 by an unattended scheduled run)*
+
+`tasks/progress.md`'s inventory row read **`Test files | 76`** while its own evidence table, two
+sections above, read **`pnpm test` exit 0 — 77 test files**. `tasks/progress.html` carried the same
+76 in its inventory line.
+
+**This was not a concealed error, and the distinction matters for how it is graded.** The page
+*named* the gap and reconciled it in prose — *"77 is the RUNNER's file count and includes
+`app.test.tsx`; the inventory row below reads 76 because `check:claims` derives it from `*.test.ts`
+alone. Two different quantities"* — and both statements were true. A reader who read that
+parenthetical was not misled.
+
+**What was wrong is what sat underneath it.** `DERIVATIONS.testFiles` in `tools/check-claims.mjs`
+matched `.test.ts` and nothing else, so `apps/studio-web/src/app.test.tsx` was invisible to the claim
+registry. That file is not an edge case: its own docblock calls it *"the first component test in this
+repository"*, and `vitest.config.ts` carries `packages/**/*.test.tsx` and `apps/**/*.test.tsx` in its
+`include` globs **because of it**. The consequence is not a wrong number today — it is that a second
+component test could land, or that one be deleted, and the row would remain correct by its own
+definition while describing less and less of the suite, with every gate green.
+
+**A documented exclusion is not a control.** `check-scoreboard-prose` exists to enforce one quantity,
+one figure, in one file; it passed here because a test-file count is not derivable from the phase
+table, which is the only thing it can derive. So the page held two figures for one quantity,
+defensibly, with no mechanism that would ever collapse them.
+
+**Remedy, and it was proven red before either figure moved.** `DERIVATIONS.testFiles` now matches
+`.test.ts` **or** `.test.tsx`, with a comment pinning the glob list to `vitest.config.ts`'s and
+naming this finding. One plant — the widening alone, with both published figures left at 76:
+
+| Plant | Result |
+|---|---|
+| derivation widened, both copies still stating `76` | `check-claims` **FAIL** — *"progress.md · test files: states 76, the code says 77"* **and** *"progress.html · test files: states 76, the code says 77"*, both named in one run |
+
+Both figures were then corrected to **77**, the reconciling parenthetical retired, and `check-claims`
+returns **PASS — 10 declared claim(s) match the code**. The declared claim count does not move; what
+moved is what one of them can see.
+
+**Where this sits in the sequence, because it is the third of a shape.** The widened derivation is
+one screen below `DERIVATIONS.frontEndFiles`, added five weeks earlier to close **F-54** — *"the claim
+registry covered every row that had not moved, and not the one that had"*. And the blind spot itself
+is **F-43**'s — the gates that could not see `.tsx`, where `no-restricted-imports` was scoped
+`**/*.ts` and a `.tsx` importing `pg` went unflagged. Three findings, one file extension, one
+quarter. The pattern is not that `.tsx` is special; it is that **every control written before a file
+type existed is scoped to the file types that existed when it was written**, and nothing in this
+repository sweeps for that.
+
+**An adjacent gap, recorded and NOT closed by this run.** `check-findings` reads
+`tasks/review-findings.md` and no other file. A finding id referenced in `tasks/progress.md` but
+never allocated in the register is therefore invisible to it — which was literally true for `F-55`
+itself for the few minutes between the scoreboard edition being written and this entry being added.
+Widening the scan to the documents that cite findings is a small change; it is **not** made here
+because an unattended run should not land a control it cannot prove against a real tree in the same
+session, and the plant for this one is a reference with no allocation, which requires the register to
+be temporarily wrong. Carried as the recommendation, not as a remedy.
+
+---
+
+## F-56 — the plan's route arithmetic never caught up with the blueprint amendment it asked for *(raised and **CLOSED** 2026-10-05 by an unattended scheduled run)*
+
+`tasks/todo.md`'s T-14 acceptance criteria read: *"all **21** §8.2 routes mounted — the **23** rows in
+§8.2 less the two the blueprint itself marks phase 2"*. Parsing §8.2 out of the governing document
+on 2026-10-05 returns **24** rows, **2** of them flagged phase 2, leaving an MVP-1 surface of **22**.
+
+**Every other copy of this figure is already right.** `ROUTES` declares 22 MVP-1 rows plus the
+phase-2 audit row; `createApp` mounts them; `check-route-surface` passed today with *"the registry and
+§8.2 agree row for row"*; and both scoreboard copies publish **22 of 22** against **24 rows, 2 marked
+phase 2**. The plan was the only document still on the pre-amendment arithmetic.
+
+**And the amendment was its own.** The count moved 23 → 24 when EL amended §8.2 on 2026-09-03 to carry
+`POST /api/internal/v1/idempotency-claims/:key/release` — an amendment this plan's own T-14e notes
+requested. The criteria it gates were never updated with it, so **T-14's definition of done has been
+one route short of the blueprint for five weeks**, on a surface the task exists to build.
+
+Per the document hierarchy the blueprint wins and the plan is what gets corrected. Fixed in
+`tasks/todo.md`: 23 → 24 rows, 21 → 22 routes, with the amendment named.
+
+**Two further lines in the same file were stale the same way**, and are fixed in the same pass.
+T-13c's scope note read *"the denominator stays 148 until EL confirms, as with T-14a–e"* and T-14's
+read *"Until EL confirms the sizes, the scoreboard keeps T-14 at L = 8"*. **EL confirmed T-14a–e at
+160 points on 2026-09-03** — recorded in both scoreboard copies in every edition since. The plan had
+been instructing readers to use a superseded denominator on a question already settled, which is the
+inverse of the standing rule: here the scoreboard was right and the plan was the stale copy.
+
+**No mechanism is proposed, and the reason is stated rather than implied.** `check-route-surface`
+diffs §8.2 against the *registry*, which is the pair that matters at runtime. Diffing §8.2 against
+*prose in the plan* would mean parsing acceptance-criteria sentences for numbers, and a checker that
+guesses which integer in an English sentence is a route count is a checker that will produce false
+reds and be switched off. What catches this class is the re-measure cadence reading the plan against
+the blueprint, which is how it was caught.
