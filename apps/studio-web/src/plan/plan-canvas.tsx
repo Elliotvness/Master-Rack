@@ -4,12 +4,19 @@ import {
   drawOverlays,
   fitExtent,
   panByScreen,
+  screenToWorld,
+  worldToScreen,
   zoomAbout,
   type Camera,
 } from '@rms/render-canvas';
-import { planGeometry, type StudioDocument } from '@rms/studio-model';
+import {
+  planGeometry,
+  type Command,
+  type StudioDocument,
+} from '@rms/studio-model';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { hitTestPlan, type PlanHit } from './hit-test.js';
 import { readPens } from './use-pens.js';
 
 /**
@@ -51,8 +58,14 @@ function Chip({
   );
 }
 
+export interface SelectedBay {
+  readonly runId: string;
+  readonly bayId: string;
+  readonly bayIndex: number;
+}
+
 /**
- * The plan viewport.
+ * The plan viewport — build-plan **S3.2**, **S3.5**, **S4.1**, **S4.2**, **S4.3**.
  *
  * The chain, in one place so it can be read: **document → `planGeometry` →
  * `buildDetailedPlan` → `draw`**. Each arrow is a package boundary, and the component
@@ -60,20 +73,26 @@ function Chip({
  * width, no formatting. ADR-018 rule 4 forbids arithmetic in a render, and
  * `check-app-boundaries` forbids this app binding anything named `derive*`.
  *
- * **Camera state is view state** (ADR-018 rule 3): it lives in `useState`, it is
- * not in the document, and panning cannot change a content hash. That is what
- * keeps §13's immutability and the audit chain meaning something.
- *
- * Pointer handling follows the blueprint's §9 flow: pointer capture on down,
- * batched through `requestAnimationFrame` on move, and no derivation on either.
- * Pan and zoom recompute nothing — the display list is memoised on the document
- * alone, so a camera change redraws and re-derives nothing.
+ * **Static vs dynamic split (S4.3):** the Canvas 2D layer draws the memoised
+ * `DisplayList`; the `<svg className="plan-overlay-svg">` layer above it draws
+ * transient hover and selection highlights so hovering never dirty-renders the
+ * display list.
  */
-export function PlanCanvas({ document: doc }: { readonly document: StudioDocument }): React.JSX.Element {
+export function PlanCanvas({
+  document: doc,
+  onCommand,
+  onUndo,
+}: {
+  readonly document: StudioDocument;
+  readonly onCommand?: (command: Command) => void;
+  readonly onUndo?: () => void;
+}): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [camera, setCamera] = useState<Camera | null>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  const [selected, setSelected] = useState<SelectedBay | null>(null);
+  const [hovered, setHovered] = useState<PlanHit | null>(null);
   const frame = useRef<number | null>(null);
 
   /**
@@ -114,6 +133,17 @@ export function PlanCanvas({ document: doc }: { readonly document: StudioDocumen
     [doc.id, doc.revision, plan],
   );
 
+  // Resolve current selection against the live plan so an undone or deleted bay
+  // never leaves a stale selection pointing at a bay that no longer exists.
+  const activeSelection = useMemo(() => {
+    if (selected === null) return null;
+    const run = plan.runs.find((r) => r.runId === selected.runId);
+    if (run === undefined) return null;
+    const bay = run.bays.find((b) => b.bayId === selected.bayId) ?? run.bays[selected.bayIndex];
+    if (bay === undefined) return null;
+    return { run, bay };
+  }, [plan, selected]);
+
   // Track the element's size rather than the window's: the rail and the banner
   // both change the stage's width without the window resizing.
   useEffect(() => {
@@ -137,14 +167,22 @@ export function PlanCanvas({ document: doc }: { readonly document: StudioDocumen
     }
   }, [camera, viewport, list.extent]);
 
+  const effectiveViewport = useMemo(
+    () => (viewport.width > 0 && viewport.height > 0 ? viewport : { width: 800, height: 600 }),
+    [viewport],
+  );
+
+  const effectiveCamera = useMemo(
+    () => camera ?? fitExtent(effectiveViewport, list.extent),
+    [camera, effectiveViewport, list.extent],
+  );
+
   const render = useCallback(() => {
     const canvas = canvasRef.current;
     if (canvas === null || camera === null || viewport.width === 0) return;
     const ctx = canvas.getContext('2d');
     if (ctx === null) return;
 
-    // Re-read the ratio every frame: a window dragged to another display
-    // changes it, and a canvas sized once is blurry from then on.
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(viewport.width * dpr);
     canvas.height = Math.round(viewport.height * dpr);
@@ -153,8 +191,6 @@ export function PlanCanvas({ document: doc }: { readonly document: StudioDocumen
 
     const pens = readPens(window.document.documentElement);
     draw(ctx, list, { camera, viewport, dpr, pens });
-    // Screen-space, and drawn AFTER the world so they are never culled and hold
-    // their size as the camera zooms.
     drawOverlays(ctx, { camera, viewport, dpr, pens });
   }, [camera, list, viewport]);
 
@@ -171,37 +207,89 @@ export function PlanCanvas({ document: doc }: { readonly document: StudioDocumen
     });
   }, [render]);
 
-  const dragging = useRef<{ x: number; y: number } | null>(null);
+  const dragging = useRef<{
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastY: number;
+    moved: boolean;
+  } | null>(null);
 
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    dragging.current = { x: e.clientX, y: e.clientY };
+    if (typeof e.currentTarget.setPointerCapture === 'function') {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // jsdom does not implement pointer capture
+      }
+    }
+    dragging.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      lastX: e.clientX,
+      lastY: e.clientY,
+      moved: false,
+    };
   }, []);
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
-      const from = dragging.current;
-      if (from === null || camera === null) return;
-      setCamera(panByScreen(camera, e.clientX - from.x, e.clientY - from.y));
-      dragging.current = { x: e.clientX, y: e.clientY };
-      schedule();
+      const drag = dragging.current;
+      if (drag !== null) {
+        const dist = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
+        if (dist > 3 && camera !== null) {
+          drag.moved = true;
+          setCamera(panByScreen(camera, e.clientX - drag.lastX, e.clientY - drag.lastY));
+          drag.lastX = e.clientX;
+          drag.lastY = e.clientY;
+          schedule();
+        }
+        return;
+      }
+
+      const rect = e.currentTarget.getBoundingClientRect();
+      const world = screenToWorld(effectiveCamera, effectiveViewport, {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      });
+      setHovered(hitTestPlan(plan, world.x, world.y, effectiveCamera.scale));
     },
-    [camera, schedule],
+    [camera, effectiveCamera, effectiveViewport, plan, schedule],
   );
 
-  const onPointerUp = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
-    dragging.current = null;
-  }, []);
+  const onPointerUp = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (
+        typeof e.currentTarget.hasPointerCapture === 'function' &&
+        e.currentTarget.hasPointerCapture(e.pointerId)
+      ) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+      const drag = dragging.current;
+      dragging.current = null;
+
+      if (drag !== null && !drag.moved) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const world = screenToWorld(effectiveCamera, effectiveViewport, {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+        });
+        const hit = hitTestPlan(plan, world.x, world.y, effectiveCamera.scale);
+        if (hit?.kind === 'bay') {
+          setSelected({ runId: hit.runId, bayId: hit.bayId, bayIndex: hit.bayIndex });
+        } else {
+          setSelected(null);
+        }
+      }
+    },
+    [effectiveCamera, effectiveViewport, plan],
+  );
 
   const onWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
       if (camera === null) return;
       const rect = e.currentTarget.getBoundingClientRect();
       const anchor = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      // Zoom about the cursor, so the thing being examined stays put.
       setCamera(zoomAbout(camera, viewport, anchor, e.deltaY < 0 ? 1.12 : 1 / 1.12));
     },
     [camera, viewport],
@@ -210,6 +298,66 @@ export function PlanCanvas({ document: doc }: { readonly document: StudioDocumen
   const fit = useCallback(() => {
     if (viewport.width > 0) setCamera(fitExtent(viewport, list.extent));
   }, [viewport, list.extent]);
+
+  const actOnSelection = useCallback(
+    (act: 'insert' | 'split' | 'lock' | 'delete' | 'deselect') => {
+      if (act === 'deselect' || activeSelection === null) {
+        setSelected(null);
+        return;
+      }
+      const { bay } = activeSelection;
+      if (act === 'insert') {
+        onCommand?.({ type: 'insertBayAfter', bayId: bay.bayId });
+      } else if (act === 'split') {
+        onCommand?.({ type: 'splitRun', bayId: bay.bayId });
+      } else if (act === 'lock') {
+        onCommand?.({ type: 'toggleLock', bayId: bay.bayId });
+      } else if (act === 'delete') {
+        onCommand?.({ type: 'deleteBay', bayId: bay.bayId });
+      }
+    },
+    [activeSelection, onCommand],
+  );
+
+  // Keyboard shortcuts (S4.2): I = insert bay, S = split run, L = lock/unlock,
+  // Backspace/Delete = delete bay, Escape = deselect, Ctrl/Cmd+Z = undo.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent): void => {
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || target?.isContentEditable) {
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        onUndo?.();
+        return;
+      }
+
+      if (activeSelection === null) return;
+
+      if (e.key === 'i' || e.key === 'I') {
+        e.preventDefault();
+        actOnSelection('insert');
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        actOnSelection('split');
+      } else if (e.key === 'l' || e.key === 'L') {
+        e.preventDefault();
+        actOnSelection('lock');
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        actOnSelection('delete');
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        actOnSelection('deselect');
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activeSelection, actOnSelection, onUndo]);
 
   return (
     <div className="plan-wrap" ref={wrapRef}>
@@ -221,12 +369,151 @@ export function PlanCanvas({ document: doc }: { readonly document: StudioDocumen
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onWheel={onWheel}
-        // The canvas is not the only way to reach this information — the same
-        // counts are in the HUD below as text, which is what a screen reader
-        // and a keyboard user get. A bitmap is never the sole source.
         role="img"
         aria-label={`Plan view: ${doc.runs.length} rack runs, ${list.items.length} drawn items`}
       />
+
+      {/* S4.3 Dynamic SVG overlay layer for hover/selection & keyboard bay targets */}
+      <svg
+        className="plan-overlay-svg"
+        width={effectiveViewport.width}
+        height={effectiveViewport.height}
+        viewBox={`0 0 ${effectiveViewport.width} ${effectiveViewport.height}`}
+        aria-label="Interactive bay overlay"
+      >
+        {plan.runs.map((run) => {
+          const overhangUm = Math.max(0, run.overhang.value);
+          const runTop = run.y - overhangUm;
+          const runBottom = runTop + run.rowBlockPallets.value;
+          return run.bays.map((bay) => {
+            const topLeft = worldToScreen(effectiveCamera, effectiveViewport, {
+              x: bay.x,
+              y: runTop,
+            });
+            const bottomRight = worldToScreen(effectiveCamera, effectiveViewport, {
+              x: bay.x + bay.width,
+              y: runBottom,
+            });
+            const isSelected =
+              activeSelection?.run.runId === run.runId && activeSelection.bay.bayId === bay.bayId;
+            const isHovered =
+              hovered?.kind === 'bay' &&
+              hovered.runId === run.runId &&
+              hovered.bayId === bay.bayId;
+
+            return (
+              <rect
+                key={bay.bayId}
+                data-bay-id={bay.bayId}
+                data-run-id={run.runId}
+                data-selected={isSelected ? 'true' : 'false'}
+                data-locked={bay.locked ? 'true' : 'false'}
+                className={
+                  isSelected
+                    ? 'plan-bay-overlay plan-bay-selected'
+                    : isHovered
+                      ? 'plan-bay-overlay plan-bay-hovered'
+                      : 'plan-bay-overlay'
+                }
+                x={topLeft.x}
+                y={topLeft.y}
+                width={Math.max(2, bottomRight.x - topLeft.x)}
+                height={Math.max(2, bottomRight.y - topLeft.y)}
+                role="button"
+                tabIndex={0}
+                aria-label={`${run.label} Bay ${bay.index + 1}${bay.locked ? ' (locked)' : ''}`}
+                aria-pressed={isSelected}
+                onClick={() =>
+                  setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index })
+                }
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index });
+                  }
+                }}
+              />
+            );
+          });
+        })}
+      </svg>
+
+      {/* S4.2 Floating selection toolbar */}
+      {activeSelection !== null && (
+        <div
+          id="seltoolbar"
+          className="sel-toolbar"
+          role="toolbar"
+          aria-label="Selected bay actions"
+        >
+          <span id="seltitle" className="sel-title">
+            {activeSelection.run.label} · Bay {activeSelection.bay.index + 1}
+            {activeSelection.bay.locked ? ' (LOCKED)' : ''}
+          </span>
+          <button
+            type="button"
+            className="sel-btn"
+            data-act="insert"
+            onClick={() => actOnSelection('insert')}
+          >
+            Insert bay (I)
+          </button>
+          <button
+            type="button"
+            className="sel-btn"
+            data-act="split"
+            onClick={() => actOnSelection('split')}
+          >
+            Split run (S)
+          </button>
+          <button
+            type="button"
+            className="sel-btn"
+            data-act="lock"
+            onClick={() => actOnSelection('lock')}
+          >
+            {activeSelection.bay.locked ? 'Unlock (L)' : 'Lock (L)'}
+          </button>
+          <button
+            type="button"
+            className="sel-btn sel-btn-danger"
+            data-act="delete"
+            onClick={() => actOnSelection('delete')}
+          >
+            Delete bay (⌫)
+          </button>
+          <button
+            type="button"
+            className="sel-btn"
+            data-act="deselect"
+            aria-label="Clear selection"
+            onClick={() => actOnSelection('deselect')}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* S3.5 Legend strip */}
+      <div id="legend" className="plan-legend" aria-label="Drawing legend">
+        <span className="legend-item">
+          <span className="legend-swatch legend-swatch-upright" aria-hidden="true" />
+          Upright &amp; beam
+        </span>
+        <span className="legend-item">
+          <span className="legend-swatch legend-swatch-load" aria-hidden="true" />
+          Unit load footprint
+        </span>
+        <span className="legend-item">
+          <span className="legend-swatch legend-swatch-flue" aria-hidden="true" />
+          Flue space
+        </span>
+        <span className="legend-item">
+          <span className="legend-swatch legend-swatch-locked" aria-hidden="true" />
+          Locked bay
+        </span>
+      </div>
+
       <div className="plan-hud" role="group" aria-label="Layout summary">
         <Chip label="Pallet positions" value={String(plan.totalPositions)} />
         <Chip label="Bays" value={String(plan.totalBays)} />
@@ -238,12 +525,6 @@ export function PlanCanvas({ document: doc }: { readonly document: StudioDocumen
               : formatFeetInches(plan.narrowestClearAisle.value)
           }
         />
-        {/*
-          The three finding chips are PLACEHOLDERS, and they say so rather than
-          showing a zero. A zero here would read as "nothing failing", which is
-          a claim about the layout; "not implemented" is a claim about the
-          build. They become real in S5, when kernel-checks is wired.
-        */}
         <Chip label="Failing" value="—" pending />
         <Chip label="Awaiting input" value="—" pending />
         <Chip label="Awaiting source" value="—" pending />

@@ -143,11 +143,11 @@ describe('deny-by-default', () => {
     await app.close();
   });
 
-  it('lets the one public route through without a principal', async () => {
+  it('lets the public acceptance route through the gate without a principal', async () => {
     const app = appAs(undefined);
     const res = await app.inject({ method: 'POST', url: '/api/auth/invite/accept' });
-    // Reaches the placeholder rather than the gate: 500, not 401.
-    expect(res.statusCode).toBe(500);
+    // Reaches the handler's input DTO validation (400), not the gate (401).
+    expect(res.statusCode).toBe(400);
     await app.close();
   });
 
@@ -195,17 +195,34 @@ describe('deny-by-default', () => {
   it('lets an internal admin through the gate on every internal route', async () => {
     const app = appAs(STAFF);
     for (const route of ROUTES.filter((r) => r.namespace === 'internal')) {
+      const key = routeKey(route.method, route.path);
       const res = await app.inject({ method: route.method, url: route.path.replace(/:\w+/g, 'x') });
-      expect(res.statusCode, `${route.method} ${route.path}`).toBe(500);
+      const expected = UNIMPLEMENTED.has(key) ? 500 : 400;
+      expect(res.statusCode, key).toBe(expected);
     }
     await app.close();
   });
 });
 
-describe('every route is a placeholder, and the list says so rather than the reader guessing', () => {
-  it('names a task for every declared route', () => {
+describe('every unimplemented route is a placeholder, and the list says so rather than the reader guessing', () => {
+  it('names a task for every remaining placeholder and carries none of T-14b’s routes', () => {
+    const implementedInT14b = new Set([
+      'POST /api/auth/invite/accept',
+      'POST /api/auth/session',
+      'DELETE /api/auth/session',
+      'POST /api/client/v1/mfa/enroll',
+      'POST /api/client/v1/mfa/verify',
+      'POST /api/client/v1/invitations',
+      'POST /api/internal/v1/organizations',
+      'POST /api/internal/v1/invitations',
+    ]);
     for (const route of ROUTES) {
-      expect(UNIMPLEMENTED.get(routeKey(route.method, route.path)), `${route.path}`).toMatch(/^T-14[b-e]$/);
+      const key = routeKey(route.method, route.path);
+      if (implementedInT14b.has(key)) {
+        expect(UNIMPLEMENTED.has(key), key).toBe(false);
+      } else {
+        expect(UNIMPLEMENTED.get(key), key).toMatch(/^T-14[c-e]$/);
+      }
     }
   });
 

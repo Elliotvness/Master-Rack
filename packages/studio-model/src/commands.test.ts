@@ -544,3 +544,122 @@ describe('the shapes the default fixture does not contain', () => {
     expect(runOf(r.document, single.runs[1]!.id)!.y - (run.y + bt.frameDepth)).toBe(want);
   });
 });
+
+describe('setField (S4.5)', () => {
+  it('updates and inverts project, building, equipment, unitLoad, bayType and run fields', () => {
+    const { doc: initial, counter } = start();
+    const btId = initial.bayTypes[0]!.id;
+    const runId = initial.runs[0]!.id;
+    const secondBt = { ...initial.bayTypes[0]!, id: 'bt_other' as const, name: 'Type B' };
+    const doc = { ...initial, bayTypes: [initial.bayTypes[0]!, secondBt] };
+    const before = JSON.stringify(doc);
+
+    const commands: Command[] = [
+      {
+        type: 'setField',
+        label: 'Set project name',
+        change: { section: 'project', patch: { name: 'RENAMED JOB', client: 'ACME' } },
+      },
+      {
+        type: 'setField',
+        label: 'Set building clear height',
+        change: {
+          section: 'building',
+          patch: {
+            clearHeight: { value: IN(360), established: 'INPUT' },
+            sprinklered: false,
+          },
+        },
+      },
+      {
+        type: 'setField',
+        label: 'Set truck type',
+        change: {
+          section: 'equipment',
+          patch: {
+            truckType: 'Reach truck',
+            truckRAS: { value: IN(58), established: 'CATALOG' },
+          },
+        },
+      },
+      {
+        type: 'setField',
+        label: 'Set unit load weight',
+        change: {
+          section: 'unitLoad',
+          patch: { weight: 3000, palletD: IN(44) },
+        },
+      },
+      {
+        type: 'setField',
+        label: 'Set bay type beam length',
+        change: {
+          section: 'bayType',
+          bayTypeId: btId,
+          patch: { beamLength: IN(108), palletsPerBay: 3 },
+        },
+      },
+      {
+        type: 'setField',
+        label: 'Set run row spacer',
+        change: {
+          section: 'run',
+          runId,
+          patch: { rowSpacer: IN(18), floorStorage: false },
+        },
+      },
+    ];
+
+    let cur: StudioDocument = doc;
+    let curCounter = counter;
+    const inverses: Command[] = [];
+    for (const cmd of commands) {
+      const r = must(cur, curCounter, cmd);
+      cur = r.document;
+      curCounter = r.counter;
+      inverses.push(r.inverse);
+    }
+
+    expect(cur.name).toBe('RENAMED JOB');
+    expect(cur.building.clearHeight.value).toBe(IN(360));
+    expect(cur.equipment.truckType).toBe('Reach truck');
+    expect(cur.unitLoad.weight).toBe(3000);
+    expect(cur.bayTypes[0]!.beamLength).toBe(IN(108));
+    expect(cur.bayTypes[1]!.name).toBe('Type B');
+    expect(cur.runs[0]!.rowSpacer).toBe(IN(18));
+
+    for (const inv of [...inverses].reverse()) {
+      const r = must(cur, curCounter, inv);
+      cur = r.document;
+      curCounter = r.counter;
+    }
+
+    expect(JSON.stringify(cur)).toBe(before);
+  });
+
+  it('refuses an empty label, an unknown bay type, and an unknown run', () => {
+    const { doc, counter } = start();
+    expect(
+      apply(doc, counter, {
+        type: 'setField',
+        label: '   ',
+        change: { section: 'project', patch: { name: 'X' } },
+      }).ok,
+    ).toBe(false);
+    expect(
+      apply(doc, counter, {
+        type: 'setField',
+        label: 'Set bay type',
+        change: { section: 'bayType', bayTypeId: 'bt_nope', patch: { beamLength: IN(96) } },
+      }).ok,
+    ).toBe(false);
+    expect(
+      apply(doc, counter, {
+        type: 'setField',
+        label: 'Set run',
+        change: { section: 'run', runId: 'run_nope', patch: { floorStorage: false } },
+      }).ok,
+    ).toBe(false);
+  });
+});
+

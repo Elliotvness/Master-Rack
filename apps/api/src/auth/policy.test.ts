@@ -3,8 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   INVITATION_TTL_MS,
   LOGIN_TOKEN_TTL_MS,
+  ORG_COOKIE_NAME,
   SESSION_COOKIE_NAME,
+  formatClearCookie,
+  formatSetCookie,
   lifetimeFor,
+  parseCookies,
   sessionCookieOptions,
 } from '../index.js';
 
@@ -51,6 +55,7 @@ describe('the session cookie', () => {
     // __Host- requires Secure, no Domain, and Path=/. The value of the prefix
     // is that it is enforced by the browser rather than by our discipline.
     expect(SESSION_COOKIE_NAME.startsWith('__Host-')).toBe(true);
+    expect(ORG_COOKIE_NAME.startsWith('__Host-')).toBe(true);
   });
 
   it('is HttpOnly, Secure, SameSite and rooted at /, for every actor type', () => {
@@ -72,6 +77,27 @@ describe('the session cookie', () => {
       sessionCookieOptions('client').maxAgeMs,
     );
   });
+
+  it('parses cookies into a null-prototype map and formats Set-Cookie headers', () => {
+    expect(parseCookies(undefined)).toEqual({});
+    expect(parseCookies('__Host-rms_session=tok1; malformed; =empty; __Host-rms_org=org1')).toEqual({
+      '__Host-rms_session': 'tok1',
+      '__Host-rms_org': 'org1',
+    });
+
+    const lax = formatSetCookie(SESSION_COOKIE_NAME, 'abc', sessionCookieOptions('client', 'acceptance'));
+    expect(lax).toBe('__Host-rms_session=abc; Path=/; Max-Age=1800; HttpOnly; Secure; SameSite=Lax');
+
+    const strict = formatSetCookie(ORG_COOKIE_NAME, 'org-id', {
+      ...sessionCookieOptions('staff'),
+      sameSite: 'strict',
+    });
+    expect(strict).toBe('__Host-rms_org=org-id; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Strict');
+
+    expect(formatClearCookie(SESSION_COOKIE_NAME)).toBe(
+      '__Host-rms_session=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax',
+    );
+  });
 });
 
 describe('token lifetimes', () => {
@@ -85,3 +111,4 @@ describe('token lifetimes', () => {
     expect(LOGIN_TOKEN_TTL_MS).toBeLessThan(INVITATION_TTL_MS);
   });
 });
+

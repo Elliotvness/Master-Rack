@@ -59,6 +59,34 @@ export interface CommandRefused {
 
 export type CommandResult = CommandOk | CommandRefused;
 
+export type FieldChange =
+  | {
+      readonly section: 'project';
+      readonly patch: Partial<Pick<StudioDocument, 'name' | 'client' | 'loadDistributionFactor'>>;
+    }
+  | {
+      readonly section: 'building';
+      readonly patch: Partial<StudioDocument['building']>;
+    }
+  | {
+      readonly section: 'equipment';
+      readonly patch: Partial<StudioDocument['equipment']>;
+    }
+  | {
+      readonly section: 'unitLoad';
+      readonly patch: Partial<StudioDocument['unitLoad']>;
+    }
+  | {
+      readonly section: 'bayType';
+      readonly bayTypeId: EntityId;
+      readonly patch: Partial<Omit<BayType, 'id' | 'beamLevels'>>;
+    }
+  | {
+      readonly section: 'run';
+      readonly runId: EntityId;
+      readonly patch: Partial<Pick<Run, 'backToBack' | 'rowSpacer' | 'floorStorage'>>;
+    };
+
 /** A command is a named, serialisable intent. Serialisable so it can be audited. */
 export type Command =
   | { readonly type: 'deleteBay'; readonly bayId: EntityId }
@@ -91,7 +119,8 @@ export type Command =
   | { readonly type: 'setBeamLevel'; readonly bayTypeId: EntityId; readonly index: number; readonly top: Micrometres }
   | { readonly type: 'addBeamLevel'; readonly bayTypeId: EntityId; readonly top: Micrometres }
   | { readonly type: 'deleteBeamLevel'; readonly bayTypeId: EntityId; readonly index: number }
-  | { readonly type: 'setBeamLevels'; readonly bayTypeId: EntityId; readonly levels: readonly Micrometres[] };
+  | { readonly type: 'setBeamLevels'; readonly bayTypeId: EntityId; readonly levels: readonly Micrometres[] }
+  | { readonly type: 'setField'; readonly label: string; readonly change: FieldChange };
 
 const refuse = (msg: string): CommandRefused => ({ ok: false, msg });
 
@@ -503,6 +532,103 @@ function deleteBeamLevel(
   return setBeamLevels(doc, counter, bayTypeId, levels, `Delete beam level ${index + 1} on ${bt.name}`);
 }
 
+/* ── field edits — promoted from DOM handlers to commands (S4.5) ───────── */
+
+function setField(
+  doc: StudioDocument,
+  counter: IdCounter,
+  label: string,
+  change: FieldChange,
+): CommandResult {
+  if (label.trim() === '') return refuse('A field edit needs a non-empty label.');
+  switch (change.section) {
+    case 'project': {
+      const prev = {
+        name: doc.name,
+        client: doc.client,
+        loadDistributionFactor: doc.loadDistributionFactor,
+      };
+      return {
+        ok: true,
+        document: { ...doc, ...change.patch },
+        counter,
+        label,
+        inverse: { type: 'setField', label, change: { section: 'project', patch: prev } },
+      };
+    }
+    case 'building':
+      return {
+        ok: true,
+        document: { ...doc, building: { ...doc.building, ...change.patch } },
+        counter,
+        label,
+        inverse: { type: 'setField', label, change: { section: 'building', patch: doc.building } },
+      };
+    case 'equipment':
+      return {
+        ok: true,
+        document: { ...doc, equipment: { ...doc.equipment, ...change.patch } },
+        counter,
+        label,
+        inverse: { type: 'setField', label, change: { section: 'equipment', patch: doc.equipment } },
+      };
+    case 'unitLoad':
+      return {
+        ok: true,
+        document: { ...doc, unitLoad: { ...doc.unitLoad, ...change.patch } },
+        counter,
+        label,
+        inverse: { type: 'setField', label, change: { section: 'unitLoad', patch: doc.unitLoad } },
+      };
+    case 'bayType': {
+      const bt = doc.bayTypes.find((t) => t.id === change.bayTypeId);
+      if (bt === undefined) return refuse('Bay type not found.');
+      const prev: Omit<BayType, 'id' | 'beamLevels'> = {
+        name: bt.name,
+        uprightPart: bt.uprightPart,
+        uprightWidth: bt.uprightWidth,
+        frameDepth: bt.frameDepth,
+        frameHeight: bt.frameHeight,
+        beamPart: bt.beamPart,
+        beamLength: bt.beamLength,
+        palletsPerBay: bt.palletsPerBay,
+        beamPairCapacity: bt.beamPairCapacity,
+      };
+      return {
+        ok: true,
+        document: withBayType(doc, bt.id, { ...bt, ...change.patch }),
+        counter,
+        label,
+        inverse: {
+          type: 'setField',
+          label,
+          change: { section: 'bayType', bayTypeId: bt.id, patch: prev },
+        },
+      };
+    }
+    case 'run': {
+      const run = runOf(doc, change.runId);
+      if (run === undefined) return refuse('Run not found.');
+      const prev = {
+        backToBack: run.backToBack,
+        rowSpacer: run.rowSpacer,
+        floorStorage: run.floorStorage,
+      };
+      return {
+        ok: true,
+        document: withRun(doc, run.id, { ...run, ...change.patch }),
+        counter,
+        label,
+        inverse: {
+          type: 'setField',
+          label,
+          change: { section: 'run', runId: run.id, patch: prev },
+        },
+      };
+    }
+  }
+}
+
 /* ── the one entry point ───────────────────────────────────────────────── */
 
 /**
@@ -551,5 +677,7 @@ export function apply(
       return deleteBeamLevel(doc, counter, command.bayTypeId, command.index);
     case 'setBeamLevels':
       return setBeamLevels(doc, counter, command.bayTypeId, command.levels);
+    case 'setField':
+      return setField(doc, counter, command.label, command.change);
   }
 }

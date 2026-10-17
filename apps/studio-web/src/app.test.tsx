@@ -127,8 +127,13 @@ describe('the screening-only notice', () => {
   });
 });
 
-/** Views that are still routing targets only. `plan` left this list in S3. */
-const UNIMPLEMENTED_VIEWS = VIEWS.filter((v) => v.path !== 'plan');
+/**
+ * Views that are still routing targets only.
+ * `plan` left this list in S3.1/S3.2; `elevation` (S3.3) and `sheets` (S3.4) leave it now.
+ */
+const UNIMPLEMENTED_VIEWS = VIEWS.filter(
+  (v) => v.path !== 'plan' && v.path !== 'elevation' && v.path !== 'sheets',
+);
 
 describe('routing', () => {
   it.each(VIEWS.map((v) => [v.path, v.label] as const))(
@@ -164,14 +169,15 @@ describe('routing', () => {
   });
 
   /** A bitmap is never the only way to reach what it shows. */
-  it('/plan states its counts as text beside the canvas', async () => {
+  it('/plan states its counts as text beside the canvas and renders the legend', async () => {
     renderApp('/plan');
     await screen.findByRole('heading', { level: 1 });
-    const img = screen.getByRole('img');
+    const img = screen.getByRole('img', { name: /Plan view:/ });
     expect(img.getAttribute('aria-label')).toMatch(/\d+ rack runs/);
     expect(screen.getByText('Pallet positions')).toBeTruthy();
     expect(screen.getByText('Bays')).toBeTruthy();
     expect(screen.getByText('Narrowest clear aisle')).toBeTruthy();
+    expect(document.getElementById('legend')).not.toBeNull();
   });
 
   /**
@@ -188,12 +194,14 @@ describe('routing', () => {
     }
   });
 
-  it('/plan renders the read-only parameter panel', async () => {
+  it('/plan renders the interactive parameter panel wired to setField', async () => {
     renderApp('/plan');
     await screen.findByRole('heading', { level: 1 });
-    expect(screen.getByText(/Editing arrives with the/)).toBeTruthy();
+    expect(screen.getByText(/Interactive parameters/)).toBeTruthy();
     expect(screen.getByText('Job')).toBeTruthy();
     expect(screen.getByText('Client')).toBeTruthy();
+    expect(document.getElementById('f-name')).not.toBeNull();
+    expect(document.getElementById('levels')).not.toBeNull();
   });
 
   /** Unestablished values read VERIFY in the panel, exactly as on the drawing. */
@@ -201,6 +209,40 @@ describe('routing', () => {
     renderApp('/plan');
     await screen.findByRole('heading', { level: 1 });
     expect(screen.getAllByText('VERIFY').length).toBeGreaterThan(0);
+  });
+
+  it('/elevation renders the inline SVG elevation with floor storage and VERIFY datums (S3.3)', async () => {
+    renderApp('/elevation');
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByText(/Not implemented/)).toBeNull();
+    const svg = document.getElementById('elevsvg');
+    expect(svg).not.toBeNull();
+    expect(svg?.querySelectorAll('[data-item-kind="upright"]').length).toBe(2);
+    expect(svg?.querySelectorAll('[data-item-kind="beam"]').length).toBe(3);
+    expect(svg?.querySelectorAll('[data-item-kind="unit-load"]').length).toBe(1);
+    expect(svg?.textContent).toContain('VERIFY');
+  });
+
+  it('/sheets renders the ANSI D sheet preview, honest fitted scale, and switches sheets (S3.4)', async () => {
+    const user = userEvent.setup();
+    renderApp('/sheets');
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByText(/Not implemented/)).toBeNull();
+    expect(document.getElementById('sheetview')).not.toBeNull();
+    expect(document.getElementById('sheetrail')).not.toBeNull();
+    expect(document.getElementById('tb-scale')?.textContent).toMatch(/1 : \d+ fitted · NOT TO SCALE ON SCREEN/);
+    expect(document.getElementById('tb-stamp')?.textContent).toMatch(/NOT FOR CONSTRUCTION/);
+    expect(document.getElementById('tb-num')?.textContent).toBe('R-101');
+
+    const r201Btn = document.querySelector('[data-sheet="R-201"]') as HTMLButtonElement;
+    await user.click(r201Btn);
+    expect(document.getElementById('tb-num')?.textContent).toBe('R-201');
+    expect(document.getElementById('sheet-elev-svg')).not.toBeNull();
+
+    const r501Btn = document.querySelector('[data-sheet="R-501"]') as HTMLButtonElement;
+    await user.click(r501Btn);
+    expect(document.getElementById('tb-num')?.textContent).toBe('R-501');
+    expect(screen.getByText(/BAY & RUN SCHEDULE/)).toBeTruthy();
   });
 
   it('redirects / to the plan view', async () => {
@@ -217,6 +259,65 @@ describe('routing', () => {
       'textContent',
       'No such view',
     );
+  });
+});
+
+describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
+  it('selects a bay, inserts/locks/deletes via #seltoolbar, announces refusals, and undoes', async () => {
+    const user = userEvent.setup();
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1 });
+
+    // Select the first bay via the S4.3 SVG overlay
+    const firstBay = document.querySelector('[data-bay-id]') as HTMLElement;
+    expect(firstBay).not.toBeNull();
+    await user.click(firstBay);
+
+    const toolbar = document.getElementById('seltoolbar');
+    expect(toolbar).not.toBeNull();
+
+    // Insert a bay: total bays goes from 16 to 17, and #undobtn becomes enabled
+    const insertBtn = toolbar?.querySelector('[data-act="insert"]') as HTMLButtonElement;
+    await user.click(insertBtn);
+    const undoBtn = document.getElementById('undobtn') as HTMLButtonElement;
+    expect(undoBtn.disabled).toBe(false);
+
+    // Undo the insert
+    await user.click(undoBtn);
+    expect(undoBtn.disabled).toBe(true);
+
+    // Lock the selected bay, then try to delete it -> refusal announced in #toast
+    const lockBtn = document.querySelector('[data-act="lock"]') as HTMLButtonElement;
+    await user.click(lockBtn);
+    const deleteBtn = document.querySelector('[data-act="delete"]') as HTMLButtonElement;
+    await user.click(deleteBtn);
+    const toast = document.getElementById('toast') as HTMLElement;
+    expect(toast.textContent).toMatch(/locked/i);
+  });
+
+  it('opens and closes the provenance popover (#prov) from .qbtn and dispatches setField edits', async () => {
+    const user = userEvent.setup();
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1 });
+
+    const provBtns = document.querySelectorAll('.qbtn');
+    expect(provBtns.length).toBeGreaterThan(0);
+    await user.click(provBtns[0] as HTMLButtonElement);
+
+    const provDialog = document.getElementById('prov');
+    expect(provDialog).not.toBeNull();
+    expect(provDialog?.getAttribute('role')).toBe('dialog');
+
+    const closeBtn = document.getElementById('provclose') as HTMLButtonElement;
+    await user.click(closeBtn);
+    expect(document.getElementById('prov')).toBeNull();
+
+    // Toggle clear height verified checkbox -> dispatches setField and enables undo
+    const clearHeightVerified = document.getElementById('f-clearh-v') as HTMLInputElement;
+    expect(clearHeightVerified.checked).toBe(false);
+    await user.click(clearHeightVerified);
+    expect(clearHeightVerified.checked).toBe(true);
+    expect((document.getElementById('undobtn') as HTMLButtonElement).disabled).toBe(false);
   });
 });
 

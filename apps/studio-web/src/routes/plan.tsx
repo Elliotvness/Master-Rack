@@ -1,9 +1,6 @@
-import { migrate, type StudioDocument } from '@rms/studio-model';
-import { useMemo } from 'react';
-
 import { PlanCanvas } from '../plan/plan-canvas.js';
 import { ParamsPanel } from '../plan/params-panel.js';
-import fixture from '../../../../fixtures/continuity/rack-studio-v1.json';
+import { useStudioSession } from '../session-context.js';
 
 /**
  * The plan view.
@@ -16,7 +13,7 @@ import fixture from '../../../../fixtures/continuity/rack-studio-v1.json';
  * not a second sample that could drift from them.
  */
 export default function PlanView(): React.JSX.Element {
-  const doc = useMemo<StudioDocument>(() => migrate(fixture.document).document, []);
+  const { session, runCommand, onUndo } = useStudioSession();
 
   return (
     <section className="plan-view" aria-labelledby="view-heading-plan">
@@ -29,8 +26,8 @@ export default function PlanView(): React.JSX.Element {
         saved.
       </p>
       <div className="plan-layout">
-        <ParamsPanel document={doc} />
-        <PlanCanvas document={doc} />
+        <ParamsPanel document={session.document} onCommand={runCommand} />
+        <PlanCanvas document={session.document} onCommand={runCommand} onUndo={onUndo} />
       </div>
     </section>
   );

@@ -3,8 +3,9 @@ import { Navigate, Route, Routes } from 'react-router';
 
 import { Banner } from './components/banner.js';
 import { Header } from './components/header.js';
-import { ToastRegion, useToasts } from './components/toast.js';
+import { ToastRegion, useToasts, type ToastMessage } from './components/toast.js';
 import { DEFAULT_VIEW, VIEWS } from './nav.js';
+import { StudioSessionProvider, useStudioSession } from './session-context.js';
 
 /**
  * One lazy chunk per view — blueprint §5.4's route-level code-splitting
@@ -35,20 +36,16 @@ function Loading(): React.JSX.Element {
   );
 }
 
-/**
- * The shell.
- *
- * Two regions: the chrome bar and the view. S1 carried a third — an inspector
- * rail that announced its own emptiness — and S3.1 removed it: the plan route
- * now renders its own parameter panel inside the stage, and a rail saying
- * "Empty" beside the thing that fills it is worse than no rail.
- */
-export function App(): React.JSX.Element {
-  const { messages } = useToasts();
+function StudioShell({
+  messages,
+}: {
+  readonly messages: readonly ToastMessage[];
+}): React.JSX.Element {
+  const { canUndo, onUndo } = useStudioSession();
 
   return (
     <div className="studio">
-      <Header />
+      <Header canUndo={canUndo} onUndo={onUndo} />
       <Banner />
 
       <div className="studio-body">
@@ -74,16 +71,22 @@ export function App(): React.JSX.Element {
             </Routes>
           </Suspense>
         </main>
-
-        {/*
-          The inspector rail is per-view: the plan route renders its own
-          parameter panel inside the stage, so a second empty rail beside it
-          would be a region announcing its own emptiness next to the thing that
-          fills it. Views without one say so themselves.
-        */}
       </div>
 
       <ToastRegion messages={messages} />
     </div>
+  );
+}
+
+/**
+ * The shell.
+ */
+export function App(): React.JSX.Element {
+  const { messages, push } = useToasts();
+
+  return (
+    <StudioSessionProvider onRefusal={(msg) => push(msg, 'refusal')}>
+      <StudioShell messages={messages} />
+    </StudioSessionProvider>
   );
 }

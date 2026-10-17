@@ -94,6 +94,7 @@ export function lifetimeFor(
  * localStorage, ever.
  */
 export const SESSION_COOKIE_NAME = '__Host-rms_session';
+export const ORG_COOKIE_NAME = '__Host-rms_org';
 
 export interface CookieOptions {
   readonly httpOnly: true;
@@ -123,3 +124,35 @@ export function sessionCookieOptions(
     maxAgeMs: lifetimeFor(actorType, purpose).absoluteMs,
   };
 }
+
+/**
+ * Parse a `Cookie` request header into a null-prototype map of name → value.
+ * Malformed fragments without `=` are ignored; values are trimmed.
+ */
+export function parseCookies(cookieHeader: string | undefined): Readonly<Record<string, string>> {
+  const out = Object.create(null) as Record<string, string>;
+  if (!cookieHeader) return Object.freeze(out);
+  for (const part of cookieHeader.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq <= 0) continue;
+    const name = part.slice(0, eq).trim();
+    const value = part.slice(eq + 1).trim();
+    if (name.length > 0) {
+      out[name] = value;
+    }
+  }
+  return Object.freeze(out);
+}
+
+/** Format a `Set-Cookie` header value with all `__Host-` required attributes. */
+export function formatSetCookie(name: string, value: string, opts: CookieOptions): string {
+  const maxAgeSec = Math.floor(opts.maxAgeMs / 1000);
+  const sameSite = opts.sameSite === 'strict' ? 'Strict' : 'Lax';
+  return `${name}=${value}; Path=${opts.path}; Max-Age=${String(maxAgeSec)}; HttpOnly; Secure; SameSite=${sameSite}`;
+}
+
+/** Format a `Set-Cookie` header value that immediately expires the cookie. */
+export function formatClearCookie(name: string): string {
+  return `${name}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+}
+

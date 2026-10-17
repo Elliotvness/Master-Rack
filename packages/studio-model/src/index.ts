@@ -80,6 +80,7 @@ export {
   type CommandOk,
   type CommandRefused,
   type CommandResult,
+  type FieldChange,
 } from './commands.js';
 
 export {

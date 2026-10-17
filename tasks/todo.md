@@ -1494,6 +1494,29 @@ M, each leaving the app bootable:
   placeholders", which is a coding gap and one task from moving, rather than "the declared surface
   cannot authenticate anyone", which was a gap in the objective.
 
+  **DONE 2026-10-17.** All 8 `T-14b` routes implemented in `apps/api/src/auth/routes.ts` and mounted
+  in `apps/api/src/app.ts` (`UNIMPLEMENTED` reduced from 32 to 24):
+  - `POST /api/auth/invite/accept`: resolves tenant via `resolveInvitationTenant`, validates password
+    policy, hashes password, calls `redeemInvitation` inside `withTenant`, issues a 30-minute
+    `purpose = 'acceptance'` session and sets `__Host-rms_session` + `__Host-rms_org` cookies (HTTP 204).
+  - `resolveCookiePrincipal` wired as the default `resolvePrincipal` in `createApp`: requires both
+    `__Host-rms_session` and `__Host-rms_org` cookies, verifies the session under `withTenant(orgId, ...)`
+    via `authenticateSession`, and fails closed (`null` → 401 + audit event) on missing, malformed, or
+    forged organization cookies. Acceptance sessions (`purpose: 'acceptance'`) remain restricted by the
+    `preHandler` gate exclusively to `/api/client/v1/mfa/enroll` and `/api/client/v1/mfa/verify`.
+  - `POST /api/client/v1/mfa/enroll` and `POST /api/client/v1/mfa/verify`: TOTP enrollment and TOTP
+    code verification returning `MfaEnrollment` and `MfaFactor` DTOs.
+  - `POST /api/auth/session` and `DELETE /api/auth/session`: email + password + TOTP sign-in issuing a
+    fresh `purpose = 'full'` session and revoking any prior session token passed in cookies (session
+    regeneration per NFR-SEC-04), and sign-out revoking the current session and clearing both cookies.
+  - `POST /api/client/v1/invitations` and `POST /api/internal/v1/invitations`: guarded by `Idempotency-Key`
+    (`claimIdempotencyKey` / `settleIdempotencyKey` with `result_ref` replay on `settled`), `client_admin`
+    scoped strictly to `principal.organizationId`, internal staff scoped to body `organization_id`.
+  - `POST /api/internal/v1/organizations`: guarded by `Idempotency-Key`, creates tenant row in
+    `app.organization` and returns internal `Organization` DTO.
+  - Verified against live PostgreSQL 18.4 (`app.db.test.ts`, `app.test.ts`, `policy.test.ts`, `auth.db.test.ts`
+    all green — 57 tests across 4 files, 0 skipped).
+
 - **T-14c — client reads and drafting** *(M)*. `GET projects`, `GET projects/:id/revisions`
   (`audience='client'` only — `stripInternalRevisions` is the pure half, the query is the other),
   `POST facility` / `units` / `options` (DRAFT only; T-13c input DTOs; the kernel derive on write),

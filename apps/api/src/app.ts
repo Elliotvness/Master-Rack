@@ -54,6 +54,11 @@ import { withTenant, type TenantContext } from '@rms/db';
 
 import { appendAuditEvent } from './audit/chain.js';
 import type { SessionPurpose } from './auth/policy.js';
+import {
+  registerAuthRoutes,
+  resolveCookiePrincipal,
+  type IssuedInvitationNotice,
+} from './auth/routes.js';
 import { authorize, type Action, type Actor } from './authz/authorize.js';
 import { ROUTES, namespaceAllows, type RoutePolicy } from './authz/routes.js';
 import { assertConfiguration } from './idempotency/idempotency.js';
@@ -99,15 +104,12 @@ declare module 'fastify' {
  * deleting an entry, never by someone forgetting one.
  */
 export const UNIMPLEMENTED: ReadonlyMap<string, string> = new Map([
-  ['POST /api/auth/invite/accept', 'T-14b'],
   // The §8.2 amendment of 2026-09-05 (F-46). Mounted and authorized from the
   // day the rows exist, answering 500 until their task fills them — the same
   // posture as every other row here, so "the inventory grew" can never be read
   // as "the product grew".
-  ['POST /api/auth/session', 'T-14b'],
-  ['DELETE /api/auth/session', 'T-14b'],
-  ['GET /api/auth/oidc/start', 'T-14b'],
-  ['GET /api/auth/oidc/callback', 'T-14b'],
+  ['GET /api/auth/oidc/start', 'T-14e'],
+  ['GET /api/auth/oidc/callback', 'T-14e'],
   ['POST /api/internal/v1/projects', 'T-14c'],
   ['POST /api/internal/v1/projects/:id/revisions', 'T-14c'],
   ['POST /api/internal/v1/users/:id/deactivate', 'T-14e'],
@@ -123,15 +125,10 @@ export const UNIMPLEMENTED: ReadonlyMap<string, string> = new Map([
   ['POST /api/client/v1/revisions/:id/clone', 'T-14d'],
   ['GET /api/client/v1/submissions/:id', 'T-14d'],
   ['GET /api/client/v1/documents/:id', 'T-14d'],
-  ['POST /api/client/v1/mfa/enroll', 'T-14b'],
-  ['POST /api/client/v1/mfa/verify', 'T-14b'],
-  ['POST /api/client/v1/invitations', 'T-14b'],
   ['GET /api/internal/v1/queue', 'T-14e'],
   ['GET /api/internal/v1/submissions/:id', 'T-14e'],
   ['GET /api/internal/v1/revisions/:id/bom', 'T-14e'],
   ['POST /api/internal/v1/submissions/:id/derive', 'T-14e'],
-  ['POST /api/internal/v1/organizations', 'T-14b'],
-  ['POST /api/internal/v1/invitations', 'T-14b'],
   ['POST /api/internal/v1/catalog/releases/:id/approve', 'T-14e'],
   ['POST /api/internal/v1/revisions/:id/notes', 'T-14e'],
   ['POST /api/internal/v1/idempotency-claims/:key/release', 'T-14e'],
@@ -330,6 +327,8 @@ export interface AppDeps {
   readonly recordDeny?: DenyRecorder;
   /** Injected so a test can prove the config gate without touching process.env. */
   readonly env?: Readonly<Record<string, string | undefined>>;
+  /** Optional hook invoked when an invitation is committed. */
+  readonly onInvitationIssued?: (notice: IssuedInvitationNotice) => void | Promise<void>;
 }
 
 function send(reply: FastifyReply, code: ErrorCode, message: string): FastifyReply {
@@ -377,6 +376,13 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
     // also means the purpose check below never runs for them, and an entry in
     // ACCEPTANCE_REACHABLE naming one would be inert.
     if (policy.action === null) return undefined;
+
+    if (request.principal === undefined && request.headers.cookie !== undefined) {
+      const resolved = await resolveCookiePrincipal(request.headers.cookie, now());
+      if (resolved !== undefined) {
+        request.principal = resolved;
+      }
+    }
 
     const principal = request.principal;
     if (principal === undefined) {
@@ -453,8 +459,17 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
     });
   }
 
+  registerAuthRoutes(app, {
+    now,
+    newId,
+    env: deps.env,
+    recordDeny,
+    onInvitationIssued: deps.onInvitationIssued,
+  });
+
   for (const route of ROUTES) {
     const task = UNIMPLEMENTED.get(routeKey(route.method, route.path));
+    if (task === undefined) continue;
     app.route({
       method: route.method,
       url: route.path,
@@ -464,7 +479,7 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
         // named in UNIMPLEMENTED so nobody has to guess which is which.
         // Whether §8.3 should gain a 501 row is a blueprint question, recorded
         // rather than answered here.
-        return send(reply, 'INTERNAL_ERROR', `route not implemented (${task ?? 'unassigned'})`);
+        return send(reply, 'INTERNAL_ERROR', `route not implemented (${task})`);
       },
     });
   }
