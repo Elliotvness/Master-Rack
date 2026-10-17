@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * selftest-rls — prove the two assertions in check-rls actually catch things:
- * the sensitivity-column one (D-02) and the privilege one (F-31).
+ * selftest-rls — prove the three assertions in check-rls actually catch things:
+ * the sensitivity-column one (D-02), the privilege one (F-31) and the
+ * definer-authority one (§14.2 item 7).
  *
  * `check-rls` gained a real control in 0005: if a table carries a column that
  * is a SENSITIVITY axis rather than a tenancy one, some policy on that table
@@ -20,7 +21,11 @@
  * is no more use than one that fails on nothing.
  */
 
-import { grantViolations, sensitivityViolations } from './check-rls.mjs';
+import {
+  grantViolations,
+  securityDefinerViolations,
+  sensitivityViolations,
+} from './check-rls.mjs';
 
 /** The shape `information_schema.columns` returns. */
 const COL = (table_name, column_name) => ({ table_name, column_name });
@@ -170,7 +175,209 @@ const GRANT_CASES = [
   },
 ];
 
+/**
+ * The definer-authority axis (§14.2 item 7). Same posture again: the fixtures
+ * are the rows `pg_proc` and `pg_class` would have returned, so this runs with
+ * no database.
+ *
+ * The case that matters most is the FIRST one. A `SECURITY DEFINER` function is
+ * the one object that makes every other assertion in this checker decorative,
+ * and until this axis existed nothing in the repository looked for one —
+ * §14.2's checklist said "audit every SECURITY DEFINER function and view" and
+ * that sentence was the whole control.
+ */
+const FN = (identity, security_type, config = null, owner = 'rms_migrator') => ({
+  identity,
+  security_type,
+  config,
+  owner,
+});
+const VIEW = (view_name, security_invoker) => ({ view_name, security_invoker });
+
+/**
+ * The EIGHT functions migrations 0001-0015 leave in schema `app`, as
+ * `oid::regprocedure` renders them, and the ONE of them that is
+ * `SECURITY DEFINER`. `check-rls` prints "7 function(s) of which 1 SECURITY
+ * DEFINER" against the migrated database.
+ *
+ * This fixture has now been caught stale THREE times, and every time the
+ * pass/fail outcome was unaffected — which is exactly why it rots. The first draft listed the three 0002 helpers and called itself "the
+ * schema", omitting 0001's three `refuse_*` triggers; the second still said
+ * 0001-0013 the day 0014 added the resolver. A fixture whose whole job is to be
+ * the real shape has to be re-derived when the schema moves, and nothing
+ * derives it. **Re-derive with:**
+ * `SELECT p.oid::regprocedure, p.prosecdef FROM pg_proc p JOIN pg_namespace n
+ *  ON n.oid = p.pronamespace WHERE n.nspname = 'app' ORDER BY 1;`
+ */
+const SCHEMA_FUNCTIONS = [
+  FN('app.current_actor_type()', 'INVOKER'),
+  FN('app.current_org()', 'INVOKER'),
+  FN('app.is_staff()', 'INVOKER'),
+  FN('app.refuse_audit_mutation()', 'INVOKER'),
+  FN('app.refuse_derived_change_when_frozen()', 'INVOKER'),
+  FN('app.refuse_frozen_revision_change()', 'INVOKER'),
+  FN('app.refuse_session_purpose_change()', 'INVOKER'),
+  FN('app.resolve_invitation_tenant(text)', 'DEFINER', ['search_path=']),
+];
+
+/** The exemption the real `check-rls` carries for the one definer function. */
+const SCHEMA_DEFINER_EXEMPTIONS = {
+  'app.resolve_invitation_tenant(text)': 'F-47, migration 0014 — the invitation tenant resolver',
+};
+
+const INVOKER_ONLY = SCHEMA_FUNCTIONS.filter((f) => f.security_type === 'INVOKER');
+
+const DEFINER_CASES = [
+  {
+    name: '§14.2 item 7 itself: an unexempted SECURITY DEFINER function',
+    meaning: 'one function reads and writes every tenant and every policy above it is decorative',
+    functions: [...INVOKER_ONLY, FN('app.resolve_invitation_org(text)', 'DEFINER', ['search_path=app'])],
+    views: [],
+    functionExemptions: {},
+    viewExemptions: {},
+    expect: 'FAIL',
+  },
+  {
+    name: 'an EXEMPTED definer function with no pinned search_path',
+    meaning: 'the standard escalation: a caller shadows a name and runs their code as the owner',
+    functions: [...INVOKER_ONLY, FN('app.resolve_invitation_org(text)', 'DEFINER', null)],
+    views: [],
+    functionExemptions: { 'app.resolve_invitation_org(text)': 'resolves an anonymous bearer to its tenant' },
+    viewExemptions: {},
+    expect: 'FAIL',
+  },
+  {
+    name: 'search_path set on something else is not search_path set',
+    meaning: 'a config entry that merely contains the words would pass a looser test',
+    functions: [
+      ...INVOKER_ONLY,
+      FN('app.resolve_invitation_org(text)', 'DEFINER', ['role=app_owner', 'statement_timeout=5s']),
+    ],
+    views: [],
+    functionExemptions: { 'app.resolve_invitation_org(text)': 'resolves an anonymous bearer to its tenant' },
+    viewExemptions: {},
+    expect: 'FAIL',
+  },
+  {
+    name: 'an exempted definer function WITH a pinned search_path',
+    meaning: 'the audited, deliberate case must be allowed or the exemption list means nothing',
+    functions: [
+      ...INVOKER_ONLY,
+      FN('app.resolve_invitation_org(text)', 'DEFINER', ['search_path=app, pg_catalog']),
+    ],
+    views: [],
+    functionExemptions: { 'app.resolve_invitation_org(text)': 'resolves an anonymous bearer to its tenant' },
+    viewExemptions: {},
+    expect: 'PASS',
+  },
+  {
+    name: 'a stale exemption for a function that is gone',
+    meaning: 'a justification outlives the thing it justified, silently',
+    functions: [...SCHEMA_FUNCTIONS],
+    views: [],
+    functionExemptions: { 'app.resolve_invitation_org(text)': 'dropped in a later migration' },
+    viewExemptions: {},
+    expect: 'FAIL',
+  },
+  {
+    name: 'an exemption for a function that has since been made SECURITY INVOKER',
+    meaning: 'the exemption would go on excusing a definer function if one were ever restored under that name',
+    functions: [...INVOKER_ONLY, FN('app.resolve_invitation_org(text)', 'INVOKER')],
+    views: [],
+    functionExemptions: { 'app.resolve_invitation_org(text)': 'resolves an anonymous bearer to its tenant' },
+    viewExemptions: {},
+    expect: 'FAIL',
+  },
+  {
+    name: 'a view without security_invoker over a tenant table',
+    meaning: 'the same hole in different clothes — the view reads every tenant as its owner',
+    functions: [...INVOKER_ONLY],
+    views: [VIEW('all_invitations', false)],
+    functionExemptions: {},
+    viewExemptions: {},
+    expect: 'FAIL',
+  },
+  {
+    name: 'the same view with security_invoker = true',
+    meaning: 'a view that evaluates RLS as the caller is not the hazard and must not be flagged',
+    functions: [...INVOKER_ONLY],
+    views: [VIEW('all_invitations', true)],
+    functionExemptions: {},
+    viewExemptions: {},
+    expect: 'PASS',
+  },
+  {
+    name: 'a stale view exemption',
+    meaning: 'a justification outlives the thing it justified, silently',
+    functions: [...INVOKER_ONLY],
+    views: [VIEW('all_invitations', true)],
+    functionExemptions: {},
+    viewExemptions: { all_invitations: 'the view was given security_invoker in a later migration' },
+    expect: 'FAIL',
+  },
+  {
+    name: 'an EXEMPTED definer-rights view',
+    meaning: 'the honouring branch of the view arm had no case at all — disabling it left the suite green',
+    functions: [...INVOKER_ONLY],
+    views: [VIEW('all_invitations', false)],
+    functionExemptions: {},
+    viewExemptions: { all_invitations: 'a materialized view, which cannot carry the option' },
+    expect: 'PASS',
+  },
+  {
+    name: 'an OVERLOAD of an exempted definer function',
+    meaning: 'one justification would cover a second body under the same name — F-47 option A adds exactly that name',
+    functions: [
+      ...INVOKER_ONLY,
+      FN('app.resolve_invitation_org(text)', 'DEFINER', ['search_path=app, pg_catalog']),
+      FN('app.resolve_invitation_org(uuid)', 'DEFINER', ['search_path=app, pg_catalog']),
+    ],
+    views: [],
+    functionExemptions: {
+      'app.resolve_invitation_org(text)': 'resolves an anonymous bearer to its tenant',
+    },
+    viewExemptions: {},
+    expect: 'FAIL',
+  },
+  {
+    name: 'the schema as migrations 0001-0015 leave it, resolver exempted',
+    meaning: 'a checker that fails on everything is no more use than one that fails on nothing',
+    functions: [...SCHEMA_FUNCTIONS],
+    views: [],
+    functionExemptions: SCHEMA_DEFINER_EXEMPTIONS,
+    viewExemptions: {},
+    expect: 'PASS',
+  },
+  {
+    name: 'the real schema with the resolver UNEXEMPTED — the state check-rls actually refused',
+    meaning: '0014 landed and the build stayed green, which is the whole axis not working',
+    functions: [...SCHEMA_FUNCTIONS],
+    views: [],
+    functionExemptions: {},
+    viewExemptions: {},
+    expect: 'FAIL',
+  },
+];
+
 let failures = 0;
+for (const c of DEFINER_CASES) {
+  const violations = securityDefinerViolations(
+    c.functions,
+    c.views,
+    c.functionExemptions,
+    c.viewExemptions,
+  );
+  const got = violations.length > 0 ? 'FAIL' : 'PASS';
+  if (got === c.expect) {
+    console.log(`  ok    [definer] ${c.name} \u2192 ${got}`);
+  } else {
+    failures += 1;
+    console.error(`  MISS  [definer] ${c.name}: expected ${c.expect}, got ${got}`);
+    console.error(`        if this is wrong: ${c.meaning}`);
+    for (const v of violations) console.error(`        ${v}`);
+  }
+}
+
 for (const c of GRANT_CASES) {
   const violations = grantViolations(c.tables, c.grants, c.exemptions);
   const got = violations.length > 0 ? 'FAIL' : 'PASS';
@@ -197,7 +404,7 @@ for (const c of CASES) {
   }
 }
 
-const TOTAL = CASES.length + GRANT_CASES.length;
+const TOTAL = CASES.length + GRANT_CASES.length + DEFINER_CASES.length;
 
 if (failures > 0) {
   console.error(`\nselftest-rls: FAIL — ${failures} of ${TOTAL} case(s) not caught.`);
@@ -205,6 +412,7 @@ if (failures > 0) {
 } else {
   console.log(
     `\nselftest-rls: PASS — ${TOTAL} cases ` +
-      `(${CASES.length} sensitivity, ${GRANT_CASES.length} privilege).`,
+      `(${CASES.length} sensitivity, ${GRANT_CASES.length} privilege, ` +
+      `${DEFINER_CASES.length} definer-authority).`,
   );
 }

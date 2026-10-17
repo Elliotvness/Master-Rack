@@ -15,7 +15,9 @@
 import { sep } from 'node:path';
 
 import {
+  BAND_PREFIXES,
   SUB_FEATURE_PHASE_2,
+  bandViolations,
   blueprintRoutes,
   check,
   registryRoutes,
@@ -174,6 +176,67 @@ function assertRealTreeReachable() {
   );
   return true;
 }
+
+/**
+ * The band rule (2026-09-05). §8.2's bands are where a reader sees the
+ * client/internal separation, and until this rule existed the checker compared
+ * rows and never asked which band they were in — so the amendment filed two
+ * `/api/client` routes under Internal surface, and `POST /api/client/v1/invitations`
+ * had been there since the table was written, with every gate green.
+ *
+ * Fed rows directly rather than HTML: `bandViolations` is pure for exactly this
+ * reason, and a fixture blueprint would test the parser twice and the rule once.
+ */
+const ROW = (band, method, path) => ({ band, path, key: `${method} ${path}`, phase2: false, marked: false });
+
+ok(
+  'a client route filed under Internal surface is refused',
+  bandViolations([ROW('Internal surface', 'POST', '/api/client/v1/mfa/enroll')]).some((v) =>
+    v.includes('is filed under "Internal surface"'),
+  ),
+);
+ok(
+  'an internal route filed under Client surface is refused',
+  bandViolations([ROW('Client surface', 'GET', '/api/internal/v1/queue')]).length === 1,
+);
+ok(
+  'an auth route filed under Client surface is refused',
+  bandViolations([ROW('Client surface', 'POST', '/api/auth/session')]).length === 1,
+);
+ok(
+  'a row before any band heading is refused rather than skipped',
+  bandViolations([ROW(null, 'POST', '/api/client/v1/mfa/enroll')]).some((v) =>
+    v.includes('before any band heading'),
+  ),
+);
+ok(
+  'a band this rule does not know is refused, so its rows are never silently unchecked',
+  bandViolations([ROW('Partner surface', 'POST', '/api/partner/v1/x')]).some((v) =>
+    v.includes('does not know'),
+  ),
+);
+ok(
+  'rows that are all in unknown bands do not report a pass over an inspection of nothing',
+  bandViolations([ROW('Partner surface', 'POST', '/api/partner/v1/x')]).some((v) =>
+    v.includes('refusing to report'),
+  ),
+);
+ok(
+  'every row in its own band passes — a rule that fails on everything is no use',
+  bandViolations([
+    ROW('Authentication surface', 'POST', '/api/auth/session'),
+    ROW('Client surface', 'POST', '/api/client/v1/mfa/enroll'),
+    ROW('Internal surface', 'GET', '/api/internal/v1/queue'),
+  ]).length === 0,
+);
+// The real §8.2 is covered by `check()` in assertRealTreeReachable and by
+// `pnpm check:routesurface` itself; asserting it here as well would only test
+// the same file twice with a second path resolution to get wrong.
+ok(
+  'BAND_PREFIXES covers all three bands and nothing is empty',
+  Object.keys(BAND_PREFIXES).length === 3 &&
+    Object.values(BAND_PREFIXES).every((p) => p.startsWith('/api/') && p.endsWith('/')),
+);
 
 function main() {
   if (!assertRealTreeReachable()) {

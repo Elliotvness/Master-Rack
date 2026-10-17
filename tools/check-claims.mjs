@@ -149,6 +149,48 @@ export const DERIVATIONS = Object.freeze({
       return 0;
     }
   },
+  /**
+   * Self-test invocations in the `verify` chain, and the checkers behind them.
+   *
+   * Drift 38 and drift 50 are the same defect at this number: "14 self-tested
+   * checkers in CI" was published the moment `check-server-owned` landed in
+   * `verify` and not in `ci.yml`, and the count has been hand-carried and wrong
+   * in at least four editions since. CLAUDE.md already says *"re-derive the
+   * count from `package.json`; do not copy it from here"* — this is that
+   * derivation, so the instruction now has a mechanism instead of a reader.
+   *
+   * The two numbers differ by exactly one and the difference is not an error:
+   * `check:draw:selftest` has no separate `check:draw` because IT IS the gate —
+   * it asserts the `.mjs` tool and the compiled kernel draw the same cells, and
+   * there is nothing else to run. A derivation that reported one number would
+   * have to pick which of the two sentences to make false.
+   *
+   * Matched on the `:selftest` SUFFIX, not on a `check:` prefix: the first
+   * draft of this used `/^check:.*:selftest$/` and returned 16 and 15, because
+   * `lint:provenance:selftest` does not start with `check:`. It disagreed with
+   * CLAUDE.md, with `progress.md` and with the CI step list, all three of which
+   * were right. Found by running it against the real file before trusting it,
+   * which is the only reason it is not now enshrined as a gate.
+   */
+  selfTestInvocations: (root) => {
+    try {
+      const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+      return Object.keys(pkg.scripts ?? {}).filter((s) => s.endsWith(':selftest')).length;
+    } catch {
+      return 0;
+    }
+  },
+  selfTestedCheckers: (root) => {
+    try {
+      const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+      const names = Object.keys(pkg.scripts ?? {});
+      return names
+        .filter((s) => s.endsWith(':selftest'))
+        .filter((s) => names.includes(s.slice(0, -':selftest'.length))).length;
+    } catch {
+      return 0;
+    }
+  },
   /** Rows in `PHASE_2_ROUTES`, so "the registry carries a phase-2 row" is measured too. */
   phase2Routes: (root) => {
     try {
@@ -199,6 +241,33 @@ export const CLAIMS = Object.freeze([
     pattern: /^\| Route table \| \*\*(\d+) entries\*\*/m,
     derive: 'routeTableEntries',
   },
+  /**
+   * THE ROUTE SURFACE, in all three copies, added 2026-09-05.
+   *
+   * There was a claim for `progress.md` and for neither of the others, and the
+   * §8.2 amendment walked straight through the gap: `progress.md` was corrected
+   * to 32 while `progress.html` went on saying "Route table holds 22 entries
+   * (12 client · 9 internal · 1 public)" and `claude-resume-prompt.md` carried
+   * "22 of 22" in the row ABOVE the new one — two answers to one question in
+   * one table, in the file a cold session reads first. `check-scoreboard-sync`
+   * printed PASS over it, correctly: it compares the phase bars, the §15.2
+   * headline and the measure cards, not this row, and says so in its own
+   * docstring.
+   *
+   * A claim for one copy of a figure is a claim for one copy of a figure.
+   */
+  {
+    id: 'progress.html · route table entries',
+    file: 'tasks/progress.html',
+    pattern: /Route table holds <strong>(\d+)<\/strong> entries/,
+    derive: 'routeTableEntries',
+  },
+  {
+    id: 'claude-resume-prompt.md · route table entries',
+    file: 'claude-resume-prompt.md',
+    pattern: /\*\*(\d+) of \d+\*\* MVP-1 routes declared, mounted and checked/,
+    derive: 'routeTableEntries',
+  },
   {
     id: 'progress.md · phase-2 routes held separately',
     file: 'tasks/progress.md',
@@ -216,6 +285,43 @@ export const CLAIMS = Object.freeze([
     file: 'tasks/progress.html',
     pattern: /<strong>(\d+)<\/strong> front-end files/,
     derive: 'frontEndFiles',
+  },
+  {
+    id: 'progress.md · self-test invocations',
+    file: 'tasks/progress.md',
+    pattern: /\*\*(\d+) self-test invocations covering \d+ checkers\*\*/,
+    derive: 'selfTestInvocations',
+  },
+  {
+    id: 'progress.md · self-tested checkers',
+    file: 'tasks/progress.md',
+    pattern: /\*\*\d+ self-test invocations covering (\d+) checkers\*\*/,
+    derive: 'selfTestedCheckers',
+  },
+  /**
+   * THE FIFTH COPY. `claude-resume-prompt.md` is the file a cold session is
+   * told to read first, it is the only scoreboard copy nothing gated, and
+   * session 9 found it six editions stale — which made two runs open by
+   * proposing work finished a week earlier (drift 45). Gating the figures it
+   * states is cheaper than finding it stale again.
+   */
+  {
+    id: 'claude-resume-prompt.md · self-test invocations',
+    file: 'claude-resume-prompt.md',
+    pattern: /\*\*(\d+) self-test invocations covering \d+ checkers\*\*/,
+    derive: 'selfTestInvocations',
+  },
+  {
+    id: 'claude-resume-prompt.md · self-tested checkers',
+    file: 'claude-resume-prompt.md',
+    pattern: /\*\*\d+ self-test invocations covering (\d+) checkers\*\*/,
+    derive: 'selfTestedCheckers',
+  },
+  {
+    id: 'claude-resume-prompt.md · test files',
+    file: 'claude-resume-prompt.md',
+    pattern: /exit 0 —\s+(\d+) files/,
+    derive: 'testFiles',
   },
   {
     id: 'progress.html · packages',

@@ -35,7 +35,7 @@ the blueprint wins.
 6. **Git state** — run `git status`, `git log --oneline -15`, `git branch -vv` and confirm the
    current branch and tip before touching anything.
 
-## Step 2 — Where the project stands (scoreboard, 2026-09-04, session 10)
+## Step 2 — Where the project stands (scoreboard, 2026-09-05, session 13, second edition)
 
 Every figure below is measured against the blueprint. The scoreboard's own rule: **0% is the
 answer**; the other percentages are how much of the written plan has been executed. **Re-measure
@@ -47,20 +47,52 @@ before you quote any of these** — this section was six sessions stale until 20
 | Plan-task completion, effort-weighted | 66 of 160 pts — 41.3% (an upper bound, not the answer) | `tasks/todo.md` phases, sliced from blueprint §15.3 |
 | Plan-task completion, task count | 24 of 49 — 49% | Same, unweighted |
 | Pre-merge review `R-01…R-11` | **11 of 11 — 100%** | Blueprint §16.1 review gates — one merged branch's checklist, not the project |
-| Route surface vs the blueprint | **22 of 22** MVP-1 routes declared, mounted and checked | Blueprint §8.2 — 24 rows, 2 marked phase 2 |
+| Route surface vs the blueprint | **32 of 32** MVP-1 routes declared, mounted and checked — up from 22 | §8.2, amended twice: 34 rows, 2 marked phase 2. **All 32 handlers answer 500** — the inventory grew, the product did not |
 
-`main` @ **`0bb5383`**, level with `origin/main`, clean tree. `origin/task/t-13c-input-dtos` and
-`origin/task/t-13d-idempotency` are merged and 0 ahead; they can be deleted. Phases 0, 1 and 2 are
-complete. Do **not** quote an ahead/unpushed pair from any document: every documentation commit
-moves it — re-run `git rev-list --left-right --count origin/main...HEAD`.
+**No sha is quoted here, deliberately.** `main` moves every time a PR lands, and a sha written into
+this file went stale inside a day twice (drift 45, drift 49). `git ls-remote --heads origin` answers
+it, and `git rev-list --left-right --count origin/main...HEAD` answers the ahead/unpushed pair —
+every documentation commit moves that one too. Phases 0, 1 and 2 are complete.
 
-**Verified 2026-09-04 in the container against native PostgreSQL 16.13:** `pnpm verify` **exit 0 —
-59 files, 1,491 tests, 0 skipped**, 15 checkers behind their self-tests, coverage all files
-99.54 / 98.90 / 99.40 / 99.54, 13 migrations. That run was on `main` itself, which no earlier
-edition of the scoreboard can say.
+**`origin` carries three branches besides `main`, and ZERO open pull requests.** Measured
+2026-09-05, not reported — `git ls-remote --heads origin` and `GET /pulls?state=open`:
+`task/gate-the-fifth-copy` @ `ebdbf58` (CI #107 success, **no PR**), `task/s-0-0-studio-gates` @
+`e8e0b8a` (CI #106 success, **no PR**), and `docs/session-11-prose-gate` @ `78c29ef`, which is
+**already merged into `main` and was never deleted** — so the scoreboard section claiming that
+cleanup is done is one branch short (drift 52). **Session 13's branch is local only** and reaches
+EL through the mount, because a scheduled run cannot push **and the two lanes fail differently,
+measured 2026-09-05 with real pushes rather than dry runs**: from the container the git proxy
+answers **403** (*"not in this session's authorized repository set"*), and from the bridge shell on
+the Windows device `git push` dies with *"could not read Username for 'https://github.com'"* — no
+credential helper reaches that shell, so it is not the same problem and enabling one lane would not
+fix the other. GitHub Desktop holds the credentials; that is the path. Merging session 12's edition and
+session 13's conflicts on exactly one line — this file's and `tasks/progress.md`'s header date. Take
+session 13's header and keep both bodies.
+
+**A scheduled run in this environment cannot read the Actions API either.** The container's GitHub
+access is not enabled for the repository and there is no tool in the session to enable it; the runs
+above were read through the connected Windows device, which can. Anyone quoting a CI result from a
+cloud session should say which side read it.
+
+**Verified 2026-09-05 in the container against native PostgreSQL 16.13. Eight `pnpm verify` runs
+across the session, every completed one at exit 0; three stopped at `check-claims` and one at the
+coverage gate, each time over a figure this session had just made stale — the gates working, not
+failing. The run cited is the last, on the tree as committed:**
+`pnpm verify` **exit 0 — 78 files, 2,216 tests, 0 skipped**,
+**19 self-test invocations covering 18 checkers**, coverage all files
+99.53 / 98.88 / 99.42 / 99.53, 15 migrations, 15 declared claims. Both
+three occurrences of "skipped" in the log are self-test case names — read,
+not assumed (F-29). v8 coverage is not bit-stable across worker
+scheduling — earlier runs today on other trees read 99.51 and 99.54 — so
+the figure published is always the one from the run at the tree being
+cited, never the best of them.
+
+*Do not copy the checker count out of this paragraph into a new document.* It is derived from
+`package.json` by `check-claims`, which now gates it **in this file** — the fifth scoreboard copy,
+and until 2026-09-05 the only one nothing checked.
 
 **Why §15.2 is still 0 of 8, and it is no longer a formality.** T-14a built the server:
-`apps/api/src/app.ts` builds a Fastify instance, `createApp` mounts all 22 §8.2 MVP-1 routes and
+`apps/api/src/app.ts` builds a Fastify instance, `createApp` mounts all 32 §8.2 MVP-1 routes and
 authorizes every one of them, and the router refuses to boot if it and the policy registry disagree
 in either direction. **All 22 handlers are placeholders that answer 500**, declared as data in
 `UNIMPLEMENTED` so "the app boots" can never be read as "the app works". **T-14b is the first point
@@ -98,14 +130,50 @@ lands work on the mount and the push ends at GitHub Desktop and at EL.
 reason is not convenience: it makes **CI** the judge of an unattended run's work instead of the
 run's own say-so — the standard everything else in this repository is held to.
 
-### 1. Phase 3, the server, in the container
+### 1. Phase 3 is OPEN. Start T-14b — but read its entry in `tasks/todo.md` first.
 
-**T-14b — auth and organizations** → **T-14c** → **T-14d + P-01** → **T-14e + P-02** → **T-15**,
-with P-01 and P-02 landing in the same commits as the routes they measure. T-14b turns §15.2 steps
-1 and 2 — invitation, and acceptance and sign-in — from placeholders into responses.
+**T-14b was refused on 2026-09-05 (F-46) and unblocked the same day.** EL amended §8.2 with the ten
+routes the inventory lacked — sign-in, sign-out, staff OIDC start and callback, second-factor enroll
+and verify, project creation, first-revision creation, user deactivation and invitation revocation.
+§8.2 now lists **34 rows, 32 MVP-1**, `ROUTES` carries all 32, and `check-route-surface` passes in
+both directions. **Every one of the 32 handlers answers 500**, so §15.2 did not move and could not.
 
-Every one of these can be implemented and verified in the container. The Windows lane is one
-publish and one verify per task, and the tree comparison after each publish is not optional.
+**The task was rewritten, and the rewrite is not cosmetic.** Its old specification —
+*"single-use token → credential → session"* — was the auto-login §14.3 forbids in terms. Acceptance
+now issues the **short-lived acceptance session** §14.3's Transport row describes and no login
+session; signing in is `POST /api/auth/session`.
+
+**Two pieces are already built, so do not rebuild them.** `resolveInvitationTenant(token)` in
+`apps/api/src/auth/invitation.ts` resolves an anonymous bearer to its organization through migration
+`0014`'s `SECURITY DEFINER` function — it owns the unscoped transaction, so a handler never holds
+one. And `withUnresolvedTenant` is confined by `check-app-boundaries` to `apps/api/src/auth/`: if
+you find yourself wanting it elsewhere, that is the boundary talking, not an obstacle.
+
+**T-14b's first slice is DONE — the acceptance session is scoped.** Migration `0015` gives
+`app.session` a `purpose` (enum, NOT NULL, **no default**, and **immutable** — a session cannot
+change what it is for, so signing in CREATES one and revokes the acceptance row, never promotes it
+in place). The gate refuses an acceptance session on every route but
+`POST /api/client/v1/mfa/{enroll,verify}`, as 401 with an audit event. Read F-50 before touching any
+of it: review found the gate failing OPEN on a missing field, a lifetime CHECK that stranded people
+permanently, and a `purpose` column one UPDATE from being escalated.
+
+**Two things about it are EL's and are OPEN.** The lifetime is **provisional** —
+`ACCEPTANCE_SESSION_TTL_MS`, thirty minutes, deliberately not §14.3's 15-minute login number,
+because the reason the gate bounds this session is that it is *not* a login. And **there is no
+recovery path**: the acceptance POST spends the single-use token, resend requires an unaccepted
+invitation, so a person who does not finish enrolling is stranded whatever the number is. Do not
+solve that in code — it needs a §8.2 row.
+
+**What is left of T-14b**, in order: the session preHandler (cookie pair → principal, organization
+cookie verified rather than trusted); `POST /api/auth/invite/accept` (via
+`resolveInvitationTenant`, issuing the acceptance session and **no** login session);
+`POST /api/auth/session` and `DELETE`; the two MFA handlers; then
+`POST /api/client/v1/invitations`, `POST /api/internal/v1/invitations` and
+`POST /api/internal/v1/organizations` with T-13d idempotency on the two invitation routes.
+
+**Then:** T-14c (which inherits `POST /api/internal/v1/projects` and `.../projects/:id/revisions`)
+→ T-14d + P-01 → T-14e (which inherits `.../users/:id/deactivate` and `.../invitations/:id/revoke`)
+→ T-15, with P-01 and P-02 in the same commits as the routes they measure.
 
 **Carried into T-14e, recorded not forgotten:** the operator release route has a policy row, an
 authz rule, a §8.2 row and a mounted placeholder but no handler and no caller; `purgeExpiredOn`
@@ -126,7 +194,7 @@ Kept because the lineage matters and the instructions above replaced it. PR #1 m
 R-08 and R-10 closed in session 6 at Checkpoint A; Checkpoint A closed on EL's word; T-13b, T-13c,
 T-13d and T-14a landed in sessions 6 to 8 and merged as `42c8211` on 2026-09-03. Drift 4 —
 "T-14 says 23 §8.2 routes, the table carries 20" — was reclassified rather than doc-fixed, and
-T-14a plus EL's §8.2 amendment closed it: 22 of 22, with `check-route-surface` diffing the built
+T-14a plus EL's first §8.2 amendment closed it at 22 of 22 — now **32 of 32** after the second, with `check-route-surface` diffing the built
 blueprint against the registry in both directions on every run. **Session 2's proposed remedy, to
 edit 23 down to 20, would have hidden two missing MVP-1 routes by moving the target to meet the
 code. That is why the blueprint wins and the scoreboard is what gets fixed.**

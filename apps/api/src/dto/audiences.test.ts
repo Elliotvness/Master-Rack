@@ -4,6 +4,7 @@ import {
   OutboundValidationError,
   SchemaError,
   clientResponse,
+  NEVER_LOG_FIELDS,
   findForbiddenFields,
   number,
   outboundGuard,
@@ -31,14 +32,19 @@ import {
   toInternalNoteDTO,
   toInvitationClientDTO,
   toInvitationInternalDTO,
+  toMfaEnrollmentClientDTO,
+  toMfaFactorClientDTO,
   toOrganizationInternalDTO,
+  redactForLog,
   toPreviewClientDTO,
+  toProjectInternalDTO,
   toProjectClientDTO,
   toQueueEntryInternalDTO,
   toRevisionClientDTO,
   toRevisionInternalDTO,
   toSubmissionClientDTO,
   toSubmissionPackageInternalDTO,
+  toDeactivationInternalDTO,
 } from '../index.js';
 
 /**
@@ -428,6 +434,92 @@ describe('client DTOs — built field by field, validated against their publishe
     expect(validate(CLIENT_SCHEMAS.Invitation, dto)).toEqual([]);
   });
 
+  // ------------------------------------------------------------------------
+  // Second-factor enrollment (§8.2 amended 2026-09-05 — F-46)
+  // ------------------------------------------------------------------------
+
+  it('an enrollment hands over the provisioning material once and never the stored hash', () => {
+    const dto = toMfaEnrollmentClientDTO({
+      factor_type: 'totp',
+      provisioning_uri: 'otpauth://totp/RMS:jo@example.invalid?secret=JBSWY3DP&issuer=RMS',
+      challenge: null,
+      expires_at: '2026-09-05T10:15:00Z',
+      // What the database keeps. It must not be in the response, for the
+      // enrolling user either: a second chance to read it is a second chance
+      // to steal it.
+      mfa_secret_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    });
+    expect(dto).toEqual({
+      factor_type: 'totp',
+      provisioning_uri: 'otpauth://totp/RMS:jo@example.invalid?secret=JBSWY3DP&issuer=RMS',
+      challenge: null,
+      expires_at: '2026-09-05T10:15:00Z',
+    });
+    expect('mfa_secret_hash' in dto).toBe(false);
+    expect(validate(CLIENT_SCHEMAS.MfaEnrollment, dto)).toEqual([]);
+
+    // AC-02's list is the WRONG question here and the first draft of this test
+    // asked it: `findForbiddenFields(dto)` was empty over a payload containing
+    // `secret=JBSWY3DP`, so the suite told a reader the secret-bearing response
+    // was clean. AC-02 is about what may never REACH a client; this field is
+    // the point of the response. What matters is that it never reaches a LOG.
+    expect(findForbiddenFields(dto)).toEqual([]);
+    const logged = redactForLog(dto) as Record<string, unknown>;
+    expect(logged['provisioning_uri']).toBe('[REDACTED]');
+    expect(logged['factor_type']).toBe('totp');
+    expect(JSON.stringify(logged)).not.toContain('JBSWY3DP');
+  });
+
+  it('every credential-bearing key any DTO could carry is redacted from a log', () => {
+    // Derived from the list rather than sampled, so a name added to
+    // NEVER_LOG_FIELDS without a redactor change fails here.
+    const payload = Object.fromEntries(NEVER_LOG_FIELDS.map((k) => [k, 'sensitive']));
+    const logged = redactForLog({ nested: { deep: payload } }) as {
+      nested: { deep: Record<string, unknown> };
+    };
+    for (const key of NEVER_LOG_FIELDS) {
+      expect(logged.nested.deep[key], `${key} reached the log`).toBe('[REDACTED]');
+    }
+    expect(NEVER_LOG_FIELDS.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('a passkey enrollment carries the challenge and no provisioning URI', () => {
+    const dto = toMfaEnrollmentClientDTO({
+      factor_type: 'passkey',
+      provisioning_uri: null,
+      challenge: 'q1w2e3r4',
+      expires_at: '2026-09-05T10:15:00Z',
+    });
+    expect(validate(CLIENT_SCHEMAS.MfaEnrollment, dto)).toEqual([]);
+    expect(dto.provisioning_uri).toBeNull();
+  });
+
+  it('the factor type is a CLOSED set — email OTP is a recovery path, never a standing factor', () => {
+    // §14.4: "Email OTP is a break-glass recovery path only, never the standing
+    // second factor." A schema that took any string would let a route enroll
+    // one and nothing would say so.
+    const smuggled = { factor_type: 'email', provisioning_uri: null, challenge: 'x', expires_at: 'now' };
+    expect(validate(CLIENT_SCHEMAS.MfaEnrollment, smuggled)).toEqual([
+      "factor_type: 'email' is not one of totp, passkey",
+    ]);
+    const guard = outboundGuard({ mode: 'fail', alert: () => {} });
+    expect(() => guard.check(CLIENT_SCHEMAS.MfaEnrollment, smuggled)).toThrow(OutboundValidationError);
+  });
+
+  it('a verified factor states what is enrolled and nothing about how', () => {
+    const dto = toMfaFactorClientDTO({
+      factor_type: 'passkey',
+      enrolled_at: '2026-09-05T10:16:00Z',
+      mfa_secret_hash: 'deadbeef',
+    });
+    expect(dto).toEqual({ factor_type: 'passkey', enrolled_at: '2026-09-05T10:16:00Z' });
+    expect(validate(CLIENT_SCHEMAS.MfaFactor, dto)).toEqual([]);
+    const guard = outboundGuard({ mode: 'fail', alert: () => {} });
+    expect(() => guard.check(CLIENT_SCHEMAS.MfaFactor, { ...dto, mfa_secret_hash: 'deadbeef' })).toThrow(
+      OutboundLeakError,
+    );
+  });
+
   it('a project is unchanged from T-12 and now has a schema too', () => {
     const dto = toProjectClientDTO({ id: 'p1', number: '26-0142', name: 'Harbor', status: 'active', organization_id: 'org-a' });
     expect(validate(CLIENT_SCHEMAS.Project, dto)).toEqual([]);
@@ -569,6 +661,92 @@ describe('internal DTOs — staff see what the client is denied', () => {
       created_at: '2026-09-02T12:40:00Z',
     });
     expect(validate(INTERNAL_SCHEMAS.Revision, dto)).toEqual([]);
+  });
+
+  it('the staff Project carries the organization the client Project does not', () => {
+    // The point of one DTO per (entity x audience): a staff caller creates a
+    // project INTO an organization and must be told which; a client is already
+    // inside exactly one.
+    const dto = toProjectInternalDTO({
+      id: 'p1',
+      organization_id: 'org-a',
+      number: '26-0142',
+      name: 'Harbor',
+      status: 'active',
+      created_at: '2026-09-05T09:00:00Z',
+      internal_note: 'margin looks thin',
+    });
+    expect(dto).toEqual({
+      id: 'p1',
+      organization_id: 'org-a',
+      number: '26-0142',
+      name: 'Harbor',
+      status: 'active',
+      created_at: '2026-09-05T09:00:00Z',
+    });
+    expect(validate(INTERNAL_SCHEMAS.Project, dto)).toEqual([]);
+    expect('internal_note' in dto).toBe(false);
+    // And the two audiences' Project shapes are genuinely different, which is
+    // what stops one being reached for where the other belongs.
+    expect(Object.keys(dto)).not.toEqual(Object.keys(toProjectClientDTO({ id: 'p1', number: '26-0142', name: 'Harbor', status: 'active', organization_id: 'org-a' })));
+  });
+
+  it('a deactivation reports what it actually did — zero is an answer — and nests the user', () => {
+    // AC-17. A response that said only "ok" could not distinguish a
+    // deactivation from a no-op against an already-inactive account.
+    const dto = toDeactivationInternalDTO({
+      id: 'u-9',
+      organization_id: 'org-a',
+      email: 'former@example.invalid',
+      name: 'Former Person',
+      actor_type: 'client',
+      status: 'inactive',
+      sessions_revoked: 3,
+      invitations_revoked: 0,
+      password_hash: 'scrypt$16384$8$1$abc$def',
+    });
+    expect(dto).toEqual({
+      user: {
+        id: 'u-9',
+        organization_id: 'org-a',
+        email: 'former@example.invalid',
+        name: 'Former Person',
+        actor_type: 'client',
+        status: 'inactive',
+      },
+      sessions_revoked: 3,
+      invitations_revoked: 0,
+    });
+    expect('password_hash' in dto.user).toBe(false);
+    expect(validate(INTERNAL_SCHEMAS.Deactivation, dto)).toEqual([]);
+
+    // NAMED FOR THE ACT. `User` stays free for the entity T-14e's
+    // `GET /users/:id` will need — the counters are not columns of
+    // `app.app_user`, and registering them under `User` would have forced that
+    // route to invent two or register a second User-shaped schema.
+    expect(Object.hasOwn(INTERNAL_SCHEMAS, 'User')).toBe(false);
+    // And there is no CLIENT user schema of any name.
+    expect(Object.hasOwn(CLIENT_SCHEMAS, 'User')).toBe(false);
+    expect(Object.hasOwn(CLIENT_SCHEMAS, 'Deactivation')).toBe(false);
+  });
+
+  it('the nested user\u2019s actor_type and status are closed sets, like every comparable field', () => {
+    const bad = {
+      user: {
+        id: 'u-9',
+        organization_id: 'org-a',
+        email: 'x@example.invalid',
+        name: 'X',
+        actor_type: 'superuser',
+        status: 'deleted',
+      },
+      sessions_revoked: 0,
+      invitations_revoked: 0,
+    };
+    expect(validate(INTERNAL_SCHEMAS.Deactivation, bad)).toEqual([
+      "user.actor_type: 'superuser' is not one of client, staff, service",
+      "user.status: 'deleted' is not one of active, inactive",
+    ]);
   });
 
   it('an organization, a staff-issued invitation and an approved catalog release', () => {
@@ -730,7 +908,13 @@ describe('the registries', () => {
       expect(Object.hasOwn(registry, route.response as string), `${route.method} ${route.path} → ${String(route.response)} is not in the ${route.namespace} registry`).toBe(true);
       checked += 1;
     }
-    expect(checked).toBe(ROUTES.length - 1);
+    // DERIVED, not `ROUTES.length - 1`. That subtraction hard-coded "there is
+    // exactly one public route", which was true until the §8.2 amendment of
+    // 2026-09-05 added four more — and a constant standing in for a count is
+    // the shape this repository keeps finding. Count them.
+    const publicRoutes = ROUTES.filter((r) => r.namespace === 'public').length;
+    expect(checked).toBe(ROUTES.length - publicRoutes);
+    expect(publicRoutes).toBeGreaterThanOrEqual(1);
     expect(checked).toBeGreaterThanOrEqual(19);
   });
 

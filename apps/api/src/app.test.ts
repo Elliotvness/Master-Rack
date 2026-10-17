@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  ACCEPTANCE_REACHABLE,
   RouterCoverageError,
   UNIMPLEMENTED,
   createApp,
@@ -26,14 +27,18 @@ const CLIENT: Principal = {
   organizationId: '77777777-7777-4777-8777-a00000000002',
   actorType: 'client',
   role: 'CLIENT_USER',
+  purpose: 'full',
 };
 const STAFF: Principal = {
   userId: '77777777-7777-4777-8777-a00000000003',
   organizationId: '77777777-7777-4777-8777-a00000000004',
   actorType: 'staff',
   role: 'INTERNAL_ADMIN',
+  purpose: 'full',
 };
 const SALES: Principal = { ...STAFF, role: 'INTERNAL_SALES' };
+/** The same person, mid-acceptance: a real client principal, not yet signed in. */
+const ACCEPTING: Principal = { ...CLIENT, purpose: 'acceptance' };
 
 const ENV = { CLAIM_LEASE_MINUTES: '10' };
 
@@ -210,5 +215,143 @@ describe('every route is a placeholder, and the list says so rather than the rea
     expect(res.json()).toMatchObject({ error: { code: 'INTERNAL_ERROR' } });
     expect(JSON.stringify(res.json())).not.toMatch(/stack|select |from app\./i);
     await app.close();
+  });
+});
+
+describe('the acceptance session reaches what it is for, and nothing else', () => {
+  /**
+   * THE QUESTION THE §8.2 AMENDMENT CREATED. §14.3's *Transport* row opens a
+   * short-lived session at acceptance; its *No auto-login* row forbids that
+   * session being the login. So the invited person holds a real client
+   * principal before they have ever signed in — and until this block existed,
+   * that principal could reach every client route on the strength of an email
+   * link.
+   *
+   * `ACCEPTING` differs from `CLIENT` by one field. Every case below is that
+   * one field deciding the outcome, which is the only way to show the control
+   * is about purpose rather than about the route.
+   */
+
+  it('refuses a client route it has no business reaching, as 401, with an audit event', async () => {
+    const denies: unknown[] = [];
+    const app = appAs(ACCEPTING, denies);
+    const res = await app.inject({ method: 'GET', url: '/api/client/v1/projects' });
+    await app.close();
+
+    expect(res.statusCode).toBe(401);
+    expect(res.json()).toEqual({
+      error: { code: 'UNAUTHENTICATED', message: 'authentication is not complete' },
+    });
+    // Not 403 and not 404: the route exists, the caller's own organization owns
+    // it, and the only missing thing is a step they are in the middle of.
+    expect(denies).toHaveLength(1);
+    expect(denies[0]).toMatchObject({
+      action: 'project.read',
+      reason: 'acceptance session may not reach this route',
+      actor: { userId: CLIENT.userId, organizationId: CLIENT.organizationId },
+    });
+  });
+
+  it('is the PURPOSE being refused, not the route — the same principal without it gets through', async () => {
+    const app = appAs(CLIENT);
+    const res = await app.inject({ method: 'GET', url: '/api/client/v1/projects' });
+    await app.close();
+    // 500 is the UNIMPLEMENTED placeholder: it passed the gate.
+    expect(res.statusCode).toBe(500);
+    expect(res.json().error.code).toBe('INTERNAL_ERROR');
+  });
+
+  it('reaches every route ACCEPTANCE_REACHABLE names, and each is a real one', async () => {
+    for (const key of ACCEPTANCE_REACHABLE) {
+      const [method, url] = key.split(' ') as [string, string];
+      const app = appAs(ACCEPTING);
+      const res = await app.inject({ method: method as 'GET', url });
+      await app.close();
+      // Anything but 401 means the gate let it through to the placeholder.
+      expect(res.statusCode, `${key} was refused to an acceptance session`).not.toBe(401);
+    }
+    expect(ACCEPTANCE_REACHABLE.size).toBeGreaterThanOrEqual(2);
+  });
+
+  it('refuses EVERY other route in the registry, derived rather than sampled', async () => {
+    // The list of what it may reach is short and reviewable; the list of what it
+    // may not is the rest of the surface and must not be written by hand.
+    let refused = 0;
+    for (const route of ROUTES) {
+      if (route.action === null) continue; // public: the gate returns first
+      const key = routeKey(route.method, route.path);
+      if (ACCEPTANCE_REACHABLE.has(key)) continue;
+      if (route.namespace === 'internal') continue; // 404 by namespace, before purpose
+      const app = appAs(ACCEPTING);
+      const res = await app.inject({ method: route.method, url: route.path });
+      await app.close();
+      expect(res.statusCode, `${key} was NOT refused to an acceptance session`).toBe(401);
+      refused += 1;
+    }
+    expect(refused).toBeGreaterThanOrEqual(12);
+  });
+
+  it('an internal route stays 404 to an acceptance session, not 401', async () => {
+    // Namespace is checked BEFORE purpose, deliberately: a client principal
+    // must not learn which internal routes exist, and "your authentication is
+    // incomplete" would confirm one does.
+    const app = appAs(ACCEPTING);
+    const res = await app.inject({ method: 'GET', url: '/api/internal/v1/queue' });
+    await app.close();
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('an unknown purpose is refused, not waved through — the check tests for the SAFE value', async () => {
+    // `!== 'full'`, not `=== 'acceptance'`. The first draft tested for the
+    // dangerous value, so a purpose nobody had thought about yet would have
+    // arrived with full authority. This is that inversion, asserted.
+    const future = { ...CLIENT, purpose: 'impersonation' as unknown as 'full' };
+    const app = appAs(future);
+    const res = await app.inject({ method: 'GET', url: '/api/client/v1/projects' });
+    await app.close();
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('refuses to boot if ACCEPTANCE_REACHABLE names a PUBLIC route, which grants nothing', () => {
+    // The first draft listed `DELETE /api/auth/session`, a public route, two
+    // lines below its own docstring explaining why sign-IN could not be listed
+    // — for exactly this reason. The gate returns before the purpose check for
+    // a public route, so the entry granted nothing and read as though it did,
+    // and the test for it ("not 401") passed vacuously.
+    const problems = routerCoverageProblems(
+      ROUTES.map((r) => routeKey(r.method, r.path)),
+      ROUTES,
+      UNIMPLEMENTED,
+      new Set(['DELETE /api/auth/session']),
+    );
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toMatch(/is a PUBLIC route/);
+  });
+
+  it('the boot assertion is wired to the REAL set, not only to one a test passes in', () => {
+    // Review emptied the default and every case stayed green: each one passed
+    // its own set, so the wiring was untested. This omits the argument.
+    const renamed = ROUTES.map((r) =>
+      r.path === '/api/client/v1/mfa/enroll' ? { ...r, path: '/api/client/v1/mfa/enrol' } : r,
+    );
+    const problems = routerCoverageProblems(
+      renamed.map((r) => routeKey(r.method, r.path)),
+      renamed,
+      new Map([...UNIMPLEMENTED].filter(([k]) => k !== 'POST /api/client/v1/mfa/enroll')),
+    );
+    expect(problems.some((p) => p.includes('ACCEPTANCE_REACHABLE names POST /api/client/v1/mfa/enroll'))).toBe(true);
+  });
+
+  it('refuses to boot if ACCEPTANCE_REACHABLE names a route that does not exist', () => {
+    // Same posture as UNIMPLEMENTED: a permission for a route nobody mounted is
+    // one that will quietly point at the wrong thing after a rename.
+    const problems = routerCoverageProblems(
+      ROUTES.map((r) => routeKey(r.method, r.path)),
+      ROUTES,
+      UNIMPLEMENTED,
+      new Set(['POST /api/client/v1/mfa/enrol']), // one l — the rename that happens
+    );
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toMatch(/ACCEPTANCE_REACHABLE names POST \/api\/client\/v1\/mfa\/enrol,/);
   });
 });

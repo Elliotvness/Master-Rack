@@ -13,10 +13,55 @@
  * account elsewhere, a way to probe our confidential client list.
  */
 
-import type { TenantTransaction } from '@rms/db';
+import { withUnresolvedTenant, type TenantTransaction } from '@rms/db';
 
 import { generateToken, hashToken } from './crypto.js';
 import { INVITATION_TTL_MS } from './policy.js';
+
+/**
+ * The tenant an invitation token belongs to, or null (**F-47**).
+ *
+ * THE CIRCLE THIS BREAKS. `withTenant` requires an organization before any
+ * statement runs; `app.invitation` is governed by
+ * `organization_id = app.current_org() OR app.is_staff()`; and §14.3 forbids
+ * the organization travelling in the token or the URL — *"Email, organization
+ * and role live in the invitation row, never in the token or the URL"* — so an
+ * invited person arriving from an email link cannot supply it either, and
+ * §8.3 makes `organization_id` structurally unreachable from a request body
+ * besides. Nothing could read the row that says which tenant to open.
+ *
+ * This is the smallest thing that breaks it, and everything about it is
+ * narrow on purpose. It opens the one no-tenant transaction the codebase has,
+ * runs `app.resolve_invitation_tenant` — the one `SECURITY DEFINER` function,
+ * audited by `check-rls` and refused if a second appears — and returns a uuid
+ * or null. It reads no row itself: with no tenant context, RLS shows this
+ * transaction nothing at all, which `tenant-resolver.db.test.ts` in this
+ * directory proves by querying every table in the schema rather than by
+ * asserting in prose.
+ *
+ * IT OWNS THE TRANSACTION rather than taking one, and that is the API. A caller
+ * that could hand in its own transaction could hand in `withUnresolvedTenant`'s
+ * and then do something else inside it; `check-app-boundaries` confines that
+ * symbol to this directory for the same reason. The caller gets a token and an
+ * organization back, and no way to be inside the unscoped context at all.
+ *
+ * A NULL IS NOT A REFUSAL AND MUST NOT BE REPORTED AS ONE. It means no
+ * invitation has ever carried this token hash. Every other outcome — expired,
+ * revoked, already accepted — still resolves, deliberately, so
+ * `redeemInvitation` runs under the right tenant and records the DISTINCT
+ * reason the audit log needs. AC-01 requires the CLIENT cannot tell those
+ * apart; it does not require the audit log to be equally blind. The caller
+ * collapses all of it to one page.
+ */
+export async function resolveInvitationTenant(token: string): Promise<string | null> {
+  return withUnresolvedTenant(async (tx) => {
+    const found = await tx.query<{ organization_id: string | null }>(
+      'SELECT app.resolve_invitation_tenant($1) AS organization_id',
+      [hashToken(token)],
+    );
+    return found.rows[0]?.organization_id ?? null;
+  });
+}
 
 export type MemberRole =
   | 'CLIENT_USER'

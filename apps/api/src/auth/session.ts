@@ -16,13 +16,19 @@
 import type { TenantTransaction, ActorType } from '@rms/db';
 
 import { generateToken, hashToken } from './crypto.js';
-import { lifetimeFor } from './policy.js';
+import { lifetimeFor, type SessionPurpose } from './policy.js';
 
 export interface Session {
   readonly id: string;
   readonly organizationId: string;
   readonly userId: string;
   readonly actorType: ActorType;
+  /**
+   * What this session is FOR. Carried on the principal and read by the gate:
+   * an `acceptance` session may reach only the routes `ACCEPTANCE_REACHABLE`
+   * names. Never optional and never defaulted — see migration 0015.
+   */
+  readonly purpose: SessionPurpose;
   readonly absoluteExpiresAt: Date;
   readonly idleExpiresAt: Date;
 }
@@ -38,6 +44,7 @@ interface SessionRow {
   organization_id: string;
   user_id: string;
   actor_type: ActorType;
+  purpose: SessionPurpose;
   absolute_expires_at: Date;
   idle_expires_at: Date;
   revoked_at: Date | null;
@@ -49,6 +56,7 @@ function toSession(row: SessionRow): Session {
     organizationId: row.organization_id,
     userId: row.user_id,
     actorType: row.actor_type,
+    purpose: row.purpose,
     absoluteExpiresAt: row.absolute_expires_at,
     idleExpiresAt: row.idle_expires_at,
   };
@@ -65,24 +73,31 @@ export async function createSession(
     organizationId: string;
     userId: string;
     actorType: ActorType;
+    /**
+     * REQUIRED, with no default here and none in the schema. A caller that has
+     * not decided what the session is for must not get a full-authority one by
+     * omission, which is the direction this would fail in if it defaulted.
+     */
+    purpose: SessionPurpose;
     now: Date;
   },
 ): Promise<NewSession> {
   const token = generateToken();
-  const lifetime = lifetimeFor(params.actorType);
+  const lifetime = lifetimeFor(params.actorType, params.purpose);
   const absolute = new Date(params.now.getTime() + lifetime.absoluteMs);
   const idle = new Date(params.now.getTime() + lifetime.idleMs);
 
   await tx.query(
     `INSERT INTO app.session
-       (id, organization_id, user_id, actor_type, token_hash,
+       (id, organization_id, user_id, actor_type, purpose, token_hash,
         created_at, absolute_expires_at, idle_expires_at, last_seen_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $6)`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $7)`,
     [
       params.id,
       params.organizationId,
       params.userId,
       params.actorType,
+      params.purpose,
       hashToken(token),
       params.now,
       absolute,
@@ -97,6 +112,7 @@ export async function createSession(
       organizationId: params.organizationId,
       userId: params.userId,
       actorType: params.actorType,
+      purpose: params.purpose,
       absoluteExpiresAt: absolute,
       idleExpiresAt: idle,
     },
@@ -116,7 +132,7 @@ export async function resolveSession(
   now: Date,
 ): Promise<Session | null> {
   const result = await tx.query<SessionRow>(
-    `SELECT id, organization_id, user_id, actor_type,
+    `SELECT id, organization_id, user_id, actor_type, purpose,
             absolute_expires_at, idle_expires_at, revoked_at
        FROM app.session
       WHERE token_hash = $1`,
@@ -129,7 +145,7 @@ export async function resolveSession(
   if (now >= row.absolute_expires_at) return null;
   if (now >= row.idle_expires_at) return null;
 
-  const nextIdle = new Date(now.getTime() + lifetimeFor(row.actor_type).idleMs);
+  const nextIdle = new Date(now.getTime() + lifetimeFor(row.actor_type, row.purpose).idleMs);
   // Never let the idle window push past the absolute cap.
   const cappedIdle = nextIdle > row.absolute_expires_at ? row.absolute_expires_at : nextIdle;
   await tx.query(
@@ -157,6 +173,18 @@ export async function revokeSession(
 /**
  * Regenerate a session's token on authentication or privilege change.
  * The old token stops working the instant this commits.
+ *
+ * **NOT the path from an acceptance session to a signed-in one, and reaching
+ * for it there is the mistake this paragraph exists to stop.** It rewrites
+ * `token_hash` and nothing else, so it preserves both `purpose = 'acceptance'`
+ * and the acceptance session's short `absolute_expires_at`: the caller would
+ * get a fresh token for a session that still reaches three routes and still
+ * dies at the original cap. Migration 0015's trigger refuses the obvious repair
+ * — a session cannot change what it is for.
+ *
+ * Signing in CREATES a session with `purpose: 'full'` and revokes the
+ * acceptance one, which is what §14.3's "identifier regenerated on
+ * authentication" asks for and what `revokeSession` is there for.
  */
 export async function regenerateToken(
   tx: TenantTransaction,

@@ -414,6 +414,151 @@ export function toOrganizationInternalDTO(entity: OrganizationEntity): Organizat
 }
 
 // --------------------------------------------------------------------------
+// Project — the staff view (§8.2 POST /api/internal/v1/projects, amended
+// 2026-09-05). §15.2 step 1 is "creates a client organization AND project", and
+// OD-04 settles internal-created projects only for MVP-1, so this is the
+// staff-side counterpart to the client's read-only `Project`.
+//
+// It carries `organization_id` and the client's does not, which is the whole
+// point of one DTO per (entity x audience): a staff caller creates a project
+// INTO an organization and must be told which one it landed in; a client is
+// already inside exactly one and telling it its own tenant id buys nothing and
+// widens the surface.
+// --------------------------------------------------------------------------
+
+export interface ProjectInternalDTO {
+  readonly id: string;
+  readonly organization_id: string;
+  readonly number: string;
+  readonly name: string;
+  readonly status: (typeof PROJECT_STATUSES)[number];
+  readonly created_at: string;
+}
+
+interface ProjectInternalEntity {
+  id: string;
+  organization_id: string;
+  number: string;
+  name: string;
+  status: (typeof PROJECT_STATUSES)[number];
+  created_at: string;
+  [extra: string]: unknown;
+}
+
+/** `project.status` — the column defaults to 'active'; §7 has no third value yet. */
+const PROJECT_STATUSES = ['active', 'archived'] as const;
+
+const Project = internalResponse('Project', {
+  id: string(),
+  organization_id: string(),
+  number: string(),
+  name: string(),
+  status: string({ enum: PROJECT_STATUSES }),
+  created_at: string(),
+});
+
+export function toProjectInternalDTO(entity: ProjectInternalEntity): ProjectInternalDTO {
+  return {
+    id: entity.id,
+    organization_id: entity.organization_id,
+    number: entity.number,
+    name: entity.name,
+    status: entity.status,
+    created_at: entity.created_at,
+  };
+}
+
+// --------------------------------------------------------------------------
+// Deactivation — the staff view (§8.2 POST /api/internal/v1/users/:id/deactivate,
+// amended 2026-09-05). FR-AD-01 and AC-17.
+// --------------------------------------------------------------------------
+//
+// NAMED FOR THE ACT, NOT FOR THE ENTITY, and the first draft got this wrong in
+// a way worth recording. It registered this shape as `User` with
+// `sessions_revoked` and `invitations_revoked` as required fields — neither of
+// which is a column of `app.app_user`; both describe what one POST did. The
+// moment T-14e adds `GET /api/internal/v1/users/:id`, the obvious next route,
+// it would have had to either invent two counters or register a second
+// `User`-shaped schema: the "one DTO per (entity × audience)" rule broken by
+// the DTO citing it.
+//
+// So the entity nests, the counters sit beside it, and the name `User` stays
+// free for the entity that will need it.
+//
+// THE COUNTS ARE THE POINT, not decoration. A response that said only "ok"
+// could not distinguish a deactivation from a no-op against an account that was
+// already inactive, and AC-17's claim is that deactivation ends every session
+// at once — a claim whose evidence is a number.
+//
+// There is no CLIENT user DTO of any name and this must not become one. A
+// client has no route that returns a user, and adding one would put another
+// organization's membership shape one serializer mistake from a client
+// response.
+
+export interface UserInternalDTO {
+  readonly id: string;
+  readonly organization_id: string;
+  readonly email: string;
+  readonly name: string;
+  readonly actor_type: (typeof ACTOR_TYPES)[number];
+  readonly status: string;
+}
+
+export interface DeactivationInternalDTO {
+  readonly user: UserInternalDTO;
+  /** What the deactivation actually did. Zero is a legitimate answer. */
+  readonly sessions_revoked: number;
+  readonly invitations_revoked: number;
+}
+
+interface DeactivationInternalEntity {
+  id: string;
+  organization_id: string;
+  email: string;
+  name: string;
+  actor_type: (typeof ACTOR_TYPES)[number];
+  status: string;
+  sessions_revoked: number;
+  invitations_revoked: number;
+  [extra: string]: unknown;
+}
+
+/** §14.5's attribute axis, and an enum in the database besides. */
+const ACTOR_TYPES = ['client', 'staff', 'service'] as const;
+/** `app_user.status` — the column defaults to 'active' and deactivation sets 'inactive'. */
+const USER_STATUSES = ['active', 'inactive'] as const;
+
+const Deactivation = internalResponse('Deactivation', {
+  user: object({
+    id: string(),
+    organization_id: string(),
+    email: string(),
+    name: string(),
+    actor_type: string({ enum: ACTOR_TYPES }),
+    status: string({ enum: USER_STATUSES }),
+  }),
+  sessions_revoked: integer(),
+  invitations_revoked: integer(),
+});
+
+export function toDeactivationInternalDTO(
+  entity: DeactivationInternalEntity,
+): DeactivationInternalDTO {
+  return {
+    user: {
+      id: entity.id,
+      organization_id: entity.organization_id,
+      email: entity.email,
+      name: entity.name,
+      actor_type: entity.actor_type,
+      status: entity.status,
+    },
+    sessions_revoked: entity.sessions_revoked,
+    invitations_revoked: entity.invitations_revoked,
+  };
+}
+
+// --------------------------------------------------------------------------
 // Invitation — the staff view (§8.2 POST /api/internal/v1/invitations): says which org
 // --------------------------------------------------------------------------
 
@@ -700,6 +845,8 @@ export function toAuditEventInternalDTO(entity: AuditEventEntity): AuditEventInt
 
 export const INTERNAL_SCHEMAS = Object.freeze({
   QueueEntry,
+  Project,
+  Deactivation,
   Finding,
   BomLine,
   InternalNote,

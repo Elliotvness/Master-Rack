@@ -2,6 +2,7 @@ export {
   closeDatabase,
   configureDatabase,
   withTenant,
+  withUnresolvedTenant,
   withoutTenantForMigrations,
   type ActorType,
   type TenantContext,

@@ -14,6 +14,7 @@ export {
 } from './auth/crypto.js';
 
 export {
+  ACCEPTANCE_SESSION_TTL_MS,
   INVITATION_TTL_MS,
   LOGIN_TOKEN_TTL_MS,
   SESSION_COOKIE_NAME,
@@ -21,6 +22,7 @@ export {
   sessionCookieOptions,
   type CookieOptions,
   type SessionLifetime,
+  type SessionPurpose,
 } from './auth/policy.js';
 
 export {
@@ -37,6 +39,7 @@ export {
   issueInvitation,
   redeemInvitation,
   redemptionResponse,
+  resolveInvitationTenant,
   revokeInvitation,
   type IssuedInvitation,
   type MemberRole,
@@ -54,6 +57,7 @@ export {
 } from './authz/authorize.js';
 
 export {
+  INTERNAL_ONLY_ACTIONS,
   ROUTES,
   RouteCoverageError,
   assertRouteCoverage,
@@ -74,7 +78,10 @@ export {
   toComparisonClientDTO,
   toDocumentClientDTO,
   toFindingClientDTO,
+  MFA_FACTOR_TYPES,
   toInvitationClientDTO,
+  toMfaEnrollmentClientDTO,
+  toMfaFactorClientDTO,
   toPreviewClientDTO,
   toProjectClientDTO,
   toRevisionClientDTO,
@@ -90,6 +97,8 @@ export {
   type FindingClientDTO,
   type FindingParameterClientDTO,
   type InvitationClientDTO,
+  type MfaEnrollmentClientDTO,
+  type MfaFactorClientDTO,
   type PreviewClientDTO,
   type PreviewViewClientDTO,
   type ProjectClientDTO,
@@ -107,9 +116,11 @@ export {
   toInternalNoteDTO,
   toInvitationInternalDTO,
   toOrganizationInternalDTO,
+  toProjectInternalDTO,
   toQueueEntryInternalDTO,
   toRevisionInternalDTO,
   toSubmissionPackageInternalDTO,
+  toDeactivationInternalDTO,
   type AuditEventInternalDTO,
   type BomLineInternalDTO,
   type CatalogReleaseInternalDTO,
@@ -118,6 +129,9 @@ export {
   type InvitationInternalDTO,
   type OrganizationInternalDTO,
   type PartRefInternalDTO,
+  type ProjectInternalDTO,
+  type DeactivationInternalDTO,
+  type UserInternalDTO,
   type QueueEntryInternalDTO,
   type RevisionInternalDTO,
   type SubmissionPackageInternalDTO,
