@@ -32,7 +32,7 @@ meets.* Amended into blueprint §5.4 on 2026-09-04.
 | 6 | **INP** — Interaction to Next Paint | **200 ms** | Lighthouse or equivalent in CI against the built SPA | ⛔ needs T-16 (no screen yet) |
 | 7 | LCP — Largest Contentful Paint | **2.5 s** | Same run | ⛔ needs T-16 |
 | 8 | CLS — Cumulative Layout Shift | **0.1** | Same run | ⛔ needs T-16 |
-| 9 | Initial JavaScript, gzipped | **200 KB** | Asserted in CI on every build; the number recorded here | 🟡 **ceiling gated, bundle not yet weighed** |
+| 9 | Initial JavaScript, gzipped | **200 KB** | Asserted in CI on every build; the number recorded here | ✅ **measured (84 KB gz vs 200 KB ceiling)** |
 
 **INP is the one that matters** and §5.4 says so: a rack configurator is an interaction loop, not a
 page view. LCP and CLS are ordinary hygiene; INP is the product.
@@ -44,20 +44,22 @@ shell plus the first route — not to the sum of all chunks. The renderers (`ren
 them, never in the shell. The client and internal applications are budgeted separately; **the
 client bundle is the one this ceiling exists for.**
 
-### What is gated today, and what is not — stated so row 9's 🟡 is not read as ✅
+### What is gated and measured for P-05 (Row 9 ✅), and what awaits T-16 for rows 6–8
 
-`check-front-end-budgets` runs self-test-first in `verify` and in `ci.yml`. What it proves **today**
+`check-front-end-budgets` runs self-test-first in `verify` and in `ci.yml`. What it proves
 is that one ceiling is stated in three places and they agree: blueprint §5.4, the checker's own
 `BUDGETS`, and this file. A budget loosened in the blueprint without the checker following, a budget
 deleted, a budget added that nothing enforces, this file dropping the number, or §5.4 reworded so
 the parser matches nothing — each is red, and each is planted in `selftest-front-end-budgets`.
 
-**What it does NOT prove: the bundle.** There is no client bundle — zero `.tsx` files, no `vite` or
-`react` in any `package.json` — so the weigh-the-bundle arm has never run against a real artifact
-and **cannot be claimed as proven**. Wiring it to a real build, and adding the Lighthouse run for
-rows 6–8, is **T-16's obligation**, recorded here and under P-05 in `tasks/todo.md`. A gate that has
-never gone red against the thing it names is a name, not evidence — which is the whole reason this
-paragraph exists instead of a green tick.
+**What is proven for P-05: the bundle arm is now live and measured.** `apps/studio-web` builds via
+Vite (`pnpm build:web`) in `verify` and CI before `check-front-end-budgets` executes. The checker
+discovers `apps/studio-web/dist/index.html`, identifies the initial script references (shell + initial
+route payload, excluding lazily-loaded route chunks), and measures **84 KB gzipped** JavaScript
+against the **200 KB** ceiling (~2.38× headroom).
+
+**What awaits T-16:** rows 6–8 (INP, LCP, CLS) require active browser rendering and user interaction
+to measure via Lighthouse or equivalent in CI once screens and interaction flows are established.
 
 ## Baseline — 2026-09-01 (kernel), 2026-10-17 (P-01 submission, P-02 queue at 5,000), & 2026-10-18 (P-03 async PDF generation)
 
@@ -208,6 +210,7 @@ Every attempt, kept and reverted alike.
 | 2026-10-17 | Measure §5.4 budget 3 (`submission`) end-to-end against live PostgreSQL in the same commit as `POST /api/client/v1/revisions/:id/submit` (`P-01`) | unmeasured → p50 **19.36 ms**, p95 **26.65 ms**, p99 **28.15 ms** (30 iterations after 5 warm-up on the 300-bay fixture) | **kept** | Pre-seeds 35 `DRAFT` 300-bay revisions outside the timed loop so each sample times the full HTTP + idempotency + `submitRevision` transaction + WORM manifest write + audit hash-chain append. Meets the 2,000 ms p95 budget by ~75×; p50 ratchet set at 60 ms. |
 | 2026-10-17 | Measure §5.4 budget 4 (`queueLoad`) at 5,000+ submissions across ≥50 organizations with RLS ON in the same commit as `GET /api/internal/v1/queue` (`P-02`) | unmeasured → p50 **25.83 ms**, p95 **32.06 ms**, p99 **32.17 ms** (30 iterations after 5 warm-up; SQL `EXPLAIN (ANALYZE, BUFFERS)` **9.69 ms**, 442 shared buffer hits) | **kept** | Bounds the page to `LIMIT 25 OFFSET 0` in the `page_sub` CTE first and joins `app.finding` via `finding_org_revision_idx`, `app.revision` via `revision_pkey`, and `app.organization` via `organization_pkey`. Constant 2 SQL statements at 10 rows and at 5,000+ rows (zero N+1). Meets the 800 ms p95 budget by ~25×; p50 ratchet set at 60 ms. |
 | 2026-10-18 | Measure §5.4 budget 5 (`pdfGeneration`) via the outbox job queue (`topic = 'pdf.generate'`) on the 300-bay fixture (`P-03`) | unmeasured → p50 **5.61 ms**, p95 **8.45 ms**, p99 **9.60 ms** (30 job dispatches after 5 warm-up, each rendering a 9-page PDF-1.4 document across 300 bays + WORM COMPLIANCE write + `markDispatched`) | **kept** | Generation runs strictly as an outbox job via `claimTopicBatch('pdf.generate')` + `processPdfOutboxBatch`, never in the HTTP request path. `GET /api/client/v1/documents/:id` surfaces `PENDING`, `PRELIMINARY`, and `FAILED` job states. Per-job `durationMs` is summarized across the set (`summarizePdfJobMetrics`), loud-skips below 20 jobs (`assertPdfJobBudget`), and meets the 6,000 ms p95 budget by ~710× at 30 jobs; p50 ratchet set at 60 ms. |
+| 2026-10-18 | Measure §5.4 budget 9 (Initial JavaScript, gzipped) against real SPA build in `apps/studio-web/dist` (`P-05`) | unmeasured → **84 KB gz** initial JS payload (`index.html` references) vs 200 KB ceiling (~2.38× headroom) | **kept** | Built via Vite in `pnpm build:web` before `check-front-end-budgets` runs in `verify` and CI. Enforces code-splitting so renderers and routes do not bloat initial shell payload. |
 
 ## Running it
 

@@ -7,7 +7,7 @@ labelled *repository-claim* was read off an earlier document and is not a measur
 **§15.2 is 0 of 8, re-derived not re-read.** `UNIMPLEMENTED` in `apps/api/src/app.ts` holds **0**
 entries *(verified-today)* against a `ROUTES` registry of **32** *(verified-today)*; **all 32
 handlers are live (`T-14b` + `T-14c` + `T-14d` + `T-14e`, re-asserted by `T-15` + `P-03`)** and 0 MVP-1 handlers answer 500 (steps 1–8 still
-await Phase 4 screens). **96 of 160 points — 60.0%**, **32 of 49 tasks**, both re-derived
+await Phase 4 screens). **100 of 160 points — 62.5%**, **33 of 49 tasks**, both re-derived
 from `tasks/todo.md` this session rather than carried forward.
 
 ## The finding: the build has not been touched in a month, and the delivery path is still shut
@@ -1027,13 +1027,13 @@ The procedure, so it is reproducible:
 | Measure | Value | Blueprint anchor | What it measures |
 |---|---|---|---|
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
-| Plan-task completion, effort-weighted | 96 of 160 pts — **60.0%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
-| Plan-task completion, task count | 32 of 49 — 65% | Same, unweighted | Same |
+| Plan-task completion, effort-weighted | 100 of 160 pts — **62.5%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
+| Plan-task completion, task count | 33 of 49 — 67% | Same, unweighted | Same |
 | Pre-merge review `R-01…R-11` | **11 of 11 — 100%** | **§16.1** review gates | A sub-checklist of one merged branch, not the project. All eleven closed on their own criteria. R-09 and R-10 closed at Checkpoint A in the container; **R-07 closed last**, by fixing L-3 and L-5 to throw (`6696f5f`, PR #16) rather than leaving them dispositioned — the dissent on the record won |
 | Route surface vs the blueprint | **32 of 32** MVP-1 routes declared, mounted, **and checked** | **§8.2** (34 rows, 2 marked phase 2) | **Drift 4 is closed and F-46 is closed, and both now have the same mechanism.** EL amended §8.2 twice: the operator release row on 2026-09-03, and ten routes on 2026-09-05 after F-46 found the inventory declared no way for anyone to sign in. `check-route-surface` parses §8.2 out of the built blueprint and diffs it against the registry in both directions on every run — and since the second amendment also checks each row is filed under the BAND its path belongs to, which caught two `/api/client` rows the amendment had put under *Internal surface*. A Fastify router mounts all 32; **all 32 handlers are live (`T-14b` + `T-14c` + `T-14d` + `T-14e`, re-asserted by `T-15` + `P-03`) and 0 are declared placeholders.** Every entry names the response schema it answers with, and `assertRouteCoverage` refuses one the registry does not hold |
 
-These are not competing answers. **0% is the answer**; 60.0% is how much of the written plan has
-been executed. A reader who quotes 60.0% without §15.2 beside it is quoting the wrong number.
+These are not competing answers. **0% is the answer**; 62.5% is how much of the written plan has
+been executed. A reader who quotes 62.5% without §15.2 beside it is quoting the wrong number.
 
 **Phase 2 is complete** — the first phase to close since Phase 1. **§15.2 did not move by one step
 while it happened**, and that is not a paradox: Phase 2 was repairs and controls, and the definition
@@ -1223,46 +1223,46 @@ landed and pushed to `origin/main` as `42c8211`, and the operator release route 
 | 0 — Make CI real | 1 | 1 | **100%** | **T-00 complete.** Tip `efbafbd` pushed; CI run #10 **Success** — the first commit in this repo ever verified |
 | 1 — Catalog and schema integrity | 10 | 10 | **100%** | T-01…T-04 complete (verified at `a2f166e` — repository claim, not re-run today) |
 | 2 — Kernel and workflow repairs | 29 | 29 | **100%** | **Complete.** T-05, T-06, T-07, T-27, T-28, T-08, T-09, T-10a, T-10b, **T-11**, **T-12**. Points 26 → 28 from the T-10 split, 28 → 29 when T-11 grew XS → S for F-32 |
-| 3 — The contract, then the server | 62 | 56 | 90% | P-00, T-13a, T-13b, T-13c, **T-13d**, **T-14a**, **T-14b**, **T-14c**, **T-14d**, **P-01**, **T-14e**, **P-02**, **T-15**, **P-03**, R-08, R-10 done; P-04…P-05 open |
+| 3 — The contract, then the server | 62 | 60 | 97% | P-00, T-13a, T-13b, T-13c, **T-13d**, **T-14a**, **T-14b**, **T-14c**, **T-14d**, **P-01**, **T-14e**, **P-02**, **T-15**, **P-03**, **P-05**, R-08, R-10 done; P-04 open |
 | 4 — The interface | 42 | 0 | **0%** | **19 `.tsx` files now exist** (`apps/studio-web`), and none of them count here: ADR-016 puts the studio track off the MVP-1 critical path, so these 42 points are untouched. This cell read "Zero `.tsx` files exist" while the tree held 16 — drift 52 |
 | 5 — Deploy readiness | 16 | 0 | 0% | Not started |
-| **Total** | **160** | **96** | **60.0%** | |
+| **Total** | **160** | **100** | **62.5%** | |
 
-**Remaining: 64 points, and Phase 2's residue is zero.** All of Phase 4 is **42 of the
-64**; the other 22 is the rest of Phase 3 (6, T-14 and T-15 complete) and Phase 5
+**Remaining: 60 points, and Phase 2's residue is zero.** All of Phase 4 is **42 of the
+60**; the other 18 is the rest of Phase 3 (2, P-04 open) and Phase 5
 (16). The
 remaining work is *not* concentrated in the two big items, and planning as if it were will under-book
 the back half.
 
 ---
 
-### How soft is 60.0%?
+### How soft is 62.5%?
 
 The caveat above says the figure is a ceiling because T-14 and Phase 4 were sized before anyone
-attempted either. Quantified — 96 done points never move, only the denominator does.
-**Every row here is 96 over its own denominator, and every denominator is derived from 160 rather
+attempted either. Quantified — 100 done points never move, only the denominator does.
+**Every row here is 100 over its own denominator, and every denominator is derived from 160 rather
 than carried forward** (re-derived again in session 6 when the numerator moved to 52, and again in
-this edition at 96). This table has now been wrong twice in one day in two different ways: four
+this edition at 100). This table has now been wrong twice in one day in two different ways: four
 of five rows were still computed on session 4's numerator of 29 while the first row read 41 (item
 24), and — found only when T-11 changed the base — **all four scenario denominators were built on
 the pre-split base of 145 while the row above them said 147** (item 29). Re-derived, not adjusted:
 
 | T-14 | Phase 4 | Denominator | Completion | Scenario |
 |---|---|---|---|---|
-| 20 | 42 | 160 | **60.0%** | **T-14a–e as confirmed by EL (five M)** — the published figure |
-| 20 | 63 | 181 | 53.0% | Phase 4 ×1.5 |
-| 20 | 84 | 202 | 47.5% | Phase 4 ×2 |
-| 30 | 84 | 212 | 45.3% | T-14a–e ×1.5, Phase 4 ×2 |
-| 40 | 84 | 222 | 43.2% | T-14a–e ×2, Phase 4 ×2 |
-| 40 | 126 | 266 | 36.1% | T-14a–e ×2, Phase 4 ×3 |
+| 20 | 42 | 160 | **62.5%** | **T-14a–e as confirmed by EL (five M)** — the published figure |
+| 20 | 63 | 181 | 55.2% | Phase 4 ×1.5 |
+| 20 | 84 | 202 | 49.5% | Phase 4 ×2 |
+| 30 | 84 | 212 | 47.2% | T-14a–e ×1.5, Phase 4 ×2 |
+| 40 | 84 | 222 | 45.0% | T-14a–e ×2, Phase 4 ×2 |
+| 40 | 126 | 266 | 37.6% | T-14a–e ×2, Phase 4 ×3 |
 
 Even at triple, the figure moves about twenty points. **The ceiling is real but shallow**, so
-60.0% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
+62.5% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
 is the number to quote and this one is not. The second row is new and is not a scenario: it is the
 breakdown actually on the table, and it is what this file publishes the day EL confirms it.
 
-**Where the remaining 64 points sit:** Phase 4 42 (65.6%) · Phase 3's residue 6 (9.4%) ·
-Phase 5 16 (25.0%) · Phase 2's residue 0. Neither large block is a majority. *(This paragraph read
+**Where the remaining 60 points sit:** Phase 4 42 (70.0%) · Phase 3's residue 2 (3.3%) ·
+Phase 5 16 (26.7%) · Phase 2's residue 0. Neither large block is a majority. *(This paragraph read
 "116 … Phase 2's residue 16" until session 6 while the table above it said 100 — drift 30. It then
 read "98 … 42.9% · 40.8% · 16.3%" for a full edition after T-14a moved the numerator, while the
 sentence thirty lines above it already said 94 — **drift 50**, and the first defect
