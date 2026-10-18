@@ -49,7 +49,7 @@
  */
 
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
-import { errorEnvelope, statusFor, type ErrorCode } from '@rms/contracts';
+import { errorEnvelope, findForbiddenFields, statusFor, type ErrorCode } from '@rms/contracts';
 import { withTenant, type TenantContext } from '@rms/db';
 
 import { appendAuditEvent } from './audit/chain.js';
@@ -58,10 +58,13 @@ import {
   registerAuthRoutes,
   resolveCookiePrincipal,
   type IssuedInvitationNotice,
+  type VerifiedOidcIdentity,
 } from './auth/routes.js';
 import { authorize, type Action, type Actor } from './authz/authorize.js';
 import { ROUTES, namespaceAllows, type RoutePolicy } from './authz/routes.js';
 import { assertConfiguration } from './idempotency/idempotency.js';
+import { registerRevisionRoutes } from './revisions/routes.js';
+import type { WormStore } from './worm/store.js';
 
 /** The principal the session preHandler attaches. Absent until it does. */
 export interface Principal extends Actor {
@@ -83,9 +86,20 @@ export interface Principal extends Actor {
    * the wrong direction to fail." That was true in SQL and just as true here.
    */
   readonly purpose: SessionPurpose;
+  /** Optional step-up re-authentication epoch seconds for privileged internal actions (T-04). */
+  readonly reauthenticatedAt?: number | undefined;
+}
+
+export interface OutboundViolation {
+  readonly route: string;
+  readonly fields: readonly string[];
 }
 
 declare module 'fastify' {
+  interface FastifyInstance {
+    /** Live routes collected from the Fastify router via `onRoute` (T-14a / T-15). */
+    readonly mountedRoutes: readonly string[];
+  }
   interface FastifyRequest {
     principal?: Principal;
     /** Set by the gate so a handler cannot re-derive its own policy. */
@@ -97,42 +111,10 @@ declare module 'fastify' {
  * Routes mounted with a placeholder rather than a handler, each naming the task
  * that fills it.
  *
- * Held as data for the same reason every exemption in this repository is: a
- * placeholder nobody wrote down is indistinguishable from a finished route that
- * happens to return 500. `assertRouterMatchesRegistry` refuses a route that is
- * neither implemented nor listed here, so this list can only shrink by someone
- * deleting an entry, never by someone forgetting one.
+ * All 32 of 32 MVP-1 routes declared in `ROUTES` are now implemented across
+ * T-14b, T-14c, T-14d, and T-14e, so this map is empty.
  */
-export const UNIMPLEMENTED: ReadonlyMap<string, string> = new Map([
-  // The §8.2 amendment of 2026-09-05 (F-46). Mounted and authorized from the
-  // day the rows exist, answering 500 until their task fills them — the same
-  // posture as every other row here, so "the inventory grew" can never be read
-  // as "the product grew".
-  ['GET /api/auth/oidc/start', 'T-14e'],
-  ['GET /api/auth/oidc/callback', 'T-14e'],
-  ['POST /api/internal/v1/projects', 'T-14c'],
-  ['POST /api/internal/v1/projects/:id/revisions', 'T-14c'],
-  ['POST /api/internal/v1/users/:id/deactivate', 'T-14e'],
-  ['POST /api/internal/v1/invitations/:id/revoke', 'T-14e'],
-  ['GET /api/client/v1/projects', 'T-14c'],
-  ['GET /api/client/v1/projects/:id/revisions', 'T-14c'],
-  ['POST /api/client/v1/revisions/:id/facility', 'T-14c'],
-  ['POST /api/client/v1/revisions/:id/units', 'T-14c'],
-  ['POST /api/client/v1/revisions/:id/options', 'T-14c'],
-  ['GET /api/client/v1/revisions/:id/preview', 'T-14c'],
-  ['GET /api/client/v1/revisions/:id/compare', 'T-14c'],
-  ['POST /api/client/v1/revisions/:id/submit', 'T-14d'],
-  ['POST /api/client/v1/revisions/:id/clone', 'T-14d'],
-  ['GET /api/client/v1/submissions/:id', 'T-14d'],
-  ['GET /api/client/v1/documents/:id', 'T-14d'],
-  ['GET /api/internal/v1/queue', 'T-14e'],
-  ['GET /api/internal/v1/submissions/:id', 'T-14e'],
-  ['GET /api/internal/v1/revisions/:id/bom', 'T-14e'],
-  ['POST /api/internal/v1/submissions/:id/derive', 'T-14e'],
-  ['POST /api/internal/v1/catalog/releases/:id/approve', 'T-14e'],
-  ['POST /api/internal/v1/revisions/:id/notes', 'T-14e'],
-  ['POST /api/internal/v1/idempotency-claims/:key/release', 'T-14e'],
-]);
+export const UNIMPLEMENTED: ReadonlyMap<string, string> = new Map();
 
 /**
  * The only routes an ACCEPTANCE session may reach.
@@ -329,6 +311,12 @@ export interface AppDeps {
   readonly env?: Readonly<Record<string, string | undefined>>;
   /** Optional hook invoked when an invitation is committed. */
   readonly onInvitationIssued?: (notice: IssuedInvitationNotice) => void | Promise<void>;
+  /** Optional hook to exchange an OIDC authorization code for a verified staff identity. */
+  readonly verifyOidcCode?: (code: string) => Promise<VerifiedOidcIdentity | null>;
+  /** Optional WORM store for submission manifests (defaults to an in-memory compliance store). */
+  readonly wormStore?: WormStore;
+  /** Optional hook invoked when the app-level outbound guard catches a forbidden client field (T-15 / AC-02). */
+  readonly onOutboundViolation?: (violation: OutboundViolation) => void | Promise<void>;
 }
 
 function send(reply: FastifyReply, code: ErrorCode, message: string): FastifyReply {
@@ -351,6 +339,7 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
   const recordDeny = deps.recordDeny;
 
   const registered: string[] = [];
+  app.decorate('mountedRoutes', registered);
   app.addHook('onRoute', (route) => {
     const methods = Array.isArray(route.method) ? route.method : [route.method];
     for (const m of methods) {
@@ -420,21 +409,6 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
     }
 
     // THE GATE AUTHORIZES THE CAPABILITY. THE HANDLER AUTHORIZES THE OBJECT.
-    //
-    // `authorize` takes the resource, and the resource is the object the route
-    // is about — which only the handler can fetch. Passing the principal's own
-    // organization here asks exactly one question: *may this role perform this
-    // action at all*. It is deliberately NOT the object check, and saying so
-    // matters, because a rule like `clientOwnOrg` trivially allows when handed
-    // the actor's own org, and a reader could take an `allow` here for more
-    // than it is.
-    //
-    // The object half is §8.3's "scoped fetch, never fetch-then-check":
-    // `currentOrg.revisions.find(id)` inside the handler, which fails closed
-    // when a row belongs to another tenant, backed by RLS. T-14b–e write those
-    // fetches; until they do, **no route serves an object, so there is no
-    // object to leak** — every handler here is a placeholder. When a
-    // `resourceLoader` lands on `RoutePolicy`, this call takes its result.
     const decision = authorize(principal, policy.action, {
       organizationId: principal.organizationId,
     });
@@ -459,30 +433,44 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
     });
   }
 
+  app.addHook('onSend', async (request, reply, payload) => {
+    if (request.policy?.namespace === 'client' && typeof payload === 'string') {
+      const forbidden = findForbiddenFields(JSON.parse(payload) as unknown);
+      if (forbidden.length > 0) {
+        if (deps.onOutboundViolation !== undefined) {
+          await deps.onOutboundViolation({
+            route: routeKey(request.method, request.routeOptions.url ?? ''),
+            fields: forbidden,
+          });
+        }
+        reply.code(statusFor('INTERNAL_ERROR'));
+        return JSON.stringify(errorEnvelope('INTERNAL_ERROR', 'internal server error'));
+      }
+    }
+    return payload;
+  });
+
+  app.setErrorHandler((_err, _request, reply) => {
+    // §8.3: "A 500 in particular says nothing about what happened, ever."
+    return send(reply, 'INTERNAL_ERROR', 'internal server error');
+  });
+
   registerAuthRoutes(app, {
     now,
     newId,
     env: deps.env,
     recordDeny,
     onInvitationIssued: deps.onInvitationIssued,
+    verifyOidcCode: deps.verifyOidcCode,
   });
 
-  for (const route of ROUTES) {
-    const task = UNIMPLEMENTED.get(routeKey(route.method, route.path));
-    if (task === undefined) continue;
-    app.route({
-      method: route.method,
-      url: route.path,
-      handler: async (_request, reply) => {
-        // A placeholder answers honestly. §8.3's status table has no 501, so
-        // this is a 500 with a fixed message and no detail — and the route is
-        // named in UNIMPLEMENTED so nobody has to guess which is which.
-        // Whether §8.3 should gain a 501 row is a blueprint question, recorded
-        // rather than answered here.
-        return send(reply, 'INTERNAL_ERROR', `route not implemented (${task})`);
-      },
-    });
-  }
+  registerRevisionRoutes(app, {
+    now,
+    newId,
+    env: deps.env,
+    recordDeny,
+    wormStore: deps.wormStore,
+  });
 
   // THE CHECK RUNS AT `ready()`, NOT AT THE END OF THIS FUNCTION.
   //

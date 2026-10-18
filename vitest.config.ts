@@ -304,6 +304,12 @@ export default defineConfig({
           lines: 100,
           statements: 100,
         },
+        'apps/api/src/revisions/**': {
+          branches: 80,
+          functions: 90,
+          lines: 92,
+          statements: 92,
+        },
         // withTenant() is the only correct path to the database. Its guards are
         // covered; the remainder is pool and driver plumbing.
         'packages/db/src/**': {

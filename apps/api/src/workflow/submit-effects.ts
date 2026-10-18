@@ -209,6 +209,13 @@ export function submitEffects(
 
     /** Step 5. `content_hash` and `frozen_at` together — the schema requires both. */
     freezeRevision: async (revisionId, contentHash, at) => {
+      // Clear any draft-time findings while lifecycle_state is still DRAFT so
+      // `finding_frozen_guard` (BEFORE UPDATE OR DELETE ON app.finding) does
+      // not reject step 6 (`persistDerived`) when a revision was edited before
+      // submit. Step 6 then inserts the final derived findings keyed to the
+      // frozen contentHash inside this same transaction.
+      await tx.query(`DELETE FROM app.finding WHERE revision_id = $1`, [revisionId]);
+
       const frozen = await tx.query(
         `UPDATE app.revision
             SET frozen_at = $1, content_hash = $2, lifecycle_state = 'FROZEN'

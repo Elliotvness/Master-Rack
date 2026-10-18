@@ -13,11 +13,21 @@ import { closeDatabase, configureDatabase, withTenant, type TenantContext } from
 
 import { requireDatabase } from '../../../../tools/test-support/require-db.js';
 import {
+  BAYS_PER_SCHEDULE_PAGE,
+  PDF_BUDGET_MIN_JOBS,
+  PDF_BUDGET_P95_MS,
+  assertPdfJobBudget,
   backoffFor,
   claimBatch,
+  claimTopicBatch,
   enqueue,
   markDispatched,
   markFailure,
+  preliminaryPdfKey,
+  renderPreliminaryPdf,
+  summarizePdfJobMetrics,
+  type PdfJobSample,
+  type PreliminaryPdfBayRow,
 } from '../index.js';
 
 const ADMIN_URL =
@@ -240,6 +250,39 @@ describe('retry and dead-lettering', () => {
     const never = await withTenant(ctx, (tx) => claimBatch(tx, AT('2026-08-31T09:00:00Z')));
     expect(never).toHaveLength(0);
   });
+
+  maybe('claimTopicBatch claims only due messages matching the requested topic', async () => {
+    await admin('TRUNCATE app.outbox_message RESTART IDENTITY');
+    const pdfJob = uuid();
+    const otherJob = uuid();
+
+    await withTenant(ctx, async (tx) => {
+      await enqueue(tx, {
+        id: pdfJob,
+        organizationId: ORG,
+        topic: 'pdf.generate',
+        payload: { reference: 'a'.repeat(64) },
+        now: AT('2026-08-31T00:00:00Z'),
+      });
+      await enqueue(tx, {
+        id: otherJob,
+        organizationId: ORG,
+        topic: 'notify.submitted',
+        payload: { reference: 'b'.repeat(64) },
+        now: AT('2026-08-31T00:00:00Z'),
+      });
+    });
+
+    const claimedDefault = await withTenant(ctx, (tx) =>
+      claimTopicBatch(tx, 'pdf.generate', AT('2026-08-31T00:01:00Z')),
+    );
+    expect(claimedDefault.map((m) => m.id)).toEqual([pdfJob]);
+
+    const claimedExplicit = await withTenant(ctx, (tx) =>
+      claimTopicBatch(tx, 'notify.submitted', AT('2026-08-31T00:01:00Z'), 5),
+    );
+    expect(claimedExplicit.map((m) => m.id)).toEqual([otherJob]);
+  });
 });
 
 describe('backoffFor (pure)', () => {
@@ -253,3 +296,156 @@ describe('backoffFor (pure)', () => {
     expect(backoffFor(20)).toBe(60 * 60_000);
   });
 });
+
+describe('P-03 — multi-page preliminary PDF renderer and job metric budget gate', () => {
+  it('renders a multi-page PDF-1.4 document for a 300-bay unit and a 2-page PDF when 0 bays are present', () => {
+    expect(BAYS_PER_SCHEDULE_PAGE).toBe(40);
+    expect(PDF_BUDGET_MIN_JOBS).toBe(20);
+    expect(PDF_BUDGET_P95_MS).toBe(6_000);
+    expect(preliminaryPdfKey('sub-1', 'c'.repeat(64))).toBe(`documents/sub-1/${'c'.repeat(64)}.pdf`);
+
+    const emptyPdf = renderPreliminaryPdf({
+      submissionId: 'sub-0',
+      manifestHash: 'a'.repeat(64),
+      submissionHash: 'b'.repeat(64),
+      submittedAt: '2026-09-01T00:00:00.000Z',
+      projectNumber: 'PRJ-000',
+      projectName: 'Empty (Special \\ Chars)',
+      revisionCode: 'P01',
+      contentHash: 'c'.repeat(64),
+      optionLabel: 'Option A',
+      aisleWidthUm: 3_048_000,
+      facilityWidthUm: 10_000_000,
+      facilityDepthUm: 10_000_000,
+      clearHeightUm: 6_000_000,
+      bays: [],
+      findings: [{ code: 'AISLE_CLEAR_OK', severity: 'PASS', closed_by: 'OK' }],
+      assumptions: [
+        { code: 'SLAB_ASSUMED', statement: 'Assumed (6 in) slab', acknowledged: true },
+        { code: 'SEISMIC_ASSUMED', statement: 'Unacknowledged check', acknowledged: false },
+      ],
+    });
+    expect(emptyPdf.pageCount).toBe(2);
+    expect(emptyPdf.bayCount).toBe(0);
+    expect(emptyPdf.sha256).toMatch(/^[0-9a-f]{64}$/);
+    const emptyText = Buffer.from(emptyPdf.bytes).toString('utf8');
+    expect(emptyText.startsWith('%PDF-1.4\n')).toBe(true);
+    expect(emptyText.endsWith('%%EOF\n')).toBe(true);
+    expect(emptyText).toContain('PRELIMINARY - NOT FOR CONSTRUCTION');
+
+    const bays300: PreliminaryPdfBayRow[] = Array.from({ length: 300 }, (_, idx) => ({
+      bayIndex: idx + 1,
+      runId: `run-${String(Math.floor(idx / 25) + 1).padStart(2, '0')}`,
+      bayId: `bay-${String((idx % 25) + 1).padStart(2, '0')}`,
+      xUm: (idx % 25) * 2_743_000,
+      yUm: Math.floor(idx / 25) * 2_200_000,
+      lengthUm: 2_743_000,
+      levels: 4,
+    }));
+
+    const pdf300 = renderPreliminaryPdf({
+      submissionId: 'sub-300',
+      manifestHash: 'd'.repeat(64),
+      submissionHash: 'e'.repeat(64),
+      submittedAt: '2026-09-01T00:00:00.000Z',
+      projectNumber: 'PRJ-300',
+      projectName: '300-Bay Facility',
+      revisionCode: 'P01',
+      contentHash: 'f'.repeat(64),
+      optionLabel: 'Option A — 300 Bays',
+      aisleWidthUm: 3_353_000,
+      facilityWidthUm: 80_000_000,
+      facilityDepthUm: 50_000_000,
+      clearHeightUm: 9_144_000,
+      bays: bays300,
+      findings: [],
+      assumptions: [],
+    });
+    // 1 cover/plan page + ceil(300 / 40) = 8 schedule pages = 9 pages total
+    expect(pdf300.pageCount).toBe(9);
+    expect(pdf300.bayCount).toBe(300);
+    const pdf300Text = Buffer.from(pdf300.bytes).toString('utf8');
+    expect(pdf300Text).toContain('/Count 9');
+    expect(pdf300Text).toContain('#300');
+  });
+
+  it('refuses to render a preliminary PDF if any forbidden client field is present (AC-02)', () => {
+    const leakyInput = {
+      submissionId: 'sub-leak',
+      manifestHash: 'a'.repeat(64),
+      submissionHash: 'b'.repeat(64),
+      submittedAt: '2026-09-01T00:00:00.000Z',
+      projectNumber: 'PRJ-LEAK',
+      projectName: 'Leak Check',
+      revisionCode: 'P01',
+      contentHash: 'c'.repeat(64),
+      optionLabel: 'Option A',
+      aisleWidthUm: 3_048_000,
+      facilityWidthUm: 10_000_000,
+      facilityDepthUm: 10_000_000,
+      clearHeightUm: 6_000_000,
+      bays: [],
+      findings: [],
+      assumptions: [],
+      cost: 123.45,
+    };
+    expect(() => renderPreliminaryPdf(leakyInput)).toThrow(/forbidden client field/);
+  });
+
+  it('computes p50/p95/p99 over the recorded set and skips loudly below 20 jobs', () => {
+    expect(() => summarizePdfJobMetrics([])).toThrow(RangeError);
+
+    const makeSamples = (durations: readonly number[]): PdfJobSample[] =>
+      durations.map((durationMs, i) => ({
+        jobId: `job-${String(i + 1)}`,
+        submissionId: `sub-${String(i + 1)}`,
+        manifestHash: 'a'.repeat(64),
+        durationMs,
+        pageCount: 9,
+        bayCount: 300,
+        recordedAt: '2026-09-01T00:00:00.000Z',
+      }));
+
+    // Below 20 jobs: skipped loudly (both custom onSkip and default console.warn)
+    const warnings: string[] = [];
+    const under20 = makeSamples([10, 12, 15, 11, 14]);
+    const skipVerdict = assertPdfJobBudget(under20, {
+      onSkip: (msg) => warnings.push(msg),
+    });
+    expect(skipVerdict.status).toBe('skipped_loudly');
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain('[P-03 SKIPPED LOUDLY]');
+    expect(warnings[0]).toContain('only 5 of 20 required jobs recorded');
+
+    // Also exercise default console.warn path when onSkip is omitted
+    const defaultSkip = assertPdfJobBudget(under20);
+    expect(defaultSkip.status).toBe('skipped_loudly');
+
+    // At >= 20 jobs: asserts p95 against 6,000 ms and optional p50 ratchet
+    const twentyGood = makeSamples(
+      Array.from({ length: 20 }, (_, i) => 10 + i),
+    );
+    const asserted = assertPdfJobBudget(twentyGood, { ratchetP50Ms: 60 });
+    expect(asserted.status).toBe('asserted');
+    if (asserted.status === 'asserted') {
+      expect(asserted.summary.count).toBe(20);
+      expect(asserted.summary.p95).toBeLessThanOrEqual(6_000);
+    }
+
+    // Exceeding p95 budget throws
+    const twentySlowP95 = makeSamples([
+      ...Array.from({ length: 19 }, () => 20),
+      7_500,
+    ]);
+    expect(() => assertPdfJobBudget(twentySlowP95)).toThrow(/exceeds §5\.4 budget/);
+
+    // Exceeding p50 ratchet throws
+    const twentySlowP50 = makeSamples(
+      Array.from({ length: 20 }, () => 120),
+    );
+    expect(() =>
+      assertPdfJobBudget(twentySlowP50, { budgetP95Ms: 6_000, ratchetP50Ms: 60 }),
+    ).toThrow(/exceeds p50 ratchet/);
+  });
+});
+

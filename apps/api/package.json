@@ -12,6 +12,8 @@
   "dependencies": {
     "@rms/contracts": "workspace:*",
     "@rms/db": "workspace:*",
+    "@rms/kernel-bom": "workspace:*",
+    "@rms/kernel-catalog": "workspace:*",
     "@rms/kernel-model": "workspace:*",
     "@rms/workflow": "workspace:*",
     "fastify": "^5.12.1"

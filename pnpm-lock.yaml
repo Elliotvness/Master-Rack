@@ -71,6 +71,12 @@ importers:
       '@rms/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@rms/kernel-bom':
+        specifier: workspace:*
+        version: link:../../packages/kernel-bom
+      '@rms/kernel-catalog':
+        specifier: workspace:*
+        version: link:../../packages/kernel-catalog
       '@rms/kernel-model':
         specifier: workspace:*
         version: link:../../packages/kernel-model

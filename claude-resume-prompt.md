@@ -44,10 +44,10 @@ before you quote any of these** — this section was six sessions stale until 20
 | Measure | Value | Blueprint anchor |
 |---|---|---|
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | Blueprint §15.2 — the definition of done. This is the answer to "how done is it". |
-| Plan-task completion, effort-weighted | 70 of 160 pts — 43.8% (an upper bound, not the answer) | `tasks/todo.md` phases, sliced from blueprint §15.3 |
-| Plan-task completion, task count | 25 of 49 — 51% | Same, unweighted |
+| Plan-task completion, effort-weighted | 96 of 160 pts — 60.0% (an upper bound, not the answer) | `tasks/todo.md` phases, sliced from blueprint §15.3 |
+| Plan-task completion, task count | 32 of 49 — 65% | Same, unweighted |
 | Pre-merge review `R-01…R-11` | **11 of 11 — 100%** | Blueprint §16.1 review gates — one merged branch's checklist, not the project |
-| Route surface vs the blueprint | **32 of 32** MVP-1 routes declared, mounted and checked — up from 22 | §8.2, amended twice: 34 rows, 2 marked phase 2. **8 auth/org handlers live (`T-14b`), 24 handlers answer 500** (`UNIMPLEMENTED`) |
+| Route surface vs the blueprint | **32 of 32** MVP-1 routes declared, mounted and checked — up from 22 | §8.2, amended twice: 34 rows, 2 marked phase 2. **All 32 handlers live (`T-14b` + `T-14c` + `T-14d` + `T-14e`, re-asserted by `T-15` + `P-03`), 0 handlers in `UNIMPLEMENTED`** |
 
 **No sha is quoted here, deliberately.** `main` moves every time a PR lands, and a sha written into
 this file went stale inside a day twice (drift 45, drift 49). `git ls-remote --heads origin` answers
@@ -78,7 +78,7 @@ cloud session should say which side read it.
 across the session, every completed one at exit 0; three stopped at `check-claims` and one at the
 coverage gate, each time over a figure this session had just made stale — the gates working, not
 failing. The run cited is the last, on the tree as committed:**
-`pnpm verify` **exit 0 — 79 files, 2,265 tests, 0 skipped**,
+`pnpm verify` **exit 0 — 79 files, 2,149 tests, 0 skipped**,
 **19 self-test invocations covering 18 checkers**, coverage all files
 99.53 / 98.88 / 99.42 / 99.53, 15 migrations, 15 declared claims. Both
 three occurrences of "skipped" in the log are self-test case names — read,

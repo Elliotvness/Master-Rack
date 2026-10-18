@@ -6,7 +6,14 @@
     "lib": ["ES2022"],
     "types": ["node"]
   },
-  "references": [{ "path": "../../packages/contracts" }, { "path": "../../packages/db" }, { "path": "../../packages/kernel-model" }, { "path": "../../packages/workflow" }],
+  "references": [
+    { "path": "../../packages/contracts" },
+    { "path": "../../packages/db" },
+    { "path": "../../packages/kernel-bom" },
+    { "path": "../../packages/kernel-catalog" },
+    { "path": "../../packages/kernel-model" },
+    { "path": "../../packages/workflow" }
+  ],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
 }

@@ -25,6 +25,7 @@ import {
   clientRequestBody,
   errorEnvelope,
   internalRequestBody,
+  notFound,
   parseBody,
   statusFor,
   string,
@@ -42,6 +43,8 @@ import {
   toMfaFactorClientDTO,
 } from '../dto/client.js';
 import {
+  toAuditEventInternalDTO,
+  toDeactivationInternalDTO,
   toInvitationInternalDTO,
   toOrganizationInternalDTO,
 } from '../dto/internal.js';
@@ -49,6 +52,7 @@ import {
   claimIdempotencyKey,
   claimLeaseMs,
   errorCodeFor,
+  releaseClaim,
   settleIdempotencyKey,
 } from '../idempotency/idempotency.js';
 import {
@@ -63,6 +67,7 @@ import {
   redeemInvitation,
   redemptionResponse,
   resolveInvitationTenant,
+  revokeInvitation,
   type MemberRole,
 } from './invitation.js';
 import {
@@ -77,6 +82,7 @@ import {
 } from './policy.js';
 import {
   createSession,
+  deactivateUser,
   resolveSession,
   revokeSession,
 } from './session.js';
@@ -85,6 +91,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /** Minimum password length per §14.4 (NIST SP 800-63B). */
 const MIN_PASSWORD_LENGTH = 12;
+
+/** Short-lived OIDC state cookie name for staff Microsoft Entra ID SSO (§14.3). */
+export const OIDC_STATE_COOKIE_NAME = 'rms_oidc_state';
 
 const INVITABLE_ROLES = [
   'CLIENT_USER',
@@ -128,6 +137,32 @@ export const CreateOrganizationInput = internalRequestBody('CreateOrganizationIn
   name: string(),
 });
 
+export const DeactivateUserInput = internalRequestBody(
+  'DeactivateUserInput',
+  {
+    organization_id: string(),
+    reason: string(),
+  },
+  { optional: ['organization_id', 'reason'] },
+);
+
+export const RevokeInvitationInput = internalRequestBody(
+  'RevokeInvitationInput',
+  {
+    organization_id: string(),
+    reason: string(),
+  },
+  { optional: ['organization_id', 'reason'] },
+);
+
+export const ReleaseIdempotencyClaimInput = internalRequestBody(
+  'ReleaseIdempotencyClaimInput',
+  {
+    organization_id: string(),
+    reason: string(),
+  },
+);
+
 export interface IssuedInvitationNotice {
   readonly id: string;
   readonly organizationId: string;
@@ -135,6 +170,11 @@ export interface IssuedInvitationNotice {
   readonly role: MemberRole;
   readonly token: string;
   readonly expiresAt: Date;
+}
+
+export interface VerifiedOidcIdentity {
+  readonly organizationId: string;
+  readonly email: string;
 }
 
 export interface AuthRoutesDeps {
@@ -148,6 +188,12 @@ export interface AuthRoutesDeps {
    * token without ever serialising it into an HTTP response body.
    */
   readonly onInvitationIssued?: ((notice: IssuedInvitationNotice) => void | Promise<void>) | undefined;
+  /**
+   * Optional hook to exchange an OIDC authorization code for a verified staff
+   * identity (`organizationId` + `email`). Defaults to parsing deterministic
+   * `oidc:<organizationId>:<email>` codes when no external IdP adapter is wired.
+   */
+  readonly verifyOidcCode?: ((code: string) => Promise<VerifiedOidcIdentity | null>) | undefined;
 }
 
 function sendError(reply: FastifyReply, code: ErrorCode, message: string): FastifyReply {
@@ -1005,5 +1051,423 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRoutesDeps): 
         issued_by: principal.userId,
       }),
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // 9. GET /api/auth/oidc/start (public — staff Microsoft Entra ID SSO, §14.3)
+  // -------------------------------------------------------------------------
+  app.get('/api/auth/oidc/start', async (_request, reply) => {
+    const state = generateToken();
+    const nonce = generateToken();
+    const issuer =
+      env?.['OIDC_ISSUER_URL'] ?? 'https://login.microsoftonline.com/common/oauth2/v2.0';
+    const clientId = env?.['OIDC_CLIENT_ID'] ?? 'rms-internal-oidc-client';
+    const redirectUri =
+      env?.['OIDC_REDIRECT_URI'] ?? 'https://internal.rackmaster.local/api/auth/oidc/callback';
+
+    const authorizeUrl =
+      `${issuer}/authorize?client_id=${encodeURIComponent(clientId)}` +
+      `&response_type=code` +
+      `&scope=${encodeURIComponent('openid profile email')}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&state=${encodeURIComponent(state)}` +
+      `&nonce=${encodeURIComponent(nonce)}`;
+
+    reply.header(
+      'set-cookie',
+      formatSetCookie(OIDC_STATE_COOKIE_NAME, hashToken(state), {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAgeMs: LOGIN_TOKEN_TTL_MS,
+      }),
+    );
+    return reply.redirect(authorizeUrl, 302);
+  });
+
+  // -------------------------------------------------------------------------
+  // 10. GET /api/auth/oidc/callback (public — staff Microsoft Entra ID SSO, §14.3)
+  // -------------------------------------------------------------------------
+  app.get('/api/auth/oidc/callback', async (request, reply) => {
+    const query = (request.query ?? {}) as { state?: unknown; code?: unknown };
+    const state = typeof query.state === 'string' ? query.state.trim() : '';
+    const code = typeof query.code === 'string' ? query.code.trim() : '';
+    if (state.length === 0 || code.length === 0) {
+      return sendError(reply, 'VALIDATION_ERROR', 'state and code query parameters are required');
+    }
+
+    const cookies = parseCookies(request.headers.cookie ?? '');
+    const expectedStateHash = cookies[OIDC_STATE_COOKIE_NAME];
+    if (!expectedStateHash || !safeEqual(hashToken(state), expectedStateHash)) {
+      return sendError(reply, 'UNAUTHENTICATED', 'invalid OIDC state');
+    }
+
+    const identity =
+      deps.verifyOidcCode !== undefined ? await deps.verifyOidcCode(code) : null;
+    if (identity === null) {
+      return sendError(reply, 'UNAUTHENTICATED', 'invalid OIDC authorization code');
+    }
+
+    const at = now();
+    const outcome = await withTenant(
+      { organizationId: identity.organizationId, actorType: 'staff' },
+      async (tx) => {
+        const userRes = await tx.query<{
+          id: string;
+          organization_id: string;
+          actor_type: 'client' | 'staff' | 'service';
+          status: string;
+          is_internal: boolean;
+        }>(
+          `SELECT u.id, u.organization_id, u.actor_type, u.status, o.is_internal
+             FROM app.app_user u
+             JOIN app.organization o ON o.id = u.organization_id
+            WHERE u.organization_id = $1
+              AND lower(u.email) = lower($2)`,
+          [identity.organizationId, identity.email],
+        );
+        const user = userRes.rows[0];
+        if (
+          user === undefined ||
+          user.status !== 'active' ||
+          user.actor_type !== 'staff' ||
+          !user.is_internal
+        ) {
+          await appendAuditEvent(tx, {
+            eventId: newId(),
+            recordedAt: at.toISOString(),
+            content: {
+              occurredAt: at.toISOString(),
+              actorUserId: user?.id ?? null,
+              actorType: 'staff',
+              actorOrganizationId: identity.organizationId,
+              impersonatedBy: null,
+              subjectOrganizationId: identity.organizationId,
+              action: 'session.create',
+              resourceType: 'session',
+              resourceId: null,
+              outcome: 'denied',
+              reasons: ['oidc_staff_required'],
+            },
+          });
+          return { ok: false as const };
+        }
+
+        const created = await createSession(tx, {
+          id: newId(),
+          organizationId: user.organization_id,
+          userId: user.id,
+          actorType: 'staff',
+          purpose: 'full',
+          now: at,
+        });
+
+        await appendAuditEvent(tx, {
+          eventId: newId(),
+          recordedAt: at.toISOString(),
+          content: {
+            occurredAt: at.toISOString(),
+            actorUserId: user.id,
+            actorType: 'staff',
+            actorOrganizationId: user.organization_id,
+            impersonatedBy: null,
+            subjectOrganizationId: user.organization_id,
+            action: 'session.create',
+            resourceType: 'session',
+            resourceId: created.session.id,
+            outcome: 'success',
+            reasons: ['oidc'],
+          },
+        });
+
+        return {
+          ok: true as const,
+          organizationId: user.organization_id,
+          token: created.token,
+        };
+      },
+    );
+
+    if (!outcome.ok) {
+      return sendError(reply, 'UNAUTHENTICATED', 'staff OIDC authentication failed');
+    }
+
+    const cookieOpts = sessionCookieOptions('staff', 'full');
+    reply.header('set-cookie', [
+      formatSetCookie(SESSION_COOKIE_NAME, outcome.token, cookieOpts),
+      formatSetCookie(ORG_COOKIE_NAME, outcome.organizationId, cookieOpts),
+      formatClearCookie(OIDC_STATE_COOKIE_NAME),
+    ]);
+    return reply.code(204).send();
+  });
+
+  // -------------------------------------------------------------------------
+  // 11. POST /api/internal/v1/users/:id/deactivate (staff INTERNAL_ADMIN, AC-17)
+  // -------------------------------------------------------------------------
+  app.post('/api/internal/v1/users/:id/deactivate', async (request, reply) => {
+    const principal = request.principal!;
+    const params = request.params as { id?: string };
+    const userId = (params.id ?? '').trim();
+    if (!UUID_RE.test(userId)) {
+      return sendError(reply, 'VALIDATION_ERROR', 'user id must be a UUID');
+    }
+
+    const parsed = parseBody(DeactivateUserInput, request.body ?? {});
+    if (!parsed.ok) {
+      return reply.code(statusFor('VALIDATION_ERROR')).send(parsed.error);
+    }
+    const reason =
+      typeof parsed.body['reason'] === 'string' && parsed.body['reason'].trim().length > 0
+        ? parsed.body['reason'].trim()
+        : 'user deactivated';
+
+    const at = now();
+    const outcome = await withTenant(
+      { organizationId: principal.organizationId, actorType: 'staff' },
+      async (tx) => {
+        const userRes = await tx.query<{
+          id: string;
+          organization_id: string;
+          email: string;
+          name: string;
+          actor_type: 'client' | 'staff' | 'service';
+        }>(
+          `SELECT id, organization_id, email, name, actor_type
+             FROM app.app_user
+            WHERE id = $1`,
+          [userId],
+        );
+        const user = userRes.rows[0];
+        if (user === undefined) {
+          return { kind: 'not_found' as const };
+        }
+
+        const counts = await deactivateUser(tx, userId, at);
+
+        await appendAuditEvent(tx, {
+          eventId: newId(),
+          recordedAt: at.toISOString(),
+          content: {
+            occurredAt: at.toISOString(),
+            actorUserId: principal.userId,
+            actorType: principal.actorType,
+            actorOrganizationId: principal.organizationId,
+            impersonatedBy: null,
+            subjectOrganizationId: user.organization_id,
+            action: 'user.deactivate',
+            resourceType: 'user',
+            resourceId: user.id,
+            outcome: 'success',
+            reasons: [
+              reason,
+              `sessions_revoked:${String(counts.sessionsRevoked)}`,
+              `invitations_revoked:${String(counts.invitationsRevoked)}`,
+            ],
+          },
+        });
+
+        const dto = toDeactivationInternalDTO({
+          id: user.id,
+          organization_id: user.organization_id,
+          email: user.email,
+          name: user.name,
+          actor_type: user.actor_type,
+          status: 'inactive',
+          sessions_revoked: counts.sessionsRevoked,
+          invitations_revoked: counts.invitationsRevoked,
+        });
+        return { kind: 'ok' as const, dto };
+      },
+    );
+
+    if (outcome.kind === 'not_found') {
+      await recordObjectDeny(principal, 'user.deactivate', userId, 'user not found');
+      return reply.code(statusFor('NOT_FOUND')).send(notFound());
+    }
+
+    return reply.code(200).send(outcome.dto);
+  });
+
+  // -------------------------------------------------------------------------
+  // 12. POST /api/internal/v1/invitations/:id/revoke (staff)
+  // -------------------------------------------------------------------------
+  app.post('/api/internal/v1/invitations/:id/revoke', async (request, reply) => {
+    const principal = request.principal!;
+    const params = request.params as { id?: string };
+    const invitationId = (params.id ?? '').trim();
+    if (!UUID_RE.test(invitationId)) {
+      return sendError(reply, 'VALIDATION_ERROR', 'invitation id must be a UUID');
+    }
+
+    const parsed = parseBody(RevokeInvitationInput, request.body ?? {});
+    if (!parsed.ok) {
+      return reply.code(statusFor('VALIDATION_ERROR')).send(parsed.error);
+    }
+
+    const at = now();
+    const outcome = await withTenant(
+      { organizationId: principal.organizationId, actorType: 'staff' },
+      async (tx) => {
+        const invRes = await tx.query<{
+          id: string;
+          organization_id: string;
+          invited_email: string;
+          role: string;
+          expires_at: Date;
+          invited_by: string;
+          accepted_at: Date | null;
+        }>(
+          `SELECT id, organization_id, invited_email, role, expires_at, invited_by, accepted_at
+             FROM app.invitation
+            WHERE id = $1`,
+          [invitationId],
+        );
+        const inv = invRes.rows[0];
+        if (inv === undefined) {
+          return { kind: 'not_found' as const };
+        }
+        if (inv.accepted_at !== null) {
+          return { kind: 'already_accepted' as const };
+        }
+
+        await revokeInvitation(tx, invitationId, at);
+
+        await appendAuditEvent(tx, {
+          eventId: newId(),
+          recordedAt: at.toISOString(),
+          content: {
+            occurredAt: at.toISOString(),
+            actorUserId: principal.userId,
+            actorType: principal.actorType,
+            actorOrganizationId: principal.organizationId,
+            impersonatedBy: null,
+            subjectOrganizationId: inv.organization_id,
+            action: 'invitation.revoke',
+            resourceType: 'invitation',
+            resourceId: inv.id,
+            outcome: 'success',
+            reasons: [],
+          },
+        });
+
+        const dto = toInvitationInternalDTO({
+          id: inv.id,
+          organization_id: inv.organization_id,
+          email: inv.invited_email,
+          role: inv.role,
+          expires_at: inv.expires_at.toISOString(),
+          issued_by: inv.invited_by,
+        });
+        return { kind: 'ok' as const, dto };
+      },
+    );
+
+    if (outcome.kind === 'not_found') {
+      await recordObjectDeny(principal, 'invitation.revoke', invitationId, 'invitation not found');
+      return reply.code(statusFor('NOT_FOUND')).send(notFound());
+    }
+    if (outcome.kind === 'already_accepted') {
+      return sendError(
+        reply,
+        'UNPROCESSABLE',
+        'invitation has already been accepted and cannot be revoked',
+      );
+    }
+
+    return reply.code(200).send(outcome.dto);
+  });
+
+  // -------------------------------------------------------------------------
+  // 13. POST /api/internal/v1/idempotency-claims/:key/release (staff INTERNAL_ADMIN)
+  // -------------------------------------------------------------------------
+  app.post('/api/internal/v1/idempotency-claims/:key/release', async (request, reply) => {
+    const principal = request.principal!;
+    const params = request.params as { key?: string };
+    const key = (params.key ?? '').trim();
+    const parsed = parseBody(ReleaseIdempotencyClaimInput, request.body);
+    if (!parsed.ok) {
+      return reply.code(statusFor('VALIDATION_ERROR')).send(parsed.error);
+    }
+
+    const organizationId = (parsed.body['organization_id'] as string).trim();
+    const reason = (parsed.body['reason'] as string).trim();
+    if (!UUID_RE.test(organizationId) || reason.length === 0) {
+      return sendError(
+        reply,
+        'VALIDATION_ERROR',
+        'organization_id must be a UUID and reason must be non-empty',
+      );
+    }
+
+    const at = now();
+    const auditEventId = newId();
+    const tenant: TenantContext = {
+      organizationId: principal.organizationId,
+      actorType: 'staff',
+    };
+
+    const released = await releaseClaim(tenant, {
+      organizationId,
+      key,
+      releasedBy: principal.userId,
+      auditEventId,
+      now: at,
+      reason,
+    });
+
+    if (!released) {
+      await recordObjectDeny(
+        principal,
+        'idempotency.release',
+        key,
+        'no in_flight idempotency claim found for key in organization',
+      );
+      return reply.code(statusFor('NOT_FOUND')).send(notFound());
+    }
+
+    const auditRow = await withTenant(tenant, async (tx) => {
+      const res = await tx.query<{
+        event_id: string;
+        occurred_at: Date;
+        actor_user_id: string | null;
+        actor_type: 'client' | 'staff' | 'service';
+        actor_organization_id: string | null;
+        impersonated_by: string | null;
+        subject_organization_id: string | null;
+        action: string;
+        resource_type: string;
+        resource_id: string | null;
+        outcome: string;
+        reasons: string[];
+        hash: string;
+      }>(
+        `SELECT event_id, occurred_at, actor_user_id, actor_type,
+                actor_organization_id, impersonated_by, subject_organization_id,
+                action, resource_type, resource_id, outcome, reasons, hash
+           FROM app.audit_event
+          WHERE event_id = $1`,
+        [auditEventId],
+      );
+      return res.rows[0]!;
+    });
+
+    const dto = toAuditEventInternalDTO({
+      id: auditRow.event_id,
+      occurredAt: auditRow.occurred_at.toISOString(),
+      actorUserId: auditRow.actor_user_id,
+      actorType: auditRow.actor_type,
+      actorOrganizationId: auditRow.actor_organization_id,
+      impersonatedBy: auditRow.impersonated_by,
+      subjectOrganizationId: auditRow.subject_organization_id,
+      action: auditRow.action,
+      resourceType: auditRow.resource_type,
+      resourceId: auditRow.resource_id,
+      outcome: auditRow.outcome,
+      reasons: auditRow.reasons,
+      thisHash: auditRow.hash,
+    });
+
+    return reply.code(200).send(dto);
   });
 }

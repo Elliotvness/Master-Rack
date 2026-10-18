@@ -154,12 +154,30 @@ export {
 export {
   backoffFor,
   claimBatch,
+  claimTopicBatch,
   enqueue,
   markDispatched,
   markFailure,
   type OutboxMessage,
   type OutboxStatus,
 } from './outbox/outbox.js';
+
+export {
+  BAYS_PER_SCHEDULE_PAGE,
+  PDF_BUDGET_MIN_JOBS,
+  PDF_BUDGET_P95_MS,
+  assertPdfJobBudget,
+  preliminaryPdfKey,
+  renderPreliminaryPdf,
+  summarizePdfJobMetrics,
+  type AssertPdfJobBudgetOptions,
+  type PdfJobBudgetVerdict,
+  type PdfJobMetricsSummary,
+  type PdfJobSample,
+  type PreliminaryPdfBayRow,
+  type PreliminaryPdfInput,
+  type RenderedPreliminaryPdf,
+} from './outbox/pdf-job.js';
 
 export {
   RETENTION_DAYS_7_YEARS,
@@ -245,3 +263,11 @@ export {
   type IdempotencyOutcome,
   type IdempotentIntent,
 } from './idempotency/idempotency.js';
+
+export {
+  processPdfOutboxBatch,
+  type PdfOutboxBatchResult,
+  type PdfOutboxJobFailure,
+  type ProcessPdfOutboxOptions,
+} from './revisions/routes.js';
+

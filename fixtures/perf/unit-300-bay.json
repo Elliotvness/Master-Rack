@@ -24,13 +24,19 @@
     "runSpacing": 2200
   },
   "budgets_ms_p95": {
-    "$comment": "From blueprint \u00a75.4, which calls them provisional and says they should be re-derived once a real unit size distribution is known. Budgets 3-5 (submission, queue load, PDF) are not measurable until the server exists. MEASURED 2026-09-01: preview p95 1.0-2.4 ms, fullDerivation p95 0.9-1.5 ms across four runs. Both are met by roughly two orders of magnitude, so these gates catch a catastrophe, not a regression - which is what the ratchet below is for.",
+    "$comment": "From blueprint \u00a75.4, which calls them provisional and says they should be re-derived once a real unit size distribution is known. All five server-side budgets (preview, fullDerivation, submission, queueLoad at 5,000, and pdfGeneration from the outbox job queue) are now measured. MEASURED 2026-09-01: preview p95 1.0-2.4 ms, fullDerivation p95 0.9-1.5 ms across four runs. MEASURED 2026-10-17 (P-01): submission end-to-end against real PostgreSQL on the 300-bay fixture. MEASURED 2026-10-17 (P-02): queueLoad at 5,000 submissions across >=50 organizations with RLS on. MEASURED 2026-10-18 (P-03): pdfGeneration on the 300-bay fixture (9 pages) via the outbox job queue.",
     "preview": 120,
-    "fullDerivation": 400
+    "fullDerivation": 400,
+    "submission": 2000,
+    "queueLoad": 800,
+    "pdfGeneration": 6000
   },
   "ratchet_ms_p50": {
     "$comment": "A ratchet on the MEDIAN, set above the measured value, in the same spirit as the coverage floors in vitest.config.ts: it sits just above what was measured so an improvement is free and a regression fails the build. It keys on p50 rather than p95 deliberately - across four runs the p95 varied by 2.3x (1.04 to 2.42 ms) while the p50 varied by 1.3x (0.49 to 0.66 ms). At sub-millisecond scale the p95 is dominated by scheduler and GC noise, not by the work, so a p95 ratchet tight enough to catch a real regression would flap on noise, and one loose enough not to flap would catch nothing. Raise these when the measured value drops; never raise them to make a build pass.",
     "preview": 2.5,
-    "fullDerivation": 2.5
+    "fullDerivation": 2.5,
+    "submission": 60,
+    "queueLoad": 60,
+    "pdfGeneration": 60
   }
 }

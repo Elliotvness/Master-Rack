@@ -109,6 +109,37 @@ export async function claimBatch(
   }));
 }
 
+/**
+ * Claim up to `limit` pending, due messages for a specific `topic` (e.g.
+ * `'pdf.generate'` for **P-03**) using `FOR UPDATE SKIP LOCKED` so topic-specific
+ * workers never steal rows belonging to other outbox topics.
+ */
+export async function claimTopicBatch(
+  tx: TenantTransaction,
+  topic: string,
+  now: Date,
+  limit = 20,
+): Promise<readonly OutboxMessage[]> {
+  const result = await tx.query<ClaimRow>(
+    `SELECT id, organization_id, topic, payload, attempts, max_attempts
+       FROM app.outbox_message
+      WHERE status = 'pending' AND topic = $1 AND available_at <= $2
+      ORDER BY available_at ASC
+      LIMIT $3
+      FOR UPDATE SKIP LOCKED`,
+    [topic, now, limit],
+  );
+
+  return result.rows.map((row) => ({
+    id: row.id,
+    organizationId: row.organization_id,
+    topic: row.topic,
+    payload: row.payload,
+    attempts: row.attempts,
+    maxAttempts: row.max_attempts,
+  }));
+}
+
 /** Mark a message dispatched. Terminal success. */
 export async function markDispatched(
   tx: TenantTransaction,

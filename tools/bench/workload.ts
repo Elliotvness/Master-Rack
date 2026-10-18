@@ -156,3 +156,59 @@ export function fullDerivation(): {
 
   return { preview: p, bomLines: lines.length, canonicalBytes: canonical.length };
 }
+
+/**
+ * Build the 300-bay `RevisionDraftContent` payload (12 runs × 25 bays = 300
+ * bays, 4 levels) used by the `P-01` end-to-end submission benchmark against
+ * `POST /api/client/v1/revisions/:id/submit`.
+ */
+export function submissionDraftContent(): Readonly<Record<string, unknown>> {
+  const clearSpanUm = (D['clearSpan'] ?? 2743) * 1000;
+  const frameDepthUm = (D['frameDepth'] ?? 1067) * 1000;
+  const aisleWidthUm = (D['aisleWidth'] ?? 3353) * 1000;
+  const runSpacingUm = (D['runSpacing'] ?? 2200) * 1000;
+
+  return {
+    schema_version: 1,
+    facility: {
+      width_um: S.baysPerRun * clearSpanUm + 10_000_000,
+      depth_um: S.runs * runSpacingUm + 10_000_000,
+      clear_height_um: 9_144_000,
+      forklift: {
+        model_stated: true,
+        required_aisle_um: 3_048_000,
+      },
+      dock_count: 4,
+    },
+    units: [
+      {
+        unit_id: 'bench-unit-1',
+        width_um: 914_000,
+        depth_um: frameDepthUm,
+        height_um: 1_371_600,
+        weight_lb: 2000,
+        overhang_um: 50_800,
+      },
+    ],
+    options: [
+      {
+        option_id: 'opt-300-bay',
+        label: 'Benchmark 300-Bay Selective Layout',
+        aisle_width_um: aisleWidthUm,
+        runs: Array.from({ length: S.runs }, (_, r) => ({
+          run_id: `run-${String(r)}`,
+          unit_id: 'bench-unit-1',
+          x_um: 0,
+          y_um: r * runSpacingUm,
+          bays: Array.from({ length: S.baysPerRun }, (__, b) => ({
+            bay_id: `run-${String(r)}-bay-${String(b)}`,
+            length_um: clearSpanUm,
+            levels: S.beamLevels,
+          })),
+        })),
+      },
+    ],
+    active_option_id: 'opt-300-bay',
+  };
+}
+

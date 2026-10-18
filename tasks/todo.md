@@ -1524,18 +1524,108 @@ M, each leaving the app bootable:
   internal derived revision planted in the same project is absent from the client's list, not
   filtered by the serializer but never selected; a POST to a frozen revision → refused with the
   envelope.
+
+  **DONE 2026-10-17.** All 9 `T-14c` routes implemented in `apps/api/src/revisions/routes.ts` and
+  mounted in `apps/api/src/app.ts` (`UNIMPLEMENTED` reduced from 24 to 15; 17 of 32 MVP-1 handlers
+  now live):
+  - `POST /api/internal/v1/projects` and `POST /api/internal/v1/projects/:id/revisions` (inherited
+    from the §8.2 amendment): create tenant-scoped projects (`PRJ-YYYY-NNN` when omitted) and initial
+    `C01` (`audience = 'client'`, `DRAFT`) revisions pinned to an `APPROVED` catalog release and rule
+    pack, seeding default assumptions (`FLAB`, `SEIS`, `SPRK`, `LOAD`, `CLEAR`, ` TOL `).
+  - `GET /api/client/v1/projects` and `GET /api/client/v1/projects/:id/revisions`: tenant-scoped
+    reads through `withTenant` with explicit `audience = 'client'` filtering in SQL alongside RLS
+    (`0005_revision_audience_rls.sql`).
+  - `POST /api/client/v1/revisions/:id/facility`, `POST /api/client/v1/revisions/:id/units`, and
+    `POST /api/client/v1/revisions/:id/options`: bound by `@rms/contracts` `clientRequestBody` schemas,
+    enforce `DRAFT` lifecycle state (`422 UNPROCESSABLE` + deny audit event on `FROZEN`), persist
+    facility/unit/option inputs, and run the kernel derivation + MVP-1 check evaluation on write to
+    keep `app.finding` and `app.assumption` synchronized.
+  - `GET /api/client/v1/revisions/:id/preview` and `GET /api/client/v1/revisions/:id/compare`:
+    compute deterministic display-list views (`@rms/display-list` `emitPlanView` / `emitElevationView`),
+    findings, assumptions, and option-pair metric deltas (`COMPARABLE_METRICS`) through the outbound
+    client DTOs.
+  - **Proofs verified against live PostgreSQL (`app.db.test.ts`) and unit tests (`app.test.ts`):**
+    internal derived revision (`audience = 'internal'`) planted in the same project is absent from
+    the client revision list and returns `404` + deny audit event on direct access; `POST` (`facility`,
+    `units`, `options`) to a `FROZEN` revision is refused with `422 UNPROCESSABLE` error envelope and
+    records a deny audit event; cross-tenant access returns `404 NOT_FOUND` + deny audit event.
 - **T-14d — submit, clone, status and documents** *(M; P-01 lands in the same commit)*.
   `POST submit` (T-13d key required; `workflow/submit-effects` behind it; the preliminary PDF issued
   at submit per OD-10 and registered per FR-DC-03), `POST clone`, `GET submissions/:id` (coarse
   three-state status, OD-12 wording), `GET documents/:id` (signed short-lived URL; the access is an
   audit event). **Proof:** two submits with one key → one submission; the 300-bay fixture through
   the real route timed against §5.4 budget 3 (P-01); the document URL expires.
+
+  **DONE 2026-10-17.** All 4 `T-14d` routes implemented in `apps/api/src/revisions/routes.ts` and
+  mounted in `apps/api/src/app.ts` (`UNIMPLEMENTED` reduced from 15 to 11; 21 of 32 MVP-1 handlers
+  now live):
+  - `POST /api/client/v1/revisions/:id/submit`: guarded by `Idempotency-Key` (`claimIdempotencyKey` /
+    `settleIdempotencyKey` with `result_ref` replay on `settled` and `422 IDEMPOTENCY_KEY_REUSED` on
+    payload mismatch), runs `@rms/workflow` `submit()` inside a single `withTenant` transaction via
+    `pgSubmitEffects`, deletes stale draft `app.finding` rows before `freezeRevision` (`finding_frozen_guard`),
+    stores the immutable submission manifest in WORM storage (`COMPLIANCE` mode, 7-year retainUntil),
+    and issues & registers the preliminary summary `app.document` (`MS-GOV-YYYY-NNN` per OD-10 / FR-DC-03)
+    in the same transaction. Multi-reason blocker refusal returns `422 UNPROCESSABLE` listing every
+    active `BLOCKER` finding (`AISLE_CLEAR_SHORTFALL`, `CLEAR_HEIGHT_EXCEEDED`), every unacknowledged
+    assumption code, and missing disclaimer acceptance in a single response.
+  - `POST /api/client/v1/revisions/:id/clone`: clones a `FROZEN` client revision (`P01`) into a new
+    `DRAFT` client revision (`P02`, `iteration = 1`) via `@rms/kernel-model` `cloneToDraft`, copying
+    inputs and re-seeding unacknowledged assumptions while leaving the frozen source revision's
+    `content_hash` untouched.
+  - `GET /api/client/v1/submissions/:id`: tenant-scoped read returning the client `Submission` DTO
+    with OD-12 coarse three-state status (`'received' | 'in_progress' | 'complete'`).
+  - `GET /api/client/v1/documents/:id`: tenant-scoped read issuing an HMAC-SHA256 signed short-lived
+    download URL (`DOCUMENT_URL_TTL_MS = 15 min`, verified by `verifySignedDocumentUrl` to reject
+    expired or tampered URLs) and recording an allow audit event (`document.read`) in `app.audit_event`.
+  - **Proofs verified against live PostgreSQL (`app.db.test.ts`), unit tests (`app.test.ts`), and
+    `pnpm bench` (`tools/bench/budgets.bench-run.ts`):** two submits with one key produce one
+    submission and replay the identical `Submission` DTO; reused key with different body returns
+    `422 IDEMPOTENCY_KEY_REUSED`; 300-bay fixture timed end-to-end through the real route against
+    live PostgreSQL at `p50 19.36 ms / p95 26.65 ms` vs `2,000 ms` budget (`P-01`); signed document
+    URL expires after TTL.
 - **T-14e — internal surface** *(M; P-02 lands in the same commit)*. `GET queue` (paginated via
   `@rms/contracts`, no N+1, RLS on — P-02's seeded 5,000), `GET submissions/:id` (full package),
   `GET revisions/:id/bom`, `POST submissions/:id/derive` (idempotent; `deriveInternalRevision`),
   `POST revisions/:id/notes`, `POST catalog/releases/:id/approve` (re-auth, checker ≠ digitiser,
   the T-04 gate behind it). **Proof:** a client principal on every one of these → 404; the queue at
   5,000 rows issues a constant number of statements.
+
+  **DONE 2026-10-17.** All 11 remaining `T-14e` routes implemented across `apps/api/src/auth/routes.ts`
+  and `apps/api/src/revisions/routes.ts` and mounted in `apps/api/src/app.ts` (`UNIMPLEMENTED` reduced
+  from 11 to **0**; **all 32 of 32 MVP-1 handlers now live**):
+  - `GET /api/auth/oidc/start` and `GET /api/auth/oidc/callback`: Entra ID OIDC PKCE (`S256`) start
+    (issuing `__Host-rms_oidc` state+verifier cookie and `302` redirect) and callback (verifying CSRF
+    state, validating `tid` against `OIDC_ALLOWED_TENANT_IDS` and `amr`/`acr` MFA claim per §14.4 /
+    AC-17, provisioning/verifying staff user in internal organization, and issuing a 12-hour staff
+    session cookie pair).
+  - `GET /api/internal/v1/queue` (`queryInternalQueuePage`): paginated via `@rms/contracts`
+    `parsePageRequest` / `offsetOf` / `paginate`, bounds the page in the `page_sub` CTE (`LIMIT $1
+    OFFSET $2`) and aggregates `BLOCKER` and `ENGINEERING_REVIEW_REQUIRED` counts per revision via
+    `finding_org_revision_idx` in a constant **2 SQL statements** regardless of table size (proven at
+    10 rows and at 5,377 rows across 83 organizations in `P-02`).
+  - `GET /api/internal/v1/submissions/:id`: returns `SubmissionPackageInternalDTO` combining submission,
+    revision, acknowledged assumptions, internal findings (with `rule_id`, `citation`, `standard`,
+    `edition`, `section`, `verification_tier`, and waiver metadata from `app.finding_internal_detail`),
+    resolved and unresolved `bom_lines` (`@rms/kernel-bom` `deriveBom`), and internal notes.
+  - `GET /api/internal/v1/revisions/:id/bom`: paginated `BomLinePage` returning resolved catalog lines
+    (`mpn` populated, `unresolved_reason: null`) alongside structured unresolved lines (`mpn: null`,
+    `unresolved_reason` populated per `E-07`).
+  - `POST /api/internal/v1/submissions/:id/derive`: guarded by `Idempotency-Key`, calls `@rms/workflow`
+    `deriveInternalRevision` to create an internal `DRAFT` revision (`C01`, `C02`, ..., `audience =
+    'internal'`, `derived_from_revision_id = P01.id`) with zero carried-over waivers (`E-04`) while
+    leaving the frozen client revision's `content_hash` untouched and keeping `C01` invisible to client
+    queries (`AC-14`).
+  - `POST /api/internal/v1/revisions/:id/notes`: creates internal-only notes via `@rms/workflow`
+    `internalNote` (`client_visible: false`, `E-05`).
+  - `POST /api/internal/v1/catalog/releases/:id/approve`: `INTERNAL_ADMIN`-only two-person catalog
+    approval enforcing `@rms/kernel-catalog` `approveRelease` (`reauthenticated === true`,
+    `approver !== digitised_by`, every dataset carrying a valid `verification_path` including human
+    spot-checks with `spotsChecked >= 10`, `AC-12`).
+  - `POST /api/internal/v1/users/:id/deactivate`, `POST /api/internal/v1/invitations/:id/revoke`, and
+    `POST /api/internal/v1/idempotency-claims/:key/release`: deactivate user + immediately revoke all
+    active sessions and pending invitations in the same transaction (`AC-17`), revoke pending
+    invitations (`revokeInvitation`), and release stuck `in_flight` idempotency claims (`releaseClaim`
+    at `INTERNAL_ADMIN` with mandatory audit reason).
 
 **Arithmetic if confirmed:** T-14 goes from L = 8 to 5 × M = 20; the denominator moves 148 → 160
 and the published figure 35.1% → **32.5%** with nothing getting worse — the sensitivity table's
@@ -1545,57 +1635,110 @@ proposal: T-14's single L = 8 is retired, the five M sub-tasks count, and the sc
 sizes, the scoreboard keeps T-14 at L = 8 and says so" for five weeks after he had — **F-56**.)*
 T-15 is unchanged and still follows T-14e.
 
-### T-15: Re-assert AC-02, AC-03 and AC-06 against the running system
+### T-15: Re-assert AC-02, AC-03 and AC-06 against the running system  ✅ 2026-10-18
 **Acceptance criteria:** the contract test enumerates routes from the real router, calls each as a
 client principal, and asserts no forbidden key at any nesting depth. The three acceptance criteria
 move from "enforced against a model" to enforced.
 **Verification:** the enumeration count matches the route table; a planted forbidden field is caught.
 **Dependencies:** T-14. **Scope:** S.
+- [x] `app.mountedRoutes` collected via Fastify's `onRoute` hook on the live router instance; count
+      (`32`) and route set verified to equal `ROUTES` (`AC-06`)
+- [x] Every mounted route called as a client principal against both the unit harness (`app.test.ts`)
+      and live PostgreSQL (`app.db.test.ts`, exercising all 14 `/api/client/*` routes with real
+      project/revision/submission/document/MFA/invitation data so every 200/201 DTO payload is
+      inspected, plus all 13 `/api/internal/*` and 5 `/api/auth/*` routes): every internal route
+      returns `404 NOT_FOUND` (never `403`) + deny audit event, and `findForbiddenFields(body)` is
+      `[]` at all nesting depths on every client response (`AC-02`)
+- [x] Outbound `onSend` guard in `apps/api/src/app.ts` parses every JSON response on `/api/client/*`
+      and runs `findForbiddenFields`; a planted forbidden field (`cost`, nested `mpn`, nested
+      `rule_id`) is caught, reported to `onOutboundViolation`, and refused as `500 INTERNAL_ERROR`
+      (`AC-02` verification)
+- [x] Cross-organization requests by a rival tenant's client principal (`Tenant B` targeting
+      `Tenant A`'s project, draft revision, frozen revision, submission, and preliminary document
+      across all 10 resource-addressed client endpoints) return `404 NOT_FOUND` (never `403`) and
+      write a chained deny `app.audit_event` row per attempt (`AC-03`)
+
+**DONE 2026-10-18.** Verified in `apps/api/src/app.test.ts` and `apps/api/src/app.db.test.ts` against
+live PostgreSQL 18.4.
 
 ### P-01: Measure the submission budget in the same commit as the submit route
 **Description:** §5.4 budget 3 — submission (freeze + manifest + hash + BOM persist) at p95 2 s,
 measured by an end-to-end test. It ships with T-14's submit route, not after it: a budget added
 later is a budget nobody has ever seen fail.
 **Acceptance criteria:**
-- [ ] An end-to-end test that submits the 300-bay fixture through the real route and times it
-- [ ] p50/p95/p99 reported, not p95 alone — see `PERF.md` on why the spread is the signal
-- [ ] Asserted against the §5.4 budget **and** a ratchet derived from the first measurement
-- [ ] The measurement runs against a real Postgres in CI, not a mock. A mocked timing is a number
+- [x] An end-to-end test that submits the 300-bay fixture through the real route and times it
+- [x] p50/p95/p99 reported, not p95 alone — see `PERF.md` on why the spread is the signal
+- [x] Asserted against the §5.4 budget **and** a ratchet derived from the first measurement
+- [x] The measurement runs against a real Postgres in CI, not a mock. A mocked timing is a number
       about the mock
-- [ ] The first measurement, and any attempt that did not survive, recorded in `PERF.md`
+- [x] The first measurement, and any attempt that did not survive, recorded in `PERF.md`
 **Verification:** `pnpm bench` grows a submission row; CI step passes.
 **Dependencies:** T-14 (submit route), T-13d. **Scope:** M.
+
+**DONE 2026-10-17** — shipped in the same commit as `T-14d`. `tools/bench/measure.ts` gains
+`measureAsync`; `tools/bench/workload.ts` gains `submissionDraftContent()` (12 runs × 25 bays =
+300 bays, 4 levels); `tools/bench/budgets.bench-run.ts` seeds 35 `DRAFT` 300-bay revisions (5
+warm-up + 30 measured) in real PostgreSQL and submits each through `app.inject({ method: 'POST',
+url: '/api/client/v1/revisions/:id/submit' })`, verifying `COUNT(*)` in `app.submission` grows by
+35 rows and asserting both `p95 <= 2,000 ms` (§5.4 budget 3) and `p50 <= 60 ms` (`ratchet_ms_p50.submission`
+in `fixtures/perf/unit-300-bay.json`). First measurement recorded in `PERF.md`: `p50 19.36 ms`,
+`p95 26.65 ms`, `p99 28.15 ms`, `max 28.15 ms` (~75× headroom against the 2,000 ms budget).
 
 ### P-02: The queue at 5,000 — seeded load test, and the query that survives it
 **Description:** §5.4 budget 4 — internal queue load at p95 800 ms with 5,000 submissions, measured
 by a seeded load test. This is the budget most likely to be missed, because it is the only one whose
 cost grows with the business rather than with one unit's size.
 **Acceptance criteria:**
-- [ ] A seed script that creates 5,000 submissions across ≥50 organizations, deterministically
-- [ ] The queue query uses `LIMIT`/`OFFSET` from `@rms/contracts`' `paginate`/`offsetOf` — never a
+- [x] A seed script that creates 5,000 submissions across ≥50 organizations, deterministically
+- [x] The queue query uses `LIMIT`/`OFFSET` from `@rms/contracts`' `paginate`/`offsetOf` — never a
       full fetch narrowed in the application
-- [ ] `EXPLAIN (ANALYZE, BUFFERS)` recorded in `PERF.md` for the queue query at 5,000 rows, with
+- [x] `EXPLAIN (ANALYZE, BUFFERS)` recorded in `PERF.md` for the queue query at 5,000 rows, with
       the chosen index named. An index added without the plan that justifies it is a guess
-- [ ] **No N+1**: the organization name, project number and counts come back in one query. A test
+- [x] **No N+1**: the organization name, project number and counts come back in one query. A test
       counts statements issued per queue render and asserts it is constant in the row count
-- [ ] RLS is ON for the measurement. Measuring with `row_security = off` measures a query the
+- [x] RLS is ON for the measurement. Measuring with `row_security = off` measures a query the
       product never runs
-- [ ] Asserted against the budget and a ratchet
+- [x] Asserted against the budget and a ratchet
 **Verification:** seeded load test in CI; statement-count test fails if a loop is introduced.
 **Dependencies:** T-14 (queue route). **Scope:** M.
 
-### P-03: PDF generation as a job, with the metric it is budgeted by
+**DONE 2026-10-17** — shipped in the same commit as `T-14e`. `tools/bench/budgets.bench-run.ts`
+(`seedQueueDataset`) deterministically seeds 5,000 submissions across 50 organizations (with fixed
+UUIDs `88888888-8888-4888-8888-b401..b406` and `ANALYZE`), asserts constant `O(1)` SQL statement
+count (`2` statements at 10 rows and `2` statements at 5,377 rows across 83 organizations), verifies
+`SHOW row_security = 'on'` and `app.actor_type = 'staff'`, captures `EXPLAIN (ANALYZE, BUFFERS)`
+naming `finding_org_revision_idx`, `revision_pkey`, and `organization_pkey` (9.69 ms SQL execution,
+442 shared buffer hits, recorded in `PERF.md`), and times 30 HTTP + PostgreSQL iterations (after 5
+warm-up) of `GET /api/internal/v1/queue?page=1&pageSize=25` at `p50 25.83 ms`, `p95 32.06 ms`,
+`p99 32.17 ms` against the `800 ms` §5.4 budget (~25× headroom) and a `60 ms` p50 ratchet in
+`fixtures/perf/unit-300-bay.json`.
+
+### P-03: PDF generation as a job, with the metric it is budgeted by  ✅ 2026-10-18
 **Description:** §5.4 budget 5 — preliminary PDF at p95 6 s, asynchronous with progress, measured by
 a job-queue metric. The budget already says *asynchronous with progress*, so a synchronous
 implementation is not a slow version of the right thing, it is the wrong shape.
 **Acceptance criteria:**
-- [ ] Generation runs as an outbox/job-queue job, never in the request path
-- [ ] The client is given progress, and a failed job is visible rather than silent
-- [ ] Duration recorded per job as a metric; p95 computed over the recorded set, not per call
-- [ ] Asserted against the budget once ≥20 jobs exist; below that the assertion is skipped **loudly**
-- [ ] The 6 s budget is re-checked against a real 300-bay unit, not a one-page fixture
+- [x] Generation runs as an outbox/job-queue job, never in the request path
+- [x] The client is given progress, and a failed job is visible rather than silent
+- [x] Duration recorded per job as a metric; p95 computed over the recorded set, not per call
+- [x] Asserted against the budget once ≥20 jobs exist; below that the assertion is skipped **loudly**
+- [x] The 6 s budget is re-checked against a real 300-bay unit, not a one-page fixture
 **Verification:** a job-queue metric exists and the p95 is queryable.
 **Dependencies:** T-14, the document path. **Scope:** M.
+
+**DONE 2026-10-18.** `apps/api/src/outbox/outbox.ts` gains `claimTopicBatch(tx, 'pdf.generate', now, limit)`
+(`FOR UPDATE SKIP LOCKED`); `apps/api/src/outbox/pdf-job.ts` implements `renderPreliminaryPdf`
+(deterministic multi-page PDF-1.4 renderer: 1 cover/plan-view page + paginated bay schedule pages at
+40 bays/page = **9 pages** for the 300-bay fixture, diagonal `PRELIMINARY - NOT FOR CONSTRUCTION`
+watermark on every page, and `findForbiddenFields` refusal), `summarizePdfJobMetrics`, and
+`assertPdfJobBudget` (`MIN_PDF_JOBS_FOR_BUDGET_ASSERTION = 20`, loud skip below 20 jobs);
+`apps/api/src/revisions/routes.ts` implements `processPdfOutboxBatch` and updates
+`GET /api/client/v1/documents/:id` to report `status_code: 'PENDING'` while queued, `'PRELIMINARY'`
+with signed URL once dispatched, and `'FAILED'` (with `url: ''`) when a job fails or dead-letters.
+Measured across 30 outbox PDF jobs (after 5 warm-up) on the 300-bay fixture in
+`tools/bench/budgets.bench-run.ts` and recorded in `PERF.md`: `p50 5.61 ms`, `p95 8.45 ms`,
+`p99 9.60 ms` against the `6,000 ms` §5.4 budget (~710× headroom) and a `60 ms` p50 ratchet in
+`fixtures/perf/unit-300-bay.json`.
 
 ### P-05: Front-end budgets, agreed before the first screen exists
 **Description:** §5.4's five budgets are all server- or kernel-side. There is **no front-end budget
@@ -1677,12 +1820,12 @@ worth doing before 24 commits become history.
 **Verification:** findings appended to `tasks/review-findings.md`. **Scope:** S each.
 
 ## ══ CHECKPOINT B ══
-- [ ] MVP steps 1, 2, 6, 7 and 8 provable over HTTP
-- [ ] Every §5.4 budget that the code now makes measurable HAS a runner: P-01 submission, P-02 queue
+- [x] MVP steps 1, 2, 6, 7 and 8 provable over HTTP
+- [x] Every §5.4 budget that the code now makes measurable HAS a runner: P-01 submission, P-02 queue
       at 5,000. A budget without a runner is not a budget (AD-7)
-- [ ] `EXPLAIN (ANALYZE, BUFFERS)` for the queue query recorded in `PERF.md`, with the index named
-- [ ] Statement-count test proves no N+1 in the queue render
-- [ ] R-08 and R-10 closed, or explicitly waived on the record
+- [x] `EXPLAIN (ANALYZE, BUFFERS)` for the queue query recorded in `PERF.md`, with the index named
+- [x] Statement-count test proves no N+1 in the queue render
+- [x] R-08 and R-10 closed, or explicitly waived on the record
 
 ## Phase 4 — The interface  *(Q1 answered: Vite + React Router v7 SPA)*
 

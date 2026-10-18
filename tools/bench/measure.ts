@@ -62,6 +62,51 @@ export function measure(name: string, fn: () => unknown, options: MeasureOptions
   };
 }
 
+/**
+ * Asynchronous counterpart to `measure` for end-to-end database/HTTP budgets
+ * such as `P-01` (`POST /api/client/v1/revisions/:id/submit` against real
+ * PostgreSQL).
+ *
+ * Passes the zero-based iteration index (`0 .. warmup + iterations - 1`) so
+ * stateful benchmarks (like freezing a fresh revision on each submit) can
+ * address a pre-seeded revision per sample without counting test setup inside
+ * the timed window.
+ */
+export async function measureAsync(
+  name: string,
+  fn: (index: number) => Promise<unknown>,
+  options: MeasureOptions = {},
+): Promise<Measurement> {
+  const iterations = options.iterations ?? 30;
+  const warmup = options.warmup ?? 5;
+
+  for (let i = 0; i < warmup; i += 1) {
+    await fn(i);
+  }
+
+  const samples: number[] = new Array<number>(iterations);
+  for (let i = 0; i < iterations; i += 1) {
+    const t0 = performance.now();
+    await fn(warmup + i);
+    samples[i] = performance.now() - t0;
+  }
+
+  const sorted = [...samples].sort((a, b) => a - b);
+  const at = (q: number): number =>
+    sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))] ?? 0;
+
+  return {
+    name,
+    iterations,
+    min: sorted[0] ?? 0,
+    p50: at(0.5),
+    p95: at(0.95),
+    p99: at(0.99),
+    max: sorted[sorted.length - 1] ?? 0,
+    mean: sorted.reduce((a, b) => a + b, 0) / sorted.length,
+  };
+}
+
 /** A fixed-width table, so two runs can be diffed by eye. */
 export function formatTable(
   results: readonly Measurement[],
