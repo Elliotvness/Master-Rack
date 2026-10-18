@@ -54,6 +54,9 @@ export const alias = {
   '@rms/render-canvas': fileURLToPath(
     new URL('./packages/render-canvas/src/index.ts', import.meta.url),
   ),
+  '@rms/render-svg': fileURLToPath(
+    new URL('./packages/render-svg/src/index.ts', import.meta.url),
+  ),
   '@rms/studio-model': fileURLToPath(
     new URL('./packages/studio-model/src/index.ts', import.meta.url),
   ),

@@ -175,6 +175,12 @@ export default defineConfig({
           lines: 100,
           statements: 100,
         },
+        'packages/render-svg/src/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
         // S2. A pure package, so 100% — the same standard as every kernel.
         // It had no entry at all until this line: `check-boundaries` did not
         // classify it, `check-aliases` did not exist, and this table did not

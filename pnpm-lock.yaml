@@ -122,6 +122,9 @@ importers:
       '@rms/render-canvas':
         specifier: workspace:*
         version: link:../../packages/render-canvas
+      '@rms/render-svg':
+        specifier: workspace:*
+        version: link:../../packages/render-svg
       '@rms/studio-model':
         specifier: workspace:*
         version: link:../../packages/studio-model
@@ -200,6 +203,12 @@ importers:
   packages/kernel-units: {}
 
   packages/render-canvas:
+    dependencies:
+      '@rms/display-list':
+        specifier: workspace:*
+        version: link:../display-list
+
+  packages/render-svg:
     dependencies:
       '@rms/display-list':
         specifier: workspace:*

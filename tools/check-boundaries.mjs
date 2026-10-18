@@ -23,7 +23,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const KERNEL_PREFIX = 'kernel-';
 
 /** Additional pure packages that are not named kernel-*. */
-const ALSO_PURE = ['display-list', 'contracts', 'workflow', 'studio-model'];
+const ALSO_PURE = ['display-list', 'contracts', 'workflow', 'studio-model', 'render-svg'];
 
 /**
  * Packages that are deliberately NOT pure, each with the reason.

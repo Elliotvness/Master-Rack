@@ -1824,8 +1824,19 @@ Sliced as the eight MVP steps, in the blueprint's order, so `AC-20` is assembled
 
 **DONE 2026-10-18.** Implemented `apps/studio-web/src/theme/tokens.css`, `theme.ts`, `contrast.ts`, and `pairs.ts` with automated test suite `tokens.test.ts` verifying WCAG 2.1 AA contrast for all pairs in both light and dark themes. Created accessible shared components: `StatusBadge` (`badge.tsx`) adhering to ADR-019 rule 5 (never color alone for state; tones `pass`, `warn`, `block`, `info`, `verify`, `neutral` with unicode indicator icons), `Button` (`button.tsx`) with `:focus-visible` styling, loading states (`aria-busy`), and variants (`chrome`, `primary`, `danger`, `ghost`). Wired window Escape key dismissal to `ProvenancePopover` (`provenance-popover.tsx`) with unit tests in `app.test.tsx`. Added comprehensive test suite `components.test.tsx` (15 tests passing across Header, Banner, ToastRegion, StatusBadge, Button, and ProvenancePopover).
 
-- **T-17** `render-svg` (elevations) and `render-canvas` (plans) from the display list — a renderer
-  consumes, never recomputes. *M*
+### T-17: `render-svg` (elevations) and `render-canvas` (plans) from display list
+**Description.** Pure display list consumption for elevations (`@rms/render-svg`) and plans (`@rms/render-canvas`). Implements standalone pure SVG rendering (`renderSvg`, `renderSvgFragment`, `computeViewBox`, `label`) adhering to AC-07 (unestablished dimension data renders strictly as `VERIFY`), zero domain derivation, pure string generation without DOM/React coupling. Integrates with existing 2D plan renderer `@rms/render-canvas`.
+**Acceptance criteria:**
+- [x] `@rms/render-svg` pure package created under `packages/render-svg` exporting `renderSvg`, `renderSvgFragment`, `computeViewBox`, `label`
+- [x] 100% test coverage across branches, functions, lines, statements in `render.test.ts`
+- [x] AC-07 verified: unestablished dimension data strictly outputs `VERIFY`
+- [x] Pure package boundary verified by `check-boundaries.mjs` (no I/O, no clock, no random)
+- [x] Integrated into workspace configs (`tsconfig.base.json`, `vitest.alias.ts`, `vitest.config.ts`, `pnpm-lock.yaml`)
+**Verification:** `pnpm verify` passes with 100% coverage, all boundary and lockfile checks pass.
+**Scope:** M (4 pts).
+
+**DONE 2026-10-18.** Implemented pure display-list-to-SVG renderer package `@rms/render-svg` (`render.ts`, `index.ts`, `render.test.ts`). Provides `renderSvg`, `renderSvgFragment`, `computeViewBox`, and `label` with strict AC-07 compliance (`VERIFY` on unestablished dimensions/labels). Operates purely on `DisplayList` without domain derivation or DOM dependency. Configured package in `tsconfig.base.json`, `vitest.alias.ts`, `vitest.config.ts` (100% coverage thresholds), `check-boundaries.mjs` (classified pure), and added to `apps/studio-web` dependencies. All 11 unit tests pass with 100% line, branch, function, and statement coverage.
+
 - **T-18a** Slice 1–2: invitation acceptance, first sign-in. *M*
 - **T-18b** Slice 3: facility and unit entry, every field markable *not known*. *M*
 - **T-18c** Slice 4: option builder over the controlled vocabulary, incl. demo beat 5 — a 110″ beam
