@@ -23,6 +23,7 @@ const LAZY_VIEWS = {
   revisions: lazy(() => import('./routes/revisions.js')),
   invite: lazy(() => import('./routes/invite.js')),
   login: lazy(() => import('./routes/login.js')),
+  facility: lazy(() => import('./routes/facility.js')),
 } as const;
 
 function Loading(): React.JSX.Element {
@@ -54,6 +55,7 @@ function StudioShell({
               <Route path="/" element={<Navigate to={`/${DEFAULT_VIEW}`} replace />} />
               <Route path="/invite" element={<LAZY_VIEWS.invite />} />
               <Route path="/login" element={<LAZY_VIEWS.login />} />
+              <Route path="/facility" element={<LAZY_VIEWS.facility />} />
               {VIEWS.map((view) => {
                 const Element = LAZY_VIEWS[view.path as keyof typeof LAZY_VIEWS];
                 return <Route key={view.path} path={`/${view.path}`} element={<Element />} />;

@@ -1852,7 +1852,23 @@ Sliced as the eight MVP steps, in the blueprint's order, so `AC-20` is assembled
 
 **DONE 2026-10-18.** Implemented invitation acceptance and first sign-in slice (T-18a) in `apps/studio-web`. Built `auth-client.ts` implementing `checkInvitation()`, `acceptInvitation()`, `enrollMfa()`, `verifyMfa()`, `signIn()`, `signOut()`, and `createInvitation()`. Enforced AC-01 anti-oracle error collapse, NIST SP 800-63B password rules, and strict no-auto-login policy. Built lazy-loaded routes `/invite` (`invite.tsx`) and `/login` (`login.tsx`), staff `InviteModal` (`invite-modal.tsx`), and updated `Header` (`header.tsx`) to show user badge and sign-out controls. All 22 tests in `auth.test.tsx` and all 220 tests across `apps/studio-web` pass.
 
-- **T-18b** Slice 3: facility and unit entry, every field markable *not known*. *M*
+### T-18b: Slice 3: facility and unit entry, every field markable not known
+**Description.** Implements facility envelope inputs and multi-unit handling unit profiles for `apps/studio-web` per Blueprint §15.2 Step 3, §15.3 D-02, and requirements FR-CP-01..03. Every individual field is markable as `not_known` with optional context notes. Distinguishes `not_known` (recorded fact; permits submission progression) from `not_answered` (empty; blocks submission readiness). Zero and negative physical measurements are strictly refused at entry with an actionable prompt directing the client to mark NOT KNOWN. Generates actionable findings with "Who can answer" guidance (> 10 chars) for every unanswered or unknown field.
+**Acceptance criteria:**
+- [x] Domain model (`facility-model.ts`) with `FieldValue<T>`, strict zero/negative measurement refusal, and API payload converters
+- [x] API client (`facility-client.ts`) for saving facility and handling unit drafts against `/revisions/:id/facility` and `/revisions/:id/units`
+- [x] Accessible form widgets (`field-input.tsx`) with inline refusal alerts, "Mark Not Known" toggle, `StatusBadge` indicator, note capture, and "Who can answer" guidance
+- [x] Multi-unit handling profiles form (`unit-form.tsx`) supporting adding, removing, and configuring multiple handling units
+- [x] Facility envelope form (`facility-form.tsx`) organizing General, Envelope, Structural Grid, and Equipment fieldsets
+- [x] Findings register panel (`findings-panel.tsx`) with counters, filtering ("All", "Needs Answer", "Not Known"), and submission readiness indicator
+- [x] Lazy-loaded `/facility` route (`facility.tsx`) registered in `LAZY_VIEWS` with revision selection, tab navigation, and save action
+- [x] Backend support in `apps/api/src/revisions/routes.ts` accepting nullable unknown fields while strictly rejecting non-positive numbers
+- [x] 100% green test assertions across `facility.test.tsx` (22 tests), `app.test.tsx` route test, and backend `apps/api/src/app.test.ts`
+**Verification:** `pnpm typecheck`, `pnpm check:apps`, `pnpm check:boundaries`, `pnpm check:budgets`, `pnpm lint`, and full `pnpm test` pass.
+**Scope:** M (4 pts).
+
+**DONE 2026-10-18.** Implemented facility and unit entry slice (T-18b) in `apps/studio-web` and `apps/api`. Created domain model `facility-model.ts`, API client `facility-client.ts`, form components `field-input.tsx`, `facility-form.tsx`, `unit-form.tsx`, findings register `findings-panel.tsx`, and route `facility.tsx`. Enforced zero/negative measurement refusal at both front-end and backend, preserved distinction between `not_known` and `not_answered`, generated actionable findings with "Who can answer" guidance (> 10 chars), and integrated multi-unit management. All 22 tests in `facility.test.tsx`, `/facility` routing test, and backend API tests pass.
+
 - **T-18c** Slice 4: option builder over the controlled vocabulary, incl. demo beat 5 — a 110″ beam
   refused with both brackets and the no-interpolation reason. *M*
 - **T-18d** Slice 5: plan and elevation preview, findings and assumptions panels. *M*

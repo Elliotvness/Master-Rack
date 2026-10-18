@@ -1264,3 +1264,426 @@ body {
   gap: 0.35rem;
 }
 
+/* --- Facility & Unit Entry (Slice 3 / T-18b) ----------------------------- */
+
+.facility-page-container {
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.page-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.page-description {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--ink-2);
+  line-height: 1.5;
+  max-width: 800px;
+}
+
+.page-header-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.revision-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.selector-label {
+  font-size: 0.85rem;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.input-field-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.85rem;
+  width: 290px;
+}
+
+.facility-save-banner {
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  background: var(--pass-bg);
+  border: 1px solid var(--pass);
+  color: var(--pass-ink);
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
+.section-tabs-nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 0.5rem;
+}
+
+.section-tab-btn {
+  padding: 0.5rem 1.1rem;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.section-tab-btn:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.section-tab-btn.active {
+  background: var(--navy);
+  color: var(--paper);
+  border-color: var(--navy);
+}
+
+.facility-main-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .facility-main-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-fieldset {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  background: var(--panel);
+}
+
+.fieldset-legend {
+  padding: 0 0.5rem;
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 1rem;
+}
+
+.facility-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.85rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper);
+}
+
+.facility-field-row.field-not-known {
+  background: var(--warn-bg);
+  border-color: var(--warn);
+}
+
+.field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.field-unit {
+  font-size: 0.82rem;
+  color: var(--ink-3);
+  font-weight: normal;
+}
+
+.field-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.not-known-pill-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.field-help {
+  font-size: 0.78rem;
+  color: var(--ink-3);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.field-refusal-alert {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--block-bg);
+  border: 1px solid var(--block);
+  color: var(--block-ink);
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.who-can-answer {
+  font-size: 0.78rem;
+  color: var(--ink-2);
+  margin-top: 0.25rem;
+  line-height: 1.35;
+  background: var(--surface);
+  padding: 0.35rem 0.5rem;
+  border-radius: 3px;
+}
+
+.who-label {
+  font-weight: 600;
+  color: var(--navy);
+}
+
+.not-known-note-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.25rem 0;
+}
+
+.note-label {
+  font-size: 0.8rem;
+  color: var(--ink-2);
+}
+
+.note-input {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.6rem;
+}
+
+/* --- Handling Units Tab Navigation --------------------------------------- */
+
+.unit-tabs-nav {
+  display: flex;
+  gap: 0.4rem;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+
+.unit-tab-btn {
+  padding: 0.4rem 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.unit-tab-btn:hover {
+  color: var(--ink);
+}
+
+.unit-tab-btn.active {
+  background: var(--navy);
+  color: var(--paper);
+  border-color: var(--navy);
+}
+
+.active-unit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.section-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.section-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.section-subtitle {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ink-2);
+}
+
+/* --- Findings Register & Submission Readiness ---------------------------- */
+
+.findings-register {
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.25rem;
+}
+
+.findings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.findings-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.findings-summary-counts {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.readiness-banner {
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+  margin-bottom: 1.25rem;
+}
+
+.readiness-ready {
+  background: var(--pass-bg);
+  border: 1px solid var(--pass);
+  color: var(--pass-ink);
+}
+
+.readiness-blocked {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn);
+  color: var(--warn-ink);
+}
+
+.readiness-text {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.findings-filters {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.filter-btn {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.filter-btn:hover {
+  color: var(--ink);
+}
+
+.filter-btn.active {
+  background: var(--navy);
+  color: var(--paper);
+  border-color: var(--navy);
+}
+
+.findings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.findings-empty {
+  font-size: 0.85rem;
+  color: var(--ink-3);
+  text-align: center;
+  padding: 1.5rem 0;
+}
+
+.finding-card {
+  padding: 0.75rem;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.finding-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.finding-label {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+
+.finding-note {
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  margin: 0;
+  background: var(--surface);
+  padding: 0.3rem 0.5rem;
+  border-radius: 3px;
+}
+
+.finding-who-can-answer {
+  font-size: 0.78rem;
+  color: var(--ink-2);
+  line-height: 1.35;
+}
+
+.who-title {
+  font-weight: 600;
+  color: var(--navy);
+}
+
+

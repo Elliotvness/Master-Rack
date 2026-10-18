@@ -156,6 +156,11 @@ describe('routing', () => {
     },
   );
 
+  it('/facility renders the Facility & Unit Entry view', async () => {
+    renderApp('/facility');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Facility & Unit Entry' })).not.toBeNull();
+  });
+
   /**
    * The plan view draws. It must NOT claim to be finished either — the document
    * is the continuity fixture and nothing is saved, so the screen says so.

@@ -534,6 +534,34 @@ describe('T-14c request validation gates (unit)', () => {
     });
     expect(negOverhang.statusCode).toBe(400);
 
+    const unknownFacility = await app.inject({
+      method: 'POST',
+      url: `/api/client/v1/revisions/${VALID_ID}/facility`,
+      payload: {
+        name: 'Distribution Hub',
+        clear_height_um: null,
+        column_grid: null,
+        forklift: { model_stated: false },
+      },
+    });
+    expect(unknownFacility.statusCode).not.toBe(400);
+
+    const unknownUnit = await app.inject({
+      method: 'POST',
+      url: `/api/client/v1/revisions/${VALID_ID}/units`,
+      payload: {
+        units: [
+          {
+            unit_id: 'u1',
+            name: 'Standard Pallet',
+            width_um: null,
+            overhang_um: null,
+          },
+        ],
+      },
+    });
+    expect(unknownUnit.statusCode).not.toBe(400);
+
     const emptyOptions = await app.inject({
       method: 'POST',
       url: `/api/client/v1/revisions/${VALID_ID}/options`,

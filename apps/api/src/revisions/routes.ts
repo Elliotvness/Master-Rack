@@ -134,9 +134,11 @@ const CREATE_REVISION_BODY = internalRequestBody(
 const FACILITY_BODY = clientRequestBody(
   'FacilityDraftRequest',
   {
-    width_um: integer(),
-    depth_um: integer(),
-    clear_height_um: integer(),
+    name: nullable(string()),
+    address: nullable(string()),
+    width_um: nullable(integer()),
+    depth_um: nullable(integer()),
+    clear_height_um: nullable(integer()),
     column_grid: nullable(
       object({
         pitch_x_um: integer(),
@@ -152,9 +154,20 @@ const FACILITY_BODY = clientRequestBody(
         { optional: ['required_aisle_um'] },
       ),
     ),
-    dock_count: integer(),
+    dock_count: nullable(integer()),
   },
-  { optional: ['column_grid', 'forklift', 'dock_count'] },
+  {
+    optional: [
+      'name',
+      'address',
+      'width_um',
+      'depth_um',
+      'clear_height_um',
+      'column_grid',
+      'forklift',
+      'dock_count',
+    ],
+  },
 );
 
 const UNITS_BODY = clientRequestBody('UnitsDraftRequest', {
@@ -162,13 +175,29 @@ const UNITS_BODY = clientRequestBody('UnitsDraftRequest', {
     object(
       {
         unit_id: string(),
-        width_um: integer(),
-        depth_um: integer(),
-        height_um: integer(),
-        weight_lb: integer(),
+        name: nullable(string()),
+        width_um: nullable(integer()),
+        depth_um: nullable(integer()),
+        height_um: nullable(integer()),
+        weight_lb: nullable(integer()),
         overhang_um: nullable(integer()),
+        pallets_per_bay: nullable(integer()),
+        target_levels: nullable(integer()),
+        commodity_class: nullable(string()),
       },
-      { optional: ['overhang_um'] },
+      {
+        optional: [
+          'name',
+          'width_um',
+          'depth_um',
+          'height_um',
+          'weight_lb',
+          'overhang_um',
+          'pallets_per_bay',
+          'target_levels',
+          'commodity_class',
+        ],
+      },
     ),
   ),
 });
@@ -376,9 +405,11 @@ function tenantOf(principal: Principal): TenantContext {
 // ---------------------------------------------------------------------------
 
 export interface FacilityDraft {
-  readonly width_um: number;
-  readonly depth_um: number;
-  readonly clear_height_um: number;
+  readonly name?: string | null;
+  readonly address?: string | null;
+  readonly width_um?: number | null;
+  readonly depth_um?: number | null;
+  readonly clear_height_um?: number | null;
   readonly column_grid?: {
     readonly pitch_x_um: number;
     readonly pitch_y_um: number;
@@ -387,16 +418,20 @@ export interface FacilityDraft {
     readonly model_stated: boolean;
     readonly required_aisle_um?: number | null;
   } | null;
-  readonly dock_count?: number;
+  readonly dock_count?: number | null;
 }
 
 export interface UnitDraft {
   readonly unit_id: string;
-  readonly width_um: number;
-  readonly depth_um: number;
-  readonly height_um: number;
-  readonly weight_lb: number;
+  readonly name?: string | null;
+  readonly width_um?: number | null;
+  readonly depth_um?: number | null;
+  readonly height_um?: number | null;
+  readonly weight_lb?: number | null;
   readonly overhang_um?: number | null;
+  readonly pallets_per_bay?: number | null;
+  readonly target_levels?: number | null;
+  readonly commodity_class?: string | null;
 }
 
 export interface BayDraft {
@@ -644,7 +679,11 @@ function deriveOption(
     });
   }
 
-  if (content.facility !== undefined && maxTopOfLoadUm > content.facility.clear_height_um) {
+  if (
+    content.facility !== undefined &&
+    typeof content.facility.clear_height_um === 'number' &&
+    maxTopOfLoadUm > content.facility.clear_height_um
+  ) {
     findings.push({
       code: 'CLEAR_HEIGHT_EXCEEDED',
       severity: 'BLOCKER',
@@ -1745,9 +1784,11 @@ export function registerRevisionRoutes(
       return reply.code(statusFor('VALIDATION_ERROR')).send(parsed.error);
     }
 
-    const widthUm = parsed.body['width_um'] as number;
-    const depthUm = parsed.body['depth_um'] as number;
-    const clearHeightUm = parsed.body['clear_height_um'] as number;
+    const name = parsed.body['name'] as string | null | undefined;
+    const address = parsed.body['address'] as string | null | undefined;
+    const widthUm = parsed.body['width_um'] as number | null | undefined;
+    const depthUm = parsed.body['depth_um'] as number | null | undefined;
+    const clearHeightUm = parsed.body['clear_height_um'] as number | null | undefined;
     const columnGrid = parsed.body['column_grid'] as
       | { pitch_x_um: number; pitch_y_um: number }
       | null
@@ -1756,9 +1797,13 @@ export function registerRevisionRoutes(
       | { model_stated: boolean; required_aisle_um?: number | null }
       | null
       | undefined;
-    const dockCount = parsed.body['dock_count'] as number | undefined;
+    const dockCount = parsed.body['dock_count'] as number | null | undefined;
 
-    if (widthUm <= 0 || depthUm <= 0 || clearHeightUm <= 0) {
+    if (
+      (typeof widthUm === 'number' && widthUm <= 0) ||
+      (typeof depthUm === 'number' && depthUm <= 0) ||
+      (typeof clearHeightUm === 'number' && clearHeightUm <= 0)
+    ) {
       return reply
         .code(statusFor('VALIDATION_ERROR'))
         .send(errorEnvelope('VALIDATION_ERROR', 'facility dimensions must be positive integers'));
@@ -1801,16 +1846,18 @@ export function registerRevisionRoutes(
           );
       }
     }
-    if (dockCount !== undefined && dockCount < 0) {
+    if (typeof dockCount === 'number' && dockCount < 0) {
       return reply
         .code(statusFor('VALIDATION_ERROR'))
         .send(errorEnvelope('VALIDATION_ERROR', 'dock_count must be non-negative'));
     }
 
     const facilityDraft: FacilityDraft = {
-      width_um: widthUm,
-      depth_um: depthUm,
-      clear_height_um: clearHeightUm,
+      ...(name !== undefined ? { name } : {}),
+      ...(address !== undefined ? { address } : {}),
+      ...(widthUm !== undefined ? { width_um: widthUm } : {}),
+      ...(depthUm !== undefined ? { depth_um: depthUm } : {}),
+      ...(clearHeightUm !== undefined ? { clear_height_um: clearHeightUm } : {}),
       ...(columnGrid !== undefined ? { column_grid: columnGrid } : {}),
       ...(forklift !== undefined ? { forklift } : {}),
       ...(dockCount !== undefined ? { dock_count: dockCount } : {}),
@@ -1885,7 +1932,14 @@ export function registerRevisionRoutes(
           .code(statusFor('VALIDATION_ERROR'))
           .send(errorEnvelope('VALIDATION_ERROR', 'each unit must have a unique non-empty unit_id'));
       }
-      if (u.width_um <= 0 || u.depth_um <= 0 || u.height_um <= 0 || u.weight_lb <= 0) {
+      if (
+        (typeof u.width_um === 'number' && u.width_um <= 0) ||
+        (typeof u.depth_um === 'number' && u.depth_um <= 0) ||
+        (typeof u.height_um === 'number' && u.height_um <= 0) ||
+        (typeof u.weight_lb === 'number' && u.weight_lb <= 0) ||
+        (typeof u.pallets_per_bay === 'number' && u.pallets_per_bay <= 0) ||
+        (typeof u.target_levels === 'number' && u.target_levels <= 0)
+      ) {
         return reply
           .code(statusFor('VALIDATION_ERROR'))
           .send(errorEnvelope('VALIDATION_ERROR', 'unit dimensions and weight must be positive'));
@@ -1898,11 +1952,15 @@ export function registerRevisionRoutes(
       seenIds.add(uid);
       cleanUnits.push({
         unit_id: uid,
-        width_um: u.width_um,
-        depth_um: u.depth_um,
-        height_um: u.height_um,
-        weight_lb: u.weight_lb,
+        ...(u.name !== undefined ? { name: u.name } : {}),
+        ...(u.width_um !== undefined ? { width_um: u.width_um } : {}),
+        ...(u.depth_um !== undefined ? { depth_um: u.depth_um } : {}),
+        ...(u.height_um !== undefined ? { height_um: u.height_um } : {}),
+        ...(u.weight_lb !== undefined ? { weight_lb: u.weight_lb } : {}),
         ...(u.overhang_um !== undefined ? { overhang_um: u.overhang_um } : {}),
+        ...(u.pallets_per_bay !== undefined ? { pallets_per_bay: u.pallets_per_bay } : {}),
+        ...(u.target_levels !== undefined ? { target_levels: u.target_levels } : {}),
+        ...(u.commodity_class !== undefined ? { commodity_class: u.commodity_class } : {}),
       });
     }
 
