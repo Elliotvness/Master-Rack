@@ -931,3 +931,106 @@ body {
   align-self: center;
 }
 
+/* --- status badges / chips (ADR-019 rule 5: never colour alone) ----------- */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  border: 1px solid currentColor;
+}
+
+.status-badge .badge-symbol {
+  font-size: 0.8em;
+}
+
+.status-badge-pass {
+  color: var(--pass);
+  background: var(--pass-bg);
+}
+
+.status-badge-warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+}
+
+.status-badge-block {
+  color: var(--block);
+  background: var(--block-bg);
+}
+
+.status-badge-info,
+.status-badge-neutral {
+  color: var(--navy);
+  background: var(--navy-soft);
+}
+
+.status-badge-verify {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-style: dashed;
+}
+
+/* --- standard button primitives ------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: opacity 0.1s ease, background 0.1s ease;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-chrome {
+  border-color: var(--chrome-ink-muted);
+  background: transparent;
+  color: var(--chrome-ink);
+}
+
+.btn-primary {
+  background: var(--navy);
+  color: var(--paper);
+  border-color: var(--navy);
+}
+
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-danger {
+  background: var(--block);
+  color: var(--paper);
+  border-color: var(--block);
+}
+
+.btn-danger:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  border-color: transparent;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--sunk);
+}
+

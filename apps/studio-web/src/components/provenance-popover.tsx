@@ -1,13 +1,4 @@
-/**
- * Provenance popover — build-plan **S4.4**.
- *
- * Every quantity on the panel or canvas can be inspected for its origin
- * (`INPUT`, `DERIVED`, `CATALOG`, `RULE`, or `UNKNOWN`), raw stored value,
- * and human-readable source citation.
- *
- * When a value is `UNKNOWN`, the popover explains why the UI displays `VERIFY`
- * rather than a numeral (AC-07).
- */
+import { useEffect } from 'react';
 
 export interface ProvenanceInfo {
   readonly id: string;
@@ -26,6 +17,17 @@ export function ProvenancePopover({
   readonly info: ProvenanceInfo | null;
   readonly onClose: () => void;
 }): React.JSX.Element | null {
+  useEffect(() => {
+    if (info === null) return;
+    function handleKeyDown(e: KeyboardEvent): void {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [info, onClose]);
+
   if (info === null) return null;
 
   const isUnknown = info.established === 'UNKNOWN';

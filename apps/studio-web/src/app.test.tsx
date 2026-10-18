@@ -312,6 +312,12 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
     await user.click(closeBtn);
     expect(document.getElementById('prov')).toBeNull();
 
+    // Re-open and dismiss with Escape key (WCAG 2.1 AA keyboard dismissal)
+    await user.click(provBtns[0] as HTMLButtonElement);
+    expect(document.getElementById('prov')).not.toBeNull();
+    await user.keyboard('{Escape}');
+    expect(document.getElementById('prov')).toBeNull();
+
     // Toggle clear height verified checkbox -> dispatches setField and enables undo
     const clearHeightVerified = document.getElementById('f-clearh-v') as HTMLInputElement;
     expect(clearHeightVerified.checked).toBe(false);

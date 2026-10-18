@@ -1811,7 +1811,19 @@ worth doing before 24 commits become history.
 
 Sliced as the eight MVP steps, in the blueprint's order, so `AC-20` is assembled rather than authored.
 
-- **T-16** Design tokens, shared component library, a11y baseline. *M*
+### T-16: Design tokens, shared component library, a11y baseline
+**Description.** Establishes the design tokens, shared UI component library, and automated accessibility baseline for `apps/studio-web`. Defines CSS custom properties with light/dark theme contrast pairs meeting WCAG 2.1 AA (4.5:1 text, 3:1 non-text/UI components). Provides accessible core components (`Header`, `Banner`, `ToastRegion`, `ProvenancePopover`, `StatusBadge`, `Button`) adhering to ADR-019 (rule 5: never color alone for state; accessible focus states, keyboard Escape dismissals).
+**Acceptance criteria:**
+- [x] Design tokens defined for semantic roles in `apps/studio-web/src/theme/tokens.css` and `theme.ts`
+- [x] Automated WCAG 2.1 AA contrast gate asserting 4.5:1 (text) and 3:1 (UI components) across light and dark modes
+- [x] Accessible shared component primitives implemented: `Header`, `Banner`, `ToastRegion`, `ProvenancePopover`, `StatusBadge` (with semantic icons/tones), and `Button` (with focus-visible and aria-busy states)
+- [x] Keyboard accessibility baseline: Escape key listener dismisses open dialogs/popovers
+- [x] Component test suite passes with 100% green assertions
+**Verification:** `vitest run apps/studio-web` green, `check-claims`, `check-app-boundaries`, and full verify chain pass.
+**Scope:** M (4 pts).
+
+**DONE 2026-10-18.** Implemented `apps/studio-web/src/theme/tokens.css`, `theme.ts`, `contrast.ts`, and `pairs.ts` with automated test suite `tokens.test.ts` verifying WCAG 2.1 AA contrast for all pairs in both light and dark themes. Created accessible shared components: `StatusBadge` (`badge.tsx`) adhering to ADR-019 rule 5 (never color alone for state; tones `pass`, `warn`, `block`, `info`, `verify`, `neutral` with unicode indicator icons), `Button` (`button.tsx`) with `:focus-visible` styling, loading states (`aria-busy`), and variants (`chrome`, `primary`, `danger`, `ghost`). Wired window Escape key dismissal to `ProvenancePopover` (`provenance-popover.tsx`) with unit tests in `app.test.tsx`. Added comprehensive test suite `components.test.tsx` (15 tests passing across Header, Banner, ToastRegion, StatusBadge, Button, and ProvenancePopover).
+
 - **T-17** `render-svg` (elevations) and `render-canvas` (plans) from the display list — a renderer
   consumes, never recomputes. *M*
 - **T-18a** Slice 1–2: invitation acceptance, first sign-in. *M*
