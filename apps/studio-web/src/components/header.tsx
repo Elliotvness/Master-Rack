@@ -1,15 +1,20 @@
-import { NavLink } from 'react-router';
+import { useState, type JSX } from 'react';
+import { NavLink, Link, useNavigate } from 'react-router';
 
 import { VIEWS } from '../nav.js';
+import { useAuth } from '../auth/auth-context.js';
 import { ThemeToggle } from './theme-toggle.js';
+import { StatusBadge } from './badge.js';
+import { InviteModal } from './invite-modal.js';
 
 export interface HeaderProps {
   /** The project/revision tag. Absent until a document is loaded — never faked. */
-  readonly jobTag?: string;
-  readonly canUndo?: boolean;
-  readonly saveState?: 'saved' | 'unsaved' | 'saving' | 'read-only';
-  readonly onUndo?: () => void;
-  readonly onSave?: () => void;
+  readonly jobTag?: string | undefined;
+  readonly canUndo?: boolean | undefined;
+  readonly saveState?: ('saved' | 'unsaved' | 'saving' | 'read-only') | undefined;
+  readonly onUndo?: (() => void) | undefined;
+  readonly onSave?: (() => void) | undefined;
+  readonly fetchImpl?: typeof fetch | undefined;
 }
 
 /**
@@ -27,10 +32,9 @@ const SAVE_LABEL = {
  * The chrome bar: job tag, view tabs, undo, save, theme — in that DOM order,
  * which is the artifact's and is pinned by `HEADER_CONTROL_ORDER`.
  *
- * S1 draws nothing and owns no document, so undo and save render DISABLED
- * rather than absent. A control that appears when a later slice lands moves the
- * tab order under the user; one that is present and disabled does not, and it
- * tells the truth about what the application can currently do.
+ * Auth controls (Invite Client, User status badge, Sign out / Sign in) sit
+ * after theme in .chrome-actions, preserving the relative order of the core 10
+ * controls.
  */
 export function Header({
   jobTag,
@@ -38,52 +42,101 @@ export function Header({
   saveState = 'read-only',
   onUndo,
   onSave,
-}: HeaderProps): React.JSX.Element {
+  fetchImpl,
+}: HeaderProps): JSX.Element {
+  const { user, isAuthenticated, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut(fetchImpl);
+    navigate('/login');
+  };
+
   return (
-    <header className="chrome">
-      <span id="jobtag" className="jobtag" tabIndex={0} data-established={jobTag !== undefined}>
-        {/* No document is loaded, so there is no tag. It says so rather than
-            showing a placeholder that reads like a real project number. */}
-        {jobTag ?? 'No document loaded'}
-      </span>
+    <>
+      <header className="chrome">
+        <span id="jobtag" className="jobtag" tabIndex={0} data-established={jobTag !== undefined}>
+          {/* No document is loaded, so there is no tag. It says so rather than
+              showing a placeholder that reads like a real project number. */}
+          {jobTag ?? 'No document loaded'}
+        </span>
 
-      <nav className="tabs" aria-label="Studio views">
-        {VIEWS.map((view) => (
-          <NavLink
-            key={view.path}
-            id={`tab-${view.path}`}
-            to={`/${view.path}`}
-            className={({ isActive }) => (isActive ? 'tab tab-active' : 'tab')}
-            title={view.description}
+        <nav className="tabs" aria-label="Studio views">
+          {VIEWS.map((view) => (
+            <NavLink
+              key={view.path}
+              id={`tab-${view.path}`}
+              to={`/${view.path}`}
+              className={({ isActive }) => (isActive ? 'tab tab-active' : 'tab')}
+              title={view.description}
+            >
+              {view.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="chrome-actions">
+          <button
+            id="undobtn"
+            type="button"
+            className="chrome-btn"
+            onClick={onUndo}
+            disabled={!canUndo}
+            aria-label="Undo"
           >
-            {view.label}
-          </NavLink>
-        ))}
-      </nav>
+            Undo
+          </button>
+          <button
+            id="savebtn"
+            type="button"
+            className="chrome-btn"
+            onClick={onSave}
+            disabled={saveState === 'read-only' || saveState === 'saving'}
+            aria-label={SAVE_LABEL[saveState]}
+          >
+            {SAVE_LABEL[saveState]}
+          </button>
+          <ThemeToggle />
 
-      <div className="chrome-actions">
-        <button
-          id="undobtn"
-          type="button"
-          className="chrome-btn"
-          onClick={onUndo}
-          disabled={!canUndo}
-          aria-label="Undo"
-        >
-          Undo
-        </button>
-        <button
-          id="savebtn"
-          type="button"
-          className="chrome-btn"
-          onClick={onSave}
-          disabled={saveState === 'read-only' || saveState === 'saving'}
-          aria-label={SAVE_LABEL[saveState]}
-        >
-          {SAVE_LABEL[saveState]}
-        </button>
-        <ThemeToggle />
-      </div>
-    </header>
+          {/* Auth controls appended after theme toggle */}
+          {isAuthenticated && user ? (
+            <div className="auth-chrome-group" id="auth-chrome-controls">
+              <button
+                id="invite-client-btn"
+                type="button"
+                className="chrome-btn"
+                onClick={() => setIsInviteOpen(true)}
+                title="Issue client invitation (Step 1)"
+              >
+                Invite Client
+              </button>
+              <StatusBadge tone="pass" id="user-badge" className="user-badge">
+                {user.name ?? user.email}
+              </StatusBadge>
+              <button
+                id="signoutbtn"
+                type="button"
+                className="chrome-btn"
+                onClick={handleSignOut}
+                aria-label="Sign out"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <Link id="signinbtn" to="/login" className="chrome-btn">
+              Sign in
+            </Link>
+          )}
+        </div>
+      </header>
+
+      <InviteModal
+        isOpen={isInviteOpen}
+        onClose={() => setIsInviteOpen(false)}
+        fetchImpl={fetchImpl}
+      />
+    </>
   );
 }

@@ -1837,7 +1837,21 @@ Sliced as the eight MVP steps, in the blueprint's order, so `AC-20` is assembled
 
 **DONE 2026-10-18.** Implemented pure display-list-to-SVG renderer package `@rms/render-svg` (`render.ts`, `index.ts`, `render.test.ts`). Provides `renderSvg`, `renderSvgFragment`, `computeViewBox`, and `label` with strict AC-07 compliance (`VERIFY` on unestablished dimensions/labels). Operates purely on `DisplayList` without domain derivation or DOM dependency. Configured package in `tsconfig.base.json`, `vitest.alias.ts`, `vitest.config.ts` (100% coverage thresholds), `check-boundaries.mjs` (classified pure), and added to `apps/studio-web` dependencies. All 11 unit tests pass with 100% line, branch, function, and statement coverage.
 
-- **T-18a** Slice 1–2: invitation acceptance, first sign-in. *M*
+### T-18a: Slice 1–2: invitation acceptance and first sign-in
+**Description.** Implements client self-service invitation acceptance walkthrough, TOTP MFA enrollment, and first credential sign-in for `apps/studio-web`. Strictly enforces AC-01 anti-oracle collapse (`INVITATION_REFUSED_MESSAGE` for invalid, expired, revoked, or used tokens without reason leakage), NIST SP 800-63B password rules (>= 12 characters), explicit second-factor sign-in without auto-login per §14.3, staff invitation issuance modal with copyable link, and header session/auth status indicators preserving `HEADER_CONTROL_ORDER`.
+**Acceptance criteria:**
+- [x] Client API and state client (`auth-client.ts`, `auth-context.tsx`) with strict anti-oracle token validation and NIST password length enforcement
+- [x] TOTP MFA enrollment and verification during acceptance session
+- [x] `/invite` route walkthrough with token parameter verification, credential capture, TOTP QR/secret setup, and redirect to login
+- [x] `/login` route with email, password, and TOTP code inputs
+- [x] Staff invite modal (`invite-modal.tsx`) for issuing single-use client invitation links
+- [x] Header integration (`header.tsx`) reflecting authenticated user and role while strictly preserving DOM control sequence
+- [x] 100% green test assertions across `auth.test.tsx` (22 tests) and full `apps/studio-web` suite (220 tests)
+**Verification:** `pnpm typecheck`, `pnpm lint`, `pnpm --filter @rms/studio-web test`, and `pnpm build:web` pass.
+**Scope:** M (4 pts).
+
+**DONE 2026-10-18.** Implemented invitation acceptance and first sign-in slice (T-18a) in `apps/studio-web`. Built `auth-client.ts` implementing `checkInvitation()`, `acceptInvitation()`, `enrollMfa()`, `verifyMfa()`, `signIn()`, `signOut()`, and `createInvitation()`. Enforced AC-01 anti-oracle error collapse, NIST SP 800-63B password rules, and strict no-auto-login policy. Built lazy-loaded routes `/invite` (`invite.tsx`) and `/login` (`login.tsx`), staff `InviteModal` (`invite-modal.tsx`), and updated `Header` (`header.tsx`) to show user badge and sign-out controls. All 22 tests in `auth.test.tsx` and all 220 tests across `apps/studio-web` pass.
+
 - **T-18b** Slice 3: facility and unit entry, every field markable *not known*. *M*
 - **T-18c** Slice 4: option builder over the controlled vocabulary, incl. demo beat 5 — a 110″ beam
   refused with both brackets and the no-interpolation reason. *M*

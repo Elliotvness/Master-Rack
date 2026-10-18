@@ -6,18 +6,13 @@ import { Header } from './components/header.js';
 import { ToastRegion, useToasts, type ToastMessage } from './components/toast.js';
 import { DEFAULT_VIEW, VIEWS } from './nav.js';
 import { StudioSessionProvider, useStudioSession } from './session-context.js';
+import { AuthProvider, type AuthUser } from './auth/auth-context.js';
 
 /**
  * One lazy chunk per view — blueprint §5.4's route-level code-splitting
  * decision, taken before there were routes to split. The 200 KB gzipped ceiling
  * applies to the INITIAL payload: the shell plus the first route, not the sum
- * of all six.
- *
- * The map is written out rather than built from `VIEWS` with a template
- * literal, because a fully dynamic `import(`./routes/${path}.js`)` gives the
- * bundler no static graph to split on — it would emit one chunk holding all six
- * views and the ceiling would be met by accident while the decision was
- * silently reversed.
+ * of all views.
  */
 const LAZY_VIEWS = {
   plan: lazy(() => import('./routes/plan.js')),
@@ -26,6 +21,8 @@ const LAZY_VIEWS = {
   screening: lazy(() => import('./routes/screening.js')),
   bom: lazy(() => import('./routes/bom.js')),
   revisions: lazy(() => import('./routes/revisions.js')),
+  invite: lazy(() => import('./routes/invite.js')),
+  login: lazy(() => import('./routes/login.js')),
 } as const;
 
 function Loading(): React.JSX.Element {
@@ -38,14 +35,16 @@ function Loading(): React.JSX.Element {
 
 function StudioShell({
   messages,
+  fetchImpl,
 }: {
   readonly messages: readonly ToastMessage[];
+  readonly fetchImpl?: typeof fetch | undefined;
 }): React.JSX.Element {
   const { canUndo, onUndo } = useStudioSession();
 
   return (
     <div className="studio">
-      <Header canUndo={canUndo} onUndo={onUndo} />
+      <Header canUndo={canUndo} onUndo={onUndo} fetchImpl={fetchImpl} />
       <Banner />
 
       <div className="studio-body">
@@ -53,6 +52,8 @@ function StudioShell({
           <Suspense fallback={<Loading />}>
             <Routes>
               <Route path="/" element={<Navigate to={`/${DEFAULT_VIEW}`} replace />} />
+              <Route path="/invite" element={<LAZY_VIEWS.invite />} />
+              <Route path="/login" element={<LAZY_VIEWS.login />} />
               {VIEWS.map((view) => {
                 const Element = LAZY_VIEWS[view.path as keyof typeof LAZY_VIEWS];
                 return <Route key={view.path} path={`/${view.path}`} element={<Element />} />;
@@ -63,7 +64,7 @@ function StudioShell({
                   <section className="view-placeholder">
                     <h1>No such view</h1>
                     <p className="not-implemented">
-                      That address does not name one of the six studio views.
+                      That address does not name one of the studio views.
                     </p>
                   </section>
                 }
@@ -79,14 +80,22 @@ function StudioShell({
 }
 
 /**
- * The shell.
+ * The shell with AuthProvider and StudioSessionProvider.
  */
-export function App(): React.JSX.Element {
+export function App({
+  initialUser = null,
+  fetchImpl,
+}: {
+  readonly initialUser?: AuthUser | null | undefined;
+  readonly fetchImpl?: typeof fetch | undefined;
+} = {}): React.JSX.Element {
   const { messages, push } = useToasts();
 
   return (
-    <StudioSessionProvider onRefusal={(msg) => push(msg, 'refusal')}>
-      <StudioShell messages={messages} />
-    </StudioSessionProvider>
+    <AuthProvider initialUser={initialUser}>
+      <StudioSessionProvider onRefusal={(msg) => push(msg, 'refusal')}>
+        <StudioShell messages={messages} fetchImpl={fetchImpl} />
+      </StudioSessionProvider>
+    </AuthProvider>
   );
 }

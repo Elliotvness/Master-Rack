@@ -7,7 +7,7 @@ labelled *repository-claim* was read off an earlier document and is not a measur
 **§15.2 is 0 of 8, re-derived not re-read.** `UNIMPLEMENTED` in `apps/api/src/app.ts` holds **0**
 entries *(verified-today)* against a `ROUTES` registry of **32** *(verified-today)*; **all 32
 handlers are live (`T-14b` + `T-14c` + `T-14d` + `T-14e`, re-asserted by `T-15` + `P-03`)** and 0 MVP-1 handlers answer 500 (steps 1–8 still
-await Phase 4 screens). **108 of 160 points — 67.5%**, **35 of 49 tasks**, both re-derived
+await Phase 4 screens). **112 of 160 points — 70.0%**, **36 of 49 tasks**, both re-derived
 from `tasks/todo.md` this session rather than carried forward.
 
 ## The finding: the build has not been touched in a month, and the delivery path is still shut
@@ -1027,13 +1027,13 @@ The procedure, so it is reproducible:
 | Measure | Value | Blueprint anchor | What it measures |
 |---|---|---|---|
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
-| Plan-task completion, effort-weighted | 108 of 160 pts — **67.5%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
-| Plan-task completion, task count | 35 of 49 — 71% | Same, unweighted | Same |
+| Plan-task completion, effort-weighted | 112 of 160 pts — **70.0%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
+| Plan-task completion, task count | 36 of 49 — 73% | Same, unweighted | Same |
 | Pre-merge review `R-01…R-11` | **11 of 11 — 100%** | **§16.1** review gates | A sub-checklist of one merged branch, not the project. All eleven closed on their own criteria. R-09 and R-10 closed at Checkpoint A in the container; **R-07 closed last**, by fixing L-3 and L-5 to throw (`6696f5f`, PR #16) rather than leaving them dispositioned — the dissent on the record won |
 | Route surface vs the blueprint | **32 of 32** MVP-1 routes declared, mounted, **and checked** | **§8.2** (34 rows, 2 marked phase 2) | **Drift 4 is closed and F-46 is closed, and both now have the same mechanism.** EL amended §8.2 twice: the operator release row on 2026-09-03, and ten routes on 2026-09-05 after F-46 found the inventory declared no way for anyone to sign in. `check-route-surface` parses §8.2 out of the built blueprint and diffs it against the registry in both directions on every run — and since the second amendment also checks each row is filed under the BAND its path belongs to, which caught two `/api/client` rows the amendment had put under *Internal surface*. A Fastify router mounts all 32; **all 32 handlers are live (`T-14b` + `T-14c` + `T-14d` + `T-14e`, re-asserted by `T-15` + `P-03`) and 0 are declared placeholders.** Every entry names the response schema it answers with, and `assertRouteCoverage` refuses one the registry does not hold |
 
-These are not competing answers. **0% is the answer**; 67.5% is how much of the written plan has
-been executed. A reader who quotes 67.5% without §15.2 beside it is quoting the wrong number.
+These are not competing answers. **0% is the answer**; 70.0% is how much of the written plan has
+been executed. A reader who quotes 70.0% without §15.2 beside it is quoting the wrong number.
 
 **Phase 2 is complete** — the first phase to close since Phase 1. **§15.2 did not move by one step
 while it happened**, and that is not a paradox: Phase 2 was repairs and controls, and the definition
@@ -1224,41 +1224,41 @@ landed and pushed to `origin/main` as `42c8211`, and the operator release route 
 | 1 — Catalog and schema integrity | 10 | 10 | **100%** | T-01…T-04 complete (verified at `a2f166e` — repository claim, not re-run today) |
 | 2 — Kernel and workflow repairs | 29 | 29 | **100%** | **Complete.** T-05, T-06, T-07, T-27, T-28, T-08, T-09, T-10a, T-10b, **T-11**, **T-12**. Points 26 → 28 from the T-10 split, 28 → 29 when T-11 grew XS → S for F-32 |
 | 3 — The contract, then the server | 62 | 60 | 97% | P-00, T-13a, T-13b, T-13c, **T-13d**, **T-14a**, **T-14b**, **T-14c**, **T-14d**, **P-01**, **T-14e**, **P-02**, **T-15**, **P-03**, **P-05**, R-08, R-10 done; P-04 open |
-| 4 — The interface | 42 | 8 | 19% | **T-16 + T-17 complete** (8 pts). T-16: Design tokens, WCAG 2.1 AA automated contrast gate, shared component library (Header, Banner, ToastRegion, ProvenancePopover, StatusBadge, Button), focus-visible and keyboard Escape baseline. T-17: Pure SVG elevation renderer `@rms/render-svg` and 2D canvas plan renderer `@rms/render-canvas` consuming DisplayList with zero domain derivation, 100% test coverage, and AC-07 VERIFY compliance. 22 front-end files now exist in `apps/studio-web`. |
+| 4 — The interface | 42 | 12 | 29% | **T-16 + T-17 + T-18a complete** (12 pts). T-16: Design tokens, WCAG 2.1 AA automated contrast gate, shared component library (Header, Banner, ToastRegion, ProvenancePopover, StatusBadge, Button), focus-visible and keyboard Escape baseline. T-17: Pure SVG elevation renderer `@rms/render-svg` and 2D canvas plan renderer `@rms/render-canvas` consuming DisplayList with zero domain derivation, 100% test coverage, and AC-07 VERIFY compliance. T-18a: Slice 1–2 invitation acceptance walkthrough, TOTP MFA enrollment, strict AC-01 anti-oracle collapse, NIST password rules, staff invite modal, and login routes. 27 front-end files now exist in `apps/studio-web`. |
 | 5 — Deploy readiness | 16 | 0 | 0% | Not started |
-| **Total** | **160** | **108** | **67.5%** | |
+| **Total** | **160** | **112** | **70.0%** | |
 
-**Remaining: 52 points, and Phase 2's residue is zero.** Where the remaining 52 points sit: Phase 4 34 (65.4%) · Phase 3's residue 2 (3.8%) · Phase 5 16 (30.8%). The remaining work is *not* concentrated in the two big items, and planning as if it were will under-book the back half.
+**Remaining: 48 points, and Phase 2's residue is zero.** Where the remaining 48 points sit: Phase 4 30 (62.5%) · Phase 3's residue 2 (4.2%) · Phase 5 16 (33.3%). The remaining work is *not* concentrated in the two big items, and planning as if it were will under-book the back half.
 
 ---
 
-### How soft is 67.5%?
+### How soft is 70.0%?
 
 The caveat above says the figure is a ceiling because T-14 and Phase 4 were sized before anyone
-attempted either. Quantified — 108 done points never move, only the denominator does.
-**Every row here is 108 over its own denominator, and every denominator is derived from 160 rather
+attempted either. Quantified — 112 done points never move, only the denominator does.
+**Every row here is 112 over its own denominator, and every denominator is derived from 160 rather
 than carried forward** (re-derived again in session 6 when the numerator moved to 52, and again in
-this edition at 108). This table has now been wrong twice in one day in two different ways: four
+this edition at 112). This table has now been wrong twice in one day in two different ways: four
 of five rows were still computed on session 4's numerator of 29 while the first row read 41 (item
 24), and — found only when T-11 changed the base — **all four scenario denominators were built on
 the pre-split base of 145 while the row above them said 147** (item 29). Re-derived, not adjusted:
 
 | T-14 | Phase 4 | Denominator | Completion | Scenario |
 |---|---|---|---|---|
-| 20 | 42 | 160 | **67.5%** | **T-14a–e as confirmed by EL (five M)** — the published figure |
-| 20 | 63 | 181 | 59.7% | Phase 4 ×1.5 |
-| 20 | 84 | 202 | 53.5% | Phase 4 ×2 |
-| 30 | 84 | 212 | 50.9% | T-14a–e ×1.5, Phase 4 ×2 |
-| 40 | 84 | 222 | 48.6% | T-14a–e ×2, Phase 4 ×2 |
-| 40 | 126 | 266 | 40.6% | T-14a–e ×2, Phase 4 ×3 |
+| 20 | 42 | 160 | **70.0%** | **T-14a–e as confirmed by EL (five M)** — the published figure |
+| 20 | 63 | 181 | 61.9% | Phase 4 ×1.5 |
+| 20 | 84 | 202 | 55.4% | Phase 4 ×2 |
+| 30 | 84 | 212 | 52.8% | T-14a–e ×1.5, Phase 4 ×2 |
+| 40 | 84 | 222 | 50.5% | T-14a–e ×2, Phase 4 ×2 |
+| 40 | 126 | 266 | 42.1% | T-14a–e ×2, Phase 4 ×3 |
 
 Even at triple, the figure moves about twenty points. **The ceiling is real but shallow**, so
-67.5% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
+70.0% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
 is the number to quote and this one is not. The second row is new and is not a scenario: it is the
 breakdown actually on the table, and it is what this file publishes the day EL confirms it.
 
-**Where the remaining 52 points sit:** Phase 4 34 (65.4%) · Phase 3's residue 2 (3.8%) ·
-Phase 5 16 (30.8%) · Phase 2's residue 0. Neither large block is a majority. *(This paragraph read
+**Where the remaining 48 points sit:** Phase 4 30 (62.5%) · Phase 3's residue 2 (4.2%) ·
+Phase 5 16 (33.3%) · Phase 2's residue 0. Neither large block is a majority. *(This paragraph read
 "116 … Phase 2's residue 16" until session 6 while the table above it said 100 — drift 30. It then
 read "98 … 42.9% · 40.8% · 16.3%" for a full edition after T-14a moved the numerator, while the
 sentence thirty lines above it already said 94 — **drift 50**, and the first defect
@@ -1338,10 +1338,10 @@ Re-measured by running commands against the working tree:
 | The ahead/unpushed pair moves as this file is written | Each documentation commit that records this measurement adds one to both counts, so **do not quote ahead/unpushed from this document** — re-run `git rev-list --left-right --count origin/main...HEAD` and `git rev-list --count @{u}..HEAD`. Session 3 added `e488a14`, `c08cca3` and the commit carrying this row. That self-reference is exactly how drift item 5 arose, and naming it is cheaper than chasing it |
 | `main` | **`afd4e8a`** — re-derived 2026-09-05 by `git ls-remote --heads origin`, which returns **`refs/heads/main` and nothing else**: every task branch is now deleted on the server, including the two the previous edition of this row said were still there. Local `main` sits at the same sha, clean tree, `git rev-list --count @{u}..HEAD` **0**. Three merges landed the same day — **PR #21** (the session-10 edition: `92ad8cc`, `c5c2c0c`), **PR #22** (P-05: `c5a7d42`), **PR #23** (OD-20b: `13a5247`) — each with `verify` and `docs` green, read from the check-runs API rather than assumed. *(This row read `0bb5383` through all three — **drift 49**, and drift 42 one edition after it was closed. Every fix so far has been a new value.)* *(It read `162d26e` / "PR #1 … #19" through two merges and two pushes — drift 42.)* Earlier state kept for the lineage: PR #1 … #19 merged, every task branch deleted, `git branch -r` listed `origin/main` alone *(this row read `e86d2bf` / "PR #13 open" through the close-out edition while the tip row above it said `b8d2087` — drift 36's shape, fixed here)* |
 | Packages | **15** — `packages/workflow` added by T-07; `packages/studio-model` and `packages/render-canvas` added by S2–S3; `packages/render-svg` added by T-17 |
-| Test files | **81** — every file `vitest` collects, `*.test.ts` **and** `*.test.tsx`, including `render.test.ts` (`@rms/render-svg`), `tenant-resolver.db.test.ts` (T-14b slice 1), `hit-test.test.ts`, `components.test.tsx` and `app.test.tsx` (`apps/studio-web`). Re-derived by `check:claims`, not typed |
+| Test files | **82** — every file `vitest` collects, `*.test.ts` **and** `*.test.tsx`, including `auth.test.tsx`, `render.test.ts` (`@rms/render-svg`), `tenant-resolver.db.test.ts` (T-14b slice 1), `hit-test.test.ts`, `components.test.tsx` and `app.test.tsx` (`apps/studio-web`). Re-derived by `check:claims`, not typed |
 | Phase-2 routes | **1** — `GET /api/internal/v1/audit`, held in `PHASE_2_ROUTES`. §8.2's other phase-2 row, `POST /api/internal/v1/submissions/:id/status`, has no `Action` yet and arrives with the status vocabulary F-38 is about. A third §8.2 row *mentions* phase 2 and stays MVP-1 — `GET /api/client/v1/submissions/:id` defers the RFI **thread**, not the route — which is now declared data in `SUB_FEATURE_PHASE_2` with a stale-entry check, instead of an interpretation living in three documents and enforced by none |
 | Migrations | **15** (`0001`–`0015`) — **`0015_session_purpose.sql` is the answer to the question the §8.2 amendment created** (F-61): `app.session.purpose` is an immutable enum (`'acceptance' \| 'full'`), NOT NULL with no default. **`0014_invitation_tenant_resolver.sql` is the first `SECURITY DEFINER` function in this schema** (F-58): a token hash in, one uuid out, `SET search_path = ''`, EXECUTE revoked from `PUBLIC`. `check-rls` inspected **22** tables, **86** grants and **8** functions today and passed |
-| Front-end files | **22** (`.tsx` / `.jsx` / `.vue` / `.svelte` / `.astro`) — every one in `apps/studio-web`, from S1 through S4 (incl. `badge.tsx`, `button.tsx`, `components.test.tsx` for T-16). Re-derived by `check:claims` (F-54) |
+| Front-end files | **27** (`.tsx` / `.jsx` / `.vue` / `.svelte` / `.astro`) — every one in `apps/studio-web`, from S1 through S4 and T-18a (incl. `auth-context.tsx`, `auth.test.tsx`, `invite-modal.tsx`, `invite.tsx`, `login.tsx`). Re-derived by `check:claims` (F-54) |
 | Server entry point | **exists, as of T-14a; all 32 MVP-1 routes live as of T-14e** — `apps/api/src/app.ts` builds a **Fastify** instance (`createApp`), `apps/api/src/auth/routes.ts` mounts the 12 `T-14b` + `T-14e` auth/org/staff handlers, `apps/api/src/revisions/routes.ts` mounts the 20 `T-14c` + `T-14d` + `T-14e` revision/submission/document/queue/catalog handlers, and `apps/api/src/server.ts` calls `app.listen({ port, host: '127.0.0.1' })`. **0 of 32 handlers** remain placeholders in `UNIMPLEMENTED` |
 | Front-end dependency | **`react` 19.2 and `react-dom` 19.2 in `apps/studio-web/package.json`; `vite` 8.2 in the root** — re-derived today |
 | Route table | **32 entries** in `apps/api/src/authz/routes.ts` — **14 client, 13 internal, 5 public.** All 32 are §8.2 MVP-1 rows. **EL amended §8.2 a second time on 2026-09-05 (F-57)**, adding the ten routes the inventory needed and did not have: sign-in, sign-out, staff OIDC start and callback, second-factor enroll and verify, project creation, first-revision creation, user deactivation and invitation revocation. Re-derived today with the checker’s own parser, not by eye: `blueprintRoutes()` finds **34** rows in §8.2, **2** flagged phase 2, leaving an MVP-1 surface of **32** — and `ROUTES` declares exactly those 32. **32 of 32.** `createApp` mounts all 32 and `routerCoverageProblems` refuses to boot on any disagreement in either direction. `PENDING_AMENDMENT` is **empty**, which is the healthy state |
