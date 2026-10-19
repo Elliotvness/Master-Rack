@@ -1869,8 +1869,23 @@ Sliced as the eight MVP steps, in the blueprint's order, so `AC-20` is assembled
 
 **DONE 2026-10-18.** Implemented facility and unit entry slice (T-18b) in `apps/studio-web` and `apps/api`. Created domain model `facility-model.ts`, API client `facility-client.ts`, form components `field-input.tsx`, `facility-form.tsx`, `unit-form.tsx`, findings register `findings-panel.tsx`, and route `facility.tsx`. Enforced zero/negative measurement refusal at both front-end and backend, preserved distinction between `not_known` and `not_answered`, generated actionable findings with "Who can answer" guidance (> 10 chars), and integrated multi-unit management. All 22 tests in `facility.test.tsx`, `/facility` routing test, and backend API tests pass.
 
-- **T-18c** Slice 4: option builder over the controlled vocabulary, incl. demo beat 5 — a 110″ beam
-  refused with both brackets and the no-interpolation reason. *M*
+### T-18c: Slice 4: option builder over the controlled vocabulary, incl. demo beat 5
+**Description.** Implements the option builder and multi-option manager for `apps/studio-web` per Blueprint §15.2 Step 4, §15.3 D-03, and requirements FR-CP-04..07. Confines dimensional configuration parameters strictly to the published, approved catalog grid (`interlake-2026-08`), disabling free-text entry for beam span, frame depth, frame height, and beam face height, and bounding beam levels to 2–6 per OD-03. Implements Demo Beat 5 — the single most important behaviour in the engine — strictly refusing off-grid dimensions (specifically a 110″ beam span) while displaying published bracket values (108″ and 114″) and an explicit non-interpolation explanation (> 80 chars). Enables multi-option management (add, duplicate, delete options, maintaining at least 1 option and recommending 2), generates 3D run configurations, converts dimensions to micrometres, and calls `POST /api/client/v1/revisions/:id/options`.
+**Acceptance criteria:**
+- [x] Domain model (`options-model.ts`) with `selectSpan`, `offGridExplanation`, `selectBeamLevels`, `createDefaultOption`, `createInitialOptions`, `duplicateOption`, `buildOptionRuns`, and `toOptionsApiPayload`
+- [x] Controlled vocabulary constants (`catalog-vocabulary.ts`) pinned from `interlake-2026-08` published catalog values
+- [x] Demo Beat 5 interactive widget (`demo-beat-5.tsx`) asserting refusal on 110″ span with brackets (108″, 114″), >80 char explanation, and one-click bracket adoption
+- [x] Multi-option list and tab navigation (`options-list.tsx`) supporting adding, duplicating, and deleting layout options
+- [x] Option configuration editor (`option-editor.tsx`) with dropdown selectors over controlled vocabulary and real-time geometry / bay summary
+- [x] Option builder container (`option-builder.tsx`) orchestrating options lifecycle, Demo Beat 5 integration, deterministic ID assignment, and API persistence
+- [x] API client (`options-client.ts`) for saving option drafts against `/revisions/:id/options` and preview retrieval
+- [x] Route `/options` (`routes/options.tsx`) registered in `LAZY_VIEWS` and route surface tests in `app.test.tsx`
+- [x] 100% green test assertions across `options.test.tsx` (31 tests) and `app.test.tsx` (34 tests)
+**Verification:** `pnpm typecheck`, `pnpm check:apps`, `pnpm check:boundaries`, `pnpm check:budgets`, `pnpm lint`, and full `pnpm test` pass.
+**Scope:** M (4 pts).
+
+**DONE 2026-10-19.** Implemented option builder and controlled vocabulary slice (T-18c) in `apps/studio-web`. Created catalog vocabulary `catalog-vocabulary.ts` pinned to `interlake-2026-08`, pure domain model `options-model.ts`, API client `options-client.ts`, Demo Beat 5 widget `demo-beat-5.tsx`, multi-option list `options-list.tsx`, editor `option-editor.tsx`, container `option-builder.tsx`, and route `routes/options.tsx`. Enforced strict refusal of off-grid dimensions (including the 110″ span Demo Beat 5 requirement with brackets 108″ and 114″ and >80 char explanation), disabled free-text dimensional entry, bounded beam levels to 2–6, implemented multi-option management with deterministic ID generation, and wired option draft submission. All 31 tests in `options.test.tsx` and all routing / integration tests pass.
+
 - **T-18d** Slice 5: plan and elevation preview, findings and assumptions panels. *M*
 - **T-18e** Slice 6–7: pre-submit confirmation, submit, immutability refusal with clone-to-P02. *M*
 - **T-19** Slice 8: internal queue, submission detail, the BOM "show your work" trace, derive. *L → split*

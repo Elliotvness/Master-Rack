@@ -161,6 +161,13 @@ describe('routing', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Facility & Unit Entry' })).not.toBeNull();
   });
 
+  it('/options renders the Option Builder view', async () => {
+    renderApp('/options');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Option Builder & Controlled Vocabulary' }),
+    ).not.toBeNull();
+  });
+
   /**
    * The plan view draws. It must NOT claim to be finished either — the document
    * is the continuity fixture and nothing is saved, so the screen says so.
