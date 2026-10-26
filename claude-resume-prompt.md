@@ -35,7 +35,7 @@ the blueprint wins.
 6. **Git state** — run `git status`, `git log --oneline -15`, `git branch -vv` and confirm the
    current branch and tip before touching anything.
 
-## Step 2 — Where the project stands (scoreboard, 2026-09-05, session 13, second edition)
+## Step 2 — Where the project stands (scoreboard, **2026-10-20, session 20**)
 
 Every figure below is measured against the blueprint. The scoreboard's own rule: **0% is the
 answer**; the other percentages are how much of the written plan has been executed. **Re-measure
@@ -91,12 +91,31 @@ cited, never the best of them.
 `package.json` by `check-claims`, which now gates it **in this file** — the fifth scoreboard copy,
 and until 2026-09-05 the only one nothing checked.
 
-**Why §15.2 is still 0 of 8, and it is no longer a formality.** T-14a built the server:
-`apps/api/src/app.ts` builds a Fastify instance, `createApp` mounts all 32 §8.2 MVP-1 routes and
-authorizes every one of them, and the router refuses to boot if it and the policy registry disagree
-in either direction. **All 22 handlers are placeholders that answer 500**, declared as data in
-`UNIMPLEMENTED` so "the app boots" can never be read as "the app works". **T-14b is the first point
-that can move the gauge.**
+**Why §15.2 is still 0 of 8 — and the reason changed on 2026-10-20 (drift 62).** The server is
+real and complete: `apps/api/src/app.ts` builds a Fastify instance, `apps/api/src/server.ts` calls
+`app.listen`, `createApp` mounts all **32** §8.2 MVP-1 routes and authorizes every one, the router
+refuses to boot if it and the policy registry disagree in either direction, and **`UNIMPLEMENTED` is
+an empty `Map`** — no handler answers 500. **39** `.tsx` files exist in `apps/studio-web`, with four
+real screens: `/invite`, `/login`, `/facility`, `/options`. T-14b through T-14e, T-15, P-03, P-05,
+T-16, T-17 and T-18a–c have all landed (2026-10-16 to 2026-10-19).
+
+**What holds §15.2 at zero is now narrower, and it is not the absence of screens.** `AC-20` — the
+one executable walkthrough of all eight steps — **appears in no source file**, no browser
+end-to-end harness is declared in any `package.json`, and steps 5, 6 and 8 have no screen
+(`T-18d`, `T-18e` and `T-19` are open; `bom.tsx`, `revisions.tsx` and `screening.tsx` are five-line
+placeholders). Every closed Phase 4 task was closed on its own criteria, and **nothing in the
+repository yet asserts that any two of them compose.**
+
+*(**Drift 62, found 2026-10-20.** Until this edition the paragraph above read **"All 22 handlers are
+placeholders that answer 500"** and **"T-14b is the first point that can move the gauge"** — in the
+same paragraph that already said 32 routes, and three days after T-18c landed. This file is the copy
+a cold session reads first and **the only one nothing gates**, so a session resuming from it would
+have rebuilt work that was already on `main`. Read `tasks/progress.md` for any figure, as step 2
+above says.)*
+
+**And nothing here has been pushed.** `git rev-list HEAD --not --remotes` returned **18** on
+2026-10-20, including all eight feature commits above; `origin/main` is still at the sha it held on
+2026-10-05. **Push before anything else** — see `tasks/progress.md`, "Next, in order", item 1.
 
 **Reconciliation with the older figures.** The Rev C audit's *68%* and `LATEST.md`'s *70%* are
 blueprint-conformance measures — requirements met, and effort remaining — over the whole MVP-1

@@ -1,41 +1,162 @@
-# Progress scoreboard — 2026-10-05 (session 18, scheduled run: a month of no commits, and the published copy caught up)
+# Progress scoreboard — 2026-10-20 (session 20, scheduled run: the server and the first four screens landed, and none of it has left the machine)
 
 An unattended scheduled run against `C:\Rack Master\rack-master-studio` over the device bridge.
 Every figure labelled *verified-today* was produced by a command run in this session; every figure
 labelled *repository-claim* was read off an earlier document and is not a measurement of this run.
 
-**§15.2 is 0 of 8, re-derived not re-read.** `UNIMPLEMENTED` in `apps/api/src/app.ts` holds **0**
-entries *(verified-today)* against a `ROUTES` registry of **32** *(verified-today)*; **all 32
-handlers are live (`T-14b` + `T-14c` + `T-14d` + `T-14e`, re-asserted by `T-15` + `P-03`)** and 0 MVP-1 handlers answer 500 (steps 1–8 still
-await Phase 4 screens). **120 of 160 points — 75.0%**, **38 of 49 tasks**, both re-derived
+**§15.2 is 0 of 8, re-derived not re-read — and for the first time the REASON has changed.**
+`UNIMPLEMENTED` in `apps/api/src/app.ts` is an **empty `Map`** — **0** entries *(verified-today)* —
+against a `ROUTES` registry of **32** *(verified-today)*, all 32 mounted and asserted in both
+directions at boot (`T-14b`…`T-14e`, re-asserted by `T-15` + `P-03`). `apps/api/src/server.ts` calls
+`app.listen` and **39** front-end files exist, four of them real screens — `/invite`, `/login`,
+`/facility`, `/options` *(all verified-today)*. **So the gate every earlier edition quoted — that the
+figure cannot move until HTTP and a screen exist — is cleared.** What holds it at zero now is
+narrower, and was measured by absence rather than carried forward: **`AC-20` appears in no source
+file** under `apps` or `packages`; **no browser end-to-end harness is declared in any
+`package.json`**; and §15.2 steps 5, 6 and 8 have no screen at all — `bom.tsx`, `revisions.tsx` and
+`screening.tsx` are five-line *"Not implemented."* placeholders, and `T-18d`, `T-18e` and `T-19` are
+open. **120 of 160 points — 75.0%**, **38 of 49 tasks**, both re-derived
 from `tasks/todo.md` this session rather than carried forward.
 
-## The finding: the build has not been touched in a month, and the delivery path is still shut
+## The finding: the server and the first four screens landed, and none of it has left the machine
 
-*Verified-today.* The last commit of any kind is dated **2026-09-28** — seven days ago, and it is
-session 17's own documentation commit. **The last commit that changed behaviour is dated 2026-09-06**
-(S3.3, reference elevations), **twenty-nine days ago.** Every commit since is this page and its
-companion documents writing about the build rather than advancing it.
+*Verified-today.* **Eight substantive commits landed between 2026-10-16 and 2026-10-19** — `T-14b`,
+then `T-15` + `P-03`, `P-05`, `T-16`, `T-17`, `T-18a`, `T-18b` and `T-18c` — ending the month whose
+emptiness was session 18's entire finding. The HTTP surface is complete, five Phase 4 tasks are
+closed, and the first four §15.2 screens exist. The working tree is **clean** and `git status
+--porcelain` returns nothing.
 
-**And none of the recent work has left the machine.** `git rev-list HEAD --not --remotes` returns
-**6** *(verified-today)*; across every local branch, `--all --not --remotes` returns **8**. Those
-commits exist in exactly one place: EL's working clone. The oldest of them is dated 2026-09-07,
-**twenty-eight days unpushed**. This project has already lost a commit once, which is why the
-re-measure procedure puts the unpushed count first.
+**And every one of those eight commits exists in exactly one place.** `git rev-list HEAD --not
+--remotes` returns **18** *(verified-today)*, and all eight feature commits are inside the 18.
+`git log --oneline @{u}..` returns **38**; the 20-commit difference is commits that survive on other
+`origin/*` branches, which is why the ahead-count overstates what is safe and the `--not --remotes`
+count is the one this page leads with. The oldest truly-unpushed commit is dated **2026-09-05** —
+**45 days unpushed**. This project has already lost a commit once, which is why the re-measure
+procedure puts this count first. The exposure has gone from **6** commits of documentation in
+session 18 to **18** commits containing the entire server and interface.
 
-**Both delivery paths were re-tested today rather than carried forward, and both are shut.**
+**Both delivery paths were re-tested today rather than carried forward, and both are still shut.**
 
 | Path | Measured today | Result |
 |---|---|---|
-| Device-bridge shell → `origin` | `git ls-remote origin HEAD` | **exit 0** — reading GitHub works; `origin/main` is `2fe1481` and level with local `main` |
-| Device-bridge shell → `origin` | `git push --dry-run`, `GIT_TERMINAL_PROMPT=0` | **fatal: could not read Username** — `git config --get credential.helper` is still **empty** |
-| Cloud container → `origin` | `gh api repos/Elliotvness/Master-Rack/...` | **HTTP 403** — *"GitHub access to this repository is not enabled for this session"*. Not the proxy this time: the repository is simply not in the session's authorized set |
-| Cloud container → GitHub Actions | plain web fetch of the Actions page | **unusable** — the page returned nine runs on two long-merged branches, which cannot be reconciled with this page's own record of runs #10 through #81. **No CI figure in this edition is a measurement**, and none is quoted as one |
+| Device-bridge shell → `origin` | `git ls-remote origin HEAD` | **exit 0** — reading GitHub works; `origin/main` is still **`2fe1481`**, unmoved since session 18, and local `main` is **38 ahead** of it |
+| Device-bridge shell → `origin` | `git push --dry-run origin main`, `GIT_TERMINAL_PROMPT=0` | **fatal: could not read Username** — `git config --get credential.helper` is still **empty** |
+| Cloud container → `origin` | `gh api repos/Elliotvness/Master-Rack` | **HTTP 403** — *"GitHub access to this repository is not enabled for this session"*. The error text names `add_repo` as the remedy; **no such tool is in this session's tool set**, so the cloud path cannot be opened from inside a run |
+| Device-bridge shell → the test suite | `node node_modules/vitest/vitest.mjs run` | **cannot run** — `node_modules` was installed on Windows, so Linux cannot load `@rollup/rollup-linux-x64-gnu`. **No test pass/fail count in this edition is a measurement**, and none is quoted as one |
 
-The ask in session 15, 16 and 17's "next" list has not changed and is now the only thing gating an
-unattended run from being useful: **add `Elliotvness/Master-Rack` to the scheduled session's
-authorized repository set, or give the bridge shell a credential helper.** Everything else an
-unattended run can do, it did today.
+**And the fifth copy was telling the next session the opposite of all of this.**
+`claude-resume-prompt.md` — the one a cold session reads first, and the only copy nothing gates —
+still read *"All 22 handlers are placeholders that answer 500"* and *"T-14b is the first point that
+can move the gauge"*, three days after T-18c landed. A session resuming from it would have rebuilt
+work already on `main`. Corrected today; **drift 62**, and the most consequential item on this
+edition's list after the unpushed commits themselves.
+
+The ask has not changed since session 15, and it is now the whole of what gates an unattended run:
+**add `Elliotvness/Master-Rack` to the scheduled session's authorized repository set, or give the
+bridge shell a credential helper.** Everything else an unattended run can do, it did today.
+
+## §15.2, step by step — the first re-derivation since HTTP and screens exist
+
+Every earlier edition reported 0 of 8 and gave one reason: no server, no screen. Both now exist, so
+the figure was re-derived step by step rather than restated. **It is still zero**, and the table says
+what each step is missing. *Verified-today* throughout. "Route" means declared in `ROUTES` and
+mounted; "screen" means a route component that renders something other than the *"Not implemented."*
+placeholder.
+
+| # | §15.2 step | Route | Screen | What is missing before the step runs end to end |
+|---|---|---|---|---|
+| 1 | Internal user creates org + project, sends an invitation | yes | yes — `invite-modal.tsx` | Nothing proves the invited address *receives* the link. The outbox exists (`0004_outbox.sql`, worker) and no run exercised it |
+| 2 | Client accepts, sets a credential, enrolls a second factor, signs in | yes | yes — `/invite`, `/login` | Component tests against a mocked client are not the step running. The single-use and second-redemption proofs are DB-backed, and no database is reachable here |
+| 3 | Client enters facility and unit information | yes | yes — `/facility` | Same: `T-18b` is closed on its own criteria, with no walkthrough above it |
+| 4 | Client creates two controlled options | yes | yes — `/options` | Same. Demo beat 5's off-grid refusal is implemented and unit-tested |
+| 5 | Client sees preliminary plan, elevation, assumptions, warnings | yes | **no** | **`T-18d` open.** `plan.tsx` and `elevation.tsx` are 34 lines each (S3.1/S3.3); this step's assumptions and findings panels are not built |
+| 6 | Client selects one option and submits a request for quote | yes | **no** | **`T-18e` open.** The watermarked PDF is `T-20`, **blocked on Q3** |
+| 7 | The submitted revision becomes immutable | yes | n/a | DB-level. Checkpoint B records it provable over HTTP; `check:rls` and all ten `*.db.test.ts` suites **could not run** here |
+| 8 | Internal user reviews, opens the BOM trace, derives a working revision | yes | **no** | **`T-19` open** (`L → split`). `bom.tsx`, `revisions.tsx` and `screening.tsx` are placeholders |
+
+**And one absence governs all eight.** `AC-20` — *"all eight MVP steps as one executable
+walkthrough, ending in byte-identical BOM regeneration and a frozen, deep-immutable submission"* —
+appears in **no source file** under `apps` or `packages` *(verified-today)*, and **no browser
+end-to-end harness is declared in any `package.json`**. Every Phase 4 task closed so far was closed
+on its own acceptance criteria. **Nothing in the repository yet asserts that any two of them
+compose**, which is what §15.2 measures and what Checkpoint C's `AC-20` is for. That is the honest
+reason the figure is zero, and it is a different reason from every edition before this one.
+
+## Verified today, and what could not be
+
+*Verified-today* on `main`, clean tree — `git status --porcelain` returns nothing.
+
+| Gate | Result |
+|---|---|
+| 19 checker self-tests, each run before its checker | **PASS** — boundaries, app-boundaries, provenance, language, content-hash, spot-check-record, lockfile, draw, rls, determinism, scoreboard-sync, claims, prose, types-only, server-owned, route-surface, budgets, aliases, findings |
+| 17 checkers | **PASS** — boundaries, app-boundaries, language, content-hash, spot-check-record, lockfile, scoreboard-sync, claims, prose, types-only, server-owned, route-surface, budgets, aliases, findings, coverage-config, lint-provenance |
+| `check:routesurface` | **PASS** — *"§8.2 lists 34 row(s) — 32 MVP-1, 2 phase 2; the registry carries 32 and 1"*, then *"the registry and §8.2 agree row for row"* |
+| `check:budgets` | **PASS** — `apps/studio-web/dist` at **88 KB gz** against the 200 KB initial-bundle ceiling. The checker ran today; the `dist/` it measured was built 2026-10-18 and was **not** rebuilt in this run |
+| `check:findings` | **PASS** — every finding allocated once, no gaps, every reference resolving |
+| `tsc --build` | **exit 0** |
+| `tsc -p tsconfig.tests.json` | **exit 0** |
+| `check:rls` | **could not run** — `ECONNREFUSED 127.0.0.1:55432`. No PostgreSQL is reachable from the bridge shell, and `psql`, `pg_isready` and `docker` are all absent from it |
+| `check:determinism` | **could not run** — it shells out to `vitest`. It reported *"the corpus itself failed (exit 1)"* rather than a determinism mismatch, which is the right distinction and is recorded here as one |
+| `pnpm test`, `coverage`, `lint` | **not run** — `pnpm` is absent from the bridge shell, and `vitest` will not start under it |
+
+The three that could not run have one cause, unchanged since session 17: `node_modules` in the
+working tree is a **Windows** install, so Linux cannot load `@rollup/rollup-linux-x64-gnu`. The
+procedure for building a Linux install in session scratch is in
+`docs/scheduled-run-verification.md` and was **not** executed this run. **No test, coverage or CI
+figure in this edition is presented as a measurement of this run.** The suite counts in T-16 through
+T-18c's own `DONE` blocks — 220 tests across `apps/studio-web`, 31 in `options.test.tsx`, 22 each in
+`auth.test.tsx` and `facility.test.tsx` — are **repository-claims** from the sessions that wrote
+them, and are not re-verified here.
+
+Counts re-derived today, each one gated by `check-claims`: **15** packages · **84** test files ·
+**15** migrations · **39** front-end files · **32** `ROUTES` entries plus **1** held phase 2 · **34**
+§8.2 rows · **19** self-test invocations covering **18** checkers · **0** `UNIMPLEMENTED` entries.
+
+**The claim registry fired on this edition while it was being written, which is the only evidence
+worth having that it works.** The new masthead in `tasks/progress.html` first read *"39 front-end
+files exist"*, which made `check-claims`'s `frontEndFiles` pattern match **twice** in one file —
+*"a claim must be unambiguous; narrow the pattern"*. The **sentence** was reworded and the
+derivation was left alone. A page stating a gated figure twice is how drift 18 and F-55 both
+happened; this time the gate refused the page before it reached a commit.
+
+## What this run did not do
+
+- **No push**, by either path — see the delivery table above. **18 commits exist on no remote**, and
+  they now hold the whole HTTP surface and the first four screens rather than documentation.
+- **No feature work**, and none was attempted. A scheduled run cannot meet an acceptance criterion it
+  cannot test, and this project does not count a task whose criteria were not met.
+- **No Linux dependency install**, so the suite was not run at all this session.
+- **No `DONE` records invented for T-12, R-08 or R-10.** The scoreboard counts all three done and
+  `tasks/todo.md` carries no completion record for any of them. T-11's checkboxes were reconciled to
+  exactly what a command proved today and no further. The rest is EL's call, not an unattended run's.
+
+## Next, in order
+
+1. **Push the 18 commits.** The oldest is 45 days old; the newest eight are the entire HTTP surface
+   and the first four MVP-1 screens, and they exist in exactly one place. This is the sixth
+   consecutive run to put this first, and it is now protecting far more than it was.
+2. **Unblock delivery so it stops recurring** — authorize `Elliotvness/Master-Rack` for the
+   scheduled session, or give the bridge shell a credential helper. Items 1 and 2 are the same
+   problem at two scales.
+3. **`T-18d`, then `T-18e`.** Steps 5 and 6 are the only §15.2 steps whose screens are both unbuilt
+   and unblocked — `T-20`'s watermarked PDF still waits on **Q3**.
+4. **Write `AC-20` before `T-19`.** Five Phase 4 tasks are closed and nothing in the repository
+   asserts that any two of them compose. A walkthrough written after the last screen is one that
+   gets written to pass.
+5. **Add the dependency audit.** One CI step, and the last item on the absent-gates list that needs
+   no decision from anyone.
+6. **Rebuild `check-test-run`**, open since session 15: it closes the hole where an absent database
+   yields a green count with suites silently skipped.
+
+---
+
+# The previous edition — 2026-10-05 (session 18), kept for its findings
+
+**Session 18's headline, kept as written and dated:** §15.2 at 0 of 8 with `UNIMPLEMENTED` holding 0
+entries against a 32-row registry; 120 of 160 points and 38 of 49 tasks — the same figures this
+edition re-derived, because no task closed between the two runs that the plan counts. Its finding was
+that the build had not been touched in a month and the delivery path was shut. The first half of that
+is no longer true; the second half is.
 
 ## Drift 54 is closed — the published copy was a month behind and is now current
 
@@ -1466,6 +1587,12 @@ denominator moving, which is the only reason anyone looked at that table twice.
 | 49 | *(new, 2026-09-05 — mine, found one edition after drift 42 was closed)* The `main` row read **`0bb5383`** through **three** merges of this session's own making — PRs #21, #22 and #23 — and still named two remote branches that no longer exist | **Fixed — `afd4e8a`, re-derived from `git ls-remote --heads origin`.** Items 5, 11, 15, 26, 36 and 42 are the same defect and this is its **seventh** appearance, this time going stale **inside a single day**. Every one of those fixes was a new value, and **a value is not a mechanism**: nothing in `verify` derives the remote tip, so the row is correct only until the next merge — and the runs that merge are the runs that write this file. The tractable fix is to stop asserting a moving ref in prose: name the PR, which does not move, and let `git ls-remote` answer the sha on demand |
 | 50 | *(new, 2026-09-05 — mine, and the first thing `check-scoreboard-prose` ever printed)* Both copies carried **two** figures for the points remaining: `progress.md` said 94 in one sentence and headed its breakdown *"the remaining 98 points"* thirty lines later; `progress.html` had the same pair the other way round | **Fixed — 94 throughout, and 94 is derived** (`160 − 66`), never typed. The breakdown's components and all three of its percentages were stale with it (42 · 40 · 16 summing to 98, at 42.9 / 40.8 / 16.3%); they are now 42 · 36 · 16 at 44.7 / 38.3 / 17.0%. **`check-scoreboard-sync` was green over all of it for a full edition**, correctly — it compares the two files against each other, and both were wrong in the same place. This is drift 30's exact shape, seven editions later. The new checker derives the remainder from each file's own Total row and compares every prose statement of it against that; it went **red on its first run, before it had ever been green** |
 | 51 | *(new, 2026-09-05 — mine)* The §15.2 section ended *"the first point that can move it is T-14a's"* — while T-14a had landed, was counted in the 66, and the gauge still read **0 of 8**. `progress.html`'s gauge paragraph said **T-14b** in its third sentence and **T-14a** in its last | **Fixed — T-14b, with the reason stated: mounting all 22 routes and authorizing every one of them is not answering one of them.** Drift 41's shape (*"server entry point: none"* after the server existed) in the sentence that matters most, because it is the one a reader uses to decide what to do next. **No gate covers it and none is proposed** — "which task can next move an eight-step gauge" is not derivable from the tree, and saying so is cheaper than a checker that would pretend to |
+| 57 | *(new, 2026-10-20 — mine)* This file asserted **both** that secret scanning is present and that it is absent. The inventory's CI-gates row read *"CI gates absent: dependency audit, E2E"* while a prose bullet nine screens below still read *"**Secret scanning (T-11)** and a **dependency audit** are absent"* and *"**No bundle ceiling (P-05)**"* | **Fixed.** Drift 46 corrected the table row in session 10 and left the bullet standing — **ten editions carrying both statements.** Found by grepping `T-11` across the whole file rather than reading the section. `check-scoreboard-prose` gates figures it can derive and does not see a contradiction between two prose sentences; `ci.yml` was re-read today to settle it |
+| 58 | *(new, 2026-10-20 — mine, and it is a correction that was stale on the day it was written)* `tasks/todo.md`'s T-14 acceptance criteria read *"all **22** §8.2 routes mounted — the **24** rows in §8.2"*, and that sentence is itself the **F-56 correction dated 2026-10-05** | **Fixed — the blueprint wins, so the plan is what changed.** EL's second §8.2 amendment landed **2026-09-05**, a month BEFORE the correction, and took §8.2 to **34** rows / **32** MVP-1. `check-route-surface` had been passing on 32 throughout. F-56 fixed one amendment's worth of staleness and inherited the next one's |
+| 59 | *(new, 2026-10-20 — mine)* The *"Drift 4 was not drift"* paragraph in this file carried the same arithmetic in the **present tense** — *"lists **24** today"*, *"is 22 now"* — three lines above a sentence reading *"**32 of 32, measured today**"* | **Fixed by re-dating, not by rewriting.** A dated observation keeps its number; present-tense prose about a quantity this file can derive does not. The paragraph now says what §8.2 held then and what it holds now |
+| 60 | *(new, 2026-10-20 — mine)* `tasks/todo.md`'s Phase 4 preamble read *"there are currently **zero `.tsx` files**"* | **Fixed.** **39** front-end files exist in `apps/studio-web` *(verified-today, and gated by `check-claims`'s `frontEndFiles` derivation)*, five Phase 4 tasks are closed, and the preamble's own sequencing condition — *"P-05 lands first"* — was met. The gate that covers this figure covers the two scoreboard copies and not the plan |
+| 61 | *(new, 2026-10-20 — mine, and it is this page describing itself wrongly for the fifth time)* The masthead carried **today's** figures under a **session-18 / 2026-10-05** title, while the body still read *"the build has not been touched in a month"* and *"the last commit that changed behaviour is dated 2026-09-06"*, and gave the reason for 0 of 8 as *"steps 1–8 still await Phase 4 screens"* | **Fixed.** Eight feature commits landed 2026-10-16–19 and steps 1–4 now have screens. Each feature commit patched the masthead figures and left the narrative at session 18; `check-scoreboard-sync` and `check-claims` compare **figures**, so both stayed green over a page whose prose contradicted its own headline. Items 11, 35, 37 and 49 are this same shape |
+| 62 | *(new, 2026-10-20 — mine, and the highest-consequence item on this list after the unpushed commits)* `claude-resume-prompt.md` — the copy a cold session reads FIRST and **the only one nothing gates** — read *"**All 22 handlers are placeholders that answer 500**"* and *"**T-14b is the first point that can move the gauge**"*, in the same paragraph that already said **32** routes, three days after T-18c landed. Its "where the project stands" header was still dated **session 13, 2026-09-05** above current figures | **Fixed.** `UNIMPLEMENTED` is an empty `Map` and T-14b–e, T-15, P-03, P-05, T-16, T-17 and T-18a–c have all landed. **A session resuming from this file would have rebuilt work already on `main`** — which is drift 45's shape (*"this file has published stale figures for six sessions"*) with a consequence attached rather than a figure. It now carries the unpushed count and points at `tasks/progress.md` for every figure |
 | 29 | *(new, session 5 — **mine, found while re-deriving for item 28's commit**)* The sensitivity table's four scenario **denominators** were built on the pre-split base of **145** while its own first row read **147** | **Fixed — all five re-derived from 148.** Item 24 fixed that table's *numerators* earlier the same day and I did not check its denominators, so a table about how the denominator moves was itself carrying a stale one. Two defects in one table in one day, both invisible to `check-scoreboard-sync`, which compares the phase bars and not this |
 
 **One item was queued as drift and is not filed, because it did not survive checking.** A
@@ -1483,12 +1610,15 @@ three doc-vs-reality typos and closed with "all four are R-11 / T-10 work", it r
 clean-up — which invited the fix of editing 23 down to 20. Re-derived from the blueprint this
 session and put through a fresh-context adversarial review (AD-7):
 
-- **§8.2 listed 23 rows when this was written on 2026-09-02**, and lists **24** today — EL's
-  amendment added the operator release. Two are marked phase 2 by the blueprint itself
+- **§8.2 listed 23 rows when this was written on 2026-09-02**, and **24** after EL's first
+  amendment added the operator release. *(Re-dated 2026-10-20, drift 59: this read "lists **24**
+  today" in the present tense. §8.2 carries **34** rows today, 32 MVP-1 and 2 phase 2, after EL's
+  second amendment of 2026-09-05 — re-parsed by `check-route-surface` this session.)* Two are marked phase 2 by the blueprint itself
   (`POST /api/internal/v1/submissions/:id/status`, `GET /api/internal/v1/audit`). A third row is
   MVP-1 with only a *sub-feature* deferred (`GET /api/client/v1/submissions/:id`, "RFI thread is
-  phase 2") and stays in. **The MVP-1 surface was 21 then — neither 23 nor 20 — and is 22 now**,
-  re-derived today with `blueprintRoutes()` rather than by eye.
+  phase 2") and stays in. **The MVP-1 surface was 21 then — neither 23 nor 20 — and was **22** after the first
+  amendment**, re-derived with `blueprintRoutes()` rather than by eye. It is **32** today, on §8.2's
+  34 rows — see the re-dating above.
 - The registry carried 20 then, and the diff runs **both** ways: it omitted
   `GET /api/client/v1/documents/:id` (the signed watermarked-PDF URL that §15.2 step 6, `E-08` and
   `AC-16` depend on) and `POST /api/internal/v1/revisions/:id/notes` (`E-05`), and it *carried* the
@@ -1663,9 +1793,17 @@ Gaps, in priority order:
   docs-only commit. A re-run was green in 1m 12s. In the checks UI a flake and a regression look
   identical, so **read the duration first**: a genuine failure gets past *Initialize containers* and
   dies tens of seconds in; a 12-second failure never reached the code.
-- **Secret scanning (T-11)** and a **dependency audit** are absent. Both are one CI step each.
-- **No bundle ceiling (P-05).** Agree it *before* the first screen; a ceiling set after the bundle
-  exists is one nobody meets.
+- **A dependency audit is absent.** Grepping `.github/workflows/ci.yml` for `pnpm audit`,
+  `npm audit` or `dependabot` returns **0** matches, and there is no `.github/dependabot.yml`
+  *(both verified-today)*. It is one CI step.
+  **Corrected 2026-10-20 — drift 57.** This bullet also read *"Secret scanning (T-11) … are
+  absent"* and *"No bundle ceiling (P-05)"* for ten editions after both had landed, while the
+  CI-gates row in this same file's inventory table said the opposite. Secret scanning has been
+  present since T-11 — the checksum-pinned `gitleaks v8.30.1` step was read in `ci.yml` today — and
+  P-05's ceiling is enforced: `check-front-end-budgets` measured **88 KB gz** against the 200 KB
+  initial-bundle ceiling today. Drift 46 fixed the table row in session 10 and left this bullet
+  standing, so the file asserted both at once for ten editions and every figure-comparing gate
+  stayed green over it.
 - **One serial `verify` job.** `pnpm test` and `pnpm coverage` both run the suite — the suite runs
   twice. Split lint / typecheck / test into parallel jobs before the server lands, while the
   pipeline is still short enough that nobody is tempted to skip it.

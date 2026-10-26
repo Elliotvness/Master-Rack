@@ -704,14 +704,29 @@ CI coverage while being applied, recorded and measured. See F-32; the fix is one
 `concurrency` group, and **it is a deliberate CI change, so it is EL's call, not a drive-by.**
 
 **Acceptance criteria:**
-- [ ] A scanning step in `ci.yml` that fails the build on a detected secret
-- [ ] Push protection enabled on the remote if the host supports it
-- [ ] A deliberately planted fake credential is caught, then removed
-- [ ] **F-32 answered explicitly**, by (a) `push: branches: ['**']` with a `concurrency` group, or
+- [x] A scanning step in `ci.yml` that fails the build on a detected secret — *verified 2026-10-20:
+      the `Secret scanning (gitleaks)` step runs a checksum-pinned `gitleaks v8.30.1` over the
+      working tree and exits non-zero on a detection*
+- [ ] Push protection enabled on the remote if the host supports it — *not verifiable from the
+      bridge shell; see the repository-claim below*
+- [ ] A deliberately planted fake credential is caught, then removed — *repository-claim: run
+      `33600804274` red (`leaks found: 1`, 16s), run `33600982861` green after removal, recorded in
+      `tasks/progress.md`. Not re-run today — no CI run page is readable from this session*
+- [x] **F-32 answered explicitly**, by (a) `push: branches: ['**']` with a `concurrency` group, or
       (b) a recorded decision to keep the trigger and open a draft PR on each task branch's first
-      commit. Either is acceptable; **leaving the current wording standing is not**
+      commit. Either is acceptable; **leaving the current wording standing is not** — *verified
+      2026-10-20: (a) is in `ci.yml`, with the `concurrency` group and the F-32 rationale in comments*
 - [ ] If (a): a push to a throwaway branch is confirmed to produce a run, by URL, before the branch
       is deleted. A trigger nobody has watched fire is the defect this task exists to close
+
+**Checkbox state reconciled 2026-10-20.** Every box above was unticked while `tasks/progress.md`
+counted T-11 **done** and included its 2 points in Phase 2's `29 / 29`. The two ticks are what a
+command run this session proves; the three that remain open need the remote, and **the push path has
+been shut since 2026-09-05**. The scoreboard's count rests on the two recorded run ids above, which
+are a repository-claim from an earlier session when pushing worked — **it is not re-verified, and
+this note exists so that nobody reads the tick pattern as a fresh measurement.** The same unticked
+state applies to **T-12, R-08 and R-10**, which the scoreboard also counts done with no `DONE` block
+here; that is an open item for EL, not something an unattended run should invent a record for.
 
 **Verification:** the failing secret-scan run recorded, then the passing one; and for F-32, the run
 URL produced by a branch push that previously produced none.
@@ -1313,12 +1328,17 @@ nothing yet returns. `submit`, `derive`, `clone` and `invite` are unguarded unti
 `purgeExpiredOn`. Both belong to T-14a–e and are listed there.
 
 ### T-14: The server
-**Acceptance criteria:** all **22** §8.2 routes mounted — the 24 rows in §8.2 less the two the
-blueprint itself marks phase 2 (`POST /api/internal/v1/submissions/:id/status`, `GET /api/internal/v1/audit`).
-*(Corrected 2026-10-05, **F-56**: this read "21 … the 23 rows" from before EL's §8.2 amendment of
-2026-09-03, which added `POST /api/internal/v1/idempotency-claims/:key/release` — an amendment T-14e
-below asked for — and took §8.2 from 23 rows to 24. Re-parsed from the governing document: 24 rows,
-2 phase 2, surface of 22, which is what `ROUTES` declares and what `check-route-surface` passes on.)*;
+**Acceptance criteria:** all **32** §8.2 MVP-1 routes mounted — the **34** rows in §8.2 less the two
+the blueprint itself marks phase 2 (`POST /api/internal/v1/submissions/:id/status`, `GET /api/internal/v1/audit`).
+*(Corrected **2026-10-20**, **drift 58**: this read "22 … the 24 rows", and that text was itself the
+F-56 correction dated 2026-10-05 — **stale on the day it was written.** EL amended §8.2 TWICE: once on
+2026-09-03, adding `POST /api/internal/v1/idempotency-claims/:key/release` (23 rows → 24), and again on
+**2026-09-05** after **F-46** found the inventory declared no way for anyone to sign in, adding ten
+auth routes (24 → 34). F-56 corrected one amendment's worth of staleness and inherited the next one's,
+a month after the fact, while `check-route-surface` had been passing on **32** throughout. Re-parsed
+from the governing document today: **34 rows, 2 phase 2, surface of 32**, which is what `ROUTES`
+declares, what `createApp` mounts, and what `check-route-surface` passed on this session. The
+blueprint wins, so the plan is what gets corrected — never the count moved to meet the code.)*;
 the boot-time route-coverage assertion runs
 against the **real** router so `AC-06` becomes live; deny-by-default middleware; 404-not-403;
 every deny writes an audit event; scoped fetch only — `currentOrg.revisions.find(id)`, never
@@ -1805,9 +1825,17 @@ worth doing before 24 commits become history.
 
 ## Phase 4 — The interface  *(Q1 answered: Vite + React Router v7 SPA)*
 
-> Every one of §15.2's eight MVP-1 steps needs a screen, and there are currently **zero `.tsx`
-> files**. This phase is where 0/8 becomes 8/8, and it is the largest remaining item in the plan.
+> Every one of §15.2's eight MVP-1 steps needs a screen. This phase is where 0/8 becomes 8/8, and it
+> is the largest remaining item in the plan.
 > **P-05 lands first**: the front-end budgets are agreed before the first screen, not after.
+>
+> *(Corrected **2026-10-20**, **drift 60**: this preamble read "there are currently **zero `.tsx`
+> files**". **39** exist in `apps/studio-web` as of 2026-10-19 — verified today and gated by
+> `check-claims`'s `frontEndFiles` derivation, which covers the two scoreboard copies and not this
+> file. P-05 did land first, on 2026-10-18, and `check-front-end-budgets` measured **88 KB gz**
+> against the 200 KB initial-bundle ceiling today. T-16, T-17, T-18a, T-18b and T-18c are closed;
+> **T-18d, T-18e, T-19, T-20 and T-21 are open**, and §15.2 is still **0 of 8** — see
+> `tasks/progress.md` for what holds it there now, which is no longer the absence of screens.)*
 
 Sliced as the eight MVP steps, in the blueprint's order, so `AC-20` is assembled rather than authored.
 
