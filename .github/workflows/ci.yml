@@ -270,6 +270,21 @@ jobs:
       - name: The registry agrees with blueprint §8.2, row for row
         run: pnpm check:routesurface
 
+      # The 19th checker, F-62. `apps/api/src/dto/client.ts` restates
+      # `@rms/display-list`'s `ItemKind` union by hand and calls the restatement
+      # a review point; it carried six of the model's nine kinds, and the three
+      # it omitted — unit-load, flue, reference — are exactly what
+      # `buildElevation` emits, so the outbound guard would have refused the
+      # server's own elevation view. §15.2 step 5 IS the plan-and-elevation
+      # preview. A review point is not a control. Wired into BOTH package.json
+      # and this file in the commit that adds it, because drift 38 was a checker
+      # that landed in `verify` and not here. Self-test first, as always.
+      - name: Display-item parity self-test
+        run: pnpm check:parity:selftest
+
+      - name: The client wire accounts for every display-list item kind
+        run: pnpm check:parity
+
       # P-05. The front-end budgets are agreed in blueprint §5.4 before the
       # first screen exists, and this is the mechanism that keeps §5.4, the
       # checker and PERF.md stating one ceiling. Self-test first, as always.

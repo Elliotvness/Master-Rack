@@ -335,7 +335,58 @@ interface PreviewEntity {
 
 const point = object({ x: integer(), y: integer() });
 const displayText = object({ text: string(), established: boolean() });
-const ITEM_KINDS = ['upright', 'beam', 'aisle', 'obstruction', 'no-rack-zone', 'annotation'] as const;
+/**
+ * The drawing vocabulary a client may receive, pinned to `@rms/display-list`'s
+ * `ItemKind` in the model's own order.
+ *
+ * **F-62, 2026-10-26.** This list carried six of the model's nine kinds, and
+ * the three it omitted — `unit-load`, `flue`, `reference` — are exactly the
+ * ones `buildElevation` emits. So the response guard would have refused the
+ * server's own elevation view, and §15.2 step 5 IS the plan-and-elevation
+ * preview. Nothing caught it: the TypeScript variants above type `item` as
+ * `string`, so the compiler had no opinion, and the only place this list met
+ * the model's was the prose comment on `DisplayItemClientDTO` calling the
+ * restatement a review point. A review point is not a control;
+ * `tools/check-display-item-parity.mjs` is now the control, and it requires
+ * every model kind to be either carried here or withheld below with a reason.
+ *
+ * **The three kinds arrived with F-53's own change, and that is the sharp part.**
+ * S3.3 added `'reference'` to `ItemKind` on 2026-09-06, and F-53 records it as a
+ * control that WORKED: `penFor`'s `default`-less switch in `render-canvas` went
+ * red until the renderer decided a pen for it. The same addition reached THIS
+ * file and nothing went red at all, because `item` is typed `string` here, so
+ * the compiler had no question to ask. `unit-load` and `flue` came in the same
+ * way with S3.1. One seam, two sides: one protected by construction, the other
+ * by a comment — and the comment is the one that lost.
+ *
+ * Widened rather than withheld, deliberately: a reference elevation is the
+ * datum AC-07's VERIFY rule exists for, and a unit load is the client's own
+ * pallet. There is no audience argument for hiding either from the client
+ * drawing the blueprint asks us to show them.
+ */
+const ITEM_KINDS = [
+  'upright',
+  'beam',
+  'unit-load',
+  'flue',
+  'reference',
+  'aisle',
+  'obstruction',
+  'no-rack-zone',
+  'annotation',
+] as const;
+
+/**
+ * Model item kinds deliberately NOT put on the client wire, each with the
+ * reason it is withheld. Empty today: every kind the model can draw is one a
+ * client may see.
+ *
+ * An entry here is an audience decision, and `check-display-item-parity`
+ * requires one for any kind this file does not carry — so a kind added to the
+ * model turns that checker red until somebody chooses.
+ */
+const ITEM_KINDS_NOT_TRANSPORTED = [] as const;
+void ITEM_KINDS_NOT_TRANSPORTED;
 
 const displayItem = oneOf([
   object({ kind: string({ enum: ['rect'] }), item: string({ enum: ITEM_KINDS }), id: string(), origin: point, width: integer(), height: integer(), label: nullable(displayText) }),

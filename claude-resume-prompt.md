@@ -79,7 +79,7 @@ across the session, every completed one at exit 0; three stopped at `check-claim
 coverage gate, each time over a figure this session had just made stale — the gates working, not
 failing. The run cited is the last, on the tree as committed:**
 `pnpm verify` **exit 0 — 84 files, 2,252 tests, 0 skipped**,
-**19 self-test invocations covering 18 checkers**, coverage all files
+**20 self-test invocations covering 19 checkers**, coverage all files
 99.53 / 98.88 / 99.42 / 99.53, 15 migrations, 15 declared claims. Both
 three occurrences of "skipped" in the log are self-test case names — read,
 not assumed (F-29). v8 coverage is not bit-stable across worker

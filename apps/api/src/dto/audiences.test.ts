@@ -360,6 +360,51 @@ describe('client DTOs — built field by field, validated against their publishe
     expect(validate(CLIENT_SCHEMAS.Preview, unwatermarked)).toEqual(['views[0].watermarked: false is not one of true']);
   });
 
+  /**
+   * F-62: the three item kinds `buildElevation` emits, through the client schema.
+   *
+   * Before 2026-10-26 the DTO's `ITEM_KINDS` enum carried six of the model's
+   * nine and omitted exactly these three, so this test is red on the tree as it
+   * stood — the outbound guard refused the server's own elevation view, and
+   * §15.2 step 5 IS the plan-and-elevation preview. Nothing had noticed, because
+   * the TypeScript variants type `item` as `string` and the only emitted view
+   * was a plan.
+   *
+   * `tools/check-display-item-parity.mjs` is the control that keeps the two
+   * vocabularies together from here on; this is the contract-level proof that
+   * the widening reaches the wire, which a checker over source text cannot give.
+   */
+  it('a client preview may carry an elevation’s vocabulary — unit-load, flue and reference (F-62)', () => {
+    const elevationItems = [
+      { kind: 'rect' as const, item: 'unit-load' as const, id: 'ul1', origin: { x: 0, y: 0 }, width: 1_219_200, height: 1_016_000, label: { text: '2 x 48 in', established: true } },
+      { kind: 'rect' as const, item: 'flue' as const, id: 'fl1', origin: { x: 1_219_200, y: 0 }, width: 152_400, height: 1_016_000, label: null },
+      { kind: 'line' as const, item: 'reference' as const, id: 'rf1', from: { x: 0, y: 5_486_400 }, to: { x: 2_438_400, y: 5_486_400 } },
+    ];
+    const dto = toPreviewClientDTO({
+      ...previewEntity,
+      views: [{ ...displayList, view: 'elevation' as const, items: elevationItems }],
+    });
+
+    expect(validate(CLIENT_SCHEMAS.Preview, dto)).toEqual([]);
+    expect(dto.views[0]?.items.map((i) => i.item)).toEqual(['unit-load', 'flue', 'reference']);
+    // The guard a real client response passes through agrees, not just `validate`.
+    expect(guard.check(CLIENT_SCHEMAS.Preview, dto)).toBe(dto);
+    // And an unestablished label on a unit load still prints nothing numeric
+    // on the wire — AC-07 survives the widening.
+    const unestablished = toPreviewClientDTO({
+      ...previewEntity,
+      views: [
+        {
+          ...displayList,
+          view: 'elevation' as const,
+          items: [{ ...elevationItems[0]!, label: { text: '', established: false } }],
+        },
+      ],
+    });
+    expect(validate(CLIENT_SCHEMAS.Preview, unestablished)).toEqual([]);
+    expect(unestablished.views[0]?.items[0]?.label).toEqual({ text: '', established: false });
+  });
+
   it('a comparison carries option labels and metric rows — not the options\' BOMs', () => {
     const dto = toComparisonClientDTO(comparisonEntity);
     expect(dto).toEqual({

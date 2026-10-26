@@ -2749,3 +2749,109 @@ diffs §8.2 against the *registry*, which is the pair that matters at runtime. D
 guesses which integer in an English sentence is a route count is a checker that will produce false
 reds and be switched off. What catches this class is the re-measure cadence reading the plan against
 the blueprint, which is how it was caught.
+
+## F-62 — the client wire carried six of the model's nine item kinds, and the three it dropped are the elevation's *(raised and **CLOSED** 2026-10-26 by an unattended scheduled run; one stated limit)*
+
+`apps/api/src/dto/client.ts` restates `@rms/display-list`'s `ItemKind` union by hand, and says why:
+*"The union is closed in `@rms/display-list`; it is re-stated here rather than spread so a new
+variant or a new field on an old one is a change to THIS file, which is a review point."* Restating
+it is the right call — a transport that widens automatically when the model widens has no review
+point at all, and the client audience is exactly where one belongs.
+
+**The restatement had drifted, and by three kinds.** Measured 2026-10-26: the model declares **nine**
+item kinds, `ITEM_KINDS` carried **six**, and the missing three are `unit-load`, `flue` and
+`reference` — precisely the vocabulary `buildElevation` emits. So the outbound guard would have
+refused the server's own elevation view, and **§15.2 step 5 IS the plan-and-elevation preview.**
+
+**What makes this worth an entry rather than a one-line fix is the pairing with F-53.** F-53 is in
+this register as a control that WORKED: S3.3 added `'reference'` to `ItemKind` on 2026-09-06, and
+`penFor`'s `default`-less switch in `render-canvas` turned the typecheck red until the renderer
+decided a pen for it. *The same addition reached the DTO and nothing went red at all* — the
+TypeScript variants there type `item` as `string`, so the compiler had no question to ask, and
+`unit-load` and `flue` had come in the same way with S3.1. One seam, two sides: one protected by
+construction, the other by a comment. The comment is the one that lost, and it had been losing for
+seven weeks.
+
+**A review point is not a control** — the same sentence F-55 ended on, three weeks earlier, about a
+documented exclusion. That is now twice in two months that prose standing in for a mechanism was
+the finding.
+
+**The control was proven before the figures moved.** `tools/check-display-item-parity.mjs` was
+written first and run against the tree as it stood: red, naming exactly `unit-load`, `flue` and
+`reference`. `ITEM_KINDS` was then widened to all nine in the model's own order and it went green —
+`9 model item kind(s), all accounted for: 9 transported, 0 withheld with a reason`. Every model kind
+must now be either carried or declared in `ITEM_KINDS_NOT_TRANSPORTED` with a reason, so the tenth
+kind turns the checker red until somebody chooses; `tools/selftest-display-item-parity.mjs` feeds it
+nine fixture cases — the F-62 shape itself, a wire kind the model cannot produce, a stale exclusion,
+a kind listed both ways, an unparseable union, an empty vocabulary, a missing file, and two honest
+greens — plus a real-tree reachability read. Wired into **both** `package.json` and
+`.github/workflows/ci.yml` in the commit that adds it, because drift 38 was a checker that landed in
+`verify` and not in CI.
+
+**Widened rather than withheld, deliberately.** A reference elevation is the datum AC-07's VERIFY
+rule exists for, and a unit load is the client's own pallet; there is no audience argument for
+hiding either from the drawing the blueprint asks us to show the client. The empty
+`ITEM_KINDS_NOT_TRANSPORTED` records that as a decision rather than leaving it implied.
+
+**THE STATED LIMIT, and it is not a small one.** The contract-level proof — a preview DTO carrying
+all three kinds through `CLIENT_SCHEMAS.Preview` and the outbound guard, added to
+`apps/api/src/dto/audiences.test.ts` — **has never been executed.** No scheduled run in this
+environment can run `vitest` at all; see **F-64**. The checker ran, red then green, and it reads
+source text; the test that proves the widening reaches the wire at runtime is written and unrun, and
+nothing here should be read as saying otherwise. `pnpm verify` on a machine that can run it is the
+gate.
+
+## F-63 — the preview endpoint has no elevation view to widen the wire *for*, and builds its plan in the route *(raised 2026-10-26 by an unattended scheduled run; **OPEN** — this is the §15.2 step 5 blocker)*
+
+Found while measuring F-62, by reading the endpoint the widened vocabulary is for.
+`GET /api/client/v1/revisions/:id/preview` sends `views: [{ view: 'plan', … }]` — **one view, and no
+elevation view exists anywhere on the server.** §15.2 step 5 is the *plan and elevation* preview, so
+F-62's widening is necessary and not sufficient: it removes the refusal that would have met the
+elevation view, and there is still nothing to refuse.
+
+**Second half, same handler.** `buildPlanViewItems` in `apps/api/src/revisions/routes.ts` assembles
+display items itself — a bay cursor, `Math.round(bay.length_um / UM_PER_INCH)` for the beam label,
+hand-placed uprights — rather than calling `@rms/display-list`'s `buildPlan`. `apps/api` does not
+depend on `@rms/display-list` at all. That is a **second plan builder**, in a route, against
+ADR-003's one-display-list rule and C-06's *a renderer consumes a display list; it may not recompute
+a dimension*. The kernel builder and the route builder can now disagree about the same option and
+nothing compares them.
+
+**Why it is filed rather than fixed.** Both halves are server work with real design content — which
+package owns the elevation inputs, whether `apps/api` should take the `@rms/display-list` dependency
+or the builders should move behind `@rms/workflow`, and what the route's own arithmetic was for.
+AD-7 says a non-trivial decision gets an adversarial review before it stands, and an unattended run
+is the wrong place to settle three. **T-18d is written as a front-end slice and cannot be done as
+one**, which is the thing the plan does not currently say.
+
+## F-64 — no scheduled run can execute the test suite, and it is the unpushed commits that stop it *(raised 2026-10-26 by an unattended scheduled run; **OPEN**)*
+
+Six consecutive editions have led with *push the commits*. This run measured why those runs keep
+being documentation-only even when they have code to write, and it is the same blocker wearing a
+second hat.
+
+*Verified-today, both lanes:*
+
+| Lane | Command | Result |
+|---|---|---|
+| Bridge shell (Linux VM, Windows mount) | `node node_modules/vitest/vitest.mjs run …` | `Cannot find module '@rollup/rollup-linux-x64-gnu'` — `node_modules` is a **Windows** install; the Linux shell cannot run it |
+| Bridge shell | `node node_modules/typescript/bin/tsc --build` | **did not complete in ~45 minutes**, no output, killed. Type-aware `eslint` on two files timed out at 175 s |
+| Container | `git ls-remote` / `git fetch origin main` | **exit 0 — read access works**, which earlier editions did not record |
+| Container | `git push --dry-run` | `403 … not in this session's authorized repository set`; the `add_repo` tool the error names **is not in this session** |
+| Container | obtain the current tree | **impossible** — the 18 commits are unpushed, so `origin/main` is 38 commits behind and the code to test is not there |
+
+**So the two problems are one.** The container could run the suite but cannot get the tree, because
+nothing is pushed. The bridge shell has the tree but cannot run the suite, because its
+`node_modules` was installed for the other operating system. Fixing *either* one unblocks
+verification: a push makes the tree reachable from the container, and a Linux-side install would
+make the bridge shell able to run it.
+
+**A third, cheaper blocker, measured the same way.** `git commit` in the mount leaves `.git/HEAD.lock`
+and `.git/objects/maintenance.lock` behind, because deletion in a connected folder is refused until
+the user approves it — so the *next* git command fails with *"File exists"* until the locks are
+moved aside by hand. This run moved two. One approval of file deletion for `C:\Rack Master` retires
+that for good; it is the smallest of the three fixes and the only one with no design content.
+
+**Nothing is proposed about the push credentials themselves.** Both lanes were re-tested with real
+commands rather than carried forward, and both are shut for reasons that need EL's access, not a
+workaround from inside the session.

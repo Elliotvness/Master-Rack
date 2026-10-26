@@ -1915,6 +1915,16 @@ Sliced as the eight MVP steps, in the blueprint's order, so `AC-20` is assembled
 **DONE 2026-10-19.** Implemented option builder and controlled vocabulary slice (T-18c) in `apps/studio-web`. Created catalog vocabulary `catalog-vocabulary.ts` pinned to `interlake-2026-08`, pure domain model `options-model.ts`, API client `options-client.ts`, Demo Beat 5 widget `demo-beat-5.tsx`, multi-option list `options-list.tsx`, editor `option-editor.tsx`, container `option-builder.tsx`, and route `routes/options.tsx`. Enforced strict refusal of off-grid dimensions (including the 110″ span Demo Beat 5 requirement with brackets 108″ and 114″ and >80 char explanation), disabled free-text dimensional entry, bounded beam levels to 2–6, implemented multi-option management with deterministic ID generation, and wired option draft submission. All 31 tests in `options.test.tsx` and all routing / integration tests pass.
 
 - **T-18d** Slice 5: plan and elevation preview, findings and assumptions panels. *M*
+      **NOT a front-end-only slice — corrected 2026-10-26 by F-63.** The screen can only consume
+      what the server sends, and `GET /revisions/:id/preview` sends **one** view, `plan`; no
+      elevation view exists on the server at all. Two pieces of server work come first, both with
+      design content for EL: emit an elevation view, and decide whether `buildPlanViewItems`'s
+      in-route geometry is replaced by `@rms/display-list`'s `buildPlan` (which would mean
+      `apps/api` taking that dependency, or the builders moving behind `@rms/workflow`). The wire
+      itself is no longer the obstacle — F-62 widened `ITEM_KINDS` to all nine model kinds, so an
+      elevation view's `unit-load`, `flue` and `reference` items will now pass the outbound guard
+      instead of being refused. **Re-size after that decision; *M* was sized against the
+      front-end slice alone.**
 - **T-18e** Slice 6–7: pre-submit confirmation, submit, immutability refusal with clone-to-P02. *M*
 - **T-19** Slice 8: internal queue, submission detail, the BOM "show your work" trace, derive. *L → split*
 - **T-20** `render-pdf` + `E-08` watermarked client PDF. **Blocked on Q3.** *M*
