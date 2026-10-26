@@ -35,7 +35,7 @@ the blueprint wins.
 6. **Git state** — run `git status`, `git log --oneline -15`, `git branch -vv` and confirm the
    current branch and tip before touching anything.
 
-## Step 2 — Where the project stands (scoreboard, **2026-10-20, session 20**)
+## Step 2 — Where the project stands (scoreboard, **2026-10-26, session 21**)
 
 Every figure below is measured against the blueprint. The scoreboard's own rule: **0% is the
 answer**; the other percentages are how much of the written plan has been executed. **Re-measure
@@ -48,6 +48,30 @@ before you quote any of these** — this section was six sessions stale until 20
 | Plan-task completion, task count | 38 of 49 — 78% | Same, unweighted |
 | Pre-merge review `R-01…R-11` | **11 of 11 — 100%** | Blueprint §16.1 review gates — one merged branch's checklist, not the project |
 | Route surface vs the blueprint | **32 of 32** MVP-1 routes declared, mounted and checked — up from 22 | §8.2, amended twice: 34 rows, 2 marked phase 2. **All 32 handlers live (`T-14b` + `T-14c` + `T-14d` + `T-14e`, re-asserted by `T-15` + `P-03`), 0 handlers in `UNIMPLEMENTED`** |
+
+### What changed on 2026-10-26 (session 21) — read `tasks/progress.md` for the full edition
+
+The table above is session 20's and its figures still hold: no plan task closed on 2026-10-26.
+Three things did change, and two of them change what you should do first.
+
+- **`F-62`, closed.** `apps/api/src/dto/client.ts` restated `@rms/display-list`'s `ItemKind` union
+  by hand and had drifted to **six of nine** kinds, missing `unit-load`, `flue` and `reference` —
+  exactly what `buildElevation` emits — so the outbound guard would have refused the server's own
+  elevation view. Widened to all nine, and `tools/check-display-item-parity.mjs` (the 19th
+  self-tested checker, wired into `package.json` *and* `ci.yml`) now requires every model kind to be
+  carried or withheld with a reason. It was proven red on the real defect before the fix.
+- **`F-63`, open, and it is the §15.2 step 5 blocker.** `GET /revisions/:id/preview` sends **one**
+  view, `plan`; no elevation view exists on the server. **`T-18d` is not a front-end-only slice** —
+  `tasks/todo.md` is corrected. The same handler also builds its plan items in the route instead of
+  with `buildPlan`, which is a second plan builder against ADR-003. Three design decisions for EL.
+- **`F-64`, open.** No scheduled run can execute the suite: the mounted `node_modules` is a Windows
+  install the bridge shell cannot run, and the container — which *can* read `origin` — cannot obtain
+  this tree because nothing is pushed. **So two commits sit in `main` whose TypeScript has never
+  been compiled and whose new test has never run.** Run `pnpm verify` before building on them.
+
+**Delivery, verified 2026-10-26:** `git rev-list HEAD --not --remotes` returns **20**, oldest
+unpushed dated **2026-09-06** — fifty days. Session 20's own edition was found *staged and never
+committed*; it is now `ad603dd`.
 
 **No sha is quoted here, deliberately.** `main` moves every time a PR lands, and a sha written into
 this file went stale inside a day twice (drift 45, drift 49). `git ls-remote --heads origin` answers
