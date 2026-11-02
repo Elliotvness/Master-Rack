@@ -151,7 +151,10 @@ about `main` yesterday.
 
 ## Delivery — unchanged, and now the only thing left between a run and CI
 
-*Verified-today:* `git rev-list HEAD --not --remotes` returns **22**. The oldest unpushed commit is
+*Verified-today:* `git rev-list HEAD --not --remotes` returns **22** on `28f64a1`, **23** once this
+session's own commit lands, and **24** with the follow-up that corrected this sentence. **The count
+moves as this page is written, which is why the command is published and not a number alone** —
+re-run it rather than quoting any of the three. The oldest unpushed commit is
 dated **2026-09-06** — **58 days**. `git rev-list --left-right --count origin/main...HEAD` returns
 **0 / 42**. `origin/main` is at **`2fe1481`**; `git ls-remote --heads origin` lists **11** branches,
 `main` among them, and the remote has not moved. Eighth consecutive edition to lead its next-steps
@@ -159,10 +162,17 @@ list with this.
 
 ## Next, in order
 
-1. **Push the 22 commits**, then let CI judge `28f64a1` + the clock test. F-65 is the argument: a
-   gate that cannot run is a gate that does not exist, and CI is the only lane that runs on a tree
-   nobody asserts.
-2. **Take the F-65 fix.** `apps/api/src/app.clock.test.ts` is written, lints, passes, and is proven
+1. **Push them — `git rev-list HEAD --not --remotes` says how many**, then let CI judge the tree.
+   **Both lanes were re-tested at 18:30 today with real pushes rather than dry runs, and both are
+   still shut and still fail differently:** from the bridge shell, `git push origin main` →
+   `fatal: could not read Username for 'https://github.com': No such device or address`, **exit
+   128** — no credential helper reaches that shell; from the container, `git ls-remote` succeeds at
+   **exit 0** and reads `origin/main` at `2fe1481`, while a real push to a probe ref returns
+   **403** — *"Elliotvness/Master-Rack is not in this session's authorized repository set, so the
+   proxy will not inject a credential for it."* GitHub Desktop holds the credentials; that is the
+   path, and it is EL's to walk. F-65 is the argument for closing it: a gate that cannot run is a
+   gate that does not exist, and CI is the only lane that runs on a tree nobody asserts.
+2. **The F-65 fix is already in `9b22054`** — written, linted, passing, proven
    red five ways. Until it lands, `pnpm verify` on `main` is **exit 1**.
 3. **Commit or discard the 2026-11-01 working tree.** It passes 2,259 tests and has sat uncommitted
    for a day; `_to_delete/` now holds two bundles this run wrote, which are safe to remove.

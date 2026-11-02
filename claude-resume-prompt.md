@@ -152,7 +152,11 @@ a cold session reads first and **the only one nothing gates**, so a session resu
 have rebuilt work that was already on `main`. Read `tasks/progress.md` for any figure, as step 2
 above says.)*
 
-**And nothing here has been pushed.** `git rev-list HEAD --not --remotes` returned **18** on
+**And nothing here has been pushed.** *(Re-measured 2026-11-02 with real pushes from both lanes:
+bridge shell → `could not read Username for 'https://github.com'`, exit 128; container → read at
+exit 0, push **403**, *"not in this session's authorized repository set"*. Run
+`git rev-list HEAD --not --remotes` for the count — it moves with every documentation commit,
+including the one that wrote this.)* `git rev-list HEAD --not --remotes` returned **18** on
 2026-10-20, including all eight feature commits above; `origin/main` is still at the sha it held on
 2026-10-05. **Push before anything else** — see `tasks/progress.md`, "Next, in order", item 1.
 
