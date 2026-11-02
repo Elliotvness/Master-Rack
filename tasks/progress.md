@@ -1,4 +1,184 @@
-# Progress scoreboard — 2026-10-26 (session 21, scheduled run: the wire could not have carried the drawing step 5 is named after)
+# Progress scoreboard — 2026-11-02 (session 22, scheduled run: the first full suite this tree has ever had, and it was red)
+
+An unattended scheduled run against `C:\Rack Master\rack-master-studio` over the device bridge.
+Every figure labelled *verified-today* was produced by a command run in this session; every figure
+labelled *repository-claim* was read off an earlier document and is not a measurement of this run.
+
+**§15.2 is 0 of 8, re-derived not re-read, and the reason has not changed since session 21.**
+*Verified-today, on `28f64a1`:* `AC-20` appears in **0** source files under `apps` or `packages`;
+**0 of 20** `package.json` manifests declare a browser end-to-end harness (playwright, cypress,
+puppeteer or `@web/test-runner`); `UNIMPLEMENTED` in `apps/api/src/app.ts` is still an empty `Map`;
+**39** `.tsx` files exist in `apps/studio-web`; `bom.tsx`, `revisions.tsx` and `screening.tsx` are
+still **5-line** *"Not implemented."* placeholders **in the committed tree**; and
+`check-route-surface` **PASS** — the registry still agrees with blueprint §8.2 row for row.
+**120 of 160 points**, **38 of 49 tasks** — *repository-claim, session 20's re-derivation,* and
+`check:scoreboard` **PASS** *(verified-today)* says the table still agrees with `tasks/todo.md`.
+No plan task closed this session.
+
+**What is new is not a figure. It is that the figures were produced by the suite.**
+
+## The finding: `pnpm verify` ran, and `main` is red — F-65
+
+*Verified-today.* The whole of `pnpm verify` executed against the committed tree for the first time
+in this project's history as an unattended run. It reached the last step and **failed**:
+
+```
+Test Files  84 passed (84)
+     Tests  2253 passed (2253)
+ERROR: Coverage for functions (88.88%) does not meet "apps/api/src/app.ts" threshold (90%)
+VERIFY_EXIT=1
+```
+
+`app.ts` has **nine** functions and **eight** had ever been called. The ninth is the production
+clock:
+
+```ts
+const now = deps.now ?? ((): Date => new Date());
+```
+
+Every one of the **93** `now:` call sites in the api tests injects a clock. The `??` fallback is the
+arrow the **server** runs — `apps/api/src/server.ts` calls `createApp()` with no `deps` — and no
+test had ever invoked it. 8 of 9 is 88.88%, under the file's own floor.
+
+**The floor was right and had been right for six weeks.** It was ratcheted 88 → 90 on 2026-09-05 at
+a measured 90.16. `T-14b`…`T-14e`, `T-15`, `P-03`, `P-05`, `T-16`, `T-17`, `T-18a`–`c` and `F-62`
+then landed between 2026-10-16 and 2026-10-26 and moved the denominator. **Every one of those
+commits would have failed this gate. None of them ran it, and CI did not either — CI fires on push,
+and nothing was pushed.** The gate was never silent; it was never consulted.
+
+**This is the inverse of the shape this project hunts.** Sixteen findings here are controls that
+stated a method and had no mechanism. This one had the mechanism and the right number in it.
+**A control nothing can execute is indistinguishable from a control that does not exist.**
+
+**Red, then green, and the test was rewritten rather than the rule.** `apps/api/src/app.clock.test.ts`
+asserts the audit row's `occurredAt` — the only place the gate's clock reaches a persisted record —
+and not the arrow having been entered. The first draft used `Date.now()` twice to bracket the
+request; **`no-restricted-syntax` banned it and the test changed, with no exemption added and no
+`new Date().getTime()` substituted.** The final version compares against no clock at all: ISO-8601
+UTC to the millisecond, inside a fixed era window, and **advancing** across a real 25 ms
+`setTimeout`. **Proven red on five planted fallbacks** — a pre-era constant, the epoch, seconds as
+milliseconds, microseconds as milliseconds, and a frozen clock set to *today*, which satisfies every
+property but the last. The fifth is the one a careless fix installs. `app.ts` restored between each.
+
+## What made the suite runnable — F-64, closed, without a push
+
+*Verified-today.* F-64 said the container could run the suite but could not get the tree, and the
+bridge shell had the tree but could not run the suite. Both halves still measure true. The
+inference was what was wrong: a **`git bundle`** joins them, and needs no credential and no
+authorization change.
+
+| Step | Measured today |
+|---|---|
+| `git bundle create … HEAD` on the device | **2,401,059 bytes** for 42 commits |
+| copy into `_to_delete/`, stage **one** path | the folder already set aside; gitignored |
+| `git clone <bundle>` in the container | HEAD at **`28f64a1`**, the device's own sha |
+| `pnpm install --frozen-lockfile` | **9.4 s**; the Windows `node_modules` never touched |
+| PostgreSQL 16 up, `createdb rms`, `pnpm migrate` | **15 migrations, OK** |
+| `RMS_REQUIRE_DB=1 pnpm verify` | ran to the coverage gate — **F-65** |
+
+A bundle *is* the repository, so one staged file carries the whole tree. **This removes
+*unverified* from an unattended run's output. It does not remove *undelivered* from the project's**
+— CI reads the pushed tree and this reads a tree one machine asserts.
+
+## The suite, as it now stands
+
+*Verified-today, with `RMS_REQUIRE_DB=1` set against native PostgreSQL 16 and migrations
+`0001`–`0015` applied:*
+
+| Measured | Value |
+|---|---|
+| `pnpm typecheck` (`tsc --build` + `tsconfig.tests.json`) | **exit 0** — eleven commits compiled for the first time |
+| `pnpm lint` (type-aware `eslint`) | **exit 0** |
+| `pnpm test` | **85 files, 2,254 tests, 0 skipped** with the clock test; **84 / 2,253** without it |
+| Checkers and self-tests | **20 checkers, 20 self-tests**, all exit 0 |
+| `pnpm build:web` + `check:budgets` | **exit 0** — the bundle ceiling holds |
+| `apps/api/src/app.ts`, the file that failed | functions **88.88 → 100**; statements **99.01**, branches **92.85**, lines **99.01** |
+| `pnpm verify`, whole command, tree **plus** the F-65 fix | **exit 0** |
+| Coverage, all files | statements **93.97** · branches **92.54** · functions **87.83** · lines **93.97** on the green tree; functions **87.73** on `28f64a1` alone |
+
+**The coverage row deserves its label.** The last published all-files figure is
+statements **99.53** · branches **98.88** · functions **99.42** · lines **99.53**, and it is an honest *dated* record — session 13, 2026-09-05, on a
+tree of **60 files and 1,558 tests**. The tree is now 85 files and 2,254 tests, and the measured
+figure is **5.6 points lower on statements and 11.6 on functions**. Nothing in this repository
+derives a coverage percentage: `check-claims` gates files, packages, migrations, route counts and
+checker counts, and no claim pattern reads a coverage number. So the gap is not a false statement
+anywhere — it is that **a reader had no live number to read**, for 51 days, and the per-file floors
+were the only thing that could tell, and nothing could run them.
+
+## The second finding, found while writing this page — F-66
+
+`claude-resume-prompt.md` has carried, since 2026-10-19, one dated sentence assembled from two
+trees: *"Verified 2026-09-05 … `pnpm verify` **exit 0 — 84 files, 2,252 tests**, coverage all files
+99.53 · 98.88 · 99.42 · 99.53"*. The sentence, the date and the triplet were written on 2026-09-05,
+when the suite was **60 files and 1,558 tests**. The file-and-test pair was swapped in forty-four
+days later by `0134269`, because `check-claims` declares a claim on
+`/exit 0 —\s+(\d+) files/` and that one token goes red when it drifts.
+
+**The gate did its job on the number it owns. The date, the triplet and the words "exit 0" around it
+had nobody.** This is the house defect one level down: the mechanism is real, correct, and
+*narrower than the sentence it sits in* — and nothing on the page distinguishes a gated number from
+an ungated one, so **pressure from a gate makes the prose around it look fresher than it is**.
+Fixed by dating the paragraph as a whole and naming the tree each figure came from. Two limits of
+the patterns themselves are recorded in the register and left alone: a claim keyed on the words
+`exit 0` cannot express a red run, and `check-scoreboard-sync`'s §15.2 regex takes a branches-and-
+functions pair written with a slash between them for the step count, whenever the second figure
+begins with an eight — which is why every triplet on this
+page uses `·` separators, and the gate refusing that draft was it working. *(It refused this
+paragraph too, for quoting the collision in the form that causes it. The register carries that
+quotation; this page describes it.)*
+
+## EL's uncommitted work, verified — because this run finally could
+
+The working tree on the device is **not clean**: 12 modified files and 3 untracked, all dated
+**2026-11-01**, a takeoff-BOM and pricing slice (`packages/studio-model/src/bom.ts` +
+`bom.test.ts`, a real `routes/bom.tsx`, `theme/industry-blueprint.css`, and substantial
+`plan-canvas.tsx` / `studio.css` work). **This run did not commit it, did not touch it, and does
+not claim it as a task.** It was reconstructed in the container from a `git diff` plus the three
+untracked files and measured there:
+
+| On EL's working tree, verified-today | Result |
+|---|---|
+| patch applies to `28f64a1` | clean (2 trailing-blank-line warnings) |
+| `pnpm install --frozen-lockfile` | exit 0 — the `+3` lockfile lines resolve |
+| `pnpm typecheck` | **exit 0** |
+| `pnpm lint` | **exit 0** |
+| `pnpm test` | **85 files, 2,259 tests, 0 failures** |
+
+Coverage was **not** run on it and it is **not** a §15.2 claim: `/bom` renders, which is step 6's
+screen, and `T-18e`'s acceptance criteria have not been read against it. What this row says is only
+that the work in progress compiles, lints and passes — which is more than any session could say
+about `main` yesterday.
+
+## Delivery — unchanged, and now the only thing left between a run and CI
+
+*Verified-today:* `git rev-list HEAD --not --remotes` returns **22**. The oldest unpushed commit is
+dated **2026-09-06** — **58 days**. `git rev-list --left-right --count origin/main...HEAD` returns
+**0 / 42**. `origin/main` is at **`2fe1481`**; `git ls-remote --heads origin` lists **11** branches,
+`main` among them, and the remote has not moved. Eighth consecutive edition to lead its next-steps
+list with this.
+
+## Next, in order
+
+1. **Push the 22 commits**, then let CI judge `28f64a1` + the clock test. F-65 is the argument: a
+   gate that cannot run is a gate that does not exist, and CI is the only lane that runs on a tree
+   nobody asserts.
+2. **Take the F-65 fix.** `apps/api/src/app.clock.test.ts` is written, lints, passes, and is proven
+   red five ways. Until it lands, `pnpm verify` on `main` is **exit 1**.
+3. **Commit or discard the 2026-11-01 working tree.** It passes 2,259 tests and has sat uncommitted
+   for a day; `_to_delete/` now holds two bundles this run wrote, which are safe to remove.
+4. **Decide F-63**, then re-size and do `T-18d`. Step 5 still needs an elevation view on the server
+   before it needs a screen.
+5. **`T-18e`** — and read its acceptance criteria against the BOM work already written rather than
+   starting again.
+6. **Write `AC-20` before `T-19`.** Still true, still nothing in the repository asserting that any
+   two Phase 4 tasks compose.
+7. **Give `check-claims` a coverage claim**, so the all-files figure stops being prose. The gap this
+   run measured was 11.7 points on functions and nothing could see it.
+8. **Add the dependency audit**, and **rebuild `check-test-run`**, open since session 15.
+
+---
+
+# The previous edition — 2026-10-26 (session 21), kept for its findings
 
 An unattended scheduled run against `C:\Rack Master\rack-master-studio` over the device bridge.
 Every figure labelled *verified-today* was produced by a command run in this session; every figure
@@ -1613,7 +1793,7 @@ Re-measured by running commands against the working tree:
 | The ahead/unpushed pair moves as this file is written | Each documentation commit that records this measurement adds one to both counts, so **do not quote ahead/unpushed from this document** — re-run `git rev-list --left-right --count origin/main...HEAD` and `git rev-list --count @{u}..HEAD`. Session 3 added `e488a14`, `c08cca3` and the commit carrying this row. That self-reference is exactly how drift item 5 arose, and naming it is cheaper than chasing it |
 | `main` | **`afd4e8a`** — re-derived 2026-09-05 by `git ls-remote --heads origin`, which returns **`refs/heads/main` and nothing else**: every task branch is now deleted on the server, including the two the previous edition of this row said were still there. Local `main` sits at the same sha, clean tree, `git rev-list --count @{u}..HEAD` **0**. Three merges landed the same day — **PR #21** (the session-10 edition: `92ad8cc`, `c5c2c0c`), **PR #22** (P-05: `c5a7d42`), **PR #23** (OD-20b: `13a5247`) — each with `verify` and `docs` green, read from the check-runs API rather than assumed. *(This row read `0bb5383` through all three — **drift 49**, and drift 42 one edition after it was closed. Every fix so far has been a new value.)* *(It read `162d26e` / "PR #1 … #19" through two merges and two pushes — drift 42.)* Earlier state kept for the lineage: PR #1 … #19 merged, every task branch deleted, `git branch -r` listed `origin/main` alone *(this row read `e86d2bf` / "PR #13 open" through the close-out edition while the tip row above it said `b8d2087` — drift 36's shape, fixed here)* |
 | Packages | **15** — `packages/workflow` added by T-07; `packages/studio-model` and `packages/render-canvas` added by S2–S3; `packages/render-svg` added by T-17 |
-| Test files | **84** — every file `vitest` collects, `*.test.ts` **and** `*.test.tsx`, including `options.test.tsx`, `facility.test.tsx`, `auth.test.tsx`, `render.test.ts` (`@rms/render-svg`), `tenant-resolver.db.test.ts` (T-14b slice 1), `hit-test.test.ts`, `components.test.tsx` and `app.test.tsx` (`apps/studio-web`). Re-derived by `check:claims`, not typed |
+| Test files | **85** — every file `vitest` collects, `*.test.ts` **and** `*.test.tsx`, including `options.test.tsx`, `facility.test.tsx`, `auth.test.tsx`, `render.test.ts` (`@rms/render-svg`), `tenant-resolver.db.test.ts` (T-14b slice 1), `hit-test.test.ts`, `components.test.tsx` and `app.test.tsx` (`apps/studio-web`). Re-derived by `check:claims`, not typed |
 | Phase-2 routes | **1** — `GET /api/internal/v1/audit`, held in `PHASE_2_ROUTES`. §8.2's other phase-2 row, `POST /api/internal/v1/submissions/:id/status`, has no `Action` yet and arrives with the status vocabulary F-38 is about. A third §8.2 row *mentions* phase 2 and stays MVP-1 — `GET /api/client/v1/submissions/:id` defers the RFI **thread**, not the route — which is now declared data in `SUB_FEATURE_PHASE_2` with a stale-entry check, instead of an interpretation living in three documents and enforced by none |
 | Migrations | **15** (`0001`–`0015`) — **`0015_session_purpose.sql` is the answer to the question the §8.2 amendment created** (F-61): `app.session.purpose` is an immutable enum (`'acceptance' \| 'full'`), NOT NULL with no default. **`0014_invitation_tenant_resolver.sql` is the first `SECURITY DEFINER` function in this schema** (F-58): a token hash in, one uuid out, `SET search_path = ''`, EXECUTE revoked from `PUBLIC`. `check-rls` inspected **22** tables, **86** grants and **8** functions today and passed |
 | Front-end files | **39** (`.tsx` / `.jsx` / `.vue` / `.svelte` / `.astro`) — every one in `apps/studio-web`, from S1 through S4, T-18a, T-18b, and T-18c (incl. `demo-beat-5.tsx`, `option-builder.tsx`, `option-editor.tsx`, `options-list.tsx`, `routes/options.tsx`, `options.test.tsx`). Re-derived by `check:claims` (F-54) |

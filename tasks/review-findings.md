@@ -2824,7 +2824,7 @@ AD-7 says a non-trivial decision gets an adversarial review before it stands, an
 is the wrong place to settle three. **T-18d is written as a front-end slice and cannot be done as
 one**, which is the thing the plan does not currently say.
 
-## F-64 — no scheduled run can execute the test suite, and it is the unpushed commits that stop it *(raised 2026-10-26 by an unattended scheduled run; **OPEN**)*
+## F-64 — no scheduled run can execute the test suite, and it is the unpushed commits that stop it *(raised 2026-10-26 by an unattended scheduled run; **CLOSED 2026-11-02** by a third path neither lane below describes — see the closure note at the end of this register)*
 
 Six consecutive editions have led with *push the commits*. This run measured why those runs keep
 being documentation-only even when they have code to write, and it is the same blocker wearing a
@@ -2855,3 +2855,165 @@ that for good; it is the smallest of the three fixes and the only one with no de
 **Nothing is proposed about the push credentials themselves.** Both lanes were re-tested with real
 commands rather than carried forward, and both are shut for reasons that need EL's access, not a
 workaround from inside the session.
+
+---
+
+## F-64 closure note — the container can be handed the tree without a push *(closed 2026-11-02 by an unattended scheduled run)*
+
+F-64 said the two problems were one: the container can run the suite but cannot get the tree, and
+the bridge shell has the tree but cannot run the suite. Both halves of that are still true as
+measured. What was wrong was the inference — that **only** a push or a Linux-side install could
+join them.
+
+*Verified-today.* A third path exists and needs no credential, no authorization change and no write
+to the user's `node_modules`:
+
+```
+device:    git bundle create <file> HEAD        → 2,401,059 bytes for 42 commits of history
+bridge:    cp <file> _to_delete/                 (gitignored; the one folder already set aside)
+stage:     device_stage_files <that one path>    → /mnt/user-data/uploads/…
+container: git clone <bundle> repo               → HEAD at 28f64a1, byte-identical
+container: pnpm install --frozen-lockfile        → 9.4 s
+container: pg_ctlcluster 16 main start; createdb rms; pnpm migrate → 15 migrations, OK
+container: RMS_REQUIRE_DB=1 pnpm verify
+```
+
+One staged file carries the whole tree, because a bundle *is* the repository. The Windows
+`node_modules` is never touched — the container installs its own. The bridge-shell lane stays shut
+and does not matter; the `.git` lock hazard is untouched and still costs one approval.
+
+**What this changes is who judges an unattended run.** Every scheduled run from 2026-09-06 to
+2026-10-26 handed EL work it had not compiled. This one compiled it, and the first thing the suite
+said was **F-65** — a defect eleven commits old that no human review had found in six weeks.
+
+**It is not a substitute for the push.** CI runs on the pushed tree and reads the real `origin`;
+this reads a tree one machine asserts. It removes *unverified* from an unattended run's output, not
+*undelivered* from the project's. Twenty-two commits are still in one place.
+
+---
+
+## F-65 — the server's own clock had never been called, and the file's coverage floor is what said so *(raised and **CLOSED** 2026-11-02 by an unattended scheduled run — the first full suite this tree has ever had)*
+
+Found by the gate, in the first minute coverage could run after F-64's workaround landed. Not by
+reading the code.
+
+`apps/api/src/app.ts` takes an injected clock so a test can hold time still:
+
+```ts
+const now = deps.now ?? ((): Date => new Date());
+```
+
+**Every one of the 93 `now:` call sites in the api tests injects one.** So the `??` fallback — which
+is the arrow the *server* runs, because `apps/api/src/server.ts` calls `createApp()` with no `deps`
+at all — was constructed on every boot and invoked by nothing, in any test, ever. Nine functions in
+`app.ts`; eight covered. **88.88%**, against the file's own `functions: 90` floor.
+
+*Verified-today:* `pnpm verify` on `28f64a1` → **exit 1**,
+`ERROR: Coverage for functions (88.88%) does not meet "apps/api/src/app.ts" threshold (90%)`,
+reached after 84 test files and 2,253 tests had all passed.
+
+**The floor was right and had been right for six weeks.** It was ratcheted 88 → 90 on 2026-09-05
+when the file measured 90.16. `T-14b`, `T-14c`, `T-14d`, `T-14e`, `T-15`, `P-03`, `P-05`, `T-16`,
+`T-17`, `T-18a`, `T-18b`, `T-18c` and `F-62` then landed between 2026-10-16 and 2026-10-26 and
+changed the denominator. Every one of those commits would have failed this gate. **None of them ran
+it, and CI did not either — CI fires on push, and nothing was pushed.** The gate was never silent.
+It was never consulted.
+
+**This is the inverse of the shape this repository hunts.** F-01, F-02, F-08, F-11, F-19, F-26,
+F-31…F-35, F-43…F-45, F-49, F-50, F-55 and F-62 are all controls that stated a method and had no
+mechanism. This one had the mechanism, had the right number in it, and nobody could hear it ring.
+**A control nothing can execute is indistinguishable from a control that does not exist** — which is
+the sentence F-64 is really about.
+
+### The fix, and the reason it is not a coverage errand
+
+`apps/api/src/app.clock.test.ts` — one test, calling `createApp({ env, recordDeny })` with **no**
+`now`, which is the exact shape `server.ts` boots. The audit row's `occurredAt` is the only place
+the gate's clock reaches a persisted record, so that is what is asserted — the timestamp, never the
+arrow having been entered. A test that only entered the arrow would raise the counter to 100% and
+prove nothing about the clock.
+
+**`Date.now()` is banned repo-wide** by `no-restricted-syntax` (§12.2 determinism), and the first
+draft of this test used it twice to bracket the request. **The ban caught the test and the test was
+rewritten, not the ban** — no exemption was added, and `new Date().getTime()` was not substituted,
+which would have been the same read spelled around the rule. There is no "now" to compare against
+in the final version. The clock is pinned by three properties instead: ISO-8601 UTC to the
+millisecond, inside a fixed era window (`2026-10-26` … `2100`), and **advancing** across a real
+25 ms `setTimeout`.
+
+**Proven red on five planted fallbacks**, each failing a different assertion, with the production
+line restored between every one:
+
+| Planted fallback | Assertion that caught it |
+|---|---|
+| `new Date('2020-01-01T00:00:00.000Z')` | era lower bound — `expected 1577836800000 to be greater than 1792972800000` |
+| `new Date(0)` | era lower bound — `expected 0 to be greater than 1792972800000` |
+| seconds read as milliseconds | era lower bound — `expected 1793642205 to be greater than 1792972800000` |
+| microseconds read as milliseconds | ISO shape — `expected '+058808-04-04T18:52:08.000Z' to match /^\d{4}-…/` |
+| `new Date('2026-11-02T00:00:00.000Z')` — frozen, but *inside* the era | the advancing check — `expected 1793577600000 to be greater than 1793577600000` |
+
+The fifth is the one that matters: a frozen clock set to today satisfies every other property, and
+is exactly what a careless fix to this finding would install.
+
+### One thing this leaves open, deliberately
+
+`app.ts` is now **9 of 9** functions. `newId`'s fallback — `crypto.randomUUID()` on the line below —
+is a sibling of the same shape and is covered only because the same request path calls it. No
+assertion anywhere says the generated id is a v4 UUID rather than a counter. That is a smaller gap
+than this one was and it is **not** fixed here; it is written down so the next person finds it
+written down rather than measured.
+
+---
+
+## F-66 — a gated figure inside an ungated sentence, in the file a cold session reads first *(raised and **CLOSED** 2026-11-02 by an unattended scheduled run; found while rewriting the paragraph, not by looking for it)*
+
+`claude-resume-prompt.md` carried this, verbatim, until today:
+
+> **Verified 2026-09-05 in the container against native PostgreSQL 16.13 … The run cited is the
+> last, on the tree as committed:** `pnpm verify` **exit 0 — 84 files, 2,252 tests, 0 skipped**,
+> coverage all files 99.53 / 98.88 / 99.42 / 99.53 …
+
+**Every number in it is real and no two of them come from the same run.** The sentence, the date and
+the coverage triplet were written on **2026-09-05** by `ebdbf58`, when the suite was **60 files and
+1,558 tests** — which is what `tasks/progress.html` still says about that day, correctly. The
+"84 files, 2,252 tests" pair was swapped in on **2026-10-19** by `0134269`, forty-four days later
+and six sessions on, because `check-claims` declares a claim at
+
+```js
+{ id: 'claude-resume-prompt.md · test files', pattern: /exit 0 —\s+(\d+) files/, derive: 'testFiles' }
+```
+
+and that one token goes red the moment it drifts. **So the gate did its job on the number it owns,
+and the date, the triplet and the words "exit 0" around it had nobody.** A reader sees one dated,
+verified-looking sentence; it is two trees spliced at the only point under measurement.
+
+**This is the house defect at one level down.** The usual shape is a control that states a method
+and has no mechanism (F-01, F-02, F-50, F-55, F-62). Here the mechanism is real, correct, and
+*narrower than the sentence it sits in* — and narrowness is invisible: nothing distinguishes a
+gated number from an ungated one on the page. **Pressure from a gate makes the surrounding prose
+look fresher than it is**, which is worse than no gate at all in exactly the way F-06 and F-08 were
+worse than no checker at all.
+
+**Fixed by replacing the paragraph with one dated as a whole**, naming the tree each figure came
+from (`28f64a1`, and `28f64a1` plus the F-65 fix), and recording the splice above so the next reader
+finds it written down. **Not fixed by widening the claim pattern**, which is item 7 on the
+scoreboard's next-steps list and wants a design: `check-claims` has no claim for a coverage
+percentage at all, so the all-files triplet is ungated in all five copies, and today it measures
+**11.6 points lower on functions** than the last one published — **87.83**, against the **99.42**
+standing in all five copies since 2026-09-05.
+
+### Two things this exposed about the claim patterns themselves, both left as-is deliberately
+
+**The pattern cannot express a red run.** `/exit 0 —\s+(\d+) files/` only matches a passing verify,
+so a session whose honest result is `exit 1` has nowhere inside the gate to say so — it must either
+quote a green run it did not get, or drop out of the gate's sight. Today's paragraph resolves it by
+citing the tree *with* the fix for the gated figure and stating `main`'s `exit 1` in its own
+sentence beside it. A claim keyed on the exit code rather than on the word would be better and is
+not written here.
+
+**And `check-scoreboard-sync`'s §15.2 reach exceeds its subject.** Its headline regex is
+`/(\d+)\s*(?:of|\/)\s*8\s*(?:steps)?/gi`, so a coverage triplet written `93.97 / 92.54 / 87.73 /
+93.97` makes it read "**54 of 8**" out of `92.54 / 87.73` and refuse the file. It fired on this
+session's own draft. **That is the gate failing closed on an ambiguous page and it is the correct
+behaviour** — the remedy taken was to write coverage figures with `·` separators, not to loosen the
+pattern that guards the project's answer.

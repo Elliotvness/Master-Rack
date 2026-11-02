@@ -35,7 +35,7 @@ the blueprint wins.
 6. **Git state** — run `git status`, `git log --oneline -15`, `git branch -vv` and confirm the
    current branch and tip before touching anything.
 
-## Step 2 — Where the project stands (scoreboard, **2026-10-26, session 21**)
+## Step 2 — Where the project stands (scoreboard, **2026-11-02, session 22**)
 
 Every figure below is measured against the blueprint. The scoreboard's own rule: **0% is the
 answer**; the other percentages are how much of the written plan has been executed. **Re-measure
@@ -98,18 +98,33 @@ access is not enabled for the repository and there is no tool in the session to 
 above were read through the connected Windows device, which can. Anyone quoting a CI result from a
 cloud session should say which side read it.
 
-**Verified 2026-09-05 in the container against native PostgreSQL 16.13. Eight `pnpm verify` runs
-across the session, every completed one at exit 0; three stopped at `check-claims` and one at the
-coverage gate, each time over a figure this session had just made stale — the gates working, not
-failing. The run cited is the last, on the tree as committed:**
-`pnpm verify` **exit 0 — 84 files, 2,252 tests, 0 skipped**,
-**20 self-test invocations covering 19 checkers**, coverage all files
-99.53 / 98.88 / 99.42 / 99.53, 15 migrations, 15 declared claims. Both
-three occurrences of "skipped" in the log are self-test case names — read,
-not assumed (F-29). v8 coverage is not bit-stable across worker
-scheduling — earlier runs today on other trees read 99.51 and 99.54 — so
-the figure published is always the one from the run at the tree being
-cited, never the best of them.
+**Verified 2026-11-02 in the container against native PostgreSQL 16 with migrations `0001`–`0015`
+applied and `RMS_REQUIRE_DB=1` set. This is the first time the whole suite has run against this
+tree. The run cited is `28f64a1` **plus the F-65 fix**, which is what makes it green:**
+`pnpm verify` **exit 0 — 85 files, 2,254 tests, 0 skipped**, `typecheck` and type-aware `eslint` both at exit 0,
+**20 self-test invocations covering 19 checkers**, `build:web` and the bundle ceiling green,
+15 migrations, 15 declared claims.
+
+**On `28f64a1` alone — which is what `main` is — the same command is `exit 1`:** 84 files,
+2,253 tests, every one passing, and then
+**`ERROR: Coverage for functions (88.88%) does not meet "apps/api/src/app.ts" threshold (90%)`**.
+That is **F-65**: nine functions in `app.ts`, eight ever called, the ninth being the production
+clock `deps.now ?? ((): Date => new Date())` that `server.ts` runs and all 93 injected-clock test
+sites made unreachable. **`main` is red until `apps/api/src/app.clock.test.ts` lands.** Coverage all
+files measures statements **93.97** · branches **92.54** · functions **87.83** on the green tree
+and **87.73** on `28f64a1` alone ·
+lines **93.97**. v8 coverage is not bit-stable across worker scheduling, so the figure published is
+always the one from the run at the tree being cited, never the best of them.
+
+*(**F-66**, found while writing this. The paragraph above replaces one that read
+**"Verified 2026-09-05 … exit 0 — **84** files, 2,252 tests … coverage 99.53 · 98.88 · 99.42 · 99.53"**
+— a composite of two trees. The sentence and the coverage triplet were written on 2026-09-05, when
+the suite was **60 files and 1,558 tests**; the "84 files, 2,252 tests" pair was swapped in on
+2026-10-19 by `0134269`, because `check-claims` gates that one token and goes red when it drifts.
+The gate did its job on the number it owns and the date, the triplet and the word "exit 0" around it
+had nobody. **A gated figure inside an ungated sentence reads as though the whole sentence were
+gated** — which is why the figures above say which run produced them and the paragraph is dated as a
+whole.)*
 
 *Do not copy the checker count out of this paragraph into a new document.* It is derived from
 `package.json` by `check-claims`, which now gates it **in this file** — the fifth scoreboard copy,
