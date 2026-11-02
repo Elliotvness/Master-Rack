@@ -397,12 +397,19 @@ describe('client DTOs — built field by field, validated against their publishe
         {
           ...displayList,
           view: 'elevation' as const,
-          items: [{ ...elevationItems[0]!, label: { text: '', established: false } }],
+          items: [
+            {
+              ...(elevationItems[0] as Extract<(typeof elevationItems)[number], { kind: 'rect' }>),
+              label: { text: '', established: false },
+            },
+          ],
         },
       ],
     });
     expect(validate(CLIENT_SCHEMAS.Preview, unestablished)).toEqual([]);
-    expect(unestablished.views[0]?.items[0]?.label).toEqual({ text: '', established: false });
+    expect(unestablished.views[0]?.items[0]).toMatchObject({
+      label: { text: '', established: false },
+    });
   });
 
   it('a comparison carries option labels and metric rows — not the options\' BOMs', () => {
