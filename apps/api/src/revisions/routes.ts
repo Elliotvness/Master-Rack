@@ -16,6 +16,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 
 import {
   CLIENT_SCHEMAS,
+  INTAKE_DOCUMENT_KINDS,
   REQUEST_STATUSES,
   type ComparableMetric,
   type DisplayItemClientDTO,
@@ -23,6 +24,7 @@ import {
   type RequestStatus,
   toComparisonClientDTO,
   toDocumentClientDTO,
+  toIntakeExtractionClientDTO,
   toPreviewClientDTO,
   toProjectClientDTO,
   toRevisionClientDTO,
@@ -102,6 +104,8 @@ import {
 import { ENGINE_VERSION, submitRevision } from '../workflow/submit-effects.js';
 import { InMemoryWormStore } from '../worm/memory-store.js';
 import { RETENTION_DAYS_7_YEARS, prepareManifest, type WormStore } from '../worm/store.js';
+import { extractSpecSheetViaGemini } from '../ai/gemini-adapter.js';
+import type { GeminiInteractionsClient, IntakeDocumentKind } from '@rms/studio-model';
 
 export interface RevisionRoutesOptions {
   readonly now: () => Date;
@@ -109,6 +113,7 @@ export interface RevisionRoutesOptions {
   readonly env?: Readonly<Record<string, string | undefined>> | undefined;
   readonly recordDeny?: DenyRecorder | undefined;
   readonly wormStore?: WormStore | undefined;
+  readonly geminiClient?: GeminiInteractionsClient | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -244,6 +249,15 @@ const CLONE_BODY = clientRequestBody(
   },
   { optional: ['reason'] },
 );
+
+const INTAKE_EXTRACT_BODY = clientRequestBody('IntakeExtractRequest', {
+  document_kind: string({ enum: INTAKE_DOCUMENT_KINDS }),
+  file_name: string(),
+  mime_type: string({
+    enum: ['application/pdf', 'image/png', 'image/jpeg'],
+  }),
+  data_base64: string(),
+});
 
 const DERIVE_BODY = internalRequestBody(
   'DeriveInternalRevisionRequest',
@@ -4291,6 +4305,45 @@ export function registerRevisionRoutes(
     }
 
     const checked = guard.check(INTERNAL_SCHEMAS.CatalogRelease, outcome.dto);
+    return reply.code(200).send(checked);
+  });
+
+  // -------------------------------------------------------------------------
+  // 26. POST /api/client/v1/intake — spec-sheet extraction (`store: false`)
+  // -------------------------------------------------------------------------
+  app.post('/api/client/v1/intake', async (request, reply) => {
+    const parsed = parseBody(INTAKE_EXTRACT_BODY, request.body);
+    if (!parsed.ok) {
+      return reply.code(statusFor('VALIDATION_ERROR')).send(parsed.error);
+    }
+
+    const documentKind = parsed.body['document_kind'] as IntakeDocumentKind;
+    const fileName = (parsed.body['file_name'] as string).trim();
+    const mimeType = parsed.body['mime_type'] as string;
+    const base64Data = (parsed.body['data_base64'] as string).trim();
+
+    if (fileName.length === 0 || base64Data.length === 0) {
+      return reply
+        .code(statusFor('VALIDATION_ERROR'))
+        .send(errorEnvelope('VALIDATION_ERROR', 'file_name and data_base64 must not be empty'));
+    }
+
+    const result = await extractSpecSheetViaGemini(
+      { documentKind, fileName, mimeType, base64Data },
+      opts.env ?? process.env,
+      opts.geminiClient,
+    );
+    if (!result.ok) {
+      return reply
+        .code(statusFor('UNPROCESSABLE'))
+        .send(errorEnvelope('UNPROCESSABLE', result.reason));
+    }
+
+    const dto = toIntakeExtractionClientDTO({
+      file_name: fileName,
+      extraction: result.payload,
+    });
+    const checked = guard.check(CLIENT_SCHEMAS.IntakeExtraction, dto);
     return reply.code(200).send(checked);
   });
 }

@@ -3280,7 +3280,22 @@ describe('T-15 — AC-02, AC-03 and AC-06 against the running system (real route
 
       const wormStore = new InMemoryWormStore(() => new Date(currentMs).toISOString());
       const app = createApp({
-        env: { CLAIM_LEASE_MINUTES: '10' },
+        env: {
+          CLAIM_LEASE_MINUTES: '10',
+          GEMINI_API_KEY: 'test-key-t15',
+          GEMINI_BILLING_TIER: 'paid',
+        },
+        geminiClient: {
+          interactions: {
+            create: async () => ({
+              output_text: JSON.stringify({
+                documentKind: 'FORKLIFT_SPEC_SHEET',
+                truckType: { value: 'Stand-up reach', sourcePage: 2, confidence: 0.98 },
+                truckRasIn: { value: 108, unit: 'in', sourcePage: 2, confidence: 0.96 },
+              }),
+            }),
+          },
+        },
         now: () => new Date(currentMs),
         newId: () => {
           idSeq += 1;
@@ -3297,7 +3312,7 @@ describe('T-15 — AC-02, AC-03 and AC-06 against the running system (real route
       // 1. AC-06: Enumerate mounted routes directly from the live Fastify router
       const mounted = [...app.mountedRoutes];
       expect(mounted).toHaveLength(ROUTES.length);
-      expect(mounted).toHaveLength(32);
+      expect(mounted).toHaveLength(33);
       expect(new Set(mounted)).toEqual(new Set(ROUTES.map((r) => routeKey(r.method, r.path))));
 
       // 2. Call every client route in lifecycle order and every internal/public route from `mounted`
@@ -3493,6 +3508,16 @@ describe('T-15 — AC-02, AC-03 and AC-06 against the running system (real route
       );
       expect(rInvite.statusCode).toBe(201);
 
+      const rIntake = await callRoute('POST /api/client/v1/intake', '/api/client/v1/intake', {
+        payload: {
+          document_kind: 'FORKLIFT_SPEC_SHEET',
+          file_name: 'Raymond-7500-SpecSheet.pdf',
+          mime_type: 'application/pdf',
+          data_base64: 'JVBERi0xLjQK',
+        },
+      });
+      expect(rIntake.statusCode).toBe(200);
+
       // Call all remaining mounted routes (the 13 internal routes + 5 public auth routes)
       for (const key of mounted) {
         if (visited.has(key)) continue;
@@ -3505,9 +3530,9 @@ describe('T-15 — AC-02, AC-03 and AC-06 against the running system (real route
         }
       }
 
-      // Every single one of the 32 mounted routes was visited and checked
+      // Every single one of the 33 mounted routes was visited and checked
       expect(visited.size).toBe(mounted.length);
-      expect(visited.size).toBe(32);
+      expect(visited.size).toBe(33);
 
       // 3. AC-03: Cross-organization access by Tenant B against Tenant A's resources
       //    returns 404 NOT_FOUND (never 403) and writes a deny audit event per attempt.

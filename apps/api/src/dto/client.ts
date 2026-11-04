@@ -771,6 +771,158 @@ export function toMfaFactorClientDTO(entity: MfaFactorEntity): MfaFactorClientDT
 }
 
 // --------------------------------------------------------------------------
+// IntakeExtraction — spec-sheet extraction over `store: false` (§8.2)
+// --------------------------------------------------------------------------
+
+export const INTAKE_DOCUMENT_KINDS = [
+  'FORKLIFT_SPEC_SHEET',
+  'SITE_SURVEY_CHECKLIST',
+  'RACK_SUBMITTAL',
+] as const;
+
+export const INTAKE_LENGTH_UNITS = ['in', 'mm', 'ft'] as const;
+
+export interface IntakeExtractedStringFieldDTO {
+  readonly value: string;
+  readonly sourcePage: number;
+  readonly confidence: number;
+}
+
+export interface IntakeExtractedNumberFieldDTO {
+  readonly value: number;
+  readonly sourcePage: number;
+  readonly confidence: number;
+}
+
+export interface IntakeExtractedLengthFieldDTO {
+  readonly value: number;
+  readonly unit: (typeof INTAKE_LENGTH_UNITS)[number];
+  readonly sourcePage: number;
+  readonly confidence: number;
+}
+
+export interface IntakeExtractionPayloadClientDTO {
+  readonly documentKind: (typeof INTAKE_DOCUMENT_KINDS)[number];
+  readonly truckType?: IntakeExtractedStringFieldDTO;
+  readonly truckRasIn?: IntakeExtractedLengthFieldDTO;
+  readonly clearHeightIn?: IntakeExtractedLengthFieldDTO;
+  readonly deflectorElevIn?: IntakeExtractedLengthFieldDTO;
+  readonly commodityClass?: IntakeExtractedStringFieldDTO;
+  readonly sdc?: IntakeExtractedStringFieldDTO;
+  readonly frameHeightIn?: IntakeExtractedLengthFieldDTO;
+  readonly beamPairCapacityLb?: IntakeExtractedNumberFieldDTO;
+  readonly ratedLoadLb?: IntakeExtractedNumberFieldDTO;
+}
+
+export interface IntakeExtractionClientDTO {
+  readonly file_name: string;
+  readonly store: false;
+  readonly extraction: IntakeExtractionPayloadClientDTO;
+}
+
+interface IntakeExtractionEntity {
+  file_name: string;
+  extraction: {
+    documentKind: (typeof INTAKE_DOCUMENT_KINDS)[number];
+    truckType?: { value: string; sourcePage: number; confidence: number } | undefined;
+    truckRasIn?: { value: number; unit?: (typeof INTAKE_LENGTH_UNITS)[number] | undefined; sourcePage: number; confidence: number } | undefined;
+    clearHeightIn?: { value: number; unit?: (typeof INTAKE_LENGTH_UNITS)[number] | undefined; sourcePage: number; confidence: number } | undefined;
+    deflectorElevIn?: { value: number; unit?: (typeof INTAKE_LENGTH_UNITS)[number] | undefined; sourcePage: number; confidence: number } | undefined;
+    commodityClass?: { value: string; sourcePage: number; confidence: number } | undefined;
+    sdc?: { value: string; sourcePage: number; confidence: number } | undefined;
+    frameHeightIn?: { value: number; unit?: (typeof INTAKE_LENGTH_UNITS)[number] | undefined; sourcePage: number; confidence: number } | undefined;
+    beamPairCapacityLb?: { value: number; sourcePage: number; confidence: number } | undefined;
+    ratedLoadLb?: { value: number; sourcePage: number; confidence: number } | undefined;
+  };
+  [extra: string]: unknown;
+}
+
+const intakeExtractedStringField = object({
+  value: string(),
+  sourcePage: integer(),
+  confidence: number(),
+});
+
+const intakeExtractedNumberField = object({
+  value: number(),
+  sourcePage: integer(),
+  confidence: number(),
+});
+
+const intakeExtractedLengthField = object({
+  value: number(),
+  unit: string({ enum: INTAKE_LENGTH_UNITS }),
+  sourcePage: integer(),
+  confidence: number(),
+});
+
+const INTAKE_STRING_KEYS = ['truckType', 'commodityClass', 'sdc'] as const;
+const INTAKE_NUMBER_KEYS = ['beamPairCapacityLb', 'ratedLoadLb'] as const;
+const INTAKE_LENGTH_KEYS = ['truckRasIn', 'clearHeightIn', 'deflectorElevIn', 'frameHeightIn'] as const;
+
+const IntakeExtraction = clientResponse('IntakeExtraction', {
+  file_name: string(),
+  store: boolean({ enum: [false] }),
+  extraction: object(
+    {
+      documentKind: string({ enum: INTAKE_DOCUMENT_KINDS }),
+      truckType: intakeExtractedStringField,
+      truckRasIn: intakeExtractedLengthField,
+      clearHeightIn: intakeExtractedLengthField,
+      deflectorElevIn: intakeExtractedLengthField,
+      commodityClass: intakeExtractedStringField,
+      sdc: intakeExtractedStringField,
+      frameHeightIn: intakeExtractedLengthField,
+      beamPairCapacityLb: intakeExtractedNumberField,
+      ratedLoadLb: intakeExtractedNumberField,
+    },
+    {
+      optional: [
+        ...INTAKE_STRING_KEYS,
+        ...INTAKE_NUMBER_KEYS,
+        ...INTAKE_LENGTH_KEYS,
+      ],
+    },
+  ),
+});
+
+export function toIntakeExtractionClientDTO(
+  entity: IntakeExtractionEntity,
+): IntakeExtractionClientDTO {
+  const ext: Record<string, unknown> = {
+    documentKind: entity.extraction.documentKind,
+  };
+  for (const k of INTAKE_STRING_KEYS) {
+    const f = entity.extraction[k];
+    if (f !== undefined) {
+      ext[k] = { value: f.value, sourcePage: f.sourcePage, confidence: f.confidence };
+    }
+  }
+  for (const k of INTAKE_NUMBER_KEYS) {
+    const f = entity.extraction[k];
+    if (f !== undefined) {
+      ext[k] = { value: f.value, sourcePage: f.sourcePage, confidence: f.confidence };
+    }
+  }
+  for (const k of INTAKE_LENGTH_KEYS) {
+    const f = entity.extraction[k];
+    if (f !== undefined) {
+      ext[k] = {
+        value: f.value,
+        unit: f.unit ?? 'in',
+        sourcePage: f.sourcePage,
+        confidence: f.confidence,
+      };
+    }
+  }
+  return {
+    file_name: entity.file_name,
+    store: false,
+    extraction: ext as unknown as IntakeExtractionPayloadClientDTO,
+  };
+}
+
+// --------------------------------------------------------------------------
 // The registry — every client schema, keyed by name, for the guard and the document
 // --------------------------------------------------------------------------
 
@@ -786,6 +938,7 @@ export const CLIENT_SCHEMAS = Object.freeze({
   Invitation,
   MfaEnrollment,
   MfaFactor,
+  IntakeExtraction,
 } satisfies Readonly<Record<string, ResponseSchema>>);
 
 // --------------------------------------------------------------------------

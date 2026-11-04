@@ -32,6 +32,7 @@ import {
   toInternalNoteDTO,
   toInvitationClientDTO,
   toInvitationInternalDTO,
+  toIntakeExtractionClientDTO,
   toMfaEnrollmentClientDTO,
   toMfaFactorClientDTO,
   toOrganizationInternalDTO,
@@ -575,6 +576,35 @@ describe('client DTOs — built field by field, validated against their publishe
   it('a project is unchanged from T-12 and now has a schema too', () => {
     const dto = toProjectClientDTO({ id: 'p1', number: '26-0142', name: 'Harbor', status: 'active', organization_id: 'org-a' });
     expect(validate(CLIENT_SCHEMAS.Project, dto)).toEqual([]);
+  });
+
+  it('an intake extraction carries store: false, drops undeclared fields, and normalises optional length units', () => {
+    const dto = toIntakeExtractionClientDTO({
+      file_name: 'Raymond-7500-SpecSheet.pdf',
+      extraction: {
+        documentKind: 'FORKLIFT_SPEC_SHEET',
+        truckType: { value: 'Stand-up reach', sourcePage: 2, confidence: 0.98 },
+        truckRasIn: { value: 108, unit: 'in', sourcePage: 2, confidence: 0.96 },
+        clearHeightIn: { value: 384, sourcePage: 1, confidence: 0.95 },
+        beamPairCapacityLb: { value: 5400, sourcePage: 3, confidence: 0.92 },
+      },
+      internal_note: 'dropped',
+    });
+    expect(dto).toEqual({
+      file_name: 'Raymond-7500-SpecSheet.pdf',
+      store: false,
+      extraction: {
+        documentKind: 'FORKLIFT_SPEC_SHEET',
+        truckType: { value: 'Stand-up reach', sourcePage: 2, confidence: 0.98 },
+        truckRasIn: { value: 108, unit: 'in', sourcePage: 2, confidence: 0.96 },
+        clearHeightIn: { value: 384, unit: 'in', sourcePage: 1, confidence: 0.95 },
+        beamPairCapacityLb: { value: 5400, sourcePage: 3, confidence: 0.92 },
+      },
+    });
+    expect('internal_note' in dto).toBe(false);
+    expect(validate(CLIENT_SCHEMAS.IntakeExtraction, dto)).toEqual([]);
+    expect(guard.check(CLIENT_SCHEMAS.IntakeExtraction, dto)).toBe(dto);
+    expect(findForbiddenFields(dto)).toEqual([]);
   });
 });
 

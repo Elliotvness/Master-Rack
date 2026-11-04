@@ -8,6 +8,8 @@ import {
   toggleIntakeRowAcceptance,
   type CommandPreviewCard,
   type IntakeConfirmationRow,
+  type IntakeDocumentKind,
+  type IntakeExtractionPayload,
 } from '@rms/studio-model';
 import { useEffect, useState } from 'react';
 
@@ -39,6 +41,9 @@ export default function PlanView(): React.JSX.Element {
     [],
   );
   const [intakeStatus, setIntakeStatus] = useState<string | null>(null);
+  const [intakeDocKind, setIntakeDocKind] = useState<IntakeDocumentKind>('FORKLIFT_SPEC_SHEET');
+  const [intakeFileName, setIntakeFileName] = useState('Raymond-7500-SpecSheet.pdf');
+  const [intakeBase64, setIntakeBase64] = useState('JVBERi0=');
 
   const [cmdBarOpen, setCmdBarOpen] = useState(false);
   const [cmdBarInput, setCmdBarInput] = useState(
@@ -60,12 +65,49 @@ export default function PlanView(): React.JSX.Element {
   const openSpecSheetIntake = (): void => {
     const staged = stageIntakeConfirmationTable(
       session.document,
-      'Raymond-7500-SpecSheet.pdf',
+      intakeFileName,
       SAMPLE_FORKLIFT_EXTRACTION,
     );
     setIntakeRows(staged);
     setIntakeStatus(null);
     setIntakeOpen(true);
+  };
+
+  const extractViaIntakeEndpoint = async (): Promise<void> => {
+    try {
+      const res = await fetch('/api/client/v1/intake', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          document_kind: intakeDocKind,
+          file_name: intakeFileName,
+          mime_type: 'application/pdf',
+          data_base64: intakeBase64,
+        }),
+      });
+      const json = (await res.json()) as {
+        readonly file_name?: string;
+        readonly extraction?: IntakeExtractionPayload;
+        readonly error?: { readonly message?: string };
+      };
+      if (!res.ok || json.extraction === undefined) {
+        setIntakeStatus(
+          `Intake API refused (${res.status}): ${json.error?.message ?? 'extraction unavailable'}`,
+        );
+        return;
+      }
+      const staged = stageIntakeConfirmationTable(
+        session.document,
+        json.file_name ?? intakeFileName,
+        json.extraction,
+      );
+      setIntakeRows(staged);
+      setIntakeStatus(
+        `Staged ${staged.length} extracted field(s) from ${json.file_name ?? intakeFileName} via /api/client/v1/intake (store: false).`,
+      );
+    } catch {
+      setIntakeStatus('Intake API request failed.');
+    }
   };
 
   const applyCheckedIntakeRows = (): void => {
@@ -166,7 +208,7 @@ export default function PlanView(): React.JSX.Element {
           className="pf-btn"
           onClick={openSpecSheetIntake}
         >
-          Spec-Sheet Intake (demo sample, AI backend not connected)
+          Spec-Sheet Intake (POST /api/client/v1/intake · store: false)
         </button>
         <button
           id="open-cmdbar-btn"
@@ -184,11 +226,50 @@ export default function PlanView(): React.JSX.Element {
           className="intake-panel"
           aria-label="Spec-Sheet Human Confirmation Table"
         >
-          <h2>Human Confirmation Table (demo sample extraction)</h2>
+          <h2>Human Confirmation Table (store: false)</h2>
           <p>
             Extracted values are <b>never</b> auto-filled. Check the rows you confirm to commit
             them as reversible commands with source page provenance.
           </p>
+          <div className="pf-row">
+            <label htmlFor="intake-doc-kind" className="pf-label">
+              Document Kind
+            </label>
+            <select
+              id="intake-doc-kind"
+              className="pf-input"
+              value={intakeDocKind}
+              onChange={(e) => setIntakeDocKind(e.target.value as IntakeDocumentKind)}
+            >
+              <option value="FORKLIFT_SPEC_SHEET">FORKLIFT_SPEC_SHEET</option>
+              <option value="SITE_SURVEY_CHECKLIST">SITE_SURVEY_CHECKLIST</option>
+              <option value="RACK_SUBMITTAL">RACK_SUBMITTAL</option>
+            </select>
+            <label htmlFor="intake-file-name" className="pf-label">
+              Source File
+            </label>
+            <input
+              id="intake-file-name"
+              type="text"
+              className="pf-input"
+              value={intakeFileName}
+              onChange={(e) => setIntakeFileName(e.target.value)}
+            />
+            <input
+              id="intake-base64"
+              type="hidden"
+              value={intakeBase64}
+              onChange={(e) => setIntakeBase64(e.target.value)}
+            />
+            <button
+              id="extract-intake-api-btn"
+              type="button"
+              className="pf-btn"
+              onClick={() => void extractViaIntakeEndpoint()}
+            >
+              Extract via /api/client/v1/intake
+            </button>
+          </div>
           <table id="intake-confirm-table" aria-label="Intake confirmation rows">
             <thead>
               <tr>

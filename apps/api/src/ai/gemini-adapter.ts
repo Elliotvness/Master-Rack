@@ -4,10 +4,9 @@
  * (`ai.models.generateContent`). See `docs/gemini-api-mapping.md` §2-§3.
  *
  * WHY THIS LIVES IN `apps/api`: the API key is read from the server's
- * environment and never leaves this process (mapping doc §5). The browser
- * studio keeps its demo fixtures until an HTTP route for intake is declared in
- * blueprint §8.2. No route is mounted here, deliberately: `check-route-surface`
- * and `createApp`'s boot gate both refuse a route §8.2 does not carry.
+ * environment and never leaves this process (mapping doc §5). The HTTP route
+ * `POST /api/client/v1/intake` declared in blueprint §8.2 calls
+ * `extractSpecSheetViaGemini` below.
  *
  * Translation, per the mapping matrix:
  *   - `model`             internal placeholder tag -> configured real model id
@@ -23,8 +22,14 @@ import type {
   GeminiInteractionPart,
   GeminiInteractionsClient,
   GeminiInteractionsCreateRequest,
+  ParseIntakeResult,
+  SpecSheetIntakeInput,
 } from '@rms/studio-model';
-import { validateGeminiBackendConfig } from '@rms/studio-model';
+import {
+  buildSpecSheetIntakeRequest,
+  parseAndValidateIntakeOutput,
+  validateGeminiBackendConfig,
+} from '@rms/studio-model';
 
 /** The default production model; the internal tag is a placeholder (mapping doc §2). */
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
@@ -150,4 +155,27 @@ export async function createLiveGeminiClient(
       }),
     config,
   );
+}
+
+/**
+ * Execute a spec-sheet extraction over the configured server-side Gemini client
+ * (`GEMINI_BILLING_TIER === 'paid'`, `store: false` data-governance posture) and
+ * validate the JSON response against `INTAKE_EXTRACTION_SCHEMA`.
+ */
+export async function extractSpecSheetViaGemini(
+  input: SpecSheetIntakeInput,
+  env: Readonly<Record<string, string | undefined>>,
+  injectedClient?: GeminiInteractionsClient,
+): Promise<ParseIntakeResult> {
+  const cfg = readGeminiConfig(env);
+  if (!cfg.ok) return cfg;
+  const client = injectedClient ?? (await createLiveGeminiClient(cfg.config));
+  const request = buildSpecSheetIntakeRequest(
+    input.documentKind,
+    input.fileName,
+    input.mimeType,
+    input.base64Data,
+  );
+  const response = await client.interactions.create(request);
+  return parseAndValidateIntakeOutput(response.output_text);
 }

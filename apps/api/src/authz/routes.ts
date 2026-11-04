@@ -147,6 +147,7 @@ export const ROUTES: readonly RoutePolicy[] = [
   { method: 'POST', path: '/api/client/v1/mfa/enroll', namespace: 'client', action: 'credential.enroll_factor', response: 'MfaEnrollment' },
   { method: 'POST', path: '/api/client/v1/mfa/verify', namespace: 'client', action: 'credential.verify_factor', response: 'MfaFactor' },
   { method: 'POST', path: '/api/client/v1/invitations', namespace: 'client', action: 'invitation.create', response: 'Invitation' },
+  { method: 'POST', path: '/api/client/v1/intake', namespace: 'client', action: 'revision.edit', response: 'IntakeExtraction' },
 
   // Internal surface.
   { method: 'GET', path: '/api/internal/v1/queue', namespace: 'internal', action: 'submission.read', response: 'QueueEntry' },

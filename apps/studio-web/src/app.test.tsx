@@ -12,7 +12,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from './app.js';
 import { HEADER_CONTROL_ORDER, VIEWS } from './nav.js';
@@ -497,6 +497,38 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
     expect(document.getElementById('cmdbar-preview-card')).toBeNull();
     // Both commands applied (split + aisle), not just the last one
     expect(document.getElementById('cmdbar-status')?.textContent).toMatch(/Executed 2 command/);
+  });
+
+  it('calls POST /api/client/v1/intake and stages returned extraction into the Human Confirmation Table', async () => {
+    const user = userEvent.setup();
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          file_name: 'Crown-RM6000.pdf',
+          store: false,
+          extraction: {
+            documentKind: 'FORKLIFT_SPEC_SHEET',
+            truckRasIn: { value: 96, unit: 'in', sourcePage: 3, confidence: 0.99 },
+          },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1 });
+
+    await user.click(document.getElementById('open-intake-btn') as HTMLButtonElement);
+    await user.click(document.getElementById('extract-intake-api-btn') as HTMLButtonElement);
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/client/v1/intake',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(document.getElementById('intake-status')?.textContent).toMatch(
+      /Staged 1 extracted field\(s\) from Crown-RM6000\.pdf via \/api\/client\/v1\/intake/,
+    );
+    fetchSpy.mockRestore();
   });
 });
 

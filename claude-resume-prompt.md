@@ -47,7 +47,7 @@ before you quote any of these** — this section was six sessions stale until 20
 | Plan-task completion, effort-weighted | 120 of 160 pts — 75.0% (an upper bound, not the answer) | `tasks/todo.md` phases, sliced from blueprint §15.3 |
 | Plan-task completion, task count | 38 of 49 — 78% | Same, unweighted |
 | Pre-merge review `R-01…R-11` | **11 of 11 — 100%** | Blueprint §16.1 review gates — one merged branch's checklist, not the project |
-| Route surface vs the blueprint | **32 of 32** MVP-1 routes declared, mounted and checked — up from 22 | §8.2, amended twice: 34 rows, 2 marked phase 2. **All 32 handlers live (`T-14b` + `T-14c` + `T-14d` + `T-14e`, re-asserted by `T-15` + `P-03`), 0 handlers in `UNIMPLEMENTED`** |
+| Route surface vs the blueprint | **33 of 33** MVP-1 routes declared, mounted and checked — up from 22 | §8.2, amended three times: 35 rows, 2 marked phase 2. **All 33 handlers live (`T-14b` + `T-14c` + `T-14d` + `T-14e` + `/api/client/v1/intake`, re-asserted by `T-15` + `P-03`), 0 handlers in `UNIMPLEMENTED`** |
 
 ### What changed on 2026-10-26 (session 21) — read `tasks/progress.md` for the full edition
 

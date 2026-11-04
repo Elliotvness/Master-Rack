@@ -900,7 +900,7 @@ describe('T-15 — AC-02, AC-03 and AC-06 re-asserted against the live router', 
     // not by iterating the ROUTES table alone.
     const mounted = [...app.mountedRoutes];
     expect(mounted).toHaveLength(ROUTES.length);
-    expect(mounted).toHaveLength(32);
+    expect(mounted).toHaveLength(33);
     expect(new Set(mounted)).toEqual(new Set(ROUTES.map((r) => routeKey(r.method, r.path))));
 
     let internalCount = 0;
@@ -932,11 +932,92 @@ describe('T-15 — AC-02, AC-03 and AC-06 re-asserted against the live router', 
     }
 
     expect(internalCount).toBe(13);
-    expect(clientCount).toBe(14);
+    expect(clientCount).toBe(15);
     expect(publicCount).toBe(5);
     expect(denies.length).toBeGreaterThanOrEqual(internalCount);
 
     await app.close();
+  });
+
+  it('POST /api/client/v1/intake validates request bodies, refuses unconfigured Gemini env, and returns validated IntakeExtraction DTO', async () => {
+    const appUnconfigured = appAs(CLIENT);
+    const badBody = await appUnconfigured.inject({
+      method: 'POST',
+      url: '/api/client/v1/intake',
+      payload: { document_kind: 'UNKNOWN_KIND' },
+    });
+    expect(badBody.statusCode).toBe(400);
+
+    const blankFields = await appUnconfigured.inject({
+      method: 'POST',
+      url: '/api/client/v1/intake',
+      payload: {
+        document_kind: 'FORKLIFT_SPEC_SHEET',
+        file_name: '   ',
+        mime_type: 'application/pdf',
+        data_base64: 'JVBERi0=',
+      },
+    });
+    expect(blankFields.statusCode).toBe(400);
+
+    const unconfigured = await appUnconfigured.inject({
+      method: 'POST',
+      url: '/api/client/v1/intake',
+      payload: {
+        document_kind: 'FORKLIFT_SPEC_SHEET',
+        file_name: 'Raymond-7500.pdf',
+        mime_type: 'application/pdf',
+        data_base64: 'JVBERi0=',
+      },
+    });
+    expect(unconfigured.statusCode).toBe(422);
+    expect(unconfigured.json().error.code).toBe('UNPROCESSABLE');
+    await appUnconfigured.close();
+
+    const appConfigured = createApp({
+      env: { ...ENV, GEMINI_API_KEY: 'k', GEMINI_BILLING_TIER: 'paid' },
+      now: () => new Date('2026-09-03T00:00:00Z'),
+      geminiClient: {
+        interactions: {
+          async create() {
+            return {
+              output_text: JSON.stringify({
+                documentKind: 'FORKLIFT_SPEC_SHEET',
+                truckType: { value: 'Stand-up reach', sourcePage: 2, confidence: 0.98 },
+                truckRasIn: { value: 108, unit: 'in', sourcePage: 2, confidence: 0.96 },
+              }),
+            };
+          },
+        },
+      },
+    });
+    appConfigured.addHook('onRequest', async (request) => {
+      request.principal = CLIENT;
+    });
+
+    const okRes = await appConfigured.inject({
+      method: 'POST',
+      url: '/api/client/v1/intake',
+      payload: {
+        document_kind: 'FORKLIFT_SPEC_SHEET',
+        file_name: 'Raymond-7500.pdf',
+        mime_type: 'application/pdf',
+        data_base64: 'JVBERi0=',
+      },
+    });
+    await appConfigured.close();
+
+    expect(okRes.statusCode).toBe(200);
+    expect(okRes.json()).toEqual({
+      file_name: 'Raymond-7500.pdf',
+      store: false,
+      extraction: {
+        documentKind: 'FORKLIFT_SPEC_SHEET',
+        truckType: { value: 'Stand-up reach', sourcePage: 2, confidence: 0.98 },
+        truckRasIn: { value: 108, unit: 'in', sourcePage: 2, confidence: 0.96 },
+      },
+    });
+    expect(findForbiddenFields(okRes.json())).toEqual([]);
   });
 
   it('catches a planted forbidden field at top level or nested depth on a client route and refuses with 500 INTERNAL_ERROR (AC-02 verification)', async () => {

@@ -65,6 +65,7 @@ import { ROUTES, namespaceAllows, type RoutePolicy } from './authz/routes.js';
 import { assertConfiguration } from './idempotency/idempotency.js';
 import { registerRevisionRoutes } from './revisions/routes.js';
 import type { WormStore } from './worm/store.js';
+import type { GeminiInteractionsClient } from '@rms/studio-model';
 
 /** The principal the session preHandler attaches. Absent until it does. */
 export interface Principal extends Actor {
@@ -315,6 +316,8 @@ export interface AppDeps {
   readonly verifyOidcCode?: (code: string) => Promise<VerifiedOidcIdentity | null>;
   /** Optional WORM store for submission manifests (defaults to an in-memory compliance store). */
   readonly wormStore?: WormStore;
+  /** Optional injected Gemini interactions client for spec-sheet intake tests. */
+  readonly geminiClient?: GeminiInteractionsClient;
   /** Optional hook invoked when the app-level outbound guard catches a forbidden client field (T-15 / AC-02). */
   readonly onOutboundViolation?: (violation: OutboundViolation) => void | Promise<void>;
 }
@@ -470,6 +473,7 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
     env: deps.env,
     recordDeny,
     wormStore: deps.wormStore,
+    geminiClient: deps.geminiClient,
   });
 
   // THE CHECK RUNS AT `ready()`, NOT AT THE END OF THIS FUNCTION.

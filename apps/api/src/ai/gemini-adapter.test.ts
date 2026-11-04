@@ -14,6 +14,7 @@ import {
   GeminiEmptyResponseError,
   createGeminiInteractionsClient,
   createLiveGeminiClient,
+  extractSpecSheetViaGemini,
   readGeminiConfig,
   toGenerateContentRequest,
   type GenerateContentRequest,
@@ -131,5 +132,50 @@ describe('createLiveGeminiClient', () => {
     const arg = generateContentMock.mock.calls[0]?.[0] as GenerateContentRequest;
     expect(arg.model).toBe('gemini-2.5-flash');
     expect(arg.config.responseMimeType).toBe('application/json');
+  });
+});
+
+describe('extractSpecSheetViaGemini', () => {
+  const INPUT = {
+    documentKind: 'FORKLIFT_SPEC_SHEET' as const,
+    fileName: 'Raymond-7500.pdf',
+    mimeType: 'application/pdf',
+    base64Data: 'JVBERi0=',
+  };
+
+  it('refuses when server Gemini configuration is missing or non-paid', async () => {
+    const res = await extractSpecSheetViaGemini(INPUT, { GEMINI_API_KEY: 'k', GEMINI_BILLING_TIER: 'free' });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.reason).toMatch(/paid-tier/);
+  });
+
+  it('extracts and validates via an injected client or live SDK client', async () => {
+    const injected = createGeminiInteractionsClient(
+      async () => ({
+        text: JSON.stringify({
+          documentKind: 'FORKLIFT_SPEC_SHEET',
+          truckRasIn: { value: 108, unit: 'in', sourcePage: 2, confidence: 0.96 },
+        }),
+      }),
+      CONFIG,
+    );
+    const r1 = await extractSpecSheetViaGemini(
+      INPUT,
+      { GEMINI_API_KEY: 'k', GEMINI_BILLING_TIER: 'paid' },
+      injected,
+    );
+    expect(r1.ok).toBe(true);
+
+    generateContentMock.mockResolvedValueOnce({
+      text: JSON.stringify({
+        documentKind: 'FORKLIFT_SPEC_SHEET',
+        clearHeightIn: { value: 384, unit: 'in', sourcePage: 1, confidence: 0.95 },
+      }),
+    });
+    const r2 = await extractSpecSheetViaGemini(INPUT, {
+      GEMINI_API_KEY: 'k',
+      GEMINI_BILLING_TIER: 'paid',
+    });
+    expect(r2.ok).toBe(true);
   });
 });
