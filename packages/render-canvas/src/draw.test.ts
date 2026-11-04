@@ -435,4 +435,38 @@ describe('unit loads and flues get their own pen and fill weight', () => {
     });
     expect(calls.some((c) => c.op === 'set globalAlpha' && c.args[0] === 0.1)).toBe(true);
   });
+
+  it('uses ctx.measureText for dimension labels when available and draws grid bubbles with or without ctx.arc', () => {
+    const { ctx, calls } = recorder();
+    (ctx as unknown as { measureText: (s: string) => { width: number }; arc: (...a: unknown[]) => void }).measureText =
+      (s: string) => ({ width: s.length * 7 });
+    (ctx as unknown as { arc: (...a: unknown[]) => void }).arc = (...a: unknown[]) => {
+      calls.push({ op: 'arc', args: a });
+    };
+    draw(
+      ctx,
+      listWith(
+        dimension({
+          id: 'dim-measured',
+          from: point(0, 0),
+          to: point(IN(48), 0),
+          text: { text: `4'-0"`, established: true },
+        }),
+        text({ id: 'grid:A', at: point(0, 0), text: { text: 'A', established: true } }),
+        text({ id: 'grid:tick:1', at: point(0, 0), text: { text: '1', established: true } }),
+        text({ id: 'grid:pitch:1', at: point(0, 0), text: { text: '20 ft', established: true } }),
+      ),
+      { camera: CAMERA, viewport: VIEWPORT, pens: PENS, dpr: 1 },
+    );
+    expect(calls.some((c) => c.op === 'arc')).toBe(true);
+
+    // Also exercise grid bubble when ctx.arc is absent
+    const { ctx: ctxNoArc, calls: callsNoArc } = recorder();
+    draw(
+      ctxNoArc,
+      listWith(text({ id: 'grid:B', at: point(0, 0), text: { text: 'B', established: true } })),
+      { camera: CAMERA, viewport: VIEWPORT, pens: PENS, dpr: 1 },
+    );
+    expect(callsNoArc.filter((c) => c.op === 'fillText').map((c) => c.args[0])).toContain('B');
+  });
 });

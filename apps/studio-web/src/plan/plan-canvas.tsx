@@ -40,10 +40,12 @@ function Chip({
   label,
   value,
   pending = false,
+  tone,
 }: {
   readonly label: string;
   readonly value: string;
   readonly pending?: boolean;
+  readonly tone?: 'pass' | 'block' | 'warn' | undefined;
 }): React.JSX.Element {
   return (
     <span
@@ -51,8 +53,21 @@ function Chip({
       aria-disabled={pending || undefined}
       title={pending ? 'Not implemented — arrives with the screening checks' : undefined}
     >
-      <span className="chip-label">{label}</span>
-      <b className="chip-value">{value}</b>
+      <span className="chip-label k">{label}</span>
+      <b
+        className="chip-value v"
+        style={
+          tone === 'pass'
+            ? { color: 'var(--pass)' }
+            : tone === 'block'
+              ? { color: 'var(--block)' }
+              : tone === 'warn'
+                ? { color: 'var(--warn)' }
+                : undefined
+        }
+      >
+        {value}
+      </b>
       {pending && <span className="visually-hidden">not implemented</span>}
     </span>
   );
@@ -191,11 +206,30 @@ export function PlanCanvas({
 
     const pens = readPens(window.document.documentElement);
     draw(ctx, list, { camera, viewport, dpr, pens });
-    drawOverlays(ctx, { camera, viewport, dpr, pens });
+    drawOverlays(ctx, { camera, viewport, dpr, pens, includeLegend: false });
   }, [camera, list, viewport]);
 
   useEffect(() => {
     render();
+  }, [render]);
+
+  // Re-render when theme changes (light/dark toggle or prefers-color-scheme)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const observer = new MutationObserver(() => {
+      render();
+    });
+    observer.observe(window.document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
+    const onMediaChange = (): void => render();
+    media?.addEventListener?.('change', onMediaChange);
+    return () => {
+      observer.disconnect();
+      media?.removeEventListener?.('change', onMediaChange);
+    };
   }, [render]);
 
   /** Coalesce pointer work into one frame, per blueprint §9. */
@@ -360,181 +394,247 @@ export function PlanCanvas({
   }, [activeSelection, actOnSelection, onUndo]);
 
   return (
-    <div className="plan-wrap" ref={wrapRef}>
-      <canvas
-        ref={canvasRef}
-        className="plan-canvas"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        onWheel={onWheel}
-        role="img"
-        aria-label={`Plan view: ${doc.runs.length} rack runs, ${list.items.length} drawn items`}
-      />
+    <div className="plan-stage stage">
+      <div className="blueprint canvaswrap plan-wrap" ref={wrapRef}>
+        <div className="corner tl" aria-hidden="true" />
+        <div className="corner tr" aria-hidden="true" />
+        <div className="corner bl" aria-hidden="true" />
+        <div className="corner br" aria-hidden="true" />
 
-      {/* S4.3 Dynamic SVG overlay layer for hover/selection & keyboard bay targets */}
-      <svg
-        className="plan-overlay-svg"
-        width={effectiveViewport.width}
-        height={effectiveViewport.height}
-        viewBox={`0 0 ${effectiveViewport.width} ${effectiveViewport.height}`}
-        aria-label="Interactive bay overlay"
-      >
-        {plan.runs.map((run) => {
-          const overhangUm = Math.max(0, run.overhang.value);
-          const runTop = run.y - overhangUm;
-          const runBottom = runTop + run.rowBlockPallets.value;
-          return run.bays.map((bay) => {
-            const topLeft = worldToScreen(effectiveCamera, effectiveViewport, {
-              x: bay.x,
-              y: runTop,
-            });
-            const bottomRight = worldToScreen(effectiveCamera, effectiveViewport, {
-              x: bay.x + bay.width,
-              y: runBottom,
-            });
-            const isSelected =
-              activeSelection?.run.runId === run.runId && activeSelection.bay.bayId === bay.bayId;
-            const isHovered =
-              hovered?.kind === 'bay' &&
-              hovered.runId === run.runId &&
-              hovered.bayId === bay.bayId;
+        <canvas
+          ref={canvasRef}
+          className="plan-canvas"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onWheel={onWheel}
+          role="img"
+          aria-label={`Plan view: ${doc.runs.length} rack runs, ${list.items.length} drawn items`}
+        />
 
-            return (
-              <rect
-                key={bay.bayId}
-                data-bay-id={bay.bayId}
-                data-run-id={run.runId}
-                data-selected={isSelected ? 'true' : 'false'}
-                data-locked={bay.locked ? 'true' : 'false'}
-                className={
-                  isSelected
-                    ? 'plan-bay-overlay plan-bay-selected'
-                    : isHovered
-                      ? 'plan-bay-overlay plan-bay-hovered'
-                      : 'plan-bay-overlay'
-                }
-                x={topLeft.x}
-                y={topLeft.y}
-                width={Math.max(2, bottomRight.x - topLeft.x)}
-                height={Math.max(2, bottomRight.y - topLeft.y)}
-                role="button"
-                tabIndex={0}
-                aria-label={`${run.label} Bay ${bay.index + 1}${bay.locked ? ' (locked)' : ''}`}
-                aria-pressed={isSelected}
-                onClick={() =>
-                  setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index })
-                }
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index });
-                  }
-                }}
-              />
-            );
-          });
-        })}
-      </svg>
-
-      {/* S4.2 Floating selection toolbar */}
-      {activeSelection !== null && (
-        <div
-          id="seltoolbar"
-          className="sel-toolbar"
-          role="toolbar"
-          aria-label="Selected bay actions"
+        {/* S4.3 Dynamic SVG overlay layer for hover/selection & keyboard bay targets */}
+        <svg
+          className="plan-overlay-svg"
+          width={effectiveViewport.width}
+          height={effectiveViewport.height}
+          viewBox={`0 0 ${effectiveViewport.width} ${effectiveViewport.height}`}
+          aria-label="Interactive bay overlay"
         >
-          <span id="seltitle" className="sel-title">
-            {activeSelection.run.label} · Bay {activeSelection.bay.index + 1}
-            {activeSelection.bay.locked ? ' (LOCKED)' : ''}
-          </span>
-          <button
-            type="button"
-            className="sel-btn"
-            data-act="insert"
-            onClick={() => actOnSelection('insert')}
-          >
-            Insert bay (I)
-          </button>
-          <button
-            type="button"
-            className="sel-btn"
-            data-act="split"
-            onClick={() => actOnSelection('split')}
-          >
-            Split run (S)
-          </button>
-          <button
-            type="button"
-            className="sel-btn"
-            data-act="lock"
-            onClick={() => actOnSelection('lock')}
-          >
-            {activeSelection.bay.locked ? 'Unlock (L)' : 'Lock (L)'}
-          </button>
-          <button
-            type="button"
-            className="sel-btn sel-btn-danger"
-            data-act="delete"
-            onClick={() => actOnSelection('delete')}
-          >
-            Delete bay (⌫)
-          </button>
-          <button
-            type="button"
-            className="sel-btn"
-            data-act="deselect"
-            aria-label="Clear selection"
-            onClick={() => actOnSelection('deselect')}
-          >
-            ×
+          {/* Semi-transparent pallet wash footprints matching blueprint specification */}
+          {plan.runs.map((run) =>
+            run.pallets.map((p) => {
+              const tl = worldToScreen(effectiveCamera, effectiveViewport, { x: p.x, y: p.y });
+              const w = p.width * effectiveCamera.scale;
+              const h = p.depth * effectiveCamera.scale;
+              return (
+                <rect
+                  key={`pallet:${p.id}`}
+                  x={tl.x}
+                  y={tl.y}
+                  width={Math.max(1, w)}
+                  height={Math.max(1, h)}
+                  className="plan-pallet-wash"
+                  style={{ pointerEvents: 'none' }}
+                />
+              );
+            }),
+          )}
+
+          {/* Bay interactive selection targets */}
+          {plan.runs.map((run) => {
+            const overhangUm = Math.max(0, run.overhang.value);
+            const runTop = run.y - overhangUm;
+            const runBottom = runTop + run.rowBlockPallets.value;
+            return run.bays.map((bay) => {
+              const topLeft = worldToScreen(effectiveCamera, effectiveViewport, {
+                x: bay.x,
+                y: runTop,
+              });
+              const bottomRight = worldToScreen(effectiveCamera, effectiveViewport, {
+                x: bay.x + bay.width,
+                y: runBottom,
+              });
+              const isSelected =
+                activeSelection?.run.runId === run.runId && activeSelection.bay.bayId === bay.bayId;
+              const isHovered =
+                hovered?.kind === 'bay' &&
+                hovered.runId === run.runId &&
+                hovered.bayId === bay.bayId;
+
+              return (
+                <rect
+                  key={bay.bayId}
+                  data-bay-id={bay.bayId}
+                  data-run-id={run.runId}
+                  data-selected={isSelected ? 'true' : 'false'}
+                  data-locked={bay.locked ? 'true' : 'false'}
+                  className={
+                    isSelected
+                      ? 'plan-bay-overlay plan-bay-selected'
+                      : isHovered
+                        ? 'plan-bay-overlay plan-bay-hovered'
+                        : 'plan-bay-overlay'
+                  }
+                  x={topLeft.x}
+                  y={topLeft.y}
+                  width={Math.max(2, bottomRight.x - topLeft.x)}
+                  height={Math.max(2, bottomRight.y - topLeft.y)}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${run.label} Bay ${bay.index + 1}${bay.locked ? ' (locked)' : ''}`}
+                  aria-pressed={isSelected}
+                  onClick={() =>
+                    setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index })
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index });
+                    }
+                  }}
+                />
+              );
+            });
+          })}
+
+          {/* Lock glyphs on locked bays */}
+          {plan.runs.map((run) =>
+            run.bays
+              .filter((b) => b.locked)
+              .map((bay) => {
+                const overhangUm = Math.max(0, run.overhang.value);
+                const mid = worldToScreen(effectiveCamera, effectiveViewport, {
+                  x: bay.x + bay.width / 2,
+                  y: run.y - overhangUm + run.rowBlockPallets.value / 2,
+                });
+                return (
+                  <text
+                    key={`lock:${bay.bayId}`}
+                    x={mid.x}
+                    y={mid.y}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontSize="12"
+                    style={{ pointerEvents: 'none' }}
+                  >
+                    🔒
+                  </text>
+                );
+              }),
+          )}
+        </svg>
+
+        {/* Top right HUD summary chips */}
+        <div className="hud plan-hud" role="group" aria-label="Layout summary">
+          <Chip label="Pallet positions" value={String(plan.totalPositions.toLocaleString())} />
+          <Chip label="Bays" value={String(plan.totalBays)} />
+          <Chip
+            label="Narrowest clear aisle"
+            value={
+              plan.narrowestClearAisle === null
+                ? 'No aisle'
+                : formatFeetInches(plan.narrowestClearAisle.value)
+            }
+          />
+          <Chip label="Failing" value="0" pending tone="pass" />
+          <Chip label="Awaiting input" value="5" pending tone="warn" />
+          <Chip label="Awaiting source" value="10" pending tone="warn" />
+          <button type="button" className="btn plan-fit" onClick={fit} title="Fit to view">
+            Fit
           </button>
         </div>
-      )}
 
-      {/* S3.5 Legend strip */}
-      <div id="legend" className="plan-legend" aria-label="Drawing legend">
+        {/* S4.2 Floating selection toolbar */}
+        {activeSelection !== null && (
+          <div
+            id="seltoolbar"
+            className="seltoolbar sel-toolbar"
+            role="toolbar"
+            aria-label="Selected bay actions"
+          >
+            <span id="seltitle" className="what sel-title">
+              {activeSelection.run.label} · Bay {activeSelection.bay.index + 1}
+              {activeSelection.bay.locked ? ' (LOCKED)' : ''}
+            </span>
+            <button
+              type="button"
+              className="btn sel-btn"
+              data-act="insert"
+              onClick={() => actOnSelection('insert')}
+            >
+              Insert after <b>I</b>
+            </button>
+            <button
+              type="button"
+              className="btn sel-btn"
+              data-act="split"
+              onClick={() => actOnSelection('split')}
+            >
+              Split run <b>S</b>
+            </button>
+            <button
+              type="button"
+              className="btn sel-btn"
+              data-act="lock"
+              onClick={() => actOnSelection('lock')}
+            >
+              {activeSelection.bay.locked ? 'Unlock (L)' : 'Lock (L)'}
+            </button>
+            <button
+              type="button"
+              className="btn sel-btn sel-btn-danger"
+              data-act="delete"
+              onClick={() => actOnSelection('delete')}
+            >
+              Delete bay <b>⌫</b>
+            </button>
+            <button
+              type="button"
+              className="btn sel-btn"
+              data-act="deselect"
+              aria-label="Clear selection"
+              onClick={() => actOnSelection('deselect')}
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* S3.5 Legend footer strip */}
+      <div id="legend" className="legend plan-legend" aria-label="Drawing legend">
         <span className="legend-item">
           <span className="legend-swatch legend-swatch-upright" aria-hidden="true" />
-          Upright &amp; beam
+          Upright
+        </span>
+        <span className="legend-item">
+          <span className="legend-swatch legend-swatch-beam" aria-hidden="true" />
+          Beam
         </span>
         <span className="legend-item">
           <span className="legend-swatch legend-swatch-load" aria-hidden="true" />
-          Unit load footprint
+          Unit load
         </span>
         <span className="legend-item">
           <span className="legend-swatch legend-swatch-flue" aria-hidden="true" />
-          Flue space
+          Flue
+        </span>
+        <span className="legend-item">
+          <span className="legend-swatch legend-swatch-aisle" aria-hidden="true" />
+          Clear between loads
+        </span>
+        <span className="legend-item">
+          <span className="legend-swatch legend-swatch-dim" aria-hidden="true" />
+          Dimension
         </span>
         <span className="legend-item">
           <span className="legend-swatch legend-swatch-locked" aria-hidden="true" />
           Locked bay
         </span>
-      </div>
-
-      <div className="plan-hud" role="group" aria-label="Layout summary">
-        <Chip label="Pallet positions" value={String(plan.totalPositions)} />
-        <Chip label="Bays" value={String(plan.totalBays)} />
-        <Chip
-          label="Narrowest clear aisle"
-          value={
-            plan.narrowestClearAisle === null
-              ? 'No aisle'
-              : formatFeetInches(plan.narrowestClearAisle.value)
-          }
-        />
-        <Chip label="Failing" value="—" pending />
-        <Chip label="Awaiting input" value="—" pending />
-        <Chip label="Awaiting source" value="—" pending />
-        <span className="plan-hud-sep" aria-hidden="true" />
-        <span className="plan-hud-muted">
-          {camera === null ? 'fitting…' : `${(camera.scale * 25_400).toFixed(2)} px/in`}
+        <span className="legend-right right">
+          CLICK A BAY OR AISLE TO SELECT · DRAG TO PAN · SCROLL TO ZOOM
         </span>
-        <button type="button" className="plan-fit" onClick={fit}>
-          Fit
-        </button>
       </div>
     </div>
   );

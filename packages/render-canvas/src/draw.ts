@@ -176,7 +176,7 @@ export function draw(
         ctx.strokeRect(tl.x + 0.5, tl.y + 0.5, w, h);
         if (item.label !== null) {
           ctx.fillStyle = item.label.established ? pens.ink : pens.unestablished;
-          ctx.font = '11px system-ui, sans-serif';
+          ctx.font = '500 11px "IBM Plex Sans", "Barlow", system-ui, sans-serif';
           ctx.fillText(label(item.label), tl.x + 4, tl.y + 12);
         }
         break;
@@ -185,7 +185,7 @@ export function draw(
         const a = worldToScreen(camera, viewport, item.from);
         const z = worldToScreen(camera, viewport, item.to);
         ctx.strokeStyle = pen;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = item.item === 'beam' ? 2 : 1;
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(z.x, z.y);
@@ -200,17 +200,51 @@ export function draw(
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(z.x, z.y);
+
+        // 45-degree architectural slash ticks at endpoints
+        const t = 3.5;
+        ctx.moveTo(a.x - t, a.y + t);
+        ctx.lineTo(a.x + t, a.y - t);
+        ctx.moveTo(z.x - t, z.y + t);
+        ctx.lineTo(z.x + t, z.y - t);
         ctx.stroke();
+
+        const midX = (a.x + z.x) / 2;
+        const midY = (a.y + z.y) / 2;
+        const txt = label(item.text);
+        ctx.font = '500 10px "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace';
+        const textWidth =
+          typeof ctx.measureText === 'function' ? ctx.measureText(txt).width : txt.length * 6;
+
+        ctx.fillStyle = pens.background;
+        ctx.fillRect(midX - textWidth / 2 - 3, midY - 6 - 7, textWidth + 6, 14);
+
         ctx.fillStyle = item.text.established ? pens.ink : pens.unestablished;
-        ctx.font = '11px system-ui, sans-serif';
-        ctx.fillText(label(item.text), (a.x + z.x) / 2, (a.y + z.y) / 2 - 6);
+        ctx.textAlign = 'center';
+        ctx.fillText(txt, midX, midY - 6);
+        ctx.textAlign = 'left';
         break;
       }
       case 'text': {
         const at = worldToScreen(camera, viewport, item.at);
         ctx.fillStyle = item.text.established ? pens.ink : pens.unestablished;
-        ctx.font = '12px system-ui, sans-serif';
-        ctx.fillText(label(item.text), at.x, at.y);
+        ctx.font = '600 10px "IBM Plex Mono", "JetBrains Mono", ui-monospace, monospace';
+        if (item.id.startsWith('grid:') && !item.id.includes('tick') && !item.id.includes('pitch')) {
+          if (typeof ctx.arc === 'function') {
+            ctx.beginPath();
+            ctx.arc(at.x, at.y, 8, 0, Math.PI * 2);
+            ctx.strokeStyle = pens.aisle;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(label(item.text), at.x, at.y + 0.5);
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+        } else {
+          ctx.fillText(label(item.text), at.x, at.y);
+        }
         break;
       }
     }

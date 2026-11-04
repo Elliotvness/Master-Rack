@@ -216,6 +216,9 @@ importers:
 
   packages/studio-model:
     dependencies:
+      '@rms/kernel-bom':
+        specifier: workspace:*
+        version: link:../kernel-bom
       '@rms/kernel-derive':
         specifier: workspace:*
         version: link:../kernel-derive

@@ -211,4 +211,20 @@ describe('drawOverlays', () => {
     const aligns = calls.filter((c) => c.op === 'set textAlign').map((c) => c.args[0]);
     expect(aligns.at(-1)).toBe('left');
   });
+
+  it('omits the in-canvas legend and interaction hint when includeLegend is false', () => {
+    const { ctx, calls } = recorder();
+    drawOverlays(ctx, {
+      camera: CAMERA,
+      viewport: VIEWPORT,
+      pens: PENS,
+      dpr: 1,
+      includeLegend: false,
+    });
+    const text = printed(calls);
+    expect(text).not.toContain('Upright');
+    expect(text).not.toContain('DRAG TO PAN · SCROLL TO ZOOM');
+    expect(text).toContain('N');
+    expect(text).toContain('0');
+  });
 });

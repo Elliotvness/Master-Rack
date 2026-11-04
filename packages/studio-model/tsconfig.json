@@ -4,7 +4,11 @@
     "rootDir": "./src",
     "outDir": "./dist"
   },
-  "references": [{ "path": "../kernel-units" }, { "path": "../kernel-derive" }],
+  "references": [
+    { "path": "../kernel-units" },
+    { "path": "../kernel-derive" },
+    { "path": "../kernel-bom" }
+  ],
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/*.test.ts"]
 }

@@ -129,10 +129,15 @@ describe('the screening-only notice', () => {
 
 /**
  * Views that are still routing targets only.
- * `plan` left this list in S3.1/S3.2; `elevation` (S3.3) and `sheets` (S3.4) leave it now.
+ * `plan` left this list in S3.1/S3.2; `elevation` (S3.3) and `sheets` (S3.4) leave it now;
+ * `bom` leaves it with the takeoff and pricing implementation.
  */
 const UNIMPLEMENTED_VIEWS = VIEWS.filter(
-  (v) => v.path !== 'plan' && v.path !== 'elevation' && v.path !== 'sheets',
+  (v) =>
+    v.path !== 'plan' &&
+    v.path !== 'elevation' &&
+    v.path !== 'sheets' &&
+    v.path !== 'bom',
 );
 
 describe('routing', () => {
@@ -166,6 +171,14 @@ describe('routing', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Option Builder & Controlled Vocabulary' }),
     ).not.toBeNull();
+  });
+
+  it('/bom renders the Bill of Materials table and pricing estimator', async () => {
+    renderApp('/bom');
+    expect(await screen.findByRole('heading', { level: 1, name: 'BOM' })).not.toBeNull();
+    expect(screen.getByRole('table', { name: /bill of materials/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: /commercial estimator/i })).toBeTruthy();
+    expect(screen.getByText(/Pallet Positions/i)).toBeTruthy();
   });
 
   /**

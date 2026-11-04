@@ -107,3 +107,16 @@ export {
   type SessionRefused,
   type SessionResult,
 } from './undo.js';
+
+export {
+  DEFAULT_PRICING_RATES,
+  bomForDocument,
+  pricingForDocument,
+  takeoffRunsForDocument,
+  takeoffSummary,
+  umToFeet,
+  type PricingRates,
+  type TakeoffEstimate,
+  type TakeoffSummary,
+} from './bom.js';
+

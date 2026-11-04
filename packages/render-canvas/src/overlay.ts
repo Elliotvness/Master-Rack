@@ -26,6 +26,7 @@ export interface OverlayOptions {
   readonly viewport: Viewport;
   readonly pens: Pens;
   readonly dpr: number;
+  readonly includeLegend?: boolean;
 }
 
 const MICROMETRES_PER_FOOT = 304_800;
@@ -73,34 +74,36 @@ export function chooseScale(
 }
 
 export function drawOverlays(ctx: CanvasRenderingContext2D, options: OverlayOptions): void {
-  const { camera, viewport, pens, dpr } = options;
+  const { camera, viewport, pens, dpr, includeLegend = true } = options;
 
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.textBaseline = 'middle';
-  ctx.font = '11px system-ui, sans-serif';
+  ctx.font = '500 10px "IBM Plex Mono", ui-monospace, monospace';
 
-  // --- legend, bottom left ------------------------------------------------
+  // --- optional in-canvas legend, bottom left (when no DOM legend is present) ---
   const swatch = 14;
   const gap = 10;
   const legendY = viewport.height - 18;
-  let x = 12;
-  for (const entry of LEGEND) {
-    ctx.strokeStyle = pens[entry.pen];
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(x, legendY);
-    ctx.lineTo(x + swatch, legendY);
-    ctx.stroke();
-    x += swatch + 4;
-    ctx.fillStyle = pens.inkMuted;
-    ctx.fillText(entry.label, x, legendY);
-    x += ctx.measureText(entry.label).width + gap;
+  if (includeLegend) {
+    let x = 12;
+    for (const entry of LEGEND) {
+      ctx.strokeStyle = pens[entry.pen];
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, legendY);
+      ctx.lineTo(x + swatch, legendY);
+      ctx.stroke();
+      x += swatch + 4;
+      ctx.fillStyle = pens.inkMuted;
+      ctx.fillText(entry.label, x, legendY);
+      x += ctx.measureText(entry.label).width + gap;
+    }
   }
 
-  // --- scale bar, above the legend ---------------------------------------
+  // --- scale bar, bottom left ---------------------------------------------
   const bar = chooseScale(camera.scale, Math.min(180, viewport.width / 4));
   if (bar !== null) {
-    const y = legendY - 22;
+    const y = includeLegend ? legendY - 22 : viewport.height - 22;
     ctx.strokeStyle = pens.ink;
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -117,9 +120,9 @@ export function drawOverlays(ctx: CanvasRenderingContext2D, options: OverlayOpti
     ctx.fillText(`${bar.feet} ft`, 12 + bar.pixels + 6, y);
   }
 
-  // --- north arrow, top right --------------------------------------------
-  const nx = viewport.width - 26;
-  const ny = 30;
+  // --- north arrow, bottom right (per prototype drafting convention) ------
+  const nx = viewport.width - 32;
+  const ny = viewport.height - 36;
   ctx.strokeStyle = pens.ink;
   ctx.fillStyle = pens.ink;
   ctx.lineWidth = 1.5;
@@ -137,14 +140,12 @@ export function drawOverlays(ctx: CanvasRenderingContext2D, options: OverlayOpti
   ctx.fillText('N', nx, ny + 24);
   ctx.textAlign = 'left';
 
-  // --- interaction hint, bottom right ------------------------------------
-  //
-  // "Click a bay or aisle to select" is DELIBERATELY absent: selection is S4 and
-  // does not exist. A hint naming an interaction the build does not have is a
-  // small false claim, and it is the kind that erodes trust in the rest.
-  const hint = 'DRAG TO PAN · SCROLL TO ZOOM';
-  ctx.fillStyle = pens.inkMuted;
-  ctx.textAlign = 'right';
-  ctx.fillText(hint, viewport.width - 12, viewport.height - 40);
-  ctx.textAlign = 'left';
+  // --- interaction hint, bottom right (when in-canvas legend is included) --
+  if (includeLegend) {
+    const hint = 'DRAG TO PAN · SCROLL TO ZOOM';
+    ctx.fillStyle = pens.inkMuted;
+    ctx.textAlign = 'right';
+    ctx.fillText(hint, viewport.width - 12, viewport.height - 40);
+    ctx.textAlign = 'left';
+  }
 }
