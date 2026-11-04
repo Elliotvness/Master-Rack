@@ -34,6 +34,7 @@
       <tr><td><code>POST /api/client/v1/mfa/enroll</code></td><td>Begin second-factor enrollment &mdash; a TOTP provisioning URI or a passkey registration challenge. Reached under the short-lived acceptance session, which is why it sits in the <em>client</em> namespace and not with the anonymous auth rows</td><td><code>client</code></td></tr>
       <tr><td><code>POST /api/client/v1/mfa/verify</code></td><td>Complete enrollment by proving possession of the factor. NFR-SEC-03 makes a second factor mandatory, not optional</td><td><code>client</code></td></tr>
       <tr><td><code>POST /api/client/v1/invitations</code></td><td>Client admin invites a colleague into their own organization</td><td><code>client_admin</code>, own org enforced server-side</td></tr>
+      <tr><td><code>POST /api/client/v1/intake</code></td><td>Extract candidate spec-sheet fields via the server-side Gemini proxy for human confirmation; never mutates a revision directly (paid tier required, no prompt retention)</td><td><code>client</code></td></tr>
       <tr><td colspan="3" style="background:var(--panel-2);font-weight:650">Internal surface</td></tr>
       <tr><td><code>GET  /api/internal/v1/queue</code></td><td>Submissions across all organizations</td><td><code>staff</code></td></tr>
       <tr><td><code>GET  /api/internal/v1/submissions/:id</code></td><td>Full package incl. BOM, citations, notes</td><td><code>staff</code></td></tr>
