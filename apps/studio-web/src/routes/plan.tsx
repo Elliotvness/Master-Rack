@@ -1,4 +1,6 @@
 import {
+  applyConfirmedIntakeRows,
+  isIntakeCurrent,
   isPreviewCurrent,
   parseAndValidateCommandBarOutput,
   previewCommandSequence,
@@ -16,8 +18,8 @@ import { useStudioSession } from '../session-context.js';
 const SAMPLE_FORKLIFT_EXTRACTION = {
   documentKind: 'FORKLIFT_SPEC_SHEET' as const,
   truckType: { value: 'Stand-up reach', sourcePage: 2, confidence: 0.98 },
-  truckRasIn: { value: 108, sourcePage: 2, confidence: 0.96 },
-  clearHeightIn: { value: 384, sourcePage: 1, confidence: 0.95 },
+  truckRasIn: { value: 108, unit: 'in' as const, sourcePage: 2, confidence: 0.96 },
+  clearHeightIn: { value: 384, unit: 'in' as const, sourcePage: 1, confidence: 0.95 },
 };
 
 /**
@@ -70,6 +72,17 @@ export default function PlanView(): React.JSX.Element {
     const accepted = intakeRows.filter((r) => r.accepted);
     if (accepted.length === 0) {
       setIntakeStatus('No rows checked. Nothing applied.');
+      return;
+    }
+    if (!isIntakeCurrent(intakeRows, session)) {
+      setIntakeStatus(
+        'The document changed since intake staging. Intake rows are stale.',
+      );
+      return;
+    }
+    const confirmed = applyConfirmedIntakeRows(session, intakeRows);
+    if (confirmed.refused) {
+      setIntakeStatus(`Refused, nothing applied: ${confirmed.refused}`);
       return;
     }
     const res = runCommands(accepted.map((r) => r.command));

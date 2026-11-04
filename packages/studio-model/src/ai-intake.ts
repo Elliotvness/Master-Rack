@@ -19,6 +19,11 @@
  * 4. **Security:** The `GeminiInteractionsClient` and `GeminiBackendConfig` are
  *    injected from the isolated server/proxy environment — never hardcode API keys
  *    in front-end components.
+ * 5. **Gemini API Mapping:** The internal `GeminiInteractionsCreateRequest` interface
+ *    models an abstracted interaction contract. For the comprehensive mapping against the
+ *    official Google Gemini API (`@google/genai`, `generateContent`, `responseSchema`,
+ *    and data governance), see `docs/gemini-api-mapping.md`. Integrity mode: demo — no
+ *    live API keys or network endpoints are connected in browser clients.
  *
  * Pure: no I/O, no clock, no RNG, no `process.env`, no `fetch`.
  */

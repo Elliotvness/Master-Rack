@@ -41,7 +41,7 @@ export function StudioSessionProvider({
   onRefusal,
 }: {
   readonly children: React.ReactNode;
-  readonly onRefusal?: (msg: string) => void;
+  readonly onRefusal?: ((msg: string) => void) | undefined;
 }): React.JSX.Element {
   const [session, setSession] = useState<Session>(createInitialSession);
 
@@ -60,19 +60,16 @@ export function StudioSessionProvider({
 
   const runCommands = useCallback(
     (commands: readonly Command[]): SessionResult => {
-      let current = session;
-      let label = '';
-      for (const cmd of commands) {
-        const res = dispatch(current, cmd);
-        if (!res.ok) {
-          onRefusal?.(res.msg);
-          return res;
-        }
-        current = res.session;
-        label = res.label;
+      if (commands.length === 0) {
+        return { ok: true, session, label: 'No commands' };
       }
-      setSession(current);
-      return { ok: true, session: current, label };
+      const res = dispatch(session, { type: 'batch', commands });
+      if (!res.ok) {
+        onRefusal?.(res.msg);
+        return res;
+      }
+      setSession(res.session);
+      return res;
     },
     [session, onRefusal],
   );
