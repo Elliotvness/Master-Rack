@@ -19,6 +19,8 @@ export interface StudioSessionValue {
   readonly canUndo: boolean;
   readonly canRedo: boolean;
   readonly runCommand: (command: Command) => SessionResult;
+  /** All-or-nothing: applies every command or none. */
+  readonly runCommands: (commands: readonly Command[]) => SessionResult;
   readonly onUndo: () => SessionResult;
   readonly onRedo: () => SessionResult;
 }
@@ -56,6 +58,25 @@ export function StudioSessionProvider({
     [session, onRefusal],
   );
 
+  const runCommands = useCallback(
+    (commands: readonly Command[]): SessionResult => {
+      let current = session;
+      let label = '';
+      for (const cmd of commands) {
+        const res = dispatch(current, cmd);
+        if (!res.ok) {
+          onRefusal?.(res.msg);
+          return res;
+        }
+        current = res.session;
+        label = res.label;
+      }
+      setSession(current);
+      return { ok: true, session: current, label };
+    },
+    [session, onRefusal],
+  );
+
   const onUndo = useCallback((): SessionResult => {
     const result = undo(session);
     if (result.ok) {
@@ -82,10 +103,11 @@ export function StudioSessionProvider({
       canUndo: canUndo(session.ledger),
       canRedo: canRedo(session.ledger),
       runCommand,
+      runCommands,
       onUndo,
       onRedo,
     }),
-    [session, runCommand, onUndo, onRedo],
+    [session, runCommand, runCommands, onUndo, onRedo],
   );
 
   return <StudioSessionContext.Provider value={value}>{children}</StudioSessionContext.Provider>;

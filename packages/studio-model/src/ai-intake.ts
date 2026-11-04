@@ -99,6 +99,7 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
     },
     truckType: {
       type: 'object',
+      additionalProperties: false,
       required: ['value', 'sourcePage', 'confidence'],
       properties: {
         value: { type: 'string' },
@@ -108,6 +109,7 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
     },
     truckRasIn: {
       type: 'object',
+      additionalProperties: false,
       required: ['value', 'sourcePage', 'confidence'],
       properties: {
         value: { type: 'number', exclusiveMinimum: 0 },
@@ -117,6 +119,7 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
     },
     clearHeightIn: {
       type: 'object',
+      additionalProperties: false,
       required: ['value', 'sourcePage', 'confidence'],
       properties: {
         value: { type: 'number', exclusiveMinimum: 0 },
@@ -126,6 +129,7 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
     },
     deflectorElevIn: {
       type: 'object',
+      additionalProperties: false,
       required: ['value', 'sourcePage', 'confidence'],
       properties: {
         value: { type: 'number', exclusiveMinimum: 0 },
@@ -135,6 +139,7 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
     },
     commodityClass: {
       type: 'object',
+      additionalProperties: false,
       required: ['value', 'sourcePage', 'confidence'],
       properties: {
         value: { type: 'string' },
@@ -144,6 +149,7 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
     },
     sdc: {
       type: 'object',
+      additionalProperties: false,
       required: ['value', 'sourcePage', 'confidence'],
       properties: {
         value: { type: 'string' },
@@ -153,6 +159,7 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
     },
     frameHeightIn: {
       type: 'object',
+      additionalProperties: false,
       required: ['value', 'sourcePage', 'confidence'],
       properties: {
         value: { type: 'number', exclusiveMinimum: 0 },
@@ -162,6 +169,7 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
     },
     beamPairCapacityLb: {
       type: 'object',
+      additionalProperties: false,
       required: ['value', 'sourcePage', 'confidence'],
       properties: {
         value: { type: 'number', exclusiveMinimum: 0 },
@@ -171,6 +179,7 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
     },
     ratedLoadLb: {
       type: 'object',
+      additionalProperties: false,
       required: ['value', 'sourcePage', 'confidence'],
       properties: {
         value: { type: 'number', exclusiveMinimum: 0 },
@@ -200,6 +209,7 @@ export interface IntakeConfirmationRow {
   readonly confidence: number;
   readonly sourceCitation: string;
   readonly origin: 'INPUT' | 'CATALOG';
+  readonly lowConfidence: boolean;
   readonly accepted: boolean;
   readonly command: Command;
 }
@@ -368,10 +378,13 @@ export function parseAndValidateIntakeOutput(rawOutputText: string): ParseIntake
 
   let sdc: ExtractedField<string> | undefined;
   if (obj['sdc'] !== undefined) {
-    if (!isValidExtractedString(obj['sdc'])) {
+    if (
+      !isValidExtractedString(obj['sdc']) ||
+      !/^[A-F]$/.test(obj['sdc'].value.trim().toUpperCase())
+    ) {
       return { ok: false, reason: 'Invalid sdc field in intake extraction.' };
     }
-    sdc = obj['sdc'];
+    sdc = { ...obj['sdc'], value: obj['sdc'].value.trim().toUpperCase() };
   }
 
   let frameHeightIn: ExtractedField<number> | undefined;
@@ -419,8 +432,12 @@ export function parseAndValidateIntakeOutput(rawOutputText: string): ParseIntake
 }
 
 function formatIn(um: number): string {
-  return `${Math.round(um / 25_400)} in`;
+  const inches = Math.round((um / 25_400) * 10) / 10;
+  return `${inches} in`;
 }
+
+/** Rows below this confidence are flagged for extra scrutiny in the UI. */
+export const LOW_CONFIDENCE_THRESHOLD = 0.8;
 
 function citation(fileName: string, page: number, confidence: number): string {
   const pct = Math.round(confidence * 100);
@@ -438,7 +455,7 @@ export function stageIntakeConfirmationTable(
   fileName: string,
   payload: IntakeExtractionPayload,
 ): readonly IntakeConfirmationRow[] {
-  const rows: IntakeConfirmationRow[] = [];
+  const rows: Omit<IntakeConfirmationRow, 'lowConfidence'>[] = [];
   const bt = doc.bayTypes[0];
 
   if (payload.truckType !== undefined) {
@@ -710,7 +727,10 @@ export function stageIntakeConfirmationTable(
     });
   }
 
-  return rows;
+  return rows.map((r) => ({
+    ...r,
+    lowConfidence: r.confidence < LOW_CONFIDENCE_THRESHOLD,
+  }));
 }
 
 export interface SpecSheetIntakeInput {
@@ -778,18 +798,11 @@ export function toggleIntakeRowAcceptance(
 export function applyConfirmedIntakeRows(
   session: Session,
   rows: readonly IntakeConfirmationRow[],
-): { readonly session: Session; readonly appliedCount: number } {
-  let current = session;
-  let appliedCount = 0;
-  for (const row of rows) {
-    if (!row.accepted) continue;
-    const res = dispatch(current, row.command);
-    if (res.ok) {
-      current = res.session;
-      appliedCount += 1;
-    }
-  }
-  return { session: current, appliedCount };
+): { readonly session: Session; readonly appliedCount: number; readonly refused?: string } {
+  const accepted = rows.filter((r) => r.accepted);
+  const res = dispatchAll(session, accepted.map((r) => r.command));
+  if (!res.ok) return { session, appliedCount: 0, refused: res.msg };
+  return { session: res.session, appliedCount: accepted.length };
 }
 
 /* ── Step 3.2: Deterministic Command Bar (Ctrl+K) ─────────────────────── */
@@ -838,6 +851,31 @@ export interface CommandPreviewCard {
   readonly afterBays: number;
   readonly beforeNarrowestAisleIn: number | null;
   readonly afterNarrowestAisleIn: number | null;
+  /** Descriptions of commands that refused during the dry run. */
+  readonly refused: readonly string[];
+  /** The document the preview was computed against; Execute must refuse if it changed. */
+  readonly sourceDocument: StudioDocument;
+}
+
+/** True while the session still holds the exact document the preview was built from. */
+export function isPreviewCurrent(card: CommandPreviewCard, session: Session): boolean {
+  return card.sourceDocument === session.document;
+}
+
+/**
+ * Apply every command or none. Returns the final session, or the first refusal.
+ */
+export function dispatchAll(
+  session: Session,
+  commands: readonly Command[],
+): { readonly ok: true; readonly session: Session } | { readonly ok: false; readonly msg: string } {
+  let current = session;
+  for (const cmd of commands) {
+    const res = dispatch(current, cmd);
+    if (!res.ok) return { ok: false, msg: res.msg };
+    current = res.session;
+  }
+  return { ok: true, session: current };
 }
 
 /**
@@ -916,7 +954,7 @@ export function parseAndValidateCommandBarOutput(
 
     switch (action) {
       case 'setAisleAfter': {
-        const runIdx = typeof rec['runIndex'] === 'number' ? rec['runIndex'] : 0;
+        const runIdx = typeof rec['runIndex'] === 'number' ? rec['runIndex'] : -1;
         const inchesVal = rec['inches'];
         const targetRun = doc.runs[runIdx];
         if (
@@ -939,7 +977,7 @@ export function parseAndValidateCommandBarOutput(
         break;
       }
       case 'splitRun': {
-        const runIdx = typeof rec['runIndex'] === 'number' ? rec['runIndex'] : 0;
+        const runIdx = typeof rec['runIndex'] === 'number' ? rec['runIndex'] : -1;
         const bayIdx = typeof rec['bayIndex'] === 'number' ? rec['bayIndex'] : -1;
         const targetRun = doc.runs[runIdx];
         const targetBay = targetRun?.bays[bayIdx];
@@ -964,10 +1002,10 @@ export function parseAndValidateCommandBarOutput(
       case 'setBeamSpan': {
         const inchesVal = rec['inches'];
         const family =
-          typeof rec['beamFamily'] === 'string' && rec['beamFamily'].trim() !== ''
-            ? rec['beamFamily']
-            : '50ER';
+          typeof rec['beamFamily'] === 'string' ? rec['beamFamily'].trim() : '';
         if (
+          family === '' ||
+          doc.packs.rack === '' ||
           bt === undefined ||
           typeof inchesVal !== 'number' ||
           !Number.isFinite(inchesVal) ||
@@ -975,7 +1013,8 @@ export function parseAndValidateCommandBarOutput(
         ) {
           return {
             ok: false,
-            reason: 'Invalid beam span in setBeamSpan command.',
+            reason:
+              'setBeamSpan needs a positive span, an explicit beamFamily and a pinned rack pack.',
           };
         }
         const looked = lookupPublishedBeamSpan(family, inchesVal);
@@ -983,16 +1022,17 @@ export function parseAndValidateCommandBarOutput(
           looked.status === 'OFF_GRID' && looked.upperSpanIn !== null
             ? lookupPublishedBeamSpan(family, looked.upperSpanIn)
             : looked;
-        const spanIn = resolved.status === 'ON_GRID' ? resolved.spanIn : inchesVal;
-        const capLb =
-          resolved.status === 'ON_GRID'
-            ? resolved.capacityLb
-            : bt.beamPairCapacity.value;
-        const partLabel =
-          resolved.status === 'ON_GRID'
-            ? resolved.beamPartLabel
-            : `${inchesVal}" ${family} STEP BEAM`;
-        const packId = doc.packs.rack !== '' ? doc.packs.rack : 'interlake-2026-09';
+        if (resolved.status !== 'ON_GRID') {
+          return {
+            ok: false,
+            reason: `No published ${family} span at or above ${inchesVal}". Nothing is invented.`,
+          };
+        }
+        const spanIn = resolved.spanIn;
+        const capLb = resolved.capacityLb;
+        const partLabel = resolved.beamPartLabel;
+        const snapped = spanIn !== inchesVal;
+        const packId = doc.packs.rack;
         commands.push({
           type: 'setField',
           label: `Command bar: set beam span to ${spanIn}" (${family})`,
@@ -1010,7 +1050,11 @@ export function parseAndValidateCommandBarOutput(
             },
           },
         });
-        descriptions.push(`Set beam span to ${spanIn}" (${partLabel})`);
+        descriptions.push(
+          snapped
+            ? `Set beam span to ${spanIn}" (${partLabel}), snapped up from requested ${inchesVal}"`
+            : `Set beam span to ${spanIn}" (${partLabel})`,
+        );
         break;
       }
       case 'setClearHeight': {
@@ -1102,12 +1146,15 @@ export function previewCommandSequence(
       : null;
 
   let tempSession = session;
-  for (const cmd of commands) {
+  const refused: string[] = [];
+  commands.forEach((cmd, i) => {
     const res = dispatch(tempSession, cmd);
     if (res.ok) {
       tempSession = res.session;
+    } else {
+      refused.push(`${descriptions[i] ?? cmd.type}: ${res.msg}`);
     }
-  }
+  });
 
   const afterPlan = planGeometry(tempSession.document);
   const afterNarrowest =
@@ -1129,6 +1176,8 @@ export function previewCommandSequence(
     afterBays: afterPlan.totalBays,
     beforeNarrowestAisleIn: beforeNarrowest,
     afterNarrowestAisleIn: afterNarrowest,
+    refused,
+    sourceDocument: session.document,
   };
 }
 

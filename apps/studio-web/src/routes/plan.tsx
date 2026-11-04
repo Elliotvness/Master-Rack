@@ -1,4 +1,5 @@
 import {
+  isPreviewCurrent,
   parseAndValidateCommandBarOutput,
   previewCommandSequence,
   stageIntakeConfirmationTable,
@@ -30,7 +31,7 @@ const SAMPLE_FORKLIFT_EXTRACTION = {
  * not a second sample that could drift from them.
  */
 export default function PlanView(): React.JSX.Element {
-  const { session, runCommand, onUndo } = useStudioSession();
+  const { session, runCommand, runCommands, onUndo } = useStudioSession();
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [intakeRows, setIntakeRows] = useState<readonly IntakeConfirmationRow[]>(
     [],
@@ -66,18 +67,29 @@ export default function PlanView(): React.JSX.Element {
   };
 
   const applyCheckedIntakeRows = (): void => {
-    let applied = 0;
-    for (const row of intakeRows) {
-      if (!row.accepted) continue;
-      const res = runCommand(row.command);
-      if (res.ok) applied += 1;
+    const accepted = intakeRows.filter((r) => r.accepted);
+    if (accepted.length === 0) {
+      setIntakeStatus('No rows checked. Nothing applied.');
+      return;
     }
+    const res = runCommands(accepted.map((r) => r.command));
+    if (!res.ok) {
+      setIntakeStatus(`Refused, nothing applied: ${res.msg}`);
+      return;
+    }
+    // Applied rows leave the table so a second click cannot apply them twice.
+    setIntakeRows((prev) => prev.filter((r) => !r.accepted));
     setIntakeStatus(
-      `Applied ${applied} confirmed row(s) with source provenance (store: false).`,
+      `Applied ${accepted.length} confirmed row(s) with source provenance (store: false).`,
     );
   };
 
+  const [cmdStatus, setCmdStatus] = useState<string | null>(null);
+
   const buildCommandPreview = (): void => {
+    // DEMO: the Gemini backend is not wired yet, so this canned translation is used
+    // regardless of the typed instruction. Replace with runCommandBarInstruction via
+    // a server proxy when the backend lands.
     const parsed = parseAndValidateCommandBarOutput(
       JSON.stringify({
         commands: [
@@ -88,6 +100,7 @@ export default function PlanView(): React.JSX.Element {
       session.document,
     );
     if (parsed.ok) {
+      setCmdStatus(null);
       setCmdPreview(
         previewCommandSequence(
           session,
@@ -96,14 +109,29 @@ export default function PlanView(): React.JSX.Element {
           parsed.descriptions,
         ),
       );
+    } else {
+      setCmdPreview(null);
+      setCmdStatus(`Could not translate: ${parsed.reason}`);
     }
   };
 
   const executePreviewedCommands = (): void => {
     if (cmdPreview === null) return;
-    for (const cmd of cmdPreview.commands) {
-      runCommand(cmd);
+    if (!isPreviewCurrent(cmdPreview, session)) {
+      setCmdPreview(null);
+      setCmdStatus('The layout changed since this preview. Preview again before executing.');
+      return;
     }
+    if (cmdPreview.refused.length > 0) {
+      setCmdStatus('Preview contains refused commands. Nothing executed.');
+      return;
+    }
+    const res = runCommands(cmdPreview.commands);
+    setCmdStatus(
+      res.ok
+        ? `Executed ${cmdPreview.commands.length} command(s).`
+        : `Refused, nothing executed: ${res.msg}`,
+    );
     setCmdPreview(null);
   };
 
@@ -125,7 +153,7 @@ export default function PlanView(): React.JSX.Element {
           className="pf-btn"
           onClick={openSpecSheetIntake}
         >
-          Spec-Sheet Intake (gemini-3.8-flash · store: false)
+          Spec-Sheet Intake (demo sample, AI backend not connected)
         </button>
         <button
           id="open-cmdbar-btn"
@@ -143,7 +171,7 @@ export default function PlanView(): React.JSX.Element {
           className="intake-panel"
           aria-label="Spec-Sheet Human Confirmation Table"
         >
-          <h2>Human Confirmation Table (store: false · Paid Tier Only)</h2>
+          <h2>Human Confirmation Table (demo sample extraction)</h2>
           <p>
             Extracted values are <b>never</b> auto-filled. Check the rows you confirm to commit
             them as reversible commands with source page provenance.
@@ -160,11 +188,14 @@ export default function PlanView(): React.JSX.Element {
             </thead>
             <tbody>
               {intakeRows.map((row) => (
-                <tr key={row.id}>
+                <tr key={row.id} className={row.lowConfidence ? 'intake-low-confidence' : undefined}>
                   <td>{row.label}</td>
                   <td>{row.currentDisplayValue}</td>
                   <td>{row.extractedDisplayValue}</td>
-                  <td>{row.sourceCitation}</td>
+                  <td>
+                    {row.sourceCitation}
+                    {row.lowConfidence && <b> (low confidence, verify against source)</b>}
+                  </td>
                   <td>
                     <input
                       type="checkbox"
@@ -214,7 +245,7 @@ export default function PlanView(): React.JSX.Element {
           className="cmdbar-panel"
           aria-label="Deterministic Command Bar"
         >
-          <h2>Deterministic Command Bar (Ctrl+K)</h2>
+          <h2>Deterministic Command Bar (Ctrl+K, demo translation)</h2>
           <div className="pf-row">
             <label htmlFor="cmdbar-input" className="pf-label">
               Instruction
@@ -250,15 +281,28 @@ export default function PlanView(): React.JSX.Element {
                 {cmdPreview.beforeNarrowestAisleIn ?? '—'}&quot; →{' '}
                 {cmdPreview.afterNarrowestAisleIn ?? '—'}&quot;
               </p>
+              {cmdPreview.refused.length > 0 && (
+                <ul id="cmdbar-refused" aria-label="Refused commands">
+                  {cmdPreview.refused.map((r, idx) => (
+                    <li key={idx}>{r}</li>
+                  ))}
+                </ul>
+              )}
               <button
                 id="cmdbar-execute-btn"
                 type="button"
                 className="pf-btn"
+                disabled={cmdPreview.refused.length > 0}
                 onClick={executePreviewedCommands}
               >
                 Execute
               </button>
             </div>
+          )}
+          {cmdStatus !== null && (
+            <p id="cmdbar-status" role="status">
+              {cmdStatus}
+            </p>
           )}
         </section>
       )}

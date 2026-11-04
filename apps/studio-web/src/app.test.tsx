@@ -437,6 +437,10 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
     await user.click(applyIntakeBtn);
     expect(document.getElementById('intake-status')?.textContent).toMatch(/Applied 1 confirmed row/);
     expect(minAisleVerified.checked).toBe(true);
+    // Applied row leaves the table, so a second click cannot apply it twice
+    expect(document.querySelector('[data-intake-row="intake-truckRAS"]')).toBeNull();
+    await user.click(applyIntakeBtn);
+    expect(document.getElementById('intake-status')?.textContent).toMatch(/Nothing applied/);
 
     const closeIntakeBtn = document.getElementById('close-intake-btn') as HTMLButtonElement;
     await user.click(closeIntakeBtn);
@@ -453,6 +457,8 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
     const executeBtn = document.getElementById('cmdbar-execute-btn') as HTMLButtonElement;
     await user.click(executeBtn);
     expect(document.getElementById('cmdbar-preview-card')).toBeNull();
+    // Both commands applied (split + aisle), not just the last one
+    expect(document.getElementById('cmdbar-status')?.textContent).toMatch(/Executed 2 command/);
   });
 });
 

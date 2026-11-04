@@ -6,6 +6,7 @@ import {
   GEMINI_INTAKE_MODEL,
   INTAKE_EXTRACTION_SCHEMA,
   applyConfirmedIntakeRows,
+  isPreviewCurrent,
   buildCommandBarRequest,
   buildSpecSheetIntakeRequest,
   parseAndValidateCommandBarOutput,
@@ -266,6 +267,7 @@ describe('Phase 3 — Spec-Sheet Intake & Command Bar (gemini-3.8-flash, store: 
       confidence: 0.9,
       sourceCitation: 'bad.pdf p.1',
       origin: 'INPUT' as const,
+      lowConfidence: false,
       accepted: true,
       command: {
         type: 'setField' as const,
@@ -275,6 +277,45 @@ describe('Phase 3 — Spec-Sheet Intake & Command Bar (gemini-3.8-flash, store: 
     };
     const applied = applyConfirmedIntakeRows(s, [refusedRow]);
     expect(applied.appliedCount).toBe(0);
+    expect(applied.refused).toBeDefined();
+    expect(applied.session).toBe(s);
+  });
+
+  it('applies confirmed intake rows all-or-nothing', () => {
+    const s = baseSession();
+    const rows = stageIntakeConfirmationTable(s.document, 'spec.pdf', {
+      documentKind: 'FORKLIFT_SPEC_SHEET',
+      truckType: { value: 'Reach', sourcePage: 1, confidence: 0.5 },
+    }).map((r) => ({ ...r, accepted: true }));
+    expect(rows[0]?.lowConfidence).toBe(true);
+    const bad = { ...rows[0]!, id: 'bad', command: { type: 'setField' as const, label: ' ', change: { section: 'project' as const, patch: { name: 'X' } } } };
+    const res = applyConfirmedIntakeRows(s, [...rows, bad]);
+    expect(res.appliedCount).toBe(0);
+    expect(res.session).toBe(s);
+  });
+
+  it('rejects invalid SDC and refuses unresolved or unpinned beam spans', () => {
+    const s = baseSession();
+    expect(
+      parseAndValidateIntakeOutput(
+        JSON.stringify({ documentKind: 'SITE_SURVEY_CHECKLIST', sdc: { value: 'Z', sourcePage: 1, confidence: 0.9 } }),
+      ).ok,
+    ).toBe(false);
+    const okSdc = parseAndValidateIntakeOutput(
+      JSON.stringify({ documentKind: 'SITE_SURVEY_CHECKLIST', sdc: { value: ' d ', sourcePage: 1, confidence: 0.9 } }),
+    );
+    expect(okSdc.ok && okSdc.payload.sdc?.value).toBe('D');
+    const parse = (c: Record<string, unknown>, doc = s.document) =>
+      parseAndValidateCommandBarOutput(JSON.stringify({ commands: [c] }), doc).ok;
+    expect(parse({ action: 'setBeamSpan', inches: 96 })).toBe(false);
+    expect(parse({ action: 'setBeamSpan', inches: 96, beamFamily: 'UNKNOWN_FAM' })).toBe(false);
+    expect(
+      parse({ action: 'setBeamSpan', inches: 96, beamFamily: '50ER' }, {
+        ...s.document,
+        packs: { ...s.document.packs, rack: '' },
+      }),
+    ).toBe(false);
+    expect(parse({ action: 'setAisleAfter', inches: 120 })).toBe(false);
   });
 
   it('translates Command Bar instructions with store: false and previews geometric delta', async () => {
@@ -291,8 +332,7 @@ describe('Phase 3 — Spec-Sheet Intake & Command Bar (gemini-3.8-flash, store: 
                 { action: 'setAisleAfter', runIndex: 0, inches: 138 },
                 { action: 'addRun' },
                 { action: 'setBeamSpan', inches: 108, beamFamily: '50ER' },
-                { action: 'setBeamSpan', inches: 100 }, // off-grid -> snaps to 102"
-                { action: 'setBeamSpan', inches: 96, beamFamily: 'UNKNOWN_FAM' },
+                { action: 'setBeamSpan', inches: 100, beamFamily: '50ER' }, // off-grid -> snaps to 102"
                 { action: 'setClearHeight', inches: 400 },
                 { action: 'setTruckRas', inches: 114 },
               ],
@@ -325,8 +365,11 @@ describe('Phase 3 — Spec-Sheet Intake & Command Bar (gemini-3.8-flash, store: 
     expect(captured[0]?.store).toBe(false);
 
     if (res.ok) {
-      expect(res.preview.commands.length).toBe(8);
-      expect(res.preview.descriptions.length).toBe(8);
+      expect(res.preview.commands.length).toBe(7);
+      expect(res.preview.descriptions.length).toBe(7);
+      expect(res.preview.descriptions.some((d) => d.includes('snapped up'))).toBe(true);
+      expect(res.preview.refused).toEqual([]);
+      expect(isPreviewCurrent(res.preview, s)).toBe(true);
       expect(res.preview.afterBays).toBeGreaterThan(res.preview.beforeBays);
       expect(res.preview.deltaPositions).toBe(
         res.preview.afterPositions - res.preview.beforePositions,
@@ -346,7 +389,7 @@ describe('Phase 3 — Spec-Sheet Intake & Command Bar (gemini-3.8-flash, store: 
       JSON.stringify({ commands: [{ action: 'setBeamSpan', inches: 96, beamFamily: '50ER' }] }),
       docEmptyRackPack,
     );
-    expect(parsedEmptyRack.ok).toBe(true);
+    expect(parsedEmptyRack.ok).toBe(false);
 
     const singleRunSession: Session = {
       ...s,
@@ -363,6 +406,7 @@ describe('Phase 3 — Spec-Sheet Intake & Command Bar (gemini-3.8-flash, store: 
     );
     expect(preview.beforeNarrowestAisleIn).toBeNull();
     expect(preview.afterNarrowestAisleIn).toBeNull();
+    expect(preview.refused.length).toBe(1);
   });
 
   it('rejects malformed or invalid Command Bar output_text payloads', async () => {
