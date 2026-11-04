@@ -12,6 +12,7 @@
     { "path": "../../packages/kernel-bom" },
     { "path": "../../packages/kernel-catalog" },
     { "path": "../../packages/kernel-model" },
+    { "path": "../../packages/studio-model" },
     { "path": "../../packages/workflow" }
   ],
   "include": ["src/**/*.ts"],

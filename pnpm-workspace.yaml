@@ -5,4 +5,6 @@ packages:
 # esbuild is vitest's bundler and needs its postinstall to fetch its platform
 # binary. Every other package is denied a build script by default.
 allowBuilds:
+  '@google/genai': false
   esbuild: true
+  protobufjs: false

@@ -310,6 +310,14 @@ export default defineConfig({
           lines: 100,
           statements: 100,
         },
+        // The Gemini adapter: pure translation plus an injected SDK call, so
+        // every line is reachable without a network or a key.
+        'apps/api/src/ai/**': {
+          branches: 100,
+          functions: 100,
+          lines: 100,
+          statements: 100,
+        },
         'apps/api/src/revisions/**': {
           branches: 80,
           functions: 90,
