@@ -120,3 +120,26 @@ export {
   type TakeoffSummary,
 } from './bom.js';
 
+export {
+  FORKLIFT_PLANNING_OPTIONS,
+  PUBLISHED_BEAM_FAMILIES,
+  PUBLISHED_BEAM_SPANS_IN,
+  PUBLISHED_CATALOG_RELEASES,
+  PUBLISHED_FRAME_DEPTHS_IN,
+  PUBLISHED_FRAME_DEPTH_OPTIONS,
+  PUBLISHED_FRAME_OPTIONS,
+  beamFamilyFromPartLabel,
+  canUseCatalogRelease,
+  lookupForkliftPlanningOption,
+  lookupFrameOption,
+  lookupPublishedBeamSpan,
+  type BeamConnectorSeries,
+  type BeamFamilyOption,
+  type CatalogReleaseOption,
+  type ForkliftPlanningOption,
+  type FrameDepthOption,
+  type FrameOption,
+  type PublishedBeamSpanResult,
+} from './catalog-options.js';
+
+

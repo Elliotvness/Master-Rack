@@ -21,6 +21,59 @@ import type { Quantity } from '@rms/kernel-units';
 import type { Severity } from '@rms/kernel-rules';
 
 /**
+ * Missing-source gap identifiers (MS-1 through MS-18).
+ * Every input or rule without a confirmed primary source is tracked here and
+ * attached to any finding that depends on it.
+ */
+export type MissingSourceId =
+  | 'MS-1'
+  | 'MS-2'
+  | 'MS-3'
+  | 'MS-4'
+  | 'MS-5'
+  | 'MS-6'
+  | 'MS-7'
+  | 'MS-8'
+  | 'MS-9'
+  | 'MS-10'
+  | 'MS-11'
+  | 'MS-12'
+  | 'MS-13'
+  | 'MS-14'
+  | 'MS-15'
+  | 'MS-16'
+  | 'MS-17'
+  | 'MS-18';
+
+export interface MissingSourceEntry {
+  readonly id: MissingSourceId;
+  readonly description: string;
+  readonly scheduledPhase: 'Phase 1' | 'Phase 2' | 'Phase 3';
+  readonly fallbackSeverity: Severity;
+}
+
+export const MISSING_SOURCE_SCHEDULE: readonly MissingSourceEntry[] = Object.freeze([
+  { id: 'MS-1', description: 'Manufacturer max unsupported bay run / tunnel rule, per frame series', scheduledPhase: 'Phase 2', fallbackSeverity: 'ENGINEERING_REVIEW_REQUIRED' },
+  { id: 'MS-2', description: 'Frame and beam capacity tables, per series & connector', scheduledPhase: 'Phase 1', fallbackSeverity: 'MISSING_INPUT' },
+  { id: 'MS-3', description: 'Approved row-spacer catalog with frame-series compatibility', scheduledPhase: 'Phase 1', fallbackSeverity: 'MISSING_INPUT' },
+  { id: 'MS-4', description: 'Column protection / guard envelope dimensions', scheduledPhase: 'Phase 2', fallbackSeverity: 'MISSING_INPUT' },
+  { id: 'MS-5', description: 'Required installation tolerance for column straddle', scheduledPhase: 'Phase 2', fallbackSeverity: 'ENGINEERING_REVIEW_REQUIRED' },
+  { id: 'MS-6', description: 'Forklift manufacturer AST + test conditions', scheduledPhase: 'Phase 1', fallbackSeverity: 'MISSING_INPUT' },
+  { id: 'MS-7', description: 'Forklift minimum turning radius', scheduledPhase: 'Phase 2', fallbackSeverity: 'MISSING_INPUT' },
+  { id: 'MS-8', description: 'Project perimeter-wall clearance rule', scheduledPhase: 'Phase 1', fallbackSeverity: 'MISSING_INPUT' },
+  { id: 'MS-9', description: 'Project dock-to-first-bay minimum clearance', scheduledPhase: 'Phase 2', fallbackSeverity: 'MISSING_INPUT' },
+  { id: 'MS-10', description: 'Seismic / structural rule set version & anchor count per frame', scheduledPhase: 'Phase 1', fallbackSeverity: 'ENGINEERING_REVIEW_REQUIRED' },
+  { id: 'MS-11', description: 'Fire / storage profile (flue regime, sprinkler, commodity class)', scheduledPhase: 'Phase 1', fallbackSeverity: 'MISSING_INPUT' },
+  { id: 'MS-12', description: 'K-brace geometry, width, side, and clearance envelope', scheduledPhase: 'Phase 2', fallbackSeverity: 'MISSING_INPUT' },
+  { id: 'MS-13', description: 'Owned Rack Takeoff .xlsx / .csv header schema', scheduledPhase: 'Phase 2', fallbackSeverity: 'MISSING_INPUT' },
+  { id: 'MS-14', description: 'Captured primary provenance for the 8 forklift planning bands', scheduledPhase: 'Phase 1', fallbackSeverity: 'MISSING_INPUT' },
+  { id: 'MS-15', description: 'Project operating clearance beyond published AST, per truck', scheduledPhase: 'Phase 1', fallbackSeverity: 'MISSING_INPUT' },
+  { id: 'MS-16', description: 'Row-spacer count schedule per frame height & SDC; shim allowance', scheduledPhase: 'Phase 2', fallbackSeverity: 'MISSING_INPUT' },
+  { id: 'MS-17', description: 'Column-in-flue minimum side clearance and centring survey tolerance', scheduledPhase: 'Phase 2', fallbackSeverity: 'ENGINEERING_REVIEW_REQUIRED' },
+  { id: 'MS-18', description: 'In-rack sprinkler trigger table by height and commodity', scheduledPhase: 'Phase 1', fallbackSeverity: 'ENGINEERING_REVIEW_REQUIRED' },
+]);
+
+/**
  * One parameter of a finding, in the words a sheet prints.
  *
  * `value` is null exactly when the parameter is not established. That is not a
@@ -79,6 +132,8 @@ export interface Finding {
     readonly observed: Severity;
     readonly tier: string;
   } | null;
+  /** Structured missing-source IDs (MS-1..MS-18) that must close to resolve this finding. */
+  readonly missingSources: readonly MissingSourceId[];
 }
 
 export class FindingError extends Error {

@@ -11,12 +11,15 @@
 
 export {
   FindingError,
+  MISSING_SOURCE_SCHEDULE,
   allParametersEstablished,
   param,
   unknownParam,
   type Finding,
   type FindingCitation,
   type FindingParameter,
+  type MissingSourceEntry,
+  type MissingSourceId,
 } from './finding.js';
 
 export {

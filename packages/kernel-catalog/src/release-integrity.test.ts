@@ -44,7 +44,11 @@ function manifestOf(dir: string) {
   return loadReleaseManifest(JSON.parse(readFileSync(`${CATALOG}${dir}/manifest.json`, 'utf8')));
 }
 
-const DATASET_FILE: Readonly<Record<string, string>> = { beams: 'beams.json', frames: 'frames.json' };
+const DATASET_FILE: Readonly<Record<string, string>> = {
+  beams: 'beams.json',
+  frames: 'frames.json',
+  forklifts: 'forklifts.json',
+};
 
 
 /**
@@ -56,6 +60,7 @@ const DATASET_FILE: Readonly<Record<string, string>> = { beams: 'beams.json', fr
 function cellsOf(dir: string): DatasetCells {
   const map = new Map<string, readonly string[]>();
   for (const [dataset, file] of Object.entries(DATASET_FILE)) {
+    if (dataset !== 'beams' && dataset !== 'frames') continue;
     const path = `${CATALOG}${dir}/${file}`;
     if (!existsSync(path)) continue;
     map.set(dataset, cellIdsOf(dataset, JSON.parse(readFileSync(path, 'utf8'))));

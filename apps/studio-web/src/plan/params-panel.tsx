@@ -1,5 +1,14 @@
 import {
+  FORKLIFT_PLANNING_OPTIONS,
+  PUBLISHED_BEAM_FAMILIES,
+  PUBLISHED_BEAM_SPANS_IN,
+  PUBLISHED_FRAME_DEPTH_OPTIONS,
+  PUBLISHED_FRAME_OPTIONS,
+  beamFamilyFromPartLabel,
   inchesToMicrometres,
+  lookupForkliftPlanningOption,
+  lookupFrameOption,
+  lookupPublishedBeamSpan,
   planGeometry,
   type Command,
   type StudioDocument,
@@ -513,26 +522,46 @@ export function ParamsPanel({
               id="f-truck"
               className="pf-select"
               value={doc.equipment.truckType}
-              onChange={(e) =>
+              onChange={(e) => {
+                const nextType = e.target.value;
+                const planning = lookupForkliftPlanningOption(nextType);
                 send({
                   type: 'setField',
                   label: 'Set lift truck type',
                   change: {
                     section: 'equipment',
-                    patch: { truckType: e.target.value },
+                    patch:
+                      planning !== undefined
+                        ? {
+                            truckType: nextType,
+                            truckRAS: {
+                              value: planning.planningAstUm,
+                              established: 'UNKNOWN',
+                              source: `forklift-planning-2026.09 (${planning.manufacturerBand} · MS-6, MS-14 planning seed)`,
+                            },
+                          }
+                        : { truckType: nextType },
                   },
-                })
-              }
+                });
+              }}
             >
-              <option value="Sit-down counterbalance">Sit-down counterbalance</option>
-              <option value="Stand-up reach">Stand-up reach</option>
-              <option value="Deep reach">Deep reach</option>
-              <option value="Turret / VNA">Turret / VNA</option>
+              {FORKLIFT_PLANNING_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.truckType}>
+                  {opt.truckType} ({opt.planningAstIn}&quot; planning AST · VERIFY)
+                </option>
+              ))}
             </select>
             <ProvBtn
               label="Lift truck type"
               onClick={() =>
-                openInputProv('f-truck', 'Lift truck type', doc.equipment.truckType)
+                openInputProv(
+                  'f-truck',
+                  'Lift truck type',
+                  doc.equipment.truckType,
+                  undefined,
+                  'CATALOG',
+                  `Seed pack ${doc.packs.forklift || 'forklift-planning-2026.09'} (MS-6, MS-14)`,
+                )
               }
             />
           </span>
@@ -833,7 +862,7 @@ export function ParamsPanel({
       {bt !== undefined && (
         <section aria-labelledby="pf-bay-type">
           <h2 id="pf-bay-type" className="pf-heading">
-            Bay type — {bt.name} <span className="pf-sub">from catalog</span>
+            Bay type — {bt.name} <span className="pf-sub">from catalog ({doc.packs.rack || 'interlake-2026-09'})</span>
           </h2>
 
           <div className="pf-row">
@@ -845,21 +874,31 @@ export function ParamsPanel({
                 id="f-uppart"
                 className="pf-select"
                 value={bt.uprightPart}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const nextPart = e.target.value;
+                  const frameOpt = lookupFrameOption(nextPart);
                   send({
                     type: 'setField',
                     label: 'Set upright part',
                     change: {
                       section: 'bayType',
                       bayTypeId: bt.id,
-                      patch: { uprightPart: e.target.value },
+                      patch:
+                        frameOpt !== undefined
+                          ? {
+                              uprightPart: nextPart,
+                              uprightWidth: frameOpt.uprightWidthUm,
+                            }
+                          : { uprightPart: nextPart },
                     },
-                  })
-                }
+                  });
+                }}
               >
-                <option value="3x3 ROLL-FORMED">3x3 ROLL-FORMED</option>
-                <option value="3x1.625 ROLL-FORMED">3x1.625 ROLL-FORMED</option>
-                <option value="4x3 STRUCTURAL">4x3 STRUCTURAL</option>
+                {PUBLISHED_FRAME_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
               </select>
               <ProvBtn
                 label="Upright"
@@ -899,10 +938,35 @@ export function ParamsPanel({
           </div>
 
           <div className="pf-row">
-            <span className="pf-label">Frame depth</span>
+            <label htmlFor="f-fd" className="pf-label">
+              Frame depth
+            </label>
             <span className="pf-value pf-controls">
-              <span>{inches(bt.frameDepth)}</span>
-              <span className="pf-suffix">in</span>
+              <select
+                id="f-fd"
+                className="pf-select"
+                value={String(Math.round(bt.frameDepth / MICROMETRES_PER_INCH))}
+                onChange={(e) => {
+                  const um = parseInchesToUm(e.target.value);
+                  if (um !== null && um > 0) {
+                    send({
+                      type: 'setField',
+                      label: 'Set frame depth',
+                      change: {
+                        section: 'bayType',
+                        bayTypeId: bt.id,
+                        patch: { frameDepth: um },
+                      },
+                    });
+                  }
+                }}
+              >
+                {PUBLISHED_FRAME_DEPTH_OPTIONS.map((d) => (
+                  <option key={d.depthIn} value={String(d.depthIn)}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
               <ProvBtn
                 label="Frame depth"
                 onClick={() =>
@@ -989,30 +1053,100 @@ export function ParamsPanel({
           </div>
 
           <div className="pf-row">
+            <label htmlFor="f-bmfamily" className="pf-label">
+              Beam family &amp; series
+            </label>
+            <span className="pf-value pf-controls">
+              <select
+                id="f-bmfamily"
+                className="pf-select"
+                value={beamFamilyFromPartLabel(bt.beamPart)}
+                onChange={(e) => {
+                  const nextFamily = e.target.value;
+                  const curSpanIn = Math.round(bt.beamLength / MICROMETRES_PER_INCH);
+                  const looked = lookupPublishedBeamSpan(nextFamily, curSpanIn);
+                  send({
+                    type: 'setField',
+                    label: 'Set beam family',
+                    change: {
+                      section: 'bayType',
+                      bayTypeId: bt.id,
+                      patch:
+                        looked.status === 'ON_GRID'
+                          ? {
+                              beamPart: looked.beamPartLabel,
+                              beamPairCapacity: {
+                                value: looked.capacityLb,
+                                established: 'CATALOG',
+                                source: `Catalog ${doc.packs.rack || 'interlake-2026-09'} (${looked.family}/${looked.series}/${looked.spanIn}" · PSG 2025 p.88)`,
+                              },
+                            }
+                          : { beamPart: `${curSpanIn}" ${nextFamily} STEP BEAM` },
+                    },
+                  });
+                }}
+              >
+                {PUBLISHED_BEAM_FAMILIES.map((fam) => (
+                  <option key={fam.family} value={fam.family}>
+                    {fam.label}
+                  </option>
+                ))}
+              </select>
+              <ProvBtn
+                label="Beam family & series"
+                onClick={() =>
+                  openInputProv(
+                    'f-bmfamily',
+                    'Beam family & series',
+                    beamFamilyFromPartLabel(bt.beamPart),
+                    undefined,
+                    'CATALOG',
+                    `Pinned catalog pack ${doc.packs.rack || 'interlake-2026-09'} (PSG 2025 p.84 / p.88)`,
+                  )
+                }
+              />
+            </span>
+          </div>
+
+          <div className="pf-row">
             <label htmlFor="f-bmpart" className="pf-label">
-              Beam
+              Beam published span
             </label>
             <span className="pf-value pf-controls">
               <select
                 id="f-bmpart"
                 className="pf-select"
-                value={bt.beamPart}
-                onChange={(e) =>
-                  send({
-                    type: 'setField',
-                    label: 'Set beam part',
-                    change: {
-                      section: 'bayType',
-                      bayTypeId: bt.id,
-                      patch: { beamPart: e.target.value },
-                    },
-                  })
-                }
+                value={String(Math.round(bt.beamLength / MICROMETRES_PER_INCH))}
+                onChange={(e) => {
+                  const nextSpanIn = Number(e.target.value);
+                  const curFamily = beamFamilyFromPartLabel(bt.beamPart);
+                  const looked = lookupPublishedBeamSpan(curFamily, nextSpanIn);
+                  if (looked.status === 'ON_GRID') {
+                    send({
+                      type: 'setField',
+                      label: 'Set beam span from catalog',
+                      change: {
+                        section: 'bayType',
+                        bayTypeId: bt.id,
+                        patch: {
+                          beamPart: looked.beamPartLabel,
+                          beamLength: looked.spanUm,
+                          beamPairCapacity: {
+                            value: looked.capacityLb,
+                            established: 'CATALOG',
+                            source: `Catalog ${doc.packs.rack || 'interlake-2026-09'} (${looked.family}/${looked.series}/${looked.spanIn}" · PSG 2025 p.88)`,
+                          },
+                        },
+                      },
+                    });
+                  }
+                }}
               >
-                <option value={'96" STEP BEAM'}>96&quot; STEP BEAM</option>
-                <option value={'108" STEP BEAM'}>108&quot; STEP BEAM</option>
-                <option value={'120" STEP BEAM'}>120&quot; STEP BEAM</option>
-                <option value={'144" STEP BEAM'}>144&quot; STEP BEAM</option>
+                {PUBLISHED_BEAM_SPANS_IN.map((spanIn) => (
+                  <option key={spanIn} value={String(spanIn)}>
+                    {spanIn}&quot; ({beamFamilyFromPartLabel(bt.beamPart)} published span)
+                  </option>
+                ))}
               </select>
               <ProvBtn
                 label="Beam"

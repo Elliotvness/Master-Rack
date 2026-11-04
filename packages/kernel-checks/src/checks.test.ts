@@ -11,6 +11,7 @@ import {
 } from '@rms/kernel-units';
 
 import {
+  MISSING_SOURCE_SCHEDULE,
   MVP_CHECKS,
   aisleClearance,
   beamCapacity,
@@ -222,6 +223,29 @@ describe('check 5 \u2014 aisle clear width, capped by its SECONDARY rule', () =>
     const [f] = runCheck(aisleClearance, pack, { ...baseInput(), aisleRequired: null });
     expect(f?.severity).toBe('MISSING_INPUT');
     expect(f?.code).toBe('AISLE_REQUIREMENT_UNKNOWN');
+    expect(f?.missingSources).toEqual(['MS-6']);
+  });
+
+  it('DEC-DF \u2014 reports MISSING_INPUT (naming MS-6) with shortfall when short against an unestablished planning requirement', () => {
+    const input: CheckInput = {
+      ...baseInput(),
+      aisleClearWidth: inches(126),
+      aisleRequired: quantity(3_208_337, 'um', 'UNKNOWN'),
+    };
+    const [f] = runCheck(aisleClearance, pack, input);
+    expect(f?.severity).toBe('MISSING_INPUT');
+    expect(f?.code).toBe('AISLE_CLEAR_SHORTFALL');
+    expect(f?.missingSources).toEqual(['MS-6', 'MS-14']);
+    const reqParam = f?.parameters.find((p) => p.name === 'required');
+    expect(reqParam?.established).toBe(false);
+    const shortfallParam = f?.parameters.find((p) => p.name === 'shortfall');
+    expect(shortfallParam?.established).toBe(true);
+  });
+
+  it('publishes all 18 missing-source gaps MS-1 through MS-18', () => {
+    expect(MISSING_SOURCE_SCHEDULE).toHaveLength(18);
+    expect(MISSING_SOURCE_SCHEDULE[0]?.id).toBe('MS-1');
+    expect(MISSING_SOURCE_SCHEDULE[17]?.id).toBe('MS-18');
   });
 
   it('accepts an aisle exactly at the requirement', () => {
@@ -402,3 +426,94 @@ describe('check 12 \u2014 uncatalogued material', () => {
     expect(f?.citation.standard).toBe('Product scope constraint');
   });
 });
+
+describe('Acceptance Test 14 — Reproducibility Gate Test & studio-2026.09 approval', () => {
+  const studioRulesPath = fileURLToPath(
+    new URL('../../../data/rules/studio-2026.09/rules.json', import.meta.url),
+  );
+  const studioDoc = JSON.parse(readFileSync(studioRulesPath, 'utf8')) as {
+    manifest: unknown;
+    rules: unknown[];
+  };
+  const studioPack = new RulePack(
+    loadRulePackManifest(studioDoc.manifest),
+    loadRules(studioDoc.rules),
+  );
+
+  it('verifies studio-2026.09 is APPROVED with two-person sign-off and verification_path', () => {
+    expect(studioPack.manifest.pack).toBe('studio');
+    expect(studioPack.manifest.rev).toBe('2026.09');
+    expect(studioPack.manifest.status).toBe('APPROVED');
+    expect(studioPack.manifest.authoredBy).not.toBe(studioPack.manifest.approvedBy);
+    expect(studioPack.manifest.verificationPath?.kind).toBe('source_read');
+    expect(studioPack.manifest.verificationPath?.rulesChecked).toBe(12);
+    expect(MISSING_SOURCE_SCHEDULE).toHaveLength(18);
+  });
+
+  it('reproduces byte-identical findings for a pinned revision after a newer rule pack (studio-2027.01) is added', () => {
+    const pinnedRevision = {
+      id: 'rev_pinned_1',
+      packs: {
+        rackCatalog: {
+          id: 'interlake-2026-09',
+          content_sha256: 'a137a7f983696ea1b284afd8c67105b1ec4dbe266d99f3ac02178bcb98ef7942',
+        },
+        forkliftCatalog: {
+          id: 'forklift-planning-2026.09',
+          content_sha256: 'fb3274108aa968bb48c9f3da0d16c2184ff4d19ce518229d4b57232325f91fd1',
+        },
+        accessoryCatalog: {
+          id: 'interlake-accessories-2026.09',
+          content_sha256: '0000000000000000000000000000000000000000000000000000000000000001',
+        },
+        fireRuleSet: {
+          id: 'studio-2026.09',
+          content_sha256: 'f3d85d6390b21a5b6a09c510a24b35714c33c2015a7308f3d2807027c7a0c102',
+        },
+        structuralRuleSet: {
+          id: 'studio-2026.09',
+          content_sha256: 'f3d85d6390b21a5b6a09c510a24b35714c33c2015a7308f3d2807027c7a0c102',
+        },
+      },
+    } as const;
+
+    const registry = new Map<string, RulePack>([['studio-2026.09', studioPack]]);
+    const evalInput: CheckInput = {
+      ...baseInput(),
+      aisleClearWidth: inches(126),
+      aisleRequired: inches(132, 'UNKNOWN'),
+    };
+
+    const initialFindings = runChecks(
+      MVP_CHECKS,
+      registry.get(pinnedRevision.packs.structuralRuleSet.id) as RulePack,
+      evalInput,
+    );
+    const initialJson = JSON.stringify(initialFindings);
+
+    // Add a newer rule pack (studio-2027.01) with different status/citations to the registry
+    const newerPack = new RulePack(
+      loadRulePackManifest({
+        ...(studioDoc.manifest as Record<string, unknown>),
+        rev: 'studio-2027.01',
+        status: 'DRAFT',
+        approved_by: null,
+        approved_at: null,
+      }),
+      loadRules(studioDoc.rules),
+    );
+    registry.set('studio-2027.01', newerPack);
+
+    // Re-evaluating the pinned revision resolves its pinned pack, never the newer head pack
+    const reevaluatedFindings = runChecks(
+      MVP_CHECKS,
+      registry.get(pinnedRevision.packs.structuralRuleSet.id) as RulePack,
+      evalInput,
+    );
+    expect(JSON.stringify(reevaluatedFindings)).toBe(initialJson);
+    expect(
+      reevaluatedFindings.find((f) => f.code === 'AISLE_CLEAR_SHORTFALL')?.missingSources,
+    ).toEqual(['MS-6', 'MS-14']);
+  });
+});
+

@@ -228,12 +228,54 @@ describe('the loader refuses data that would let a rule overstate itself', () =>
       status: 'APPROVED',
       approved_by: 'A Reviewer',
       approved_at: '2026-09-01',
+      verification_path: {
+        kind: 'source_read',
+        rules_checked: 12,
+        note: 'Primary standards opened and verified',
+      },
     };
     const m = loadRulePackManifest(approvedDoc);
     expect(m.status).toBe('APPROVED');
     expect(m.approvedBy).toBe('A Reviewer');
     expect(m.approvedAt).toBe('2026-09-01');
+    expect(m.verificationPath).toEqual({
+      kind: 'source_read',
+      rulesChecked: 12,
+      note: 'Primary standards opened and verified',
+    });
     expect(canPinRulePackForNewRevision(m)).toBe(true);
+  });
+
+  it('loads the approved studio-2026.09 rule pack with two-person sign-off', () => {
+    const studioPath = fileURLToPath(
+      new URL('../../../data/rules/studio-2026.09/rules.json', import.meta.url),
+    );
+    const studioDoc = JSON.parse(readFileSync(studioPath, 'utf8')) as {
+      manifest: unknown;
+      rules: unknown[];
+    };
+    const studioManifest = loadRulePackManifest(studioDoc.manifest);
+    const studioPack = new RulePack(studioManifest, loadRules(studioDoc.rules));
+    expect(studioManifest.status).toBe('APPROVED');
+    expect(studioManifest.authoredBy).not.toBe(studioManifest.approvedBy);
+    expect(studioManifest.verificationPath?.rulesChecked).toBe(12);
+    expect(canPinRulePackForNewRevision(studioManifest)).toBe(true);
+    expect(studioPack.size).toBe(12);
+  });
+
+  it('refuses a malformed verification_path in manifest', () => {
+    expect(() =>
+      loadRulePackManifest({
+        ...(doc.manifest as object),
+        verification_path: { kind: 'guessed', rules_checked: 12, note: 'n' },
+      }),
+    ).toThrow(/unknown verification_path\.kind/);
+    expect(() =>
+      loadRulePackManifest({
+        ...(doc.manifest as object),
+        verification_path: { kind: 'independent_review', rules_checked: 'twelve', note: 'n' },
+      }),
+    ).toThrow(/verification_path\.rules_checked must be a finite number/);
   });
 });
 

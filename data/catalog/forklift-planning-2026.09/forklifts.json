@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "pack": "forklift-planning",
+  "rev": "2026.09",
+  "is_planning_seed": true,
+  "missing_sources": ["MS-6", "MS-14"],
+  "rows": [
+    {
+      "id": "sitdown-cb-4wheel",
+      "truck_type": "Sit-down counterbalance",
+      "manufacturer_band": "Toyota 8FGCU25 / Crown C-5 (4-Wheel Sit-Down CB)",
+      "planning_ast_in": 144,
+      "planning_turning_radius_in": 84,
+      "isPlanningValue": true,
+      "missingSources": ["MS-6", "MS-14"]
+    },
+    {
+      "id": "sitdown-cb-3wheel",
+      "truck_type": "3-Wheel sit-down counterbalance",
+      "manufacturer_band": "Toyota 8FBE15U / Crown SC (3-Wheel Sit-Down CB)",
+      "planning_ast_in": 132,
+      "planning_turning_radius_in": 63,
+      "isPlanningValue": true,
+      "missingSources": ["MS-6", "MS-14"]
+    },
+    {
+      "id": "standup-counterbalance",
+      "truck_type": "Stand-up counterbalance",
+      "manufacturer_band": "Crown RC 5700 / Raymond 4250 (Stand-Up CB)",
+      "planning_ast_in": 126,
+      "planning_turning_radius_in": 61,
+      "isPlanningValue": true,
+      "missingSources": ["MS-6", "MS-14"]
+    },
+    {
+      "id": "standup-reach",
+      "truck_type": "Stand-up reach",
+      "manufacturer_band": "Raymond 7500 / Crown RM 6000 (Single-Reach)",
+      "planning_ast_in": 108,
+      "planning_turning_radius_in": 71,
+      "isPlanningValue": true,
+      "missingSources": ["MS-6", "MS-14"]
+    },
+    {
+      "id": "deep-reach",
+      "truck_type": "Deep reach",
+      "manufacturer_band": "Raymond 7520 / Crown RD 5700 (Pantograph Deep-Reach)",
+      "planning_ast_in": 126,
+      "planning_turning_radius_in": 81,
+      "isPlanningValue": true,
+      "missingSources": ["MS-6", "MS-14"]
+    },
+    {
+      "id": "straddle-reach",
+      "truck_type": "Straddle reach",
+      "manufacturer_band": "Crown RS / Raymond 7300 (Moving-Mast Straddle)",
+      "planning_ast_in": 102,
+      "planning_turning_radius_in": 68,
+      "isPlanningValue": true,
+      "missingSources": ["MS-6", "MS-14"]
+    },
+    {
+      "id": "articulated-narrow",
+      "truck_type": "Articulated narrow-aisle",
+      "manufacturer_band": "Aisle-Master 20SE / Narrow-Aisle Flexi",
+      "planning_ast_in": 78,
+      "planning_turning_radius_in": 76,
+      "isPlanningValue": true,
+      "missingSources": ["MS-6", "MS-14"]
+    },
+    {
+      "id": "turret-vna",
+      "truck_type": "Turret / VNA",
+      "manufacturer_band": "Raymond 9600 / Crown TSP (Man-Up Turret VNA)",
+      "planning_ast_in": 66,
+      "planning_turning_radius_in": 96,
+      "isPlanningValue": true,
+      "missingSources": ["MS-6", "MS-14"]
+    }
+  ]
+}

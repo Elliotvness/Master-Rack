@@ -43,6 +43,9 @@ export type Severity =
   | 'ENGINEERING_REVIEW_REQUIRED'
   | 'NOT_EVALUATED';
 
+/** Lifecycle status of a rule pack release. */
+export type RulePackStatus = 'DRAFT' | 'APPROVED' | 'SUPERSEDED' | 'RETIRED';
+
 export class RulesError extends Error {
   override readonly name: string = 'RulesError';
 }
@@ -131,16 +134,28 @@ export function permittedSeverities(tier: VerificationTier): readonly Severity[]
 }
 
 /**
- * Apply the tier ceiling to a check's observation. THE function this package
- * exists for.
+ * Apply the tier and pack-status ceiling to a check's observation. THE function
+ * this package exists for.
  *
  * A check says what it saw. This says what may be concluded from it. When a
  * check's result is not permitted at the rule's tier, the result degrades to
  * that tier's ceiling — it is never returned as written, and never silently
  * dropped, because a check that did not conclude must still appear on screen.
+ *
+ * When `packStatus` is supplied and is not `'APPROVED'` (for example `'DRAFT'`),
+ * a clean `'PASS'` is also capped at `'ENGINEERING_REVIEW_REQUIRED'`: no check
+ * may emit a clean PASS while its governing rule pack is unapproved.
  */
-export function applyCeiling(tier: VerificationTier, observed: Severity): Severity {
-  return permits(tier, observed) ? observed : CEILING[tier];
+export function applyCeiling(
+  tier: VerificationTier,
+  observed: Severity,
+  packStatus: RulePackStatus = 'APPROVED',
+): Severity {
+  const byTier = permits(tier, observed) ? observed : CEILING[tier];
+  if (packStatus !== 'APPROVED' && byTier === 'PASS') {
+    return 'ENGINEERING_REVIEW_REQUIRED';
+  }
+  return byTier;
 }
 
 /**

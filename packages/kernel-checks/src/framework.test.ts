@@ -20,8 +20,17 @@ import {
   type Observation,
 } from './index.js';
 
-const rulesPath = fileURLToPath(
+const draftRulesPath = fileURLToPath(
   new URL('../../../data/rules/mvp-2026-08/rules.json', import.meta.url),
+);
+const draftDoc = JSON.parse(readFileSync(draftRulesPath, 'utf8')) as {
+  manifest: unknown;
+  rules: unknown[];
+};
+const draftPack = new RulePack(loadRulePackManifest(draftDoc.manifest), loadRules(draftDoc.rules));
+
+const rulesPath = fileURLToPath(
+  new URL('../../../data/rules/studio-2026.09/rules.json', import.meta.url),
 );
 const doc = JSON.parse(readFileSync(rulesPath, 'utf8')) as { manifest: unknown; rules: unknown[] };
 const pack = new RulePack(loadRulePackManifest(doc.manifest), loadRules(doc.rules));
@@ -69,11 +78,17 @@ describe('AC-19 \u2014 the ceiling is applied by the framework, not by the check
     expect(finding?.severity).toBe('NOT_EVALUATED');
   });
 
-  it('lets a PRIMARY rule pass and block, because it is entitled to', () => {
+  it('lets a PRIMARY rule pass and block on an APPROVED pack, because it is entitled to', () => {
     expect(runCheck(stub('X', 'GEOM-LEVEL-DISTINCT', 'PASS'), pack, null)[0]?.severity).toBe('PASS');
     expect(runCheck(stub('X', 'GEOM-LEVEL-DISTINCT', 'BLOCKER'), pack, null)[0]?.severity).toBe(
       'BLOCKER',
     );
+  });
+
+  it('caps a clean PASS at ENGINEERING_REVIEW_REQUIRED when the governing rule pack is DRAFT', () => {
+    const [finding] = runCheck(stub('X', 'GEOM-LEVEL-DISTINCT', 'PASS'), draftPack, null);
+    expect(finding?.severity).toBe('ENGINEERING_REVIEW_REQUIRED');
+    expect(finding?.ceilingApplied).toEqual({ observed: 'PASS', tier: 'PRIMARY' });
   });
 
   it('records that it lowered the outcome, so "why is this not a pass?" is answerable', () => {
@@ -157,7 +172,7 @@ describe('the framework refuses to let a check evaluate against nothing', () => 
 
 describe('the finding carries what an internal reviewer needs', () => {
   it('carries the full citation, including the tier and the pinned pack revision', () => {
-    const [finding] = runCheck(stub('X', 'AISLE-CLEAR-WIDTH', 'BLOCKER'), pack, null);
+    const [finding] = runCheck(stub('X', 'AISLE-CLEAR-WIDTH', 'BLOCKER'), draftPack, null);
     expect(finding?.citation.ruleId).toBe('AISLE-CLEAR-WIDTH');
     expect(finding?.citation.tier).toBe('SECONDARY');
     expect(finding?.citation.rulePack).toBe('mvp');

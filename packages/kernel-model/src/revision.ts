@@ -35,6 +35,35 @@ export type LifecycleState = 'DRAFT' | 'FROZEN' | 'SUPERSEDED' | 'WITHDRAWN';
 /** Who a revision is for. Internal revisions are absent from client responses. */
 export type Audience = 'client' | 'internal';
 
+/**
+ * A single pinned authority pack on a revision, carrying both its release
+ * identifier and its canonical content SHA-256 digest.
+ */
+export interface AuthorityPackPin {
+  readonly id: string;
+  readonly content_sha256: string;
+}
+
+/**
+ * All five authority pack pins on a revision (rackCatalog, forkliftCatalog,
+ * accessoryCatalog, fireRuleSet, structuralRuleSet).
+ */
+export interface AuthorityPackPins {
+  readonly rackCatalog: AuthorityPackPin;
+  readonly forkliftCatalog: AuthorityPackPin;
+  readonly accessoryCatalog: AuthorityPackPin;
+  readonly fireRuleSet: AuthorityPackPin;
+  readonly structuralRuleSet: AuthorityPackPin;
+}
+
+export const AUTHORITY_PACK_KEYS: readonly (keyof AuthorityPackPins)[] = Object.freeze([
+  'rackCatalog',
+  'forkliftCatalog',
+  'accessoryCatalog',
+  'fireRuleSet',
+  'structuralRuleSet',
+]);
+
 export interface Revision {
   readonly id: string;
   /** P01 for client-facing preliminary, C01 for internal contractual. */
@@ -47,6 +76,8 @@ export interface Revision {
   /** Pins live inside the hashed content: a catalog change cannot alter a submission. */
   readonly catalog_release_id: string;
   readonly rule_pack_release_id: string;
+  /** Optional full five-pack authority pin manifest (Phase 1 I4). */
+  readonly packs?: AuthorityPackPins;
   readonly content: Readonly<Record<string, unknown>>;
   readonly content_hash: string | null;
   readonly frozen_at: string | null;
@@ -172,6 +203,17 @@ export function transitionRefusals(
     if (revision.rule_pack_release_id === '') {
       reasons.push('no rule pack release is pinned');
     }
+    if (revision.packs !== undefined) {
+      for (const key of AUTHORITY_PACK_KEYS) {
+        const pin = revision.packs[key];
+        if (pin.id === '') {
+          reasons.push(`authority pack ${key} has no id pinned`);
+        }
+        if (pin.content_sha256 === '') {
+          reasons.push(`authority pack ${key} has no content_sha256 pinned`);
+        }
+      }
+    }
   }
 
   return Object.freeze(reasons);
@@ -217,11 +259,16 @@ export function freeze(
     throw new TransitionRefusedError(revision.lifecycle_state, 'FROZEN', reasons, revision.id);
   }
 
+  const hashableContent =
+    revision.packs === undefined
+      ? revision.content
+      : { ...revision.content, packs: revision.packs };
+
   const frozen: Revision = {
     ...revision,
     lifecycle_state: 'FROZEN',
     frozen_at: frozenAt,
-    content_hash: contentHash(revision.content),
+    content_hash: contentHash(hashableContent),
   };
 
   return Object.freeze({

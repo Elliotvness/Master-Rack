@@ -12,7 +12,14 @@
  * Pure: no I/O, no clock, no RNG. Dates are supplied by the caller.
  */
 
-import { type VerificationTier, RulesError, isVerificationTier } from './tier.js';
+import {
+  type RulePackStatus,
+  type VerificationTier,
+  RulesError,
+  isVerificationTier,
+} from './tier.js';
+
+export type { RulePackStatus };
 
 /**
  * Where a rule came from. Every field is required at PRIMARY tier and the gate
@@ -46,8 +53,6 @@ export interface Rule {
   readonly value: number | null;
   readonly unit: string | null;
 }
-
-export type RulePackStatus = 'DRAFT' | 'APPROVED' | 'SUPERSEDED' | 'RETIRED';
 
 /**
  * How a rule pack earned approval. Same principle as the catalog's, restated
@@ -304,6 +309,21 @@ export function loadRulePackManifest(raw: unknown): RulePackManifest {
     throw new RulePackError(`manifest: unknown status ${String(status)}`);
   }
   const conflicts = m['open_conflicts'];
+  const rawVp = m['verification_path'];
+  let verificationPath: RuleVerificationPath | null = null;
+  if (typeof rawVp === 'object' && rawVp !== null) {
+    const vp = rawVp as Record<string, unknown>;
+    const kind = vp['kind'];
+    if (kind !== 'source_read' && kind !== 'independent_review') {
+      throw new RulePackError(`manifest: unknown verification_path.kind ${String(kind)}`);
+    }
+    const rulesChecked = vp['rules_checked'];
+    if (typeof rulesChecked !== 'number' || !Number.isFinite(rulesChecked)) {
+      throw new RulePackError('manifest: verification_path.rules_checked must be a finite number');
+    }
+    const note = requireString(vp['note'], 'verification_path.note', 'manifest');
+    verificationPath = Object.freeze({ kind, rulesChecked, note });
+  }
   return Object.freeze({
     pack: requireString(m['pack'], 'pack', 'manifest'),
     rev: requireString(m['rev'], 'rev', 'manifest'),
@@ -312,7 +332,7 @@ export function loadRulePackManifest(raw: unknown): RulePackManifest {
     authoredAt: requireString(m['authored_at'], 'authored_at', 'manifest'),
     approvedBy: typeof m['approved_by'] === 'string' && m['approved_by'] !== '' ? m['approved_by'] : null,
     approvedAt: typeof m['approved_at'] === 'string' && m['approved_at'] !== '' ? m['approved_at'] : null,
-    verificationPath: null,
+    verificationPath,
     openConflicts: Object.freeze(
       Array.isArray(conflicts) ? conflicts.filter((c): c is string => typeof c === 'string') : [],
     ),

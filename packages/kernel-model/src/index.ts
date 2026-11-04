@@ -24,6 +24,7 @@ export {
 } from './canonical.js';
 
 export {
+  AUTHORITY_PACK_KEYS,
   TransitionRefusedError,
   UndecidedAuthorityError,
   canTransition,
@@ -34,6 +35,8 @@ export {
   transitionRefusals,
   type AuditEvent,
   type Audience,
+  type AuthorityPackPin,
+  type AuthorityPackPins,
   type LifecycleState,
   type Revision,
   type TransitionResult,

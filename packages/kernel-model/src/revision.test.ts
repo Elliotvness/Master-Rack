@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AUTHORITY_PACK_KEYS,
   TransitionRefusedError,
   UndecidedAuthorityError,
   canTransition,
@@ -9,10 +10,34 @@ import {
   freeze,
   mayWaive,
   transitionRefusals,
+  type AuthorityPackPins,
   type Revision,
 } from './index.js';
 
 const FROZEN_AT = '2026-08-31T12:00:00.000Z';
+
+const PINNED_PACKS: AuthorityPackPins = {
+  rackCatalog: {
+    id: 'interlake-2026-09',
+    content_sha256: 'a137a7f983696ea1b284afd8c67105b1ec4dbe266d99f3ac02178bcb98ef7942',
+  },
+  forkliftCatalog: {
+    id: 'forklift-planning-2026.09',
+    content_sha256: 'fb3274108aa968bb48c9f3da0d16c2184ff4d19ce518229d4b57232325f91fd1',
+  },
+  accessoryCatalog: {
+    id: 'interlake-accessories-2026.09',
+    content_sha256: '0000000000000000000000000000000000000000000000000000000000000001',
+  },
+  fireRuleSet: {
+    id: 'studio-2026.09',
+    content_sha256: '0000000000000000000000000000000000000000000000000000000000000002',
+  },
+  structuralRuleSet: {
+    id: 'studio-2026.09',
+    content_sha256: '0000000000000000000000000000000000000000000000000000000000000002',
+  },
+};
 
 function draft(overrides: Partial<Revision> = {}): Revision {
   return {
@@ -255,3 +280,64 @@ describe('OD-09 — waiver authority is undecided, and the code says so', () => 
     expect(returned).toBe('threw');
   });
 });
+
+describe('Phase 1 Item 2 — five-pack authority pinning (revision.packs)', () => {
+  it('lists all five authority pack keys in canonical order', () => {
+    expect(AUTHORITY_PACK_KEYS).toEqual([
+      'rackCatalog',
+      'forkliftCatalog',
+      'accessoryCatalog',
+      'fireRuleSet',
+      'structuralRuleSet',
+    ]);
+  });
+
+  it('freezes cleanly when all five authority packs carry id and content_sha256, and hashes packs into content_hash', () => {
+    const revWithoutPacks = freeze(draft(), FROZEN_AT).revision;
+    const revWithPacks = freeze(draft({ packs: PINNED_PACKS }), FROZEN_AT).revision;
+
+    expect(revWithPacks.lifecycle_state).toBe('FROZEN');
+    expect(revWithPacks.packs).toEqual(PINNED_PACKS);
+    expect(Object.isFrozen(revWithPacks.packs)).toBe(true);
+    expect(revWithPacks.content_hash).not.toBe(revWithoutPacks.content_hash);
+    expect(revWithPacks.content_hash).toBe(
+      contentHash({ ...draft().content, packs: PINNED_PACKS }),
+    );
+  });
+
+  it('changes content_hash if any pinned pack id or content_sha256 changes', () => {
+    const a = freeze(draft({ packs: PINNED_PACKS }), FROZEN_AT).revision;
+    const b = freeze(
+      draft({
+        packs: {
+          ...PINNED_PACKS,
+          fireRuleSet: {
+            id: 'studio-2027.01',
+            content_sha256: 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+          },
+        },
+      }),
+      FROZEN_AT,
+    ).revision;
+    expect(a.content_hash).not.toBe(b.content_hash);
+  });
+
+  it('refuses to freeze and lists every missing authority pack id or content_sha256', () => {
+    const reasons = transitionRefusals(
+      draft({
+        packs: {
+          ...PINNED_PACKS,
+          rackCatalog: { id: '', content_sha256: '' },
+          fireRuleSet: { id: 'studio-2026.09', content_sha256: '' },
+        },
+      }),
+      'FROZEN',
+    );
+    expect(reasons).toEqual([
+      'authority pack rackCatalog has no id pinned',
+      'authority pack rackCatalog has no content_sha256 pinned',
+      'authority pack fireRuleSet has no content_sha256 pinned',
+    ]);
+  });
+});
+

@@ -133,6 +133,18 @@ describe('AC-19 \u2014 a check cannot return PASS against a non-primary rule', (
       }
     }
   });
+
+  it('caps a clean PASS at ENGINEERING_REVIEW_REQUIRED when the governing rule pack is DRAFT', () => {
+    // Even a PRIMARY rule cannot emit a clean PASS while its rule pack is unapproved.
+    expect(applyCeiling('PRIMARY', 'PASS', 'DRAFT')).toBe('ENGINEERING_REVIEW_REQUIRED');
+    expect(applyCeiling('PRIMARY', 'PASS', 'SUPERSEDED')).toBe('ENGINEERING_REVIEW_REQUIRED');
+    expect(applyCeiling('PRIMARY', 'PASS', 'RETIRED')).toBe('ENGINEERING_REVIEW_REQUIRED');
+    expect(applyCeiling('PRIMARY', 'PASS', 'APPROVED')).toBe('PASS');
+    // Non-PASS severities on a DRAFT pack still obey their tier ceiling.
+    expect(applyCeiling('PRIMARY', 'BLOCKER', 'DRAFT')).toBe('BLOCKER');
+    expect(applyCeiling('PRIMARY', 'MISSING_INPUT', 'DRAFT')).toBe('MISSING_INPUT');
+    expect(applyCeiling('NOT_FOUND', 'PASS', 'DRAFT')).toBe('NOT_EVALUATED');
+  });
 });
 
 describe('tiers carry their own qualifications', () => {

@@ -350,6 +350,46 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
     expect(clearHeightVerified.checked).toBe(true);
     expect((document.getElementById('undobtn') as HTMLButtonElement).disabled).toBe(false);
   });
+
+  it('wires Phase 1 cascading catalog dropdowns (#f-uppart, #f-fd, #f-bmfamily, #f-bmpart, #f-truck)', async () => {
+    const user = userEvent.setup();
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1 });
+
+    const uppart = document.getElementById('f-uppart') as HTMLSelectElement;
+    const fd = document.getElementById('f-fd') as HTMLSelectElement;
+    const bmfamily = document.getElementById('f-bmfamily') as HTMLSelectElement;
+    const bmpart = document.getElementById('f-bmpart') as HTMLSelectElement;
+    const truck = document.getElementById('f-truck') as HTMLSelectElement;
+    const bmcap = document.getElementById('f-bmcap') as HTMLInputElement;
+
+    expect(uppart.options.length).toBeGreaterThanOrEqual(11);
+    expect(fd.options.length).toBe(3);
+    expect(bmfamily.options.length).toBe(16);
+    expect(bmpart.options.length).toBe(21);
+    expect(truck.options.length).toBe(8);
+
+    // Select beam family 59ER -> updates beamPairCapacity to 59ER @ 96" = 8940 lb
+    await user.selectOptions(bmfamily, '59ER');
+    expect(bmcap.value).toBe('8940');
+
+    // Select published span 108" -> updates beamPairCapacity to 59ER @ 108" = 8040 lb
+    await user.selectOptions(bmpart, '108');
+    expect(bmcap.value).toBe('8040');
+
+    // Select 4x3 structural upright -> updates upright face width to 4 in
+    await user.selectOptions(uppart, '4x3 STRUCTURAL');
+    expect(uppart.value).toBe('4x3 STRUCTURAL');
+
+    // Select 48" frame depth
+    await user.selectOptions(fd, '48');
+    expect(fd.value).toBe('48');
+
+    // Select Stand-up reach planning band -> sets planning AST 108" as VERIFY
+    await user.selectOptions(truck, 'Stand-up reach');
+    const minAisle = document.getElementById('f-minaisle') as HTMLInputElement;
+    expect(minAisle.value).toBe('108');
+  });
 });
 
 describe('the theme toggle', () => {

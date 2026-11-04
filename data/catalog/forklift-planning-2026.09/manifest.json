@@ -1,0 +1,21 @@
+{
+  "rev": "2026.09",
+  "status": "DRAFT",
+  "manufacturer": "Multi-Manufacturer Planning Seed (Toyota / Crown / Raymond / Aisle-Master)",
+  "source_document": "Forklift Planning Seed Pack (MS-6, MS-14) — unverified planning values only; requires manufacturer spec sheet confirmation before quote release",
+  "source_url": "",
+  "page_ref": "MS-6 / MS-14 planning bands (8 rows)",
+  "units": "in",
+  "load_basis": "48x40 in GMA pallet nominal planning envelope",
+  "deflection_limit": "N/A (planning aisle envelope)",
+  "code_basis": "ADR-006 load-face clear aisle datum; DEC-DF unestablished planning value policy",
+  "digitised_by": "automated draft (Claude)",
+  "digitised_at": "2026-09-02",
+  "approved_by": "",
+  "approved_at": "",
+  "datasets": ["forklifts"],
+  "content_sha256": "c2f86b2fb3b4e09e27e4959c0b7a5d0217b7e3c9c907880f124451090328a21d",
+  "source_anomalies": [
+    "All 8 rows carry isPlanningValue: true and missingSources: ['MS-6', 'MS-14']. Selecting a row seeds equipment.truckRAS with established: 'UNKNOWN' (VERIFY), which blocks Valid for Quote until a manufacturer spec sheet is confirmed."
+  ]
+}

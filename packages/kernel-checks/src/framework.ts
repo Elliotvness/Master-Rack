@@ -32,6 +32,7 @@ import {
 import {
   type Finding,
   type FindingParameter,
+  type MissingSourceId,
   FindingError,
 } from './finding.js';
 
@@ -47,6 +48,7 @@ export interface Observation {
   readonly subjectObjectIds: readonly string[];
   readonly parameters: readonly FindingParameter[];
   readonly closedBy: string;
+  readonly missingSources?: readonly MissingSourceId[];
 }
 
 /**
@@ -103,7 +105,7 @@ export function runCheck<TInput>(
     observations.map((o): Finding => {
       assertObservation(o, check.code);
 
-      const severity = applyCeiling(rule.tier, o.observed);
+      const severity = applyCeiling(rule.tier, o.observed, pack.manifest.status);
       const lowered = severity !== o.observed;
 
       return Object.freeze({
@@ -127,6 +129,7 @@ export function runCheck<TInput>(
         ceilingApplied: lowered
           ? Object.freeze({ observed: o.observed, tier: rule.tier })
           : null,
+        missingSources: Object.freeze([...(o.missingSources ?? [])]),
       });
     }),
   );

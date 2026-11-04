@@ -104,6 +104,9 @@ function obs(o: Observation): Observation {
     ...o,
     subjectObjectIds: Object.freeze([...o.subjectObjectIds]),
     parameters: Object.freeze([...o.parameters]),
+    ...(o.missingSources !== undefined
+      ? { missingSources: Object.freeze([...o.missingSources]) }
+      : {}),
   });
 }
 
@@ -131,6 +134,7 @@ export const beamFrameFit: Check<CheckInput> = {
             ),
           ],
           closedBy: 'Select a beam and frame the pinned catalog publishes together.',
+          missingSources: ['MS-2'],
         }),
       ];
     }
@@ -180,6 +184,7 @@ export const beamCapacity: Check<CheckInput> = {
           ],
           closedBy:
             'Choose a published span. The engine does not interpolate between grid values, so no capacity can be stated for this one.',
+          missingSources: ['MS-2'],
         }),
       ];
     }
@@ -327,12 +332,36 @@ export const aisleClearance: Check<CheckInput> = {
           ],
           closedBy:
             'State the aisle width your handling equipment requires, from its data sheet.',
+          missingSources: ['MS-6'],
         }),
       ];
     }
     if (input.aisleClearWidth === null) return [];
 
     if (compare(input.aisleClearWidth, input.aisleRequired) < 0) {
+      // DEC-DF: When the requirement itself is unestablished (UNKNOWN / planning value),
+      // an arithmetic shortfall reports MISSING_INPUT (naming MS-6 and MS-14) rather than
+      // BLOCKER, while preserving the exact arithmetic shortfall parameter.
+      if (!isEstablishedOrigin(input.aisleRequired.origin)) {
+        return [
+          obs({
+            code: 'AISLE_CLEAR_SHORTFALL',
+            observed: 'MISSING_INPUT',
+            subjectObjectIds: [input.runId],
+            parameters: [
+              param('aisle clear width', input.aisleClearWidth),
+              unknownParam(
+                'required',
+                'unverified planning value (MS-6); confirm manufacturer AST from spec sheet',
+              ),
+              param('shortfall', subtract(input.aisleRequired, input.aisleClearWidth)),
+            ],
+            closedBy:
+              'Confirm the handling equipment AST from the manufacturer spec sheet (MS-6), or widen the aisle.',
+            missingSources: ['MS-6', 'MS-14'],
+          }),
+        ];
+      }
       return [
         obs({
           code: 'AISLE_CLEAR_SHORTFALL',
@@ -513,6 +542,7 @@ export const siteUnknowns: Check<CheckInput> = {
           parameters: [unknownParam('commodity class', 'the commodity class has not been established')],
           closedBy:
             'State what will be stored, so the commodity class can be established by your fire-protection consultant.',
+          missingSources: ['MS-11'],
         }),
       );
     }
@@ -573,6 +603,7 @@ export const flueGeometry: Check<CheckInput> = {
         parameters: [param('transverse flue', input.transverseFlue)],
         closedBy:
           'No action here. This dimension is reported for your fire-protection consultant; this tool draws no sprinkler conclusion.',
+        missingSources: ['MS-11', 'MS-18'],
       }),
     ];
   },
@@ -601,6 +632,7 @@ export const uncataloguedParts: Check<CheckInput> = {
         ),
         closedBy:
           'Our team will review this material. Capacity cannot be established from geometry, and dimensional similarity to a published part is not evidence of capacity.',
+        missingSources: ['MS-2'],
       }),
     ];
   },
