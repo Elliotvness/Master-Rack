@@ -306,6 +306,22 @@ function isValidExtractedNumber(val: unknown): val is ExtractedField<number> {
   );
 }
 
+/** Every optional extracted field and whether it carries a number or a string. */
+const INTAKE_FIELD_KINDS: readonly (readonly [
+  Exclude<keyof IntakeExtractionPayload, 'documentKind'>,
+  'number' | 'string',
+])[] = [
+  ['truckType', 'string'],
+  ['truckRasIn', 'number'],
+  ['clearHeightIn', 'number'],
+  ['deflectorElevIn', 'number'],
+  ['commodityClass', 'string'],
+  ['sdc', 'string'],
+  ['frameHeightIn', 'number'],
+  ['beamPairCapacityLb', 'number'],
+  ['ratedLoadLb', 'number'],
+];
+
 export type ParseIntakeResult =
   | { readonly ok: true; readonly payload: IntakeExtractionPayload }
   | { readonly ok: false; readonly reason: string };
@@ -336,99 +352,26 @@ export function parseAndValidateIntakeOutput(rawOutputText: string): ParseIntake
     };
   }
 
-  let truckType: ExtractedField<string> | undefined;
-  if (obj['truckType'] !== undefined) {
-    if (!isValidExtractedString(obj['truckType'])) {
-      return { ok: false, reason: 'Invalid truckType field in intake extraction.' };
+  const payload: Record<string, unknown> = { documentKind: kind };
+  for (const [key, kindOf] of INTAKE_FIELD_KINDS) {
+    const raw = obj[key];
+    if (raw === undefined) continue;
+    const valid =
+      kindOf === 'number' ? isValidExtractedNumber(raw) : isValidExtractedString(raw);
+    if (!valid) {
+      return { ok: false, reason: `Invalid ${key} field in intake extraction.` };
     }
-    truckType = obj['truckType'];
-  }
-
-  let truckRasIn: ExtractedField<number> | undefined;
-  if (obj['truckRasIn'] !== undefined) {
-    if (!isValidExtractedNumber(obj['truckRasIn'])) {
-      return { ok: false, reason: 'Invalid truckRasIn field in intake extraction.' };
+    if (key === 'sdc') {
+      const letter = (raw as ExtractedField<string>).value.trim().toUpperCase();
+      if (!/^[A-F]$/.test(letter)) {
+        return { ok: false, reason: 'Invalid sdc field in intake extraction.' };
+      }
+      payload[key] = { ...(raw as ExtractedField<string>), value: letter };
+    } else {
+      payload[key] = raw;
     }
-    truckRasIn = obj['truckRasIn'];
   }
-
-  let clearHeightIn: ExtractedField<number> | undefined;
-  if (obj['clearHeightIn'] !== undefined) {
-    if (!isValidExtractedNumber(obj['clearHeightIn'])) {
-      return { ok: false, reason: 'Invalid clearHeightIn field in intake extraction.' };
-    }
-    clearHeightIn = obj['clearHeightIn'];
-  }
-
-  let deflectorElevIn: ExtractedField<number> | undefined;
-  if (obj['deflectorElevIn'] !== undefined) {
-    if (!isValidExtractedNumber(obj['deflectorElevIn'])) {
-      return { ok: false, reason: 'Invalid deflectorElevIn field in intake extraction.' };
-    }
-    deflectorElevIn = obj['deflectorElevIn'];
-  }
-
-  let commodityClass: ExtractedField<string> | undefined;
-  if (obj['commodityClass'] !== undefined) {
-    if (!isValidExtractedString(obj['commodityClass'])) {
-      return { ok: false, reason: 'Invalid commodityClass field in intake extraction.' };
-    }
-    commodityClass = obj['commodityClass'];
-  }
-
-  let sdc: ExtractedField<string> | undefined;
-  if (obj['sdc'] !== undefined) {
-    if (
-      !isValidExtractedString(obj['sdc']) ||
-      !/^[A-F]$/.test(obj['sdc'].value.trim().toUpperCase())
-    ) {
-      return { ok: false, reason: 'Invalid sdc field in intake extraction.' };
-    }
-    sdc = { ...obj['sdc'], value: obj['sdc'].value.trim().toUpperCase() };
-  }
-
-  let frameHeightIn: ExtractedField<number> | undefined;
-  if (obj['frameHeightIn'] !== undefined) {
-    if (!isValidExtractedNumber(obj['frameHeightIn'])) {
-      return { ok: false, reason: 'Invalid frameHeightIn field in intake extraction.' };
-    }
-    frameHeightIn = obj['frameHeightIn'];
-  }
-
-  let beamPairCapacityLb: ExtractedField<number> | undefined;
-  if (obj['beamPairCapacityLb'] !== undefined) {
-    if (!isValidExtractedNumber(obj['beamPairCapacityLb'])) {
-      return {
-        ok: false,
-        reason: 'Invalid beamPairCapacityLb field in intake extraction.',
-      };
-    }
-    beamPairCapacityLb = obj['beamPairCapacityLb'];
-  }
-
-  let ratedLoadLb: ExtractedField<number> | undefined;
-  if (obj['ratedLoadLb'] !== undefined) {
-    if (!isValidExtractedNumber(obj['ratedLoadLb'])) {
-      return { ok: false, reason: 'Invalid ratedLoadLb field in intake extraction.' };
-    }
-    ratedLoadLb = obj['ratedLoadLb'];
-  }
-
-  return {
-    ok: true,
-    payload: {
-      documentKind: kind,
-      ...(truckType !== undefined ? { truckType } : {}),
-      ...(truckRasIn !== undefined ? { truckRasIn } : {}),
-      ...(clearHeightIn !== undefined ? { clearHeightIn } : {}),
-      ...(deflectorElevIn !== undefined ? { deflectorElevIn } : {}),
-      ...(commodityClass !== undefined ? { commodityClass } : {}),
-      ...(sdc !== undefined ? { sdc } : {}),
-      ...(frameHeightIn !== undefined ? { frameHeightIn } : {}),
-      ...(beamPairCapacityLb !== undefined ? { beamPairCapacityLb } : {}),
-      ...(ratedLoadLb !== undefined ? { ratedLoadLb } : {}),
-    },
-  };
+  return { ok: true, payload: payload as unknown as IntakeExtractionPayload };
 }
 
 function formatIn(um: number): string {

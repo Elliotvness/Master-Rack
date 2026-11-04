@@ -407,6 +407,15 @@ describe('Phase 3 — Spec-Sheet Intake & Command Bar (gemini-3.8-flash, store: 
     expect(preview.beforeNarrowestAisleIn).toBeNull();
     expect(preview.afterNarrowestAisleIn).toBeNull();
     expect(preview.refused.length).toBe(1);
+
+    // A refused command with no matching description falls back to its type
+    const noDesc = previewCommandSequence(
+      singleRunSession,
+      'No description',
+      [{ type: 'splitRun', bayId: 'non-existent-bay' as never }],
+      [],
+    );
+    expect(noDesc.refused[0]).toMatch(/^splitRun: /);
   });
 
   it('rejects malformed or invalid Command Bar output_text payloads', async () => {
