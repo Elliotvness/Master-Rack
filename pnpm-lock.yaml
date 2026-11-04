@@ -74,6 +74,9 @@ importers:
       '@rms/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@rms/display-list':
+        specifier: workspace:*
+        version: link:../../packages/display-list
       '@rms/kernel-bom':
         specifier: workspace:*
         version: link:../../packages/kernel-bom
@@ -83,6 +86,9 @@ importers:
       '@rms/kernel-model':
         specifier: workspace:*
         version: link:../../packages/kernel-model
+      '@rms/kernel-units':
+        specifier: workspace:*
+        version: link:../../packages/kernel-units
       '@rms/studio-model':
         specifier: workspace:*
         version: link:../../packages/studio-model

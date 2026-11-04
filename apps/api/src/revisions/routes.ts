@@ -19,7 +19,6 @@ import {
   INTAKE_DOCUMENT_KINDS,
   REQUEST_STATUSES,
   type ComparableMetric,
-  type DisplayItemClientDTO,
   type FindingParameterEntity,
   type RequestStatus,
   toComparisonClientDTO,
@@ -61,6 +60,14 @@ import {
   string,
 } from '@rms/contracts';
 import { withTenant, type TenantContext, type TenantTransaction } from '@rms/db';
+import {
+  buildElevation,
+  buildPlan,
+  type AisleGeometry,
+  type DisplayList,
+  type LevelGeometry,
+  type RunGeometry,
+} from '@rms/display-list';
 import { deriveBom, type PartRef, type RunTakeoff } from '@rms/kernel-bom';
 import {
   ApprovalGateError,
@@ -71,6 +78,7 @@ import {
   type ReleaseStatus,
 } from '@rms/kernel-catalog';
 import { canonicalise, canonicaliseAll, cloneToDraft } from '@rms/kernel-model';
+import { quantity, type Quantity } from '@rms/kernel-units';
 import {
   SubmitError,
   deriveInternalRevision,
@@ -794,154 +802,133 @@ function deriveOption(
   };
 }
 
-function buildPlanViewItems(
+function buildPlanViewList(
   content: RevisionDraftContent,
   activeOption: OptionDraft | undefined,
-): readonly DisplayItemClientDTO[] {
-  const items: DisplayItemClientDTO[] = [];
-  if (activeOption === undefined) return items;
+  revisionHash: string,
+): DisplayList {
+  const widthUm = content.facility?.width_um ?? 24_384_000;
+  const depthUm = content.facility?.depth_um ?? 12_192_000;
+  const qInputUm = (v: number): Quantity => quantity(v, 'um', 'INPUT');
+  const qDerivedUm = (v: number): Quantity => quantity(v, 'um', 'DERIVED');
+
+  if (activeOption === undefined) {
+    return buildPlan({
+      revisionHash,
+      runs: [],
+      aisles: [],
+      extent: { width: qInputUm(widthUm), height: qInputUm(depthUm) },
+    });
+  }
 
   const unitsById = new Map<string, UnitDraft>();
   for (const u of content.units ?? []) unitsById.set(u.unit_id, u);
+
+  const runs: RunGeometry[] = [];
+  const aisles: AisleGeometry[] = [];
 
   for (const run of activeOption.runs) {
     const unit = unitsById.get(run.unit_id);
     const runDepthUm = unit?.depth_um ?? 1_066_800;
-    let cursorX = run.x_um;
+    const bayCount = run.bays.length;
+    const firstBayLen = run.bays[0]?.length_um ?? 2_438_400;
+    const bayPitchUm = firstBayLen + UPRIGHT_WIDTH_UM;
+    const runLengthUm =
+      run.bays.reduce((acc, b) => acc + b.length_um, 0) + (bayCount + 1) * UPRIGHT_WIDTH_UM;
 
-    items.push({
-      kind: 'text',
-      item: 'annotation',
-      id: `label-${run.run_id}`,
-      at: { x: run.x_um, y: run.y_um },
-      text: { text: `Run ${run.run_id}`, established: true },
+    runs.push({
+      runId: run.run_id,
+      offsetX: qInputUm(run.x_um),
+      offsetY: qInputUm(run.y_um),
+      bays: bayCount,
+      bayPitch: qDerivedUm(bayPitchUm),
+      runLength: qDerivedUm(runLengthUm),
+      frameDepth: qInputUm(runDepthUm),
+      uprightFace: qInputUm(UPRIGHT_WIDTH_UM),
     });
 
-    items.push({
-      kind: 'rect',
-      item: 'upright',
-      id: `upright-${run.run_id}-0`,
-      origin: { x: cursorX, y: run.y_um },
-      width: UPRIGHT_WIDTH_UM,
-      height: runDepthUm,
-      label: null,
-    });
-
-    for (const [idx, bay] of run.bays.entries()) {
-      const beamInches = Math.round(bay.length_um / UM_PER_INCH);
-      items.push({
-        kind: 'rect',
-        item: 'beam',
-        id: `beam-${run.run_id}-${bay.bay_id}`,
-        origin: { x: cursorX + UPRIGHT_WIDTH_UM, y: run.y_um },
-        width: bay.length_um,
-        height: BEAM_HEIGHT_UM,
-        label: { text: `${String(beamInches)} in`, established: true },
-      });
-      cursorX += UPRIGHT_WIDTH_UM + bay.length_um;
-      items.push({
-        kind: 'rect',
-        item: 'upright',
-        id: `upright-${run.run_id}-${String(idx + 1)}`,
-        origin: { x: cursorX, y: run.y_um },
-        width: UPRIGHT_WIDTH_UM,
-        height: runDepthUm,
-        label: null,
-      });
-    }
-
-    const aisleY = run.y_um + runDepthUm + activeOption.aisle_width_um;
-    items.push({
-      kind: 'line',
-      item: 'aisle',
-      id: `aisle-${run.run_id}`,
-      from: { x: run.x_um, y: aisleY },
-      to: { x: cursorX, y: aisleY },
-    });
-
-    const aisleInches = Math.round(activeOption.aisle_width_um / UM_PER_INCH);
-    items.push({
-      kind: 'dimension',
-      item: 'annotation',
-      id: `dim-aisle-${run.run_id}`,
-      from: { x: run.x_um, y: run.y_um + runDepthUm },
-      to: { x: run.x_um, y: aisleY },
-      text: { text: `${String(aisleInches)} in`, established: true },
+    aisles.push({
+      aisleId: `aisle-${run.run_id}`,
+      offsetX: qInputUm(run.x_um),
+      offsetY: qDerivedUm(run.y_um + runDepthUm),
+      length: qDerivedUm(runLengthUm),
+      clearWidth: qInputUm(activeOption.aisle_width_um),
     });
   }
 
-  return items;
+  return buildPlan({
+    revisionHash,
+    runs,
+    aisles,
+    extent: { width: qInputUm(widthUm), height: qInputUm(depthUm) },
+  });
 }
 
-function buildElevationViewItems(
+function buildElevationViewList(
   content: RevisionDraftContent,
   activeOption: OptionDraft | undefined,
-): readonly DisplayItemClientDTO[] {
-  const items: DisplayItemClientDTO[] = [];
+  revisionHash: string,
+): DisplayList {
+  const clearHeightUm = content.facility?.clear_height_um ?? 9_144_000;
+  const qInputUm = (v: number): Quantity => quantity(v, 'um', 'INPUT');
+  const qDerivedUm = (v: number): Quantity => quantity(v, 'um', 'DERIVED');
+
   const firstRun = activeOption?.runs[0];
   const firstBay = firstRun?.bays[0];
-  if (firstRun === undefined || firstBay === undefined) return items;
+  if (firstRun === undefined || firstBay === undefined) {
+    return buildElevation({
+      revisionHash,
+      runId: 'run-0',
+      frameHeight: qInputUm(clearHeightUm),
+      bayPitch: qDerivedUm(UPRIGHT_WIDTH_UM * 2 + 2_438_400),
+      levels: [],
+    });
+  }
 
   const unitsById = new Map<string, UnitDraft>();
   for (const u of content.units ?? []) unitsById.set(u.unit_id, u);
   const unit = unitsById.get(firstRun.unit_id);
-  const unitWidthUm = unit?.width_um ?? DEFAULT_UNIT_WIDTH_UM;
+  const unitDepthUm = unit?.depth_um ?? 1_066_800;
   const unitHeightUm = unit?.height_um ?? 1_219_200;
-  const clearHeightUm = content.facility?.clear_height_um ?? 9_144_000;
+  const unitWeightMlb =
+    typeof unit?.weight_lb === 'number' ? unit.weight_lb * 1_000 : null;
+  const bayWidthUm = UPRIGHT_WIDTH_UM * 2 + firstBay.length_um;
 
-  items.push(
-    {
-      kind: 'rect',
-      item: 'upright',
-      id: `elev-upright-${firstBay.bay_id}-L`,
-      origin: { x: 0, y: 0 },
-      width: UPRIGHT_WIDTH_UM,
-      height: clearHeightUm,
-      label: null,
-    },
-    {
-      kind: 'rect',
-      item: 'upright',
-      id: `elev-upright-${firstBay.bay_id}-R`,
-      origin: { x: UPRIGHT_WIDTH_UM + firstBay.length_um, y: 0 },
-      width: UPRIGHT_WIDTH_UM,
-      height: clearHeightUm,
-      label: null,
-    },
-    {
-      kind: 'line',
-      item: 'reference',
-      id: `elev-clear-height-${firstBay.bay_id}`,
-      from: { x: 0, y: clearHeightUm },
-      to: { x: UPRIGHT_WIDTH_UM * 2 + firstBay.length_um, y: clearHeightUm },
-    },
-  );
-
+  const levels: LevelGeometry[] = [];
   for (let level = 1; level <= firstBay.levels; level += 1) {
     const beamY = level * (unitHeightUm + BEAM_HEIGHT_UM);
-    items.push(
-      {
-        kind: 'rect',
-        item: 'beam',
-        id: `elev-beam-${firstBay.bay_id}-L${String(level)}`,
-        origin: { x: UPRIGHT_WIDTH_UM, y: beamY - BEAM_HEIGHT_UM },
-        width: firstBay.length_um,
-        height: BEAM_HEIGHT_UM,
-        label: { text: `Level ${String(level)}`, established: true },
-      },
-      {
-        kind: 'rect',
-        item: 'unit-load',
-        id: `elev-load-${firstBay.bay_id}-L${String(level)}`,
-        origin: { x: UPRIGHT_WIDTH_UM, y: beamY },
-        width: unitWidthUm,
-        height: unitHeightUm,
-        label: { text: `${String(Math.round(unitWidthUm / UM_PER_INCH))} in`, established: true },
-      },
-    );
+    levels.push({
+      levelId: `${firstBay.bay_id}:L${String(level)}`,
+      elevation: qDerivedUm(beamY),
+      load:
+        unitWeightMlb !== null
+          ? quantity(unitWeightMlb, 'mlb', 'INPUT')
+          : null,
+    });
   }
 
-  return items;
+  return buildElevation({
+    revisionHash,
+    runId: firstRun.run_id,
+    frameHeight: qInputUm(clearHeightUm),
+    bayPitch: qDerivedUm(bayWidthUm),
+    levels,
+    floorStorage: {
+      height: qInputUm(unitHeightUm),
+      depth: qInputUm(unitDepthUm),
+    },
+    references: [
+      {
+        id: `ref-clear-height-${firstBay.bay_id}`,
+        label: 'Clear height',
+        elevation:
+          content.facility?.clear_height_um !== undefined &&
+          content.facility.clear_height_um !== null
+            ? qInputUm(content.facility.clear_height_um)
+            : null,
+      },
+    ],
+  });
 }
 
 async function syncDerivedTablesOnDraft(
@@ -2357,35 +2344,15 @@ export function registerRevisionRoutes(
       };
       const findings = optionDerived?.findings ?? [];
 
-      const viewItems = buildPlanViewItems(content, activeOption);
-      const elevationItems = buildElevationViewItems(content, activeOption);
-      const firstBayLengthUm = activeOption?.runs[0]?.bays[0]?.length_um ?? 2_438_400;
+      const planView = buildPlanViewList(content, activeOption, draftHash);
+      const elevationView = buildElevationViewList(content, activeOption, draftHash);
       const dto = toPreviewClientDTO({
         revision_id: rev.id,
         counts,
         dimensions,
         assumptions: assumptionList,
         findings,
-        views: [
-          {
-            view: 'plan',
-            extent: {
-              width: content.facility?.width_um ?? 24_384_000,
-              height: content.facility?.depth_um ?? 12_192_000,
-            },
-            revisionHash: draftHash,
-            items: viewItems,
-          },
-          {
-            view: 'elevation',
-            extent: {
-              width: UPRIGHT_WIDTH_UM * 2 + firstBayLengthUm,
-              height: content.facility?.clear_height_um ?? 9_144_000,
-            },
-            revisionHash: draftHash,
-            items: elevationItems,
-          },
-        ],
+        views: [planView, elevationView],
       });
 
       return { kind: 'ok' as const, dto };

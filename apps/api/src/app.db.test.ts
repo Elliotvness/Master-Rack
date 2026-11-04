@@ -1166,7 +1166,7 @@ describe('T-14c — client reads, drafting, and internal project/revision creati
         views: Array<{
           view: string;
           watermarked: boolean;
-          items: Array<{ kind: string }>;
+          items: Array<{ kind: string; item: string; id: string }>;
         }>;
       };
       expect(preview.revision_id).toBe(p01.id);
@@ -1187,8 +1187,14 @@ describe('T-14c — client reads, drafting, and internal project/revision creati
       expect(preview.views.map((v) => v.view)).toEqual(['plan', 'elevation']);
       expect(preview.views[0]?.watermarked).toBe(true);
       expect(preview.views[0]?.items.length).toBeGreaterThan(0);
+      expect(preview.views[0]?.items.map((i) => i.item)).toEqual(
+        expect.arrayContaining(['upright', 'aisle', 'annotation']),
+      );
       expect(preview.views[1]?.watermarked).toBe(true);
       expect(preview.views[1]?.items.length).toBeGreaterThan(0);
+      expect(preview.views[1]?.items.map((i) => i.item)).toEqual(
+        expect.arrayContaining(['upright', 'beam', 'unit-load', 'reference', 'annotation']),
+      );
 
       // --- Step 5b: Client fetches Comparison across Option A and Option B ---
       const compareRes = await app.inject({

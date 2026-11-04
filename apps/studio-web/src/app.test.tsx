@@ -197,6 +197,29 @@ describe('routing', () => {
     await user.click(cloneBtn);
     expect(document.getElementById('rev-code')?.textContent).toBe('P02');
     expect(document.getElementById('rev-state')?.textContent).toBe('DRAFT');
+
+    // Sync Studio draft to Revision API (facility, units, options, submit, clone)
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ id: 'rev-1' }), { status: 200 }));
+    try {
+      const revIdInput = document.getElementById('rev-id-input') as HTMLInputElement;
+      await user.type(revIdInput, '00000000-0000-4000-8000-000000000001');
+      const syncBtn = document.getElementById('rev-sync-draft-btn') as HTMLButtonElement;
+      await user.click(syncBtn);
+      expect(fetchSpy).toHaveBeenCalledTimes(3);
+      expect(document.getElementById('rev-status-notice')?.textContent).toMatch(
+        /Synced Studio draft/,
+      );
+
+      await user.click(lockBtn);
+      expect(fetchSpy).toHaveBeenCalledTimes(4);
+      const cloneBtn2 = document.getElementById('rev-clone-btn') as HTMLButtonElement;
+      await user.click(cloneBtn2);
+      expect(fetchSpy).toHaveBeenCalledTimes(5);
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 
   it('/facility renders the Facility & Unit Entry view', async () => {

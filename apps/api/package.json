@@ -13,9 +13,11 @@
     "@google/genai": "^2.32.0",
     "@rms/contracts": "workspace:*",
     "@rms/db": "workspace:*",
+    "@rms/display-list": "workspace:*",
     "@rms/kernel-bom": "workspace:*",
     "@rms/kernel-catalog": "workspace:*",
     "@rms/kernel-model": "workspace:*",
+    "@rms/kernel-units": "workspace:*",
     "@rms/studio-model": "workspace:*",
     "@rms/workflow": "workspace:*",
     "fastify": "^5.12.1"

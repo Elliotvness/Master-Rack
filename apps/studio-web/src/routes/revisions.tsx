@@ -21,6 +21,7 @@ export default function RevisionsView(): React.JSX.Element {
   const { session } = useStudioSession();
   const doc = session.document;
 
+  const [revisionIdInput, setRevisionIdInput] = useState<string>('');
   const [revisionCode, setRevisionCode] = useState<'P01' | 'P02'>('P01');
   const [lifecycleState, setLifecycleState] = useState<'DRAFT' | 'FROZEN'>('DRAFT');
   const [acknowledgedKeys, setAcknowledgedKeys] = useState<ReadonlySet<string>>(new Set());
@@ -70,7 +71,101 @@ export default function RevisionsView(): React.JSX.Element {
     });
   };
 
-  const handleLockPreliminary = (): void => {
+  const handleSyncDraftToApi = async (): Promise<void> => {
+    const revId = revisionIdInput.trim();
+    if (revId.length === 0) {
+      setStatusNotice('Enter a Revision UUID before syncing the Studio draft to the API.');
+      return;
+    }
+    try {
+      const encodedId = encodeURIComponent(revId);
+      const facRes = await fetch(`/api/client/v1/revisions/${encodedId}/facility`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: doc.name,
+          width_um: 36_576_000,
+          depth_um: 24_384_000,
+          clear_height_um: doc.building.clearHeight.value,
+          forklift:
+            doc.equipment.truckRAS.established === 'INPUT'
+              ? { model_stated: true, required_aisle_um: doc.equipment.truckRAS.value }
+              : { model_stated: false },
+        }),
+      });
+      if (!facRes.ok) {
+        setStatusNotice(`Facility sync failed (${String(facRes.status)}).`);
+        return;
+      }
+
+      const unitsRes = await fetch(`/api/client/v1/revisions/${encodedId}/units`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          units: [
+            {
+              unit_id: 'studio-unit-1',
+              width_um: doc.unitLoad.palletW,
+              depth_um: doc.unitLoad.palletD,
+              height_um: doc.unitLoad.height,
+              weight_lb: Math.max(1, Math.round(doc.unitLoad.weight)),
+              overhang_um: null,
+            },
+          ],
+        }),
+      });
+      if (!unitsRes.ok) {
+        setStatusNotice(`Units sync failed (${String(unitsRes.status)}).`);
+        return;
+      }
+
+      const firstAisleUm = doc.equipment.truckRAS.value;
+      const runsPayload = doc.runs.map((r) => {
+        const bt = doc.bayTypes.find((b) => b.id === r.bayTypeId) ?? doc.bayTypes[0]!;
+        const activeLevels = bt.beamLevels.length;
+        const bays = r.bays.map((b) => ({
+          bay_id: b.id,
+          length_um: bt.beamLength,
+          levels: Math.max(1, activeLevels),
+        }));
+        return {
+          run_id: r.id,
+          unit_id: 'studio-unit-1',
+          x_um: Math.max(0, r.x),
+          y_um: Math.max(0, r.y),
+          bays,
+        };
+      });
+
+      const optRes = await fetch(`/api/client/v1/revisions/${encodedId}/options`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          options: [
+            {
+              option_id: 'studio-opt-1',
+              label: doc.name || 'Studio Layout Option',
+              aisle_width_um: firstAisleUm,
+              runs: runsPayload,
+            },
+          ],
+          active_option_id: 'studio-opt-1',
+        }),
+      });
+      if (!optRes.ok) {
+        setStatusNotice(`Options sync failed (${String(optRes.status)}).`);
+        return;
+      }
+
+      setStatusNotice(`Synced Studio draft (facility, units, options) to revision ${revId}.`);
+    } catch (err) {
+      setStatusNotice(
+        `Revision sync failed: ${err instanceof Error ? err.message : 'network error'}`,
+      );
+    }
+  };
+
+  const handleLockPreliminary = async (): Promise<void> => {
     const reasons: string[] = [];
     const unacked = assumptions.filter((a) => !acknowledgedKeys.has(a.key));
     if (unacked.length > 0) {
@@ -89,6 +184,35 @@ export default function RevisionsView(): React.JSX.Element {
       return;
     }
 
+    const revId = revisionIdInput.trim();
+    if (revId.length > 0) {
+      try {
+        const res = await fetch(
+          `/api/client/v1/revisions/${encodeURIComponent(revId)}/submit`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Idempotency-Key': `studio-lock-${revId}-${revisionCode}`,
+            },
+            body: JSON.stringify({
+              assumptions_acknowledged: true,
+              disclaimer_version_id: 'disclaimer-v2026.09',
+            }),
+          },
+        );
+        if (!res.ok) {
+          setStatusNotice(`Server submit returned HTTP ${String(res.status)}.`);
+          return;
+        }
+      } catch (err) {
+        setStatusNotice(
+          `Server submit failed: ${err instanceof Error ? err.message : 'network error'}`,
+        );
+        return;
+      }
+    }
+
     setRefusalReasons([]);
     setLifecycleState('FROZEN');
     setStatusNotice(
@@ -96,7 +220,22 @@ export default function RevisionsView(): React.JSX.Element {
     );
   };
 
-  const handleCloneToP02 = (): void => {
+  const handleCloneToP02 = async (): Promise<void> => {
+    const revId = revisionIdInput.trim();
+    if (revId.length > 0) {
+      try {
+        await fetch(`/api/client/v1/revisions/${encodeURIComponent(revId)}/clone`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': `studio-clone-${revId}-p02`,
+          },
+          body: JSON.stringify({}),
+        });
+      } catch {
+        // Proceed with local clone state if offline.
+      }
+    }
     setRevisionCode('P02');
     setLifecycleState('DRAFT');
     setRefusalReasons([]);
@@ -153,13 +292,49 @@ export default function RevisionsView(): React.JSX.Element {
           <strong>Session Edits:</strong> {session.ledger.depth}
         </p>
 
+        <div
+          style={{
+            display: 'flex',
+            gap: '8px',
+            alignItems: 'center',
+            marginTop: '8px',
+            flexWrap: 'wrap',
+          }}
+        >
+          <label htmlFor="rev-id-input" style={{ fontSize: '12px' }}>
+            Revision UUID:
+          </label>
+          <input
+            id="rev-id-input"
+            type="text"
+            className="font-mono"
+            placeholder="00000000-0000-4000-8000-000000000001"
+            value={revisionIdInput}
+            onChange={(e) => setRevisionIdInput(e.target.value)}
+            style={{ width: '280px', padding: '4px 6px' }}
+          />
+          <button
+            id="rev-sync-draft-btn"
+            type="button"
+            className="btn"
+            disabled={lifecycleState === 'FROZEN'}
+            onClick={() => {
+              void handleSyncDraftToApi();
+            }}
+          >
+            Sync Studio Draft to Revision API
+          </button>
+        </div>
+
         {lifecycleState === 'FROZEN' && (
           <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
             <button
               id="rev-clone-btn"
               type="button"
               className="btn btn-primary"
-              onClick={handleCloneToP02}
+              onClick={() => {
+                void handleCloneToP02();
+              }}
             >
               Clone to Draft P02
             </button>
@@ -237,7 +412,9 @@ export default function RevisionsView(): React.JSX.Element {
             type="button"
             className="btn btn-primary"
             disabled={lifecycleState === 'FROZEN'}
-            onClick={handleLockPreliminary}
+            onClick={() => {
+              void handleLockPreliminary();
+            }}
           >
             Lock &amp; Issue Preliminary {revisionCode}
           </button>

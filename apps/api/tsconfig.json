@@ -9,9 +9,11 @@
   "references": [
     { "path": "../../packages/contracts" },
     { "path": "../../packages/db" },
+    { "path": "../../packages/display-list" },
     { "path": "../../packages/kernel-bom" },
     { "path": "../../packages/kernel-catalog" },
     { "path": "../../packages/kernel-model" },
+    { "path": "../../packages/kernel-units" },
     { "path": "../../packages/studio-model" },
     { "path": "../../packages/workflow" }
   ],
