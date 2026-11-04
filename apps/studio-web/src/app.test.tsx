@@ -412,6 +412,48 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
     const minAisle = document.getElementById('f-minaisle') as HTMLInputElement;
     expect(minAisle.value).toBe('108');
   });
+
+  it('wires Phase 3 Spec-Sheet Intake Human Confirmation Table (store: false) and Command Bar (Ctrl+K)', async () => {
+    const user = userEvent.setup();
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1 });
+
+    // Open Spec-Sheet Intake -> stages rows with accepted: false (never auto-fills)
+    const openIntakeBtn = document.getElementById('open-intake-btn') as HTMLButtonElement;
+    await user.click(openIntakeBtn);
+    expect(document.getElementById('intake-confirm-table')).not.toBeNull();
+    const minAisleVerified = document.getElementById('f-minaisle-v') as HTMLInputElement;
+    expect(minAisleVerified.checked).toBe(false);
+
+    // Check only the truckRAS row and click Apply Checked Rows
+    const truckRasCheckbox = document.querySelector(
+      '[data-intake-row="intake-truckRAS"]',
+    ) as HTMLInputElement;
+    expect(truckRasCheckbox.checked).toBe(false);
+    await user.click(truckRasCheckbox);
+    expect(truckRasCheckbox.checked).toBe(true);
+
+    const applyIntakeBtn = document.getElementById('apply-intake-btn') as HTMLButtonElement;
+    await user.click(applyIntakeBtn);
+    expect(document.getElementById('intake-status')?.textContent).toMatch(/Applied 1 confirmed row/);
+    expect(minAisleVerified.checked).toBe(true);
+
+    const closeIntakeBtn = document.getElementById('close-intake-btn') as HTMLButtonElement;
+    await user.click(closeIntakeBtn);
+    expect(document.getElementById('intake-panel')).toBeNull();
+
+    // Open Command Bar via Ctrl+K shortcut, preview geometric delta, and execute
+    await user.keyboard('{Control>}k{/Control}');
+    expect(document.getElementById('cmdbar-panel')).not.toBeNull();
+
+    const previewBtn = document.getElementById('cmdbar-preview-btn') as HTMLButtonElement;
+    await user.click(previewBtn);
+    expect(document.getElementById('cmdbar-preview-card')).not.toBeNull();
+
+    const executeBtn = document.getElementById('cmdbar-execute-btn') as HTMLButtonElement;
+    await user.click(executeBtn);
+    expect(document.getElementById('cmdbar-preview-card')).toBeNull();
+  });
 });
 
 describe('the theme toggle', () => {

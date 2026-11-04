@@ -181,4 +181,37 @@ export {
   type FixProposal,
 } from './fix-proposals.js';
 
+export {
+  COMMAND_BAR_SCHEMA,
+  GEMINI_INTAKE_MODEL,
+  INTAKE_EXTRACTION_SCHEMA,
+  applyConfirmedIntakeRows,
+  buildCommandBarRequest,
+  buildSpecSheetIntakeRequest,
+  parseAndValidateCommandBarOutput,
+  parseAndValidateIntakeOutput,
+  previewCommandSequence,
+  runCommandBarInstruction,
+  runSpecSheetIntake,
+  stageIntakeConfirmationTable,
+  toggleIntakeRowAcceptance,
+  validateGeminiBackendConfig,
+  type BackendConfigCheck,
+  type CommandBarRunResult,
+  type CommandPreviewCard,
+  type ExtractedField,
+  type GeminiBackendConfig,
+  type GeminiInteractionPart,
+  type GeminiInteractionsClient,
+  type GeminiInteractionsCreateRequest,
+  type IntakeConfirmationRow,
+  type IntakeDocumentKind,
+  type IntakeExtractionPayload,
+  type ParseCommandBarResult,
+  type ParseIntakeResult,
+  type SpecSheetIntakeInput,
+  type SpecSheetIntakeResult,
+} from './ai-intake.js';
+
+
 
