@@ -127,19 +127,6 @@ describe('the screening-only notice', () => {
   });
 });
 
-/**
- * Views that are still routing targets only.
- * `plan` left this list in S3.1/S3.2; `elevation` (S3.3) and `sheets` (S3.4) leave it now;
- * `bom` leaves it with the takeoff and pricing implementation.
- */
-const UNIMPLEMENTED_VIEWS = VIEWS.filter(
-  (v) =>
-    v.path !== 'plan' &&
-    v.path !== 'elevation' &&
-    v.path !== 'sheets' &&
-    v.path !== 'bom',
-);
-
 describe('routing', () => {
   it.each(VIEWS.map((v) => [v.path, v.label] as const))(
     '/%s renders the %s view',
@@ -149,17 +136,68 @@ describe('routing', () => {
         'textContent',
         label,
       );
+      expect(screen.queryByText(/Not implemented/)).toBeNull();
     },
   );
 
-  it.each(UNIMPLEMENTED_VIEWS.map((v) => [v.path] as const))(
-    '/%s still says it is not implemented',
-    async (path) => {
-      renderApp(`/${path}`);
-      await screen.findByRole('heading', { level: 1 });
-      expect(screen.getByText(/Not implemented/)).toBeTruthy();
-    },
-  );
+  it('/screening renders compliance findings, fix proposals, and D8 audit trail when a fix is accepted', async () => {
+    const user = userEvent.setup();
+    renderApp('/screening');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Screening' })).not.toBeNull();
+    expect(document.getElementById('screening-pack-pins')?.textContent).toContain(
+      'mcs-2026.08',
+    );
+    expect(screen.getByRole('table', { name: /compliance screening findings/i })).toBeTruthy();
+    expect(document.getElementById('screening-position-identity')?.textContent).toMatch(
+      /Gross \(\d+\) - Lost \(0 across 8 tracked reasons\) = Net Usable \(\d+\)/,
+    );
+
+    const acceptBtns = document.querySelectorAll('[id^="accept-fix-"]');
+    expect(acceptBtns.length).toBeGreaterThan(0);
+    await user.click(acceptBtns[0] as HTMLButtonElement);
+    expect(document.getElementById('screening-audit-log')?.textContent).toMatch(
+      /Changed by Rule Set/,
+    );
+  });
+
+  it('/revisions enforces multi-reason pre-submission refusal, locks P01, clones to P02, and creates internal C01 trace', async () => {
+    const user = userEvent.setup();
+    renderApp('/revisions');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Revisions' })).not.toBeNull();
+    expect(document.getElementById('rev-code')?.textContent).toBe('P01');
+    expect(document.getElementById('rev-state')?.textContent).toBe('DRAFT');
+
+    // Attempt to lock without acknowledging assumptions or disclaimer -> refused with 2 reasons
+    const lockBtn = document.getElementById('rev-lock-btn') as HTMLButtonElement;
+    await user.click(lockBtn);
+    expect(document.getElementById('rev-refusal-banner')?.textContent).toMatch(
+      /Preliminary lock refused \(2 reason\(s\)\)/,
+    );
+
+    // Acknowledge all assumptions and disclaimer -> lock succeeds -> FROZEN
+    const assumptionBoxes = document.querySelectorAll('[data-assumption-key]');
+    for (const box of assumptionBoxes) {
+      await user.click(box as HTMLInputElement);
+    }
+    const disclaimerBox = document.getElementById('rev-ack-disclaimer') as HTMLInputElement;
+    await user.click(disclaimerBox);
+    await user.click(lockBtn);
+
+    expect(document.getElementById('rev-state')?.textContent).toBe('FROZEN');
+    expect(document.getElementById('rev-status-notice')?.textContent).toMatch(/FROZEN/);
+
+    // Create internal commercial revision C01 and inspect "Show Your Work" trace
+    const c01Btn = document.getElementById('rev-create-c01-btn') as HTMLButtonElement;
+    await user.click(c01Btn);
+    expect(document.getElementById('rev-c01-panel')).not.toBeNull();
+    expect(document.getElementById('rev-trace-table')).not.toBeNull();
+
+    // Clone frozen P01 to editable Draft P02
+    const cloneBtn = document.getElementById('rev-clone-btn') as HTMLButtonElement;
+    await user.click(cloneBtn);
+    expect(document.getElementById('rev-code')?.textContent).toBe('P02');
+    expect(document.getElementById('rev-state')?.textContent).toBe('DRAFT');
+  });
 
   it('/facility renders the Facility & Unit Entry view', async () => {
     renderApp('/facility');

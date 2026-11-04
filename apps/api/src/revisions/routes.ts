@@ -859,6 +859,77 @@ function buildPlanViewItems(
   return items;
 }
 
+function buildElevationViewItems(
+  content: RevisionDraftContent,
+  activeOption: OptionDraft | undefined,
+): readonly DisplayItemClientDTO[] {
+  const items: DisplayItemClientDTO[] = [];
+  const firstRun = activeOption?.runs[0];
+  const firstBay = firstRun?.bays[0];
+  if (firstRun === undefined || firstBay === undefined) return items;
+
+  const unitsById = new Map<string, UnitDraft>();
+  for (const u of content.units ?? []) unitsById.set(u.unit_id, u);
+  const unit = unitsById.get(firstRun.unit_id);
+  const unitWidthUm = unit?.width_um ?? DEFAULT_UNIT_WIDTH_UM;
+  const unitHeightUm = unit?.height_um ?? 1_219_200;
+  const clearHeightUm = content.facility?.clear_height_um ?? 9_144_000;
+
+  items.push(
+    {
+      kind: 'rect',
+      item: 'upright',
+      id: `elev-upright-${firstBay.bay_id}-L`,
+      origin: { x: 0, y: 0 },
+      width: UPRIGHT_WIDTH_UM,
+      height: clearHeightUm,
+      label: null,
+    },
+    {
+      kind: 'rect',
+      item: 'upright',
+      id: `elev-upright-${firstBay.bay_id}-R`,
+      origin: { x: UPRIGHT_WIDTH_UM + firstBay.length_um, y: 0 },
+      width: UPRIGHT_WIDTH_UM,
+      height: clearHeightUm,
+      label: null,
+    },
+    {
+      kind: 'line',
+      item: 'reference',
+      id: `elev-clear-height-${firstBay.bay_id}`,
+      from: { x: 0, y: clearHeightUm },
+      to: { x: UPRIGHT_WIDTH_UM * 2 + firstBay.length_um, y: clearHeightUm },
+    },
+  );
+
+  for (let level = 1; level <= firstBay.levels; level += 1) {
+    const beamY = level * (unitHeightUm + BEAM_HEIGHT_UM);
+    items.push(
+      {
+        kind: 'rect',
+        item: 'beam',
+        id: `elev-beam-${firstBay.bay_id}-L${String(level)}`,
+        origin: { x: UPRIGHT_WIDTH_UM, y: beamY - BEAM_HEIGHT_UM },
+        width: firstBay.length_um,
+        height: BEAM_HEIGHT_UM,
+        label: { text: `Level ${String(level)}`, established: true },
+      },
+      {
+        kind: 'rect',
+        item: 'unit-load',
+        id: `elev-load-${firstBay.bay_id}-L${String(level)}`,
+        origin: { x: UPRIGHT_WIDTH_UM, y: beamY },
+        width: unitWidthUm,
+        height: unitHeightUm,
+        label: { text: `${String(Math.round(unitWidthUm / UM_PER_INCH))} in`, established: true },
+      },
+    );
+  }
+
+  return items;
+}
+
 async function syncDerivedTablesOnDraft(
   tx: TenantTransaction,
   organizationId: string,
@@ -2273,6 +2344,8 @@ export function registerRevisionRoutes(
       const findings = optionDerived?.findings ?? [];
 
       const viewItems = buildPlanViewItems(content, activeOption);
+      const elevationItems = buildElevationViewItems(content, activeOption);
+      const firstBayLengthUm = activeOption?.runs[0]?.bays[0]?.length_um ?? 2_438_400;
       const dto = toPreviewClientDTO({
         revision_id: rev.id,
         counts,
@@ -2288,6 +2361,15 @@ export function registerRevisionRoutes(
             },
             revisionHash: draftHash,
             items: viewItems,
+          },
+          {
+            view: 'elevation',
+            extent: {
+              width: UPRIGHT_WIDTH_UM * 2 + firstBayLengthUm,
+              height: content.facility?.clear_height_um ?? 9_144_000,
+            },
+            revisionHash: draftHash,
+            items: elevationItems,
           },
         ],
       });
@@ -4672,7 +4754,7 @@ async function loadOrMaterialiseBomLines(
         AND up.organization_id = b.organization_id
       WHERE b.organization_id = $1
         AND b.revision_id = $2
-      ORDER BY b.id ASC`,
+      ORDER BY array_position(ARRAY['FRAME','BEAM','ANCHOR','DECK','SPACER','FOOTPLATE']::text[], b.category) ASC, b.id ASC`,
     [rev.organizationId, rev.id],
   );
 
@@ -4700,7 +4782,7 @@ async function loadOrMaterialiseBomLines(
         confirmed: r.confirmed,
         sourceObjectIds: r.source_object_ids,
         resolved,
-        qty: resolved ? { value: r.qty!, unit: r.uom } : null,
+        qty: resolved ? { value: r.qty!, unit: r.uom.toLowerCase() } : null,
         unresolvedReason: r.unresolved_reason,
       };
     });

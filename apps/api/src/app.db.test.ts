@@ -1184,8 +1184,11 @@ describe('T-14c — client reads, drafting, and internal project/revision creati
         'pallet.overhang.front',
       ]);
       expect(preview.findings.map((f) => f.code)).toContain('AISLE_CLEAR_OK');
+      expect(preview.views.map((v) => v.view)).toEqual(['plan', 'elevation']);
       expect(preview.views[0]?.watermarked).toBe(true);
       expect(preview.views[0]?.items.length).toBeGreaterThan(0);
+      expect(preview.views[1]?.watermarked).toBe(true);
+      expect(preview.views[1]?.items.length).toBeGreaterThan(0);
 
       // --- Step 5b: Client fetches Comparison across Option A and Option B ---
       const compareRes = await app.inject({
@@ -3612,6 +3615,480 @@ describe('T-15 — AC-02, AC-03 and AC-06 against the running system (real route
       );
       const bDeniesAfter = (bDeniesAfterRes.rows[0]?.n as number) ?? 0;
       expect(bDeniesAfter - bDeniesBefore).toBe(crossTenantCalls.length);
+
+      await app.close();
+    },
+  );
+});
+
+describe('AC-20 — full eight-step MVP-1 walkthrough (§15.2)', () => {
+  function extractCookies(setCookieHeader: string | string[] | undefined): Record<string, string> {
+    const list = Array.isArray(setCookieHeader)
+      ? setCookieHeader
+      : typeof setCookieHeader === 'string'
+        ? [setCookieHeader]
+        : [];
+    const out: Record<string, string> = {};
+    for (const entry of list) {
+      const first = entry.split(';')[0] ?? '';
+      const eq = first.indexOf('=');
+      if (eq > 0) {
+        out[first.slice(0, eq).trim()] = first.slice(eq + 1).trim();
+      }
+    }
+    return out;
+  }
+
+  function cookieHeader(cookies: Record<string, string>): string {
+    return Object.entries(cookies)
+      .map(([k, v]) => `${k}=${v}`)
+      .join('; ');
+  }
+
+  maybe(
+    'executes all eight §15.2 steps end-to-end: (1) invite, (2) accept + MFA + sign-in, (3) project + P01 pinned to approved releases, (4) facility + units + two options, (5) plan+elevation preview + comparison + multi-reason refusal + assumption ack, (6) atomic submit + WORM manifest + preliminary PDF, (7) frozen immutability + clone to P02, (8) internal queue + C01 derivation + byte-identical BOM regeneration',
+    async () => {
+      const INTERNAL_ORG = '88888888-8888-4888-8888-ac2000000001';
+      const STAFF_ADMIN = '88888888-8888-4888-8888-ac2000000002';
+      const CAT_APPROVED = '88888888-8888-4888-8888-ac2000000011';
+      const RULE_APPROVED = '88888888-8888-4888-8888-ac2000000012';
+
+      await admin(
+        `INSERT INTO app.organization (id, name, is_internal) VALUES
+           ($1, 'Rack Master Staff AC-20', true)
+         ON CONFLICT (id) DO NOTHING`,
+        [INTERNAL_ORG],
+      );
+      await admin(
+        `INSERT INTO app.app_user (id, organization_id, email, name, actor_type) VALUES
+           ($1, $2, 'staff-ac20@rackmaster.test', 'Staff Admin AC-20', 'staff')
+         ON CONFLICT (id) DO NOTHING`,
+        [STAFF_ADMIN, INTERNAL_ORG],
+      );
+      await admin(
+        `INSERT INTO app.membership (id, organization_id, user_id, role) VALUES
+           ($1, $2, $3, 'INTERNAL_ADMIN')
+         ON CONFLICT (organization_id, user_id) DO NOTHING`,
+        ['88888888-8888-4888-8888-ac2000000021', INTERNAL_ORG, STAFF_ADMIN],
+      );
+      await admin(
+        `INSERT INTO app.catalog_release
+           (id, manufacturer, rev, status, source_document, digitised_by, digitised_at,
+            approved_by, approved_at, verification_path, content_sha256)
+         VALUES
+           ($1, 'Interlake Mecalux', 'cat-2026.09-ac20', 'APPROVED', 'IM-2026.pdf', 'digitiser-1', now(),
+            'approver-2', now(), 'two-path reconciliation', $2)
+         ON CONFLICT (id) DO NOTHING`,
+        [CAT_APPROVED, 'a'.repeat(64)],
+      );
+      await admin(
+        `INSERT INTO app.rule_pack_release
+           (id, name, rev, status, approved_by, approved_at, content_sha256)
+         VALUES
+           ($1, 'studio-2026.09', 'rules-2026.09-ac20', 'APPROVED', 'approver-2', now(), $2)
+         ON CONFLICT (id) DO NOTHING`,
+        [RULE_APPROVED, 'b'.repeat(64)],
+      );
+
+      const currentMs = Date.parse('2099-12-01T12:00:00.000Z');
+      const STAFF_PRINCIPAL: Principal = {
+        userId: STAFF_ADMIN,
+        organizationId: INTERNAL_ORG,
+        actorType: 'staff',
+        role: 'INTERNAL_ADMIN',
+        purpose: 'full',
+      };
+
+      let staffPinned = true;
+      const issuedTokens: { email: string; token: string; organizationId: string }[] = [];
+      const wormStore = new InMemoryWormStore(() => new Date(currentMs).toISOString());
+
+      const app = createApp({
+        env: { CLAIM_LEASE_MINUTES: '10' },
+        recordDeny: databaseDenyRecorder(),
+        wormStore,
+        now: () => new Date(currentMs),
+        onInvitationIssued: (notice) => {
+          issuedTokens.push({
+            email: notice.email,
+            token: notice.token,
+            organizationId: notice.organizationId,
+          });
+        },
+      });
+      app.addHook('onRequest', async (request) => {
+        if (staffPinned) {
+          request.principal = STAFF_PRINCIPAL;
+        }
+      });
+
+      // Step 1: Staff creates client organization & invites client user
+      const orgRes = await app.inject({
+        method: 'POST',
+        url: '/api/internal/v1/organizations',
+        payload: { name: `AC-20 Cold Storage ${crypto.randomUUID().slice(0, 8)}` },
+      });
+      expect(orgRes.statusCode).toBe(201);
+      const clientOrg = orgRes.json() as { id: string };
+
+      const inviteRes = await app.inject({
+        method: 'POST',
+        url: '/api/internal/v1/invitations',
+        headers: { 'idempotency-key': `ac20-invite-${crypto.randomUUID()}` },
+        payload: {
+          organization_id: clientOrg.id,
+          email: `planner-${crypto.randomUUID().slice(0, 8)}@ac20.test`,
+          role: 'CLIENT_ADMIN',
+        },
+      });
+      expect(inviteRes.statusCode).toBe(201);
+      const inviteToken = issuedTokens[0]!.token;
+      const invitedEmail = issuedTokens[0]!.email;
+
+      // Step 2: Client accepts invitation, enrolls MFA, and signs in with real cookies
+      staffPinned = false;
+      const acceptRes = await app.inject({
+        method: 'POST',
+        url: '/api/auth/invite/accept',
+        payload: {
+          token: inviteToken,
+          name: 'AC-20 Planner',
+          password: 'correct-horse-battery-staple',
+        },
+      });
+      expect(acceptRes.statusCode).toBe(200);
+      const acceptCookies = extractCookies(acceptRes.headers['set-cookie']);
+
+      const enrollRes = await app.inject({
+        method: 'POST',
+        url: '/api/client/v1/mfa/enroll',
+        headers: { cookie: cookieHeader(acceptCookies) },
+        payload: { factor_type: 'totp' },
+      });
+      expect(enrollRes.statusCode).toBe(200);
+      const totpSecret = /secret=([^&]+)/.exec(
+        (enrollRes.json() as { provisioning_uri: string }).provisioning_uri,
+      )![1]!;
+
+      const verifyRes = await app.inject({
+        method: 'POST',
+        url: '/api/client/v1/mfa/verify',
+        headers: { cookie: cookieHeader(acceptCookies) },
+        payload: { factor_type: 'totp', code: totpSecret },
+      });
+      expect(verifyRes.statusCode).toBe(200);
+
+      const signInRes = await app.inject({
+        method: 'POST',
+        url: '/api/auth/session',
+        headers: { cookie: cookieHeader(acceptCookies) },
+        payload: {
+          email: invitedEmail,
+          password: 'correct-horse-battery-staple',
+          mfa_code: totpSecret,
+        },
+      });
+      expect(signInRes.statusCode).toBe(200);
+      const clientCookies = extractCookies(signInRes.headers['set-cookie']);
+
+      // Step 3: Staff creates project and initial revision P01 pinned to approved catalog + rule pack
+      staffPinned = true;
+      const projRes = await app.inject({
+        method: 'POST',
+        url: '/api/internal/v1/projects',
+        payload: {
+          organization_id: clientOrg.id,
+          number: 'PRJ-AC20',
+          name: 'AC-20 End-to-End Distribution Center',
+        },
+      });
+      expect(projRes.statusCode).toBe(201);
+      const project = projRes.json() as { id: string };
+
+      const p01Res = await app.inject({
+        method: 'POST',
+        url: `/api/internal/v1/projects/${project.id}/revisions`,
+        payload: {
+          catalog_release_id: CAT_APPROVED,
+          rule_pack_release_id: RULE_APPROVED,
+          organization_id: clientOrg.id,
+        },
+      });
+      expect(p01Res.statusCode).toBe(201);
+      const p01 = p01Res.json() as { id: string; code: string };
+      expect(p01.code).toBe('P01');
+
+      // Step 4: Client drafts facility, unit loads, and two options on P01
+      staffPinned = false;
+      const clientHeaders = { cookie: cookieHeader(clientCookies) };
+
+      const facDraftBlocked = await app.inject({
+        method: 'POST',
+        url: `/api/client/v1/revisions/${p01.id}/facility`,
+        headers: clientHeaders,
+        payload: {
+          width_um: 36_576_000,
+          depth_um: 24_384_000,
+          clear_height_um: 6_096_000,
+          column_grid: { pitch_x_um: 12_192_000, pitch_y_um: 12_192_000 },
+          forklift: { model_stated: false },
+          dock_count: 2,
+        },
+      });
+      expect(facDraftBlocked.statusCode).toBe(200);
+
+      const unitsDraft = await app.inject({
+        method: 'POST',
+        url: `/api/client/v1/revisions/${p01.id}/units`,
+        headers: clientHeaders,
+        payload: {
+          units: [
+            {
+              unit_id: 'gma-48x40',
+              width_um: 1_219_200,
+              depth_um: 1_016_000,
+              height_um: 1_524_000,
+              weight_lb: 2200,
+              overhang_um: null,
+            },
+          ],
+        },
+      });
+      expect(unitsDraft.statusCode).toBe(200);
+
+      const optionsDraftBlocked = await app.inject({
+        method: 'POST',
+        url: `/api/client/v1/revisions/${p01.id}/options`,
+        headers: clientHeaders,
+        payload: {
+          options: [
+            {
+              option_id: 'opt-a',
+              label: 'Option A — Selective On-Grid',
+              aisle_width_um: 2_438_400, // blocker (< 2,743,200)
+              runs: [
+                {
+                  run_id: 'run-a1',
+                  unit_id: 'gma-48x40',
+                  x_um: 12_192_000,
+                  y_um: 12_192_000,
+                  bays: [
+                    { bay_id: 'bay-1', length_um: 2_438_400, levels: 4 },
+                    { bay_id: 'bay-2', length_um: 2_438_400, levels: 4 },
+                  ],
+                },
+              ],
+            },
+            {
+              option_id: 'opt-b',
+              label: 'Option B — Off-Grid',
+              aisle_width_um: 3_048_000,
+              runs: [
+                {
+                  run_id: 'run-b1',
+                  unit_id: 'gma-48x40',
+                  x_um: 5_000_000,
+                  y_um: 12_192_000,
+                  bays: [
+                    { bay_id: 'bay-1', length_um: 2_438_400, levels: 3 },
+                    { bay_id: 'bay-2', length_um: 2_438_400, levels: 3 },
+                  ],
+                },
+              ],
+            },
+          ],
+          active_option_id: 'opt-a',
+        },
+      });
+      expect(optionsDraftBlocked.statusCode).toBe(200);
+
+      // Step 5: Preview (plan + elevation) + Comparison + multi-reason blocker refusal + fix
+      const previewBlockedRes = await app.inject({
+        method: 'GET',
+        url: `/api/client/v1/revisions/${p01.id}/preview`,
+        headers: clientHeaders,
+      });
+      expect(previewBlockedRes.statusCode).toBe(200);
+      const previewBlocked = previewBlockedRes.json() as {
+        views: Array<{ view: string; watermarked: boolean; items: unknown[] }>;
+      };
+      expect(previewBlocked.views.map((v) => v.view)).toEqual(['plan', 'elevation']);
+
+      const compareRes = await app.inject({
+        method: 'GET',
+        url: `/api/client/v1/revisions/${p01.id}/compare?options=opt-a,opt-b`,
+        headers: clientHeaders,
+      });
+      expect(compareRes.statusCode).toBe(200);
+
+      // Attempt submit with open blockers + unacknowledged assumptions -> multi-reason refusal (AC-10)
+      const refusedSubmit = await app.inject({
+        method: 'POST',
+        url: `/api/client/v1/revisions/${p01.id}/submit`,
+        headers: { ...clientHeaders, 'idempotency-key': 'ac20-refused-submit' },
+        payload: {
+          assumptions_acknowledged: false,
+          disclaimer_version_id: '',
+        },
+      });
+      expect(refusedSubmit.statusCode).toBe(422);
+      const refusedReasons =
+        (
+          refusedSubmit.json() as {
+            error: { details?: { reasons?: readonly string[] } };
+          }
+        ).error.details?.reasons ?? [];
+      expect(refusedReasons.length).toBeGreaterThanOrEqual(4);
+
+      // Resolve blockers on P01
+      await app.inject({
+        method: 'POST',
+        url: `/api/client/v1/revisions/${p01.id}/facility`,
+        headers: clientHeaders,
+        payload: {
+          width_um: 36_576_000,
+          depth_um: 24_384_000,
+          clear_height_um: 9_753_600,
+          column_grid: { pitch_x_um: 12_192_000, pitch_y_um: 12_192_000 },
+          forklift: { model_stated: false },
+          dock_count: 2,
+        },
+      });
+      await app.inject({
+        method: 'POST',
+        url: `/api/client/v1/revisions/${p01.id}/options`,
+        headers: clientHeaders,
+        payload: {
+          options: [
+            {
+              option_id: 'opt-a',
+              label: 'Option A — Selective On-Grid',
+              aisle_width_um: 3_048_000,
+              runs: [
+                {
+                  run_id: 'run-a1',
+                  unit_id: 'gma-48x40',
+                  x_um: 12_192_000,
+                  y_um: 12_192_000,
+                  bays: [
+                    { bay_id: 'bay-1', length_um: 2_438_400, levels: 4 },
+                    { bay_id: 'bay-2', length_um: 2_438_400, levels: 4 },
+                  ],
+                },
+              ],
+            },
+            {
+              option_id: 'opt-b',
+              label: 'Option B — Off-Grid',
+              aisle_width_um: 3_048_000,
+              runs: [
+                {
+                  run_id: 'run-b1',
+                  unit_id: 'gma-48x40',
+                  x_um: 5_000_000,
+                  y_um: 12_192_000,
+                  bays: [
+                    { bay_id: 'bay-1', length_um: 2_438_400, levels: 3 },
+                    { bay_id: 'bay-2', length_um: 2_438_400, levels: 3 },
+                  ],
+                },
+              ],
+            },
+          ],
+          active_option_id: 'opt-a',
+        },
+      });
+
+      // Step 6: Atomic submit of P01 + WORM manifest + preliminary PDF outbox dispatch
+      const submitRes = await app.inject({
+        method: 'POST',
+        url: `/api/client/v1/revisions/${p01.id}/submit`,
+        headers: { ...clientHeaders, 'idempotency-key': 'ac20-valid-submit' },
+        payload: {
+          assumptions_acknowledged: true,
+          disclaimer_version_id: 'disclaimer-v2026.09',
+        },
+      });
+      expect(submitRes.statusCode).toBe(201);
+      const submission = submitRes.json() as { id: string; submission_hash: string };
+
+      await processPdfOutboxBatch({
+        organizationId: clientOrg.id,
+        now: () => new Date(currentMs),
+        wormStore,
+      });
+
+      const docRes = await app.inject({
+        method: 'GET',
+        url: `/api/client/v1/documents/${submission.id}`,
+        headers: clientHeaders,
+      });
+      expect(docRes.statusCode).toBe(200);
+      expect((docRes.json() as { status_code: string }).status_code).toBe('PRELIMINARY');
+
+      // Step 7: Attempt to edit frozen P01 is refused (422); cloning P01 creates editable P02
+      const editFrozen = await app.inject({
+        method: 'POST',
+        url: `/api/client/v1/revisions/${p01.id}/facility`,
+        headers: clientHeaders,
+        payload: { width_um: 40_000_000, depth_um: 24_384_000, clear_height_um: 9_753_600 },
+      });
+      expect(editFrozen.statusCode).toBe(422);
+
+      const cloneRes = await app.inject({
+        method: 'POST',
+        url: `/api/client/v1/revisions/${p01.id}/clone`,
+        headers: { ...clientHeaders, 'idempotency-key': 'ac20-clone-p02' },
+        payload: {},
+      });
+      expect(cloneRes.statusCode).toBe(201);
+      const p02 = cloneRes.json() as { id: string; code: string; frozen: boolean };
+      expect(p02.code).toBe('P02');
+      expect(p02.frozen).toBe(false);
+
+      // Step 8: Internal reviewer opens queue, inspects package, derives C01, and verifies byte-identical BOM regeneration
+      staffPinned = true;
+      const queueRes = await app.inject({
+        method: 'GET',
+        url: '/api/internal/v1/queue?page=1&pageSize=20',
+      });
+      expect(queueRes.statusCode).toBe(200);
+      const queueItems = (queueRes.json() as { data: Array<{ submission_id: string }> }).data;
+      expect(queueItems.some((item) => item.submission_id === submission.id)).toBe(true);
+
+      const deriveC01Res = await app.inject({
+        method: 'POST',
+        url: `/api/internal/v1/submissions/${submission.id}/derive`,
+        headers: { 'idempotency-key': 'ac20-derive-c01' },
+        payload: {},
+      });
+      expect(deriveC01Res.statusCode).toBe(201);
+      const c01 = deriveC01Res.json() as { id: string; code: string; audience: string };
+      expect(c01.code).toBe('C01');
+      expect(c01.audience).toBe('internal');
+
+      // Byte-identical BOM regeneration across P01 and C01
+      const p01Bom1 = await app.inject({
+        method: 'GET',
+        url: `/api/internal/v1/revisions/${p01.id}/bom?page=1&pageSize=50`,
+      });
+      const p01Bom2 = await app.inject({
+        method: 'GET',
+        url: `/api/internal/v1/revisions/${p01.id}/bom?page=1&pageSize=50`,
+      });
+      expect(p01Bom1.statusCode).toBe(200);
+      expect(p01Bom1.body).toBe(p01Bom2.body);
+
+      // And C01 remains completely invisible on the client surface (AC-14)
+      staffPinned = false;
+      const clientListRevs = await app.inject({
+        method: 'GET',
+        url: `/api/client/v1/projects/${project.id}/revisions`,
+        headers: clientHeaders,
+      });
+      expect(clientListRevs.statusCode).toBe(200);
+      expect(clientListRevs.body).not.toContain('C01');
+      expect(clientListRevs.body).not.toContain(c01.id);
 
       await app.close();
     },
