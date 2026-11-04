@@ -12,6 +12,8 @@
   "dependencies": {
     "@rms/kernel-units": "workspace:*",
     "@rms/kernel-derive": "workspace:*",
+    "@rms/kernel-geom": "workspace:*",
+    "@rms/kernel-checks": "workspace:*",
     "@rms/kernel-bom": "workspace:*"
   }
 }

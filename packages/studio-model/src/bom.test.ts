@@ -5,9 +5,16 @@ import { describe, expect, it } from 'vitest';
 import type { StudioDocument, V1Document } from './document.js';
 import { migrateV1ToV2 } from './migrate.js';
 import {
+  COLUMN_GUARD_REASON,
   DEFAULT_PRICING_RATES,
+  DRAFT_TAKEOFF_WATERMARK,
+  TUNNEL_TIE_REASON,
   bomForDocument,
+  exportBomCsv,
+  exportBomJson,
+  exportLegacyTakeoffXlsx,
   pricingForDocument,
+  quoteReadinessForDocument,
   takeoffRunsForDocument,
   takeoffSummary,
   umToFeet,
@@ -178,5 +185,116 @@ describe('BOM and Takeoff Pricing Bridge', () => {
     expect(() => takeoffRunsForDocument(brokenDoc)).toThrow(/references missing bay type/);
     expect(() => takeoffSummary([], brokenDoc)).toThrow(/references missing bay type/);
     expect(() => pricingForDocument(brokenDoc)).toThrow(/references missing bay type/);
+  });
+
+  it('includes UNRESOLVED column guard (MS-4) and tunnel tie (MS-1, D7) accessory lines', () => {
+    const document = doc();
+    const lines = bomForDocument(document);
+    const guardLine = lines.find(
+      (l) => l.partRef.kind === 'uncatalogued' && l.partRef.uncataloguedPartId === 'guard-column',
+    );
+    const tieLine = lines.find(
+      (l) =>
+        l.partRef.kind === 'uncatalogued' &&
+        l.partRef.uncataloguedPartId === 'tie-tunnel-cross-aisle',
+    );
+    expect(guardLine?.resolved).toBe(false);
+    expect(guardLine?.unresolvedReason).toBe(COLUMN_GUARD_REASON);
+    expect(tieLine?.resolved).toBe(false);
+    expect(tieLine?.unresolvedReason).toBe(TUNNEL_TIE_REASON);
+
+    // Empty runs -> no accessory lines
+    expect(bomForDocument({ ...document, runs: [] })).toEqual([]);
+  });
+
+  it('evaluates quoteReadinessForDocument and watermarks draft takeoffs when unverified fields exist', () => {
+    const document = doc();
+    const readiness = quoteReadinessForDocument(document);
+    expect(readiness.isQuoteReady).toBe(false);
+    expect(readiness.watermark).toBe(DRAFT_TAKEOFF_WATERMARK);
+    expect(readiness.blockingReasons.length).toBeGreaterThan(0);
+
+    // Also test all unverified branches and fully verified document
+    const bt0 = document.bayTypes[0]!;
+    const unverifiedDoc: StudioDocument = {
+      ...document,
+      building: {
+        ...document.building,
+        clearHeight: { value: document.building.clearHeight.value, established: 'UNKNOWN' },
+        deflectorElev: { value: document.building.deflectorElev.value, established: 'UNKNOWN' },
+        commodityClass: { value: '', established: 'UNKNOWN' },
+        sdc: { value: '', established: 'UNKNOWN' },
+      },
+      equipment: {
+        ...document.equipment,
+        truckRAS: { value: document.equipment.truckRAS.value, established: 'UNKNOWN' },
+      },
+      bayTypes: [
+        {
+          ...bt0,
+          frameHeight: { value: bt0.frameHeight.value, established: 'UNKNOWN' },
+          beamPairCapacity: { value: bt0.beamPairCapacity.value, established: 'UNKNOWN' },
+        },
+      ],
+    };
+    const rUnverified = quoteReadinessForDocument(unverifiedDoc);
+    expect(rUnverified.isQuoteReady).toBe(false);
+    expect(rUnverified.blockingReasons.length).toBe(7);
+
+    const verifiedDoc: StudioDocument = {
+      ...document,
+      building: {
+        ...document.building,
+        clearHeight: { value: document.building.clearHeight.value, established: 'INPUT' },
+        deflectorElev: { value: document.building.deflectorElev.value, established: 'INPUT' },
+        commodityClass: { value: 'Class III', established: 'INPUT' },
+        sdc: { value: 'D', established: 'INPUT' },
+      },
+      equipment: {
+        ...document.equipment,
+        truckRAS: { value: document.equipment.truckRAS.value, established: 'CATALOG' },
+      },
+      bayTypes: [
+        {
+          ...bt0,
+          frameHeight: { value: bt0.frameHeight.value, established: 'CATALOG' },
+          beamPairCapacity: { value: bt0.beamPairCapacity.value, established: 'CATALOG' },
+        },
+      ],
+    };
+    const rVerified = quoteReadinessForDocument(verifiedDoc);
+    expect(rVerified.isQuoteReady).toBe(true);
+    expect(rVerified.watermark).toBeNull();
+    expect(rVerified.blockingReasons).toEqual([]);
+
+    const csvVerified = exportBomCsv(bomForDocument(verifiedDoc), verifiedDoc);
+    expect(csvVerified).toContain('VALID FOR QUOTE');
+  });
+
+  it('exports canonical CSV and JSON and gates legacy Takeoff .xlsx on MS-13', () => {
+    const document = doc();
+    const baseLines = bomForDocument(document);
+    // Include a catalog PartRef line and quotes in ruleText to cover all CSV branches
+    const lines = [
+      ...baseLines,
+      {
+        ...baseLines[0]!,
+        partRef: { kind: 'catalog' as const, partRevisionId: 'cat-rev-1' },
+        ruleText: 'rule with "quotes", commas',
+      },
+    ];
+    const csv = exportBomCsv(lines, document);
+    expect(csv).toContain(DRAFT_TAKEOFF_WATERMARK);
+    expect(csv).toContain('cat-rev-1');
+    expect(csv).toContain('"rule with ""quotes"", commas"');
+
+    const jsonStr = exportBomJson(lines, document);
+    const parsed = JSON.parse(jsonStr) as { quoteReadiness: { isQuoteReady: boolean } };
+    expect(parsed.quoteReadiness.isQuoteReady).toBe(false);
+
+    const legacy = exportLegacyTakeoffXlsx();
+    expect(legacy.ok).toBe(false);
+    expect(legacy.missingSourceId).toBe('MS-13');
+    expect(legacy.reason).toContain('MS-13');
   });
 });

@@ -174,11 +174,21 @@ describe('routing', () => {
   });
 
   it('/bom renders the Bill of Materials table and pricing estimator', async () => {
+    const user = userEvent.setup();
     renderApp('/bom');
     expect(await screen.findByRole('heading', { level: 1, name: 'BOM' })).not.toBeNull();
     expect(screen.getByRole('table', { name: /bill of materials/i })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: /commercial estimator/i })).toBeTruthy();
     expect(screen.getByText(/Pallet Positions/i)).toBeTruthy();
+    expect(document.getElementById('bom-quote-banner')?.textContent).toMatch(/Draft takeoff/i);
+
+    const xlsxBtn = document.getElementById('bom-export-xlsx') as HTMLButtonElement;
+    await user.click(xlsxBtn);
+    expect(document.getElementById('bom-export-notice')?.textContent).toMatch(/MS-13/);
+
+    const csvBtn = document.getElementById('bom-export-csv') as HTMLButtonElement;
+    await user.click(csvBtn);
+    expect(document.getElementById('bom-export-notice')?.textContent).toMatch(/Exported Canonical CSV/);
   });
 
   /**
@@ -268,6 +278,18 @@ describe('routing', () => {
     await user.click(r501Btn);
     expect(document.getElementById('tb-num')?.textContent).toBe('R-501');
     expect(screen.getByText(/BAY & RUN SCHEDULE/)).toBeTruthy();
+
+    // All 13 submittal sheets are in the selector rail (I6)
+    expect(document.querySelectorAll('#sheetrail [data-sheet]').length).toBe(13);
+
+    const r401Btn = document.querySelector('[data-sheet="R-401"]') as HTMLButtonElement;
+    await user.click(r401Btn);
+    expect(document.getElementById('tb-num')?.textContent).toBe('R-401');
+    expect(document.querySelector('[data-sheet-plaque="R-401"]')).not.toBeNull();
+
+    const dxfBtn = document.getElementById('sheet-export-dxf') as HTMLButtonElement;
+    await user.click(dxfBtn);
+    expect(document.getElementById('sheet-dxf-notice')?.textContent).toMatch(/Exported AutoCAD LT DXF/);
   });
 
   it('redirects / to the plan view', async () => {

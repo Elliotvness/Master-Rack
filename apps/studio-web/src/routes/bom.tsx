@@ -1,7 +1,11 @@
 import {
   DEFAULT_PRICING_RATES,
   bomForDocument,
+  exportBomCsv,
+  exportBomJson,
+  exportLegacyTakeoffXlsx,
   pricingForDocument,
+  quoteReadinessForDocument,
   takeoffSummary,
   type PricingRates,
 } from '@rms/studio-model';
@@ -34,11 +38,13 @@ export default function BomView(): React.JSX.Element {
 
   const [filter, setFilter] = useState<BomFilter>('all');
   const [rates, setRates] = useState<PricingRates>(DEFAULT_PRICING_RATES);
+  const [exportNotice, setExportNotice] = useState<string | null>(null);
 
   // Compute BOM lines and counts
   const lines = useMemo(() => bomForDocument(doc), [doc]);
   const summary = useMemo(() => takeoffSummary(lines, doc), [lines, doc]);
   const estimate = useMemo(() => pricingForDocument(doc, rates), [doc, rates]);
+  const readiness = useMemo(() => quoteReadinessForDocument(doc), [doc]);
 
   const filteredLines = useMemo(() => {
     if (filter === 'resolved') return lines.filter((l) => l.resolved);
@@ -55,6 +61,26 @@ export default function BomView(): React.JSX.Element {
 
   return (
     <section className="bom-view" aria-labelledby="view-heading-bom">
+      <div
+        id="bom-quote-banner"
+        className={readiness.isQuoteReady ? 'bom-quote-banner ready' : 'bom-quote-banner draft'}
+        role="status"
+      >
+        <strong>{readiness.watermark ?? 'Valid for Quote (Screening Complete)'}</strong>
+        {!readiness.isQuoteReady && (
+          <span className="bom-quote-reasons">
+            {' — '}
+            {readiness.blockingReasons.join(' ')}
+          </span>
+        )}
+      </div>
+
+      {exportNotice !== null && (
+        <div id="bom-export-notice" className="bom-export-notice" role="alert">
+          {exportNotice}
+        </div>
+      )}
+
       <div className="bom-header">
         <div>
           <h1 id="view-heading-bom" className="bom-title">
@@ -121,8 +147,42 @@ export default function BomView(): React.JSX.Element {
 
             <div className="bom-actions">
               <button
+                id="bom-export-csv"
+                type="button"
+                className="btn"
+                onClick={() => {
+                  const csv = exportBomCsv(lines, doc);
+                  setExportNotice(`Exported Canonical CSV (${csv.split('\n').length} rows).`);
+                }}
+              >
+                Export CSV
+              </button>
+              <button
+                id="bom-export-json"
+                type="button"
+                className="btn"
+                onClick={() => {
+                  const json = exportBomJson(lines, doc);
+                  setExportNotice(`Exported Canonical JSON (${json.length} bytes).`);
+                }}
+              >
+                Export JSON
+              </button>
+              <button
+                id="bom-export-xlsx"
+                type="button"
+                className="btn"
+                onClick={() => {
+                  const res = exportLegacyTakeoffXlsx();
+                  setExportNotice(res.reason);
+                }}
+              >
+                Export Takeoff (.xlsx · MS-13)
+              </button>
+              <button
                 type="button"
                 className="btn btn-primary"
+                disabled={!readiness.isQuoteReady}
                 onClick={() => window.print()}
                 title="Print or Save as Proposal PDF"
               >

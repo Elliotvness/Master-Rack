@@ -101,7 +101,7 @@ cloud session should say which side read it.
 **Verified 2026-11-02 in the container against native PostgreSQL 16 with migrations `0001`–`0015`
 applied and `RMS_REQUIRE_DB=1` set. This is the first time the whole suite has run against this
 tree. The run cited is `28f64a1` **plus the F-65 fix**, which is what makes it green:**
-`pnpm verify` **exit 0 — 87 files, 2,254 tests, 0 skipped**, `typecheck` and type-aware `eslint` both at exit 0,
+`pnpm verify` **exit 0 — 90 files, 2,254 tests, 0 skipped**, `typecheck` and type-aware `eslint` both at exit 0,
 **20 self-test invocations covering 19 checkers**, `build:web` and the bundle ceiling green,
 15 migrations, 15 declared claims.
 

@@ -219,9 +219,15 @@ importers:
       '@rms/kernel-bom':
         specifier: workspace:*
         version: link:../kernel-bom
+      '@rms/kernel-checks':
+        specifier: workspace:*
+        version: link:../kernel-checks
       '@rms/kernel-derive':
         specifier: workspace:*
         version: link:../kernel-derive
+      '@rms/kernel-geom':
+        specifier: workspace:*
+        version: link:../kernel-geom
       '@rms/kernel-units':
         specifier: workspace:*
         version: link:../kernel-units

@@ -7,6 +7,8 @@
   "references": [
     { "path": "../kernel-units" },
     { "path": "../kernel-derive" },
+    { "path": "../kernel-geom" },
+    { "path": "../kernel-checks" },
     { "path": "../kernel-bom" }
   ],
   "include": ["src/**/*.ts"],

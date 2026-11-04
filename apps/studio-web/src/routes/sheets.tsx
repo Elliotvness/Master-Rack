@@ -1,35 +1,19 @@
-import { buildDetailedPlan } from '@rms/display-list';
+import {
+  SUBMITTAL_13_SHEETS,
+  buildDetailedPlan,
+  exportDisplayListDxf,
+  type SubmittalSheetId,
+  type SubmittalSheetSpec,
+} from '@rms/display-list';
 import { planGeometry, type StudioDocument } from '@rms/studio-model';
 import { useMemo, useState } from 'react';
 
 import { ElevationSvg } from '../elevation/elevation-svg.js';
 import { useStudioSession } from '../session-context.js';
 
-export type SheetId = 'R-101' | 'R-201' | 'R-501';
+export type SheetId = SubmittalSheetId;
 
-interface SheetSpec {
-  readonly id: SheetId;
-  readonly title: string;
-  readonly subtitle: string;
-}
-
-const SHEETS: readonly SheetSpec[] = [
-  {
-    id: 'R-101',
-    title: 'OVERALL RACK LAYOUT PLAN',
-    subtitle: 'Plan geometry, bay layout, and dual aisle datums',
-  },
-  {
-    id: 'R-201',
-    title: 'TYPICAL BAY ELEVATION & SECTION',
-    subtitle: 'Beam levels from slab datum and reference elevations',
-  },
-  {
-    id: 'R-501',
-    title: 'GENERAL NOTES & SCREENING SCHEDULE',
-    subtitle: 'Pinned packs, bay schedule, and delegated-design scope',
-  },
-] as const;
+const SHEETS: readonly SubmittalSheetSpec[] = SUBMITTAL_13_SHEETS;
 
 function PlanSheetSvg({ document: doc }: { readonly document: StudioDocument }): React.JSX.Element {
   const plan = useMemo(() => planGeometry(doc), [doc]);
@@ -178,21 +162,53 @@ export default function SheetsView(): React.JSX.Element {
   const { session } = useStudioSession();
   const doc = session.document;
   const [activeSheet, setActiveSheet] = useState<SheetId>('R-101');
+  const [dxfNotice, setDxfNotice] = useState<string | null>(null);
   const plan = useMemo(() => planGeometry(doc), [doc]);
 
-  const currentSpec: SheetSpec = SHEETS.find((s) => s.id === activeSheet) ?? SHEETS[0]!;
+  const currentSpec: SubmittalSheetSpec = SHEETS.find((s) => s.id === activeSheet) ?? SHEETS[1]!;
 
   // Compute an honest approximate fitted ratio for the screen preview, never a
   // fake architectural scale like 1/8" = 1'-0" (build-plan S3.4 / D-H).
   const fittedRatio = useMemo(() => {
     const spanUm =
-      activeSheet === 'R-201'
+      currentSpec.category === 'elevation'
         ? (doc.bayTypes[0]?.frameHeight.value ?? 6_096_000)
         : Math.max(plan.extent.width.value, plan.extent.height.value, 2_540_000);
     // Approximate against a 500 mm (500,000 µm) viewport frame width
     const ratio = Math.max(10, Math.round(spanUm / 500_000));
     return `1 : ${ratio} fitted`;
-  }, [activeSheet, doc.bayTypes, plan.extent.height.value, plan.extent.width.value]);
+  }, [currentSpec.category, doc.bayTypes, plan.extent.height.value, plan.extent.width.value]);
+
+  const handleExportDxf = () => {
+    const list = buildDetailedPlan({
+      revisionHash: `doc:${doc.id}:${doc.revision}`,
+      runs: plan.runs.map((r) => ({
+        runId: r.runId,
+        label: r.label,
+        x: r.x,
+        y: r.y,
+        runLength: r.runLength,
+        bayPitch: r.bayPitch,
+        uprightFace: r.uprightFace,
+        rows: r.rows,
+        bays: r.bays,
+        pallets: r.pallets,
+        longitudinalFlue: r.longitudinalFlue,
+      })),
+      aisles: plan.aisles.map((a) => ({
+        aisleId: a.aisleId,
+        x: a.x,
+        y: a.y,
+        length: a.length,
+        frameToFrame: a.frameToFrame,
+        clearBetweenLoads: a.clearBetweenLoads,
+      })),
+      extent: plan.extent,
+      overallLength: plan.overallLength,
+    });
+    const dxf = exportDisplayListDxf(list, doc.name);
+    setDxfNotice(`Exported AutoCAD LT DXF (${dxf.split('\n').length} lines · 7 layers).`);
+  };
 
   return (
     <section id="sheetview" className="sheets-view" aria-labelledby="view-heading-sheets">
@@ -201,6 +217,21 @@ export default function SheetsView(): React.JSX.Element {
       </h1>
 
       <aside id="sheetrail" className="sheet-rail" aria-label="Sheet index">
+        <div className="sheet-rail-actions">
+          <button
+            id="sheet-export-dxf"
+            type="button"
+            className="btn btn-primary"
+            onClick={handleExportDxf}
+          >
+            Export AutoCAD LT DXF
+          </button>
+          {dxfNotice !== null && (
+            <p id="sheet-dxf-notice" role="status" className="sheet-dxf-notice">
+              {dxfNotice}
+            </p>
+          )}
+        </div>
         {SHEETS.map((sheet) => {
           const isCurrent = sheet.id === activeSheet;
           return (
@@ -224,11 +255,31 @@ export default function SheetsView(): React.JSX.Element {
         <div id="sheetpage" className="sheet-page" role="region" aria-label={`Sheet ${currentSpec.id}`}>
           <div id="sheetmain" className="sheet-main">
             <div id="sheetdrawing" className="sheet-drawing">
-              {activeSheet === 'R-101' && <PlanSheetSvg document={doc} />}
-              {activeSheet === 'R-201' && <ElevationSvg document={doc} id="sheet-elev-svg" />}
-              {activeSheet === 'R-501' && (
+              {currentSpec.category === 'plan' && <PlanSheetSvg document={doc} />}
+              {currentSpec.category === 'elevation' && <ElevationSvg document={doc} id="sheet-elev-svg" />}
+              {currentSpec.id === 'R-401' && (
+                <div className="sheet-plaque" data-sheet-plaque="R-401">
+                  <h2>RMI LOAD CAPACITY PLAQUE ARTWORK (MIN. 50 SQ IN. · ANSI/RMI MH16.1 §1.4.2)</h2>
+                  <p>
+                    <strong>MAXIMUM PERMISSIBLE UNIT LOAD:</strong> {doc.unitLoad.weight.toLocaleString()} LB PER PALLET
+                  </p>
+                  <p>
+                    <strong>MAXIMUM BEAM LEVEL LOAD:</strong>{' '}
+                    {doc.bayTypes[0]?.beamPairCapacity.established === 'UNKNOWN'
+                      ? 'VERIFY'
+                      : `${doc.bayTypes[0]?.beamPairCapacity.value.toLocaleString() ?? 'VERIFY'} LB / PAIR`}
+                  </p>
+                  <p>
+                    <strong>DELEGATED DESIGN — SCREENING ONLY:</strong> Do not alter beam elevations without EOR approval.
+                  </p>
+                </div>
+              )}
+              {(currentSpec.category === 'schedule' ||
+                currentSpec.category === 'cover' ||
+                currentSpec.category === 'detail' ||
+                currentSpec.category === 'audit') && (
                 <div className="sheet-schedule">
-                  <h2>BAY &amp; RUN SCHEDULE</h2>
+                  <h2>BAY &amp; RUN SCHEDULE ({currentSpec.id} · {currentSpec.title})</h2>
                   <table className="sheet-table">
                     <thead>
                       <tr>

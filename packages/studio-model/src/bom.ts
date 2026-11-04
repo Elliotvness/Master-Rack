@@ -17,10 +17,31 @@ import {
   beamQty as computeBeamQty,
   deriveBom,
   frameQty as computeFrameQty,
+  unresolvedLine,
 } from '@rms/kernel-bom';
 import { MICROMETRES_PER_INCH } from './length.js';
 import { bayTypeForRun, type StudioDocument } from './document.js';
 import { BridgeError } from './to-kernel.js';
+
+export const COLUMN_GUARD_REASON =
+  'Column protection / guard quantities depend on project guard envelope specification (MS-4) and surveyed column grid.';
+
+export const TUNNEL_TIE_REASON =
+  'Cross-aisle / tunnel tie quantities depend on manufacturer max unsupported bay run / tunnel rule (MS-1, D7).';
+
+export const DRAFT_TAKEOFF_WATERMARK = 'Draft takeoff — not quote-ready';
+
+export interface QuoteReadiness {
+  readonly isQuoteReady: boolean;
+  readonly watermark: string | null;
+  readonly blockingReasons: readonly string[];
+}
+
+export type LegacyTakeoffExportResult = {
+  readonly ok: false;
+  readonly missingSourceId: 'MS-13';
+  readonly reason: string;
+};
 
 export interface TakeoffSummary {
   readonly totalFrames: number;
@@ -139,7 +160,167 @@ export function takeoffRunsForDocument(doc: StudioDocument): readonly RunTakeoff
  */
 export function bomForDocument(doc: StudioDocument): readonly BomLine[] {
   const takeoffs = takeoffRunsForDocument(doc);
-  return deriveBom(takeoffs);
+  const runLines = deriveBom(takeoffs);
+  const runIds = doc.runs.map((r) => r.id);
+  if (runIds.length === 0) {
+    return runLines;
+  }
+  const accessoryLines: BomLine[] = [
+    unresolvedLine({
+      category: 'ACCESSORY',
+      partRef: {
+        kind: 'uncatalogued',
+        uncataloguedPartId: 'guard-column',
+        measuredGeometry: 'MS-4 envelope pending',
+      },
+      uom: 'EA',
+      ruleText: 'column guards — depends on project guard envelope (MS-4)',
+      ruleId: null,
+      sourceObjectIds: runIds,
+      reason: COLUMN_GUARD_REASON,
+    }),
+    unresolvedLine({
+      category: 'ACCESSORY',
+      partRef: {
+        kind: 'uncatalogued',
+        uncataloguedPartId: 'tie-tunnel-cross-aisle',
+        measuredGeometry: 'MS-1 tunnel tie rule pending',
+      },
+      uom: 'EA',
+      ruleText: 'cross-aisle / tunnel ties — depends on manufacturer tunnel rule (MS-1, D7)',
+      ruleId: null,
+      sourceObjectIds: runIds,
+      reason: TUNNEL_TIE_REASON,
+    }),
+  ];
+  return Object.freeze([...runLines, ...accessoryLines]);
+}
+
+/**
+ * Evaluate Valid-for-Quote readiness (`isQuoteReady`, Step 2.2).
+ *
+ * Any unestablished (`UNKNOWN`) field in the document or unresolved accessory
+ * check blocks commercial release and watermarks the takeoff as
+ * `"Draft takeoff — not quote-ready"`.
+ */
+export function quoteReadinessForDocument(doc: StudioDocument): QuoteReadiness {
+  const reasons: string[] = [];
+
+  if (doc.equipment.truckRAS.established === 'UNKNOWN') {
+    reasons.push('Forklift AST / RAS is unverified planning seed (MS-6, MS-14).');
+  }
+  if (doc.building.clearHeight.established === 'UNKNOWN') {
+    reasons.push('Building clear height is unverified (VERIFY).');
+  }
+  if (doc.building.deflectorElev.established === 'UNKNOWN') {
+    reasons.push('Sprinkler deflector elevation is unverified (VERIFY).');
+  }
+  if (
+    doc.building.commodityClass.established === 'UNKNOWN' ||
+    doc.building.commodityClass.value.trim() === ''
+  ) {
+    reasons.push('Commodity class / fire profile is not established (MS-11).');
+  }
+  if (doc.building.sdc.established === 'UNKNOWN' || doc.building.sdc.value.trim() === '') {
+    reasons.push('Seismic Design Category (SDC) is not established (MS-10).');
+  }
+  for (const bt of doc.bayTypes) {
+    if (bt.frameHeight.established === 'UNKNOWN') {
+      reasons.push(`Bay type ${bt.name} frame height is unverified.`);
+    }
+    if (bt.beamPairCapacity.established === 'UNKNOWN') {
+      reasons.push(`Bay type ${bt.name} beam pair capacity is unverified (MS-2).`);
+    }
+  }
+
+  const isQuoteReady = reasons.length === 0;
+  return Object.freeze({
+    isQuoteReady,
+    watermark: isQuoteReady ? null : DRAFT_TAKEOFF_WATERMARK,
+    blockingReasons: Object.freeze(reasons),
+  });
+}
+
+function escapeCsvCell(text: string): string {
+  if (text.includes(',') || text.includes('"') || text.includes('\n')) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+/**
+ * Export canonical attributed BOM as CSV (Step 2.2).
+ * Includes the `"Draft takeoff — not quote-ready"` watermark header when not quote-ready.
+ */
+export function exportBomCsv(lines: readonly BomLine[], doc: StudioDocument): string {
+  const readiness = quoteReadinessForDocument(doc);
+  const headerWatermark = readiness.watermark ?? 'VALID FOR QUOTE (SCREENING COMPLETE)';
+  const rows: string[] = [
+    `# RACK STUDIO ATTRIBUTED BOM TAKEOFF — ${headerWatermark}`,
+    `# Delegated Design Notice: Screening only; does not replace a licensed PE stamp (ADR-002).`,
+    ['category', 'part_id', 'geometry', 'resolved', 'qty', 'uom', 'rule_id', 'rule_text', 'unresolved_reason', 'source_object_ids'].join(','),
+  ];
+
+  for (const line of lines) {
+    const partId =
+      line.partRef.kind === 'catalog'
+        ? line.partRef.partRevisionId
+        : line.partRef.uncataloguedPartId;
+    const geom = line.partRef.kind === 'catalog' ? 'catalog' : line.partRef.measuredGeometry;
+    const qtyStr = line.resolved ? String(line.qty.value) : 'UNRESOLVED';
+    const reason = line.resolved ? '' : line.unresolvedReason;
+    rows.push(
+      [
+        escapeCsvCell(line.category),
+        escapeCsvCell(partId),
+        escapeCsvCell(geom),
+        String(line.resolved),
+        escapeCsvCell(qtyStr),
+        escapeCsvCell(line.uom),
+        escapeCsvCell(line.ruleId ?? ''),
+        escapeCsvCell(line.ruleText),
+        escapeCsvCell(reason),
+        escapeCsvCell(line.sourceObjectIds.join(';')),
+      ].join(','),
+    );
+  }
+
+  return rows.join('\n');
+}
+
+/**
+ * Export canonical attributed BOM as structured JSON (Step 2.2).
+ */
+export function exportBomJson(lines: readonly BomLine[], doc: StudioDocument): string {
+  const readiness = quoteReadinessForDocument(doc);
+  return JSON.stringify(
+    {
+      documentId: doc.id,
+      projectName: doc.name,
+      client: doc.client,
+      revision: doc.revision,
+      packs: doc.packs,
+      delegatedDesignNotice:
+        'DELEGATED DESIGN — SCREENING ONLY. Does not replace a licensed Professional Engineer (PE) stamp (ADR-002).',
+      quoteReadiness: readiness,
+      lines,
+    },
+    null,
+    2,
+  );
+}
+
+/**
+ * Legacy Rack Takeoff `.xlsx` adapter — hard-gated on MS-13 until Nick Hernandez
+ * supplies the owned `.xlsx` header row.
+ */
+export function exportLegacyTakeoffXlsx(): LegacyTakeoffExportResult {
+  return Object.freeze({
+    ok: false,
+    missingSourceId: 'MS-13',
+    reason:
+      'Legacy Rack Takeoff .xlsx export is gated on MS-13 (owned spreadsheet header schema pending from Nick Hernandez). Use Canonical CSV or JSON export.',
+  });
 }
 
 /**

@@ -57,3 +57,13 @@ export {
   type StaggerItem,
   type StaggeredLabel,
 } from './stagger.js';
+
+export {
+  DXF_LAYERS,
+  SUBMITTAL_13_SHEETS,
+  dxfLayerForItemKind,
+  exportDisplayListDxf,
+  type DxfLayer,
+  type SubmittalSheetId,
+  type SubmittalSheetSpec,
+} from './dxf.js';

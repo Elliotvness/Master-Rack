@@ -109,13 +109,22 @@ export {
 } from './undo.js';
 
 export {
+  COLUMN_GUARD_REASON,
   DEFAULT_PRICING_RATES,
+  DRAFT_TAKEOFF_WATERMARK,
+  TUNNEL_TIE_REASON,
   bomForDocument,
+  exportBomCsv,
+  exportBomJson,
+  exportLegacyTakeoffXlsx,
   pricingForDocument,
+  quoteReadinessForDocument,
   takeoffRunsForDocument,
   takeoffSummary,
   umToFeet,
+  type LegacyTakeoffExportResult,
   type PricingRates,
+  type QuoteReadiness,
   type TakeoffEstimate,
   type TakeoffSummary,
 } from './bom.js';
@@ -141,5 +150,35 @@ export {
   type FrameOption,
   type PublishedBeamSpanResult,
 } from './catalog-options.js';
+
+export {
+  LOST_POSITION_REASONS,
+  OBSTRUCTION_ENTITY_KINDS,
+  buildSceneFaces,
+  closureVector,
+  lostPositionLedger,
+  resolvePerimeterClosure,
+  type CardinalDirection,
+  type ClosureResolutionAction,
+  type ClosureResult,
+  type ColumnOverride,
+  type DoorDock,
+  type KBrace,
+  type LostPositionInput,
+  type LostPositionLedger,
+  type LostPositionReason,
+  type NoRackZone,
+  type ObstructionEntityKind,
+  type WallSegment,
+  type WarehouseShell,
+} from './shell.js';
+
+export {
+  acceptFixProposal,
+  proposeFixes,
+  type AcceptedFixAuditRecord,
+  type FixPreviewDelta,
+  type FixProposal,
+} from './fix-proposals.js';
 
 
