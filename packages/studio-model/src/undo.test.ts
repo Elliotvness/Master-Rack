@@ -230,3 +230,57 @@ describe('a redo that cannot apply refuses rather than corrupting', () => {
     expect((r as { msg: string }).msg).toMatch(/Redo failed/);
   });
 });
+
+describe('BatchCommand undo and redo (R1)', () => {
+  it('single-step undo reverts all child commands in one step and single-step redo re-applies them', () => {
+    const s0 = session();
+    const beforeJson = JSON.stringify(s0.document);
+
+    const s1 = step(s0, {
+      type: 'batch',
+      label: 'Batch add run and append bay',
+      commands: [
+        { type: 'addRun' },
+        {
+          type: 'setField',
+          label: 'Rename project',
+          change: { section: 'project', patch: { name: 'Batch Project' } },
+        },
+      ],
+    });
+
+    // Exactly one ledger entry recorded
+    expect(s1.ledger.entries).toHaveLength(1);
+    expect(s1.ledger.depth).toBe(1);
+    expect(undoLabel(s1.ledger)).toBe('Batch add run and append bay');
+    expect(s1.document.name).toBe('Batch Project');
+    expect(s1.document.runs.length).toBe(s0.document.runs.length + 1);
+
+    // Single-step undo reverts both changes
+    const undone = undo(s1) as SessionOk;
+    expect(undone.ok).toBe(true);
+    expect(undone.session.ledger.depth).toBe(0);
+    expect(canUndo(undone.session.ledger)).toBe(false);
+    expect(canRedo(undone.session.ledger)).toBe(true);
+    expect(JSON.stringify(undone.session.document)).toBe(beforeJson);
+
+    // Single-step redo re-applies both changes
+    const redone = redo(undone.session) as SessionOk;
+    expect(redone.ok).toBe(true);
+    expect(redone.session.ledger.depth).toBe(1);
+    expect(JSON.stringify(redone.session.document)).toBe(JSON.stringify(s1.document));
+  });
+
+  it('a batch containing a refusal records no ledger entry', () => {
+    const s0 = session();
+    const r = dispatch(s0, {
+      type: 'batch',
+      commands: [
+        { type: 'addRun' },
+        { type: 'deleteBay', bayId: 'bay_nope' },
+      ],
+    });
+    expect(r.ok).toBe(false);
+    expect(s0.ledger.entries).toHaveLength(0);
+  });
+});

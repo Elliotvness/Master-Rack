@@ -87,6 +87,12 @@ export type FieldChange =
       readonly patch: Partial<Pick<Run, 'backToBack' | 'rowSpacer' | 'floorStorage'>>;
     };
 
+export interface BatchCommand {
+  readonly type: 'batch';
+  readonly label?: string;
+  readonly commands: readonly Command[];
+}
+
 /** A command is a named, serialisable intent. Serialisable so it can be audited. */
 export type Command =
   | { readonly type: 'deleteBay'; readonly bayId: EntityId }
@@ -120,7 +126,8 @@ export type Command =
   | { readonly type: 'addBeamLevel'; readonly bayTypeId: EntityId; readonly top: Micrometres }
   | { readonly type: 'deleteBeamLevel'; readonly bayTypeId: EntityId; readonly index: number }
   | { readonly type: 'setBeamLevels'; readonly bayTypeId: EntityId; readonly levels: readonly Micrometres[] }
-  | { readonly type: 'setField'; readonly label: string; readonly change: FieldChange };
+  | { readonly type: 'setField'; readonly label: string; readonly change: FieldChange }
+  | BatchCommand;
 
 const refuse = (msg: string): CommandRefused => ({ ok: false, msg });
 
@@ -629,6 +636,46 @@ function setField(
   }
 }
 
+function applyBatch(
+  doc: StudioDocument,
+  counter: IdCounter,
+  command: BatchCommand,
+): CommandResult {
+  if (command.commands.length === 0) {
+    return refuse('A batch must contain at least one command.');
+  }
+
+  let currentDoc = doc;
+  let currentCounter = counter;
+  const inverses: Command[] = [];
+  let lastLabel: string | undefined;
+
+  for (const cmd of command.commands) {
+    const res = apply(currentDoc, currentCounter, cmd);
+    if (!res.ok) {
+      return refuse(res.msg);
+    }
+    currentDoc = res.document;
+    currentCounter = res.counter;
+    inverses.push(res.inverse);
+    lastLabel = res.label;
+  }
+
+  const label = command.label ?? (lastLabel as string);
+
+  return {
+    ok: true,
+    document: currentDoc,
+    counter: currentCounter,
+    label,
+    inverse: {
+      type: 'batch',
+      ...(command.label !== undefined ? { label: command.label } : {}),
+      commands: [...inverses].reverse(),
+    },
+  };
+}
+
 /* ── the one entry point ───────────────────────────────────────────────── */
 
 /**
@@ -679,5 +726,7 @@ export function apply(
       return setBeamLevels(doc, counter, command.bayTypeId, command.levels);
     case 'setField':
       return setField(doc, counter, command.label, command.change);
+    case 'batch':
+      return applyBatch(doc, counter, command);
   }
 }

@@ -2,13 +2,18 @@ import { describe, expect, it } from 'vitest';
 
 import fixture from '../../../fixtures/continuity/rack-studio-v1.json';
 import {
+  ALLOWED_COMMODITY_CLASSES,
   COMMAND_BAR_SCHEMA,
   GEMINI_INTAKE_MODEL,
   INTAKE_EXTRACTION_SCHEMA,
   applyConfirmedIntakeRows,
-  isPreviewCurrent,
   buildCommandBarRequest,
+  buildIntakeConfirmationRows,
   buildSpecSheetIntakeRequest,
+  dispatchAll,
+  isIntakeCurrent,
+  isPreviewCurrent,
+  lengthToMicrometres,
   parseAndValidateCommandBarOutput,
   parseAndValidateIntakeOutput,
   previewCommandSequence,
@@ -21,7 +26,7 @@ import {
   type GeminiInteractionsClient,
   type GeminiInteractionsCreateRequest,
 } from './ai-intake.js';
-import { EMPTY_LEDGER, type Session } from './undo.js';
+import { EMPTY_LEDGER, redo, undo, type Session } from './undo.js';
 import { IN } from './length.js';
 import { migrate } from './migrate.js';
 
@@ -95,12 +100,12 @@ describe('Phase 3 — Spec-Sheet Intake & Command Bar (gemini-3.8-flash, store: 
             output_text: JSON.stringify({
               documentKind: 'FORKLIFT_SPEC_SHEET',
               truckType: { value: 'Stand-up reach', sourcePage: 2, confidence: 0.98 },
-              truckRasIn: { value: 108, sourcePage: 2, confidence: 0.96 },
-              clearHeightIn: { value: 384, sourcePage: 1, confidence: 0.95 },
-              deflectorElevIn: { value: 366, sourcePage: 1, confidence: 0.94 },
+              truckRasIn: { value: 108, unit: 'in', sourcePage: 2, confidence: 0.96 },
+              clearHeightIn: { value: 384, unit: 'in', sourcePage: 1, confidence: 0.95 },
+              deflectorElevIn: { value: 366, unit: 'in', sourcePage: 1, confidence: 0.94 },
               commodityClass: { value: 'Class III', sourcePage: 3, confidence: 0.91 },
               sdc: { value: 'D', sourcePage: 3, confidence: 0.92 },
-              frameHeightIn: { value: 288, sourcePage: 4, confidence: 0.97 },
+              frameHeightIn: { value: 288, unit: 'in', sourcePage: 4, confidence: 0.97 },
               beamPairCapacityLb: { value: 5710, sourcePage: 4, confidence: 0.99 },
               ratedLoadLb: { value: 2400, sourcePage: 4, confidence: 0.93 },
             }),
@@ -171,7 +176,7 @@ describe('Phase 3 — Spec-Sheet Intake & Command Bar (gemini-3.8-flash, store: 
       documentKind: 'SITE_SURVEY_CHECKLIST',
       commodityClass: { value: 'Class IV', sourcePage: 1, confidence: 0.9 },
       sdc: { value: 'D', sourcePage: 1, confidence: 0.9 },
-      frameHeightIn: { value: 240, sourcePage: 2, confidence: 0.95 },
+      frameHeightIn: { value: 240, unit: 'in', sourcePage: 2, confidence: 0.95 },
       beamPairCapacityLb: { value: 5000, sourcePage: 2, confidence: 0.95 },
     });
     expect(rows.length).toBe(2);
@@ -269,6 +274,7 @@ describe('Phase 3 — Spec-Sheet Intake & Command Bar (gemini-3.8-flash, store: 
       origin: 'INPUT' as const,
       lowConfidence: false,
       accepted: true,
+      sourceDocument: s.document,
       command: {
         type: 'setField' as const,
         label: '   ', // empty label refuses in setField
@@ -465,5 +471,232 @@ describe('Phase 3 — Spec-Sheet Intake & Command Bar (gemini-3.8-flash, store: 
       'Invalid',
     );
     expect(failedRun.ok).toBe(false);
+  });
+
+  it('converts lengths to integer micrometres across in, mm, and ft', () => {
+    expect(lengthToMicrometres(1, 'in')).toBe(25_400);
+    expect(lengthToMicrometres(108, 'in')).toBe(2_743_200);
+    expect(lengthToMicrometres(1, 'mm')).toBe(1_000);
+    expect(lengthToMicrometres(2743, 'mm')).toBe(2_743_000);
+    expect(lengthToMicrometres(1, 'ft')).toBe(304_800);
+    expect(lengthToMicrometres(9, 'ft')).toBe(2_743_200);
+  });
+
+  it('rejects length fields with missing or unknown units in intake output', () => {
+    const lengthFields = ['truckRasIn', 'clearHeightIn', 'deflectorElevIn', 'frameHeightIn'] as const;
+
+    for (const field of lengthFields) {
+      // Missing unit
+      const missing = parseAndValidateIntakeOutput(
+        JSON.stringify({
+          documentKind: 'FORKLIFT_SPEC_SHEET',
+          [field]: { value: 108, sourcePage: 1, confidence: 0.95 },
+        }),
+      );
+      expect(missing.ok).toBe(false);
+      if (!missing.ok) {
+        expect(missing.reason).toBe(
+          `${field} has missing or unknown unit 'undefined'. Lengths must include an explicit unit ('in' | 'mm' | 'ft').`,
+        );
+      }
+
+      // Unknown unit
+      const unknownUnit = parseAndValidateIntakeOutput(
+        JSON.stringify({
+          documentKind: 'FORKLIFT_SPEC_SHEET',
+          [field]: { value: 108, unit: 'meters', sourcePage: 1, confidence: 0.95 },
+        }),
+      );
+      expect(unknownUnit.ok).toBe(false);
+      if (!unknownUnit.ok) {
+        expect(unknownUnit.reason).toBe(
+          `${field} has missing or unknown unit 'meters'. Lengths must include an explicit unit ('in' | 'mm' | 'ft').`,
+        );
+      }
+
+      // Valid units pass
+      for (const validUnit of ['in', 'mm', 'ft'] as const) {
+        const okRes = parseAndValidateIntakeOutput(
+          JSON.stringify({
+            documentKind: 'FORKLIFT_SPEC_SHEET',
+            [field]: { value: 108, unit: validUnit, sourcePage: 1, confidence: 0.95 },
+          }),
+        );
+        expect(okRes.ok).toBe(true);
+      }
+    }
+  });
+
+  it('validates commodityClass strictly against authoritative NFPA 13 classes', () => {
+    // All 7 authoritative classes pass
+    for (const validClass of ALLOWED_COMMODITY_CLASSES) {
+      const ok = parseAndValidateIntakeOutput(
+        JSON.stringify({
+          documentKind: 'SITE_SURVEY_CHECKLIST',
+          commodityClass: { value: validClass, sourcePage: 1, confidence: 0.9 },
+        }),
+      );
+      expect(ok.ok).toBe(true);
+    }
+
+    // Invalid classes rejected citing NFPA 13
+    const badClasses = ['Class V', 'Flammables', 'Hazardous', 'Group D Plastics', 'General'];
+    for (const bad of badClasses) {
+      const res = parseAndValidateIntakeOutput(
+        JSON.stringify({
+          documentKind: 'SITE_SURVEY_CHECKLIST',
+          commodityClass: { value: bad, sourcePage: 1, confidence: 0.9 },
+        }),
+      );
+      expect(res.ok).toBe(false);
+      if (!res.ok) {
+        expect(res.reason).toContain('Unknown commodityClass');
+        expect(res.reason).toContain('NFPA 13');
+        expect(res.reason).toContain(ALLOWED_COMMODITY_CLASSES.join(', '));
+      }
+    }
+  });
+
+  it('stages confirmation rows with explicit units, exact micrometre conversions, and attached sourceDocument', () => {
+    const s = baseSession();
+    const rows = stageIntakeConfirmationTable(s.document, 'metric-submittal.pdf', {
+      documentKind: 'RACK_SUBMITTAL',
+      truckRasIn: { value: 2743, unit: 'mm', sourcePage: 1, confidence: 0.95 },
+      clearHeightIn: { value: 32, unit: 'ft', sourcePage: 2, confidence: 0.92 },
+      frameHeightIn: { value: 24, unit: 'ft', sourcePage: 3, confidence: 0.98 },
+    });
+
+    expect(buildIntakeConfirmationRows).toBe(stageIntakeConfirmationTable);
+    expect(rows.length).toBe(3);
+    expect(rows.every((r) => r.sourceDocument === s.document)).toBe(true);
+
+    const rasRow = rows.find((r) => r.fieldKey === 'truckRAS');
+    expect(rasRow?.extractedDisplayValue).toBe('2743 mm');
+    expect(rasRow?.command).toEqual({
+      type: 'setField',
+      label: expect.stringContaining('metric-submittal.pdf p.1'),
+      change: {
+        section: 'equipment',
+        patch: {
+          truckRAS: {
+            value: 2_743_000,
+            established: 'CATALOG',
+            source: expect.stringContaining('metric-submittal.pdf p.1'),
+          },
+        },
+      },
+    });
+
+    const clearRow = rows.find((r) => r.fieldKey === 'clearHeight');
+    expect(clearRow?.extractedDisplayValue).toBe('32 ft');
+    expect(clearRow?.command).toEqual({
+      type: 'setField',
+      label: expect.stringContaining('metric-submittal.pdf p.2'),
+      change: {
+        section: 'building',
+        patch: {
+          clearHeight: {
+            value: 32 * 304_800,
+            established: 'INPUT',
+            source: expect.stringContaining('metric-submittal.pdf p.2'),
+          },
+        },
+      },
+    });
+
+    // Tests resolveLengthUnit default when unit is omitted
+    const legacyRows = stageIntakeConfirmationTable(s.document, 'legacy.pdf', {
+      documentKind: 'FORKLIFT_SPEC_SHEET',
+      truckRasIn: { value: 108, sourcePage: 1, confidence: 0.95 },
+    });
+    expect(legacyRows[0]?.extractedDisplayValue).toBe('108 in');
+    expect(legacyRows[0]?.command).toEqual({
+      type: 'setField',
+      label: expect.stringContaining('legacy.pdf p.1'),
+      change: {
+        section: 'equipment',
+        patch: {
+          truckRAS: {
+            value: 108 * 25_400,
+            established: 'CATALOG',
+            source: expect.stringContaining('legacy.pdf p.1'),
+          },
+        },
+      },
+    });
+  });
+
+  it('isIntakeCurrent correctly detects freshness and stale document changes', () => {
+    const s = baseSession();
+    expect(isIntakeCurrent([], s)).toBe(true);
+
+    const rows = stageIntakeConfirmationTable(s.document, 'spec.pdf', {
+      documentKind: 'FORKLIFT_SPEC_SHEET',
+      truckType: { value: 'Counterbalance', sourcePage: 1, confidence: 0.9 },
+    });
+    expect(isIntakeCurrent(rows, s)).toBe(true);
+
+    // Modify document in session
+    const modifiedSession: Session = {
+      ...s,
+      document: {
+        ...s.document,
+        name: 'Modified Job',
+      },
+    };
+    expect(isIntakeCurrent(rows, modifiedSession)).toBe(false);
+
+    // Applying stale rows refuses and leaves session untouched
+    const staleResult = applyConfirmedIntakeRows(modifiedSession, [
+      { ...rows[0]!, accepted: true },
+    ]);
+    expect(staleResult.appliedCount).toBe(0);
+    expect(staleResult.refused).toBe(
+      'The document changed since intake staging. Intake rows are stale.',
+    );
+    expect(staleResult.session).toBe(modifiedSession);
+  });
+
+  it('dispatches confirmed intake rows as a single batch command with single-step undo and redo', () => {
+    const s0 = baseSession();
+    const rows = stageIntakeConfirmationTable(s0.document, 'spec.pdf', {
+      documentKind: 'FORKLIFT_SPEC_SHEET',
+      truckType: { value: 'Stand-up reach', sourcePage: 1, confidence: 0.95 },
+      truckRasIn: { value: 108, unit: 'in', sourcePage: 1, confidence: 0.95 },
+    }).map((r) => ({ ...r, accepted: true }));
+
+    const applied = applyConfirmedIntakeRows(s0, rows);
+    expect(applied.appliedCount).toBe(2);
+    expect(applied.refused).toBeUndefined();
+
+    // Exactly one ledger entry for the entire intake apply
+    expect(applied.session.ledger.entries).toHaveLength(1);
+    expect(applied.session.ledger.depth).toBe(1);
+
+    // Single-step undo reverts both fields
+    const undone = undo(applied.session);
+    expect(undone.ok).toBe(true);
+    if (!undone.ok) return;
+    expect(undone.session.ledger.depth).toBe(0);
+    expect(undone.session.document.equipment.truckType).toBe(s0.document.equipment.truckType);
+    expect(undone.session.document.equipment.truckRAS.value).toBe(s0.document.equipment.truckRAS.value);
+
+    // Single-step redo re-applies both fields
+    const redone = redo(undone.session);
+    expect(redone.ok).toBe(true);
+    if (!redone.ok) return;
+    expect(redone.session.ledger.depth).toBe(1);
+    expect(redone.session.document.equipment.truckType).toBe('Stand-up reach');
+    expect(redone.session.document.equipment.truckRAS.value).toBe(IN(108));
+  });
+
+  it('dispatchAll returns ok on empty commands without modifying session ledger', () => {
+    const s = baseSession();
+    const res = dispatchAll(s, []);
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.session).toBe(s);
+      expect(res.session.ledger.entries).toHaveLength(0);
+    }
   });
 });

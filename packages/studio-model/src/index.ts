@@ -76,6 +76,7 @@ export { MigrationError, migrate, migrateV1ToV2, type Migrated } from './migrate
 
 export {
   apply,
+  type BatchCommand,
   type Command,
   type CommandOk,
   type CommandRefused,
@@ -182,15 +183,19 @@ export {
 } from './fix-proposals.js';
 
 export {
+  ALLOWED_COMMODITY_CLASSES,
   COMMAND_BAR_SCHEMA,
   GEMINI_INTAKE_MODEL,
   INTAKE_EXTRACTION_SCHEMA,
   LOW_CONFIDENCE_THRESHOLD,
   applyConfirmedIntakeRows,
   buildCommandBarRequest,
+  buildIntakeConfirmationRows,
   buildSpecSheetIntakeRequest,
   dispatchAll,
+  isIntakeCurrent,
   isPreviewCurrent,
+  lengthToMicrometres,
   parseAndValidateCommandBarOutput,
   parseAndValidateIntakeOutput,
   previewCommandSequence,
@@ -199,10 +204,12 @@ export {
   stageIntakeConfirmationTable,
   toggleIntakeRowAcceptance,
   validateGeminiBackendConfig,
+  type AllowedCommodityClass,
   type BackendConfigCheck,
   type CommandBarRunResult,
   type CommandPreviewCard,
   type ExtractedField,
+  type ExtractedLengthField,
   type GeminiBackendConfig,
   type GeminiInteractionPart,
   type GeminiInteractionsClient,
@@ -210,6 +217,7 @@ export {
   type IntakeConfirmationRow,
   type IntakeDocumentKind,
   type IntakeExtractionPayload,
+  type LengthUnit,
   type ParseCommandBarResult,
   type ParseIntakeResult,
   type SpecSheetIntakeInput,

@@ -69,8 +69,42 @@ export type IntakeDocumentKind =
   | 'SITE_SURVEY_CHECKLIST'
   | 'RACK_SUBMITTAL';
 
+export type LengthUnit = 'in' | 'mm' | 'ft';
+
+/** Convert a length value in any supported unit to integer micrometres. */
+export function lengthToMicrometres(val: number, unit: LengthUnit): number {
+  switch (unit) {
+    case 'in':
+      return Math.round(val * 25_400);
+    case 'mm':
+      return Math.round(val * 1_000);
+    case 'ft':
+      return Math.round(val * 304_800);
+  }
+}
+
+// Authoritative commodity classes per NFPA 13 (Standard for the Installation of Sprinkler Systems, Chapters 5 and 20).
+// Note: data/rules/studio-2026.09/rules.json FLUE-SPRINKLER-GEOMETRY is NOT_FOUND in repo rule pack.
+export const ALLOWED_COMMODITY_CLASSES = [
+  'Class I',
+  'Class II',
+  'Class III',
+  'Class IV',
+  'Group A Plastics',
+  'Group B Plastics',
+  'Group C Plastics',
+] as const;
+export type AllowedCommodityClass = (typeof ALLOWED_COMMODITY_CLASSES)[number];
+
 export interface ExtractedField<T extends number | string> {
   readonly value: T;
+  readonly sourcePage: number;
+  readonly confidence: number;
+}
+
+export interface ExtractedLengthField {
+  readonly value: number;
+  readonly unit?: LengthUnit;
   readonly sourcePage: number;
   readonly confidence: number;
 }
@@ -78,12 +112,12 @@ export interface ExtractedField<T extends number | string> {
 export interface IntakeExtractionPayload {
   readonly documentKind: IntakeDocumentKind;
   readonly truckType?: ExtractedField<string>;
-  readonly truckRasIn?: ExtractedField<number>;
-  readonly clearHeightIn?: ExtractedField<number>;
-  readonly deflectorElevIn?: ExtractedField<number>;
+  readonly truckRasIn?: ExtractedLengthField;
+  readonly clearHeightIn?: ExtractedLengthField;
+  readonly deflectorElevIn?: ExtractedLengthField;
   readonly commodityClass?: ExtractedField<string>;
   readonly sdc?: ExtractedField<string>;
-  readonly frameHeightIn?: ExtractedField<number>;
+  readonly frameHeightIn?: ExtractedLengthField;
   readonly beamPairCapacityLb?: ExtractedField<number>;
   readonly ratedLoadLb?: ExtractedField<number>;
 }
@@ -110,9 +144,10 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
     truckRasIn: {
       type: 'object',
       additionalProperties: false,
-      required: ['value', 'sourcePage', 'confidence'],
+      required: ['value', 'unit', 'sourcePage', 'confidence'],
       properties: {
         value: { type: 'number', exclusiveMinimum: 0 },
+        unit: { type: 'string', enum: ['in', 'mm', 'ft'] },
         sourcePage: { type: 'integer', minimum: 1 },
         confidence: { type: 'number', minimum: 0, maximum: 1 },
       },
@@ -120,9 +155,10 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
     clearHeightIn: {
       type: 'object',
       additionalProperties: false,
-      required: ['value', 'sourcePage', 'confidence'],
+      required: ['value', 'unit', 'sourcePage', 'confidence'],
       properties: {
         value: { type: 'number', exclusiveMinimum: 0 },
+        unit: { type: 'string', enum: ['in', 'mm', 'ft'] },
         sourcePage: { type: 'integer', minimum: 1 },
         confidence: { type: 'number', minimum: 0, maximum: 1 },
       },
@@ -130,9 +166,10 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
     deflectorElevIn: {
       type: 'object',
       additionalProperties: false,
-      required: ['value', 'sourcePage', 'confidence'],
+      required: ['value', 'unit', 'sourcePage', 'confidence'],
       properties: {
         value: { type: 'number', exclusiveMinimum: 0 },
+        unit: { type: 'string', enum: ['in', 'mm', 'ft'] },
         sourcePage: { type: 'integer', minimum: 1 },
         confidence: { type: 'number', minimum: 0, maximum: 1 },
       },
@@ -142,7 +179,7 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
       additionalProperties: false,
       required: ['value', 'sourcePage', 'confidence'],
       properties: {
-        value: { type: 'string' },
+        value: { type: 'string', enum: [...ALLOWED_COMMODITY_CLASSES] },
         sourcePage: { type: 'integer', minimum: 1 },
         confidence: { type: 'number', minimum: 0, maximum: 1 },
       },
@@ -160,9 +197,10 @@ export const INTAKE_EXTRACTION_SCHEMA: Record<string, unknown> = {
     frameHeightIn: {
       type: 'object',
       additionalProperties: false,
-      required: ['value', 'sourcePage', 'confidence'],
+      required: ['value', 'unit', 'sourcePage', 'confidence'],
       properties: {
         value: { type: 'number', exclusiveMinimum: 0 },
+        unit: { type: 'string', enum: ['in', 'mm', 'ft'] },
         sourcePage: { type: 'integer', minimum: 1 },
         confidence: { type: 'number', minimum: 0, maximum: 1 },
       },
@@ -212,6 +250,7 @@ export interface IntakeConfirmationRow {
   readonly lowConfidence: boolean;
   readonly accepted: boolean;
   readonly command: Command;
+  readonly sourceDocument?: StudioDocument;
 }
 
 export type BackendConfigCheck =
@@ -306,6 +345,13 @@ function isValidExtractedNumber(val: unknown): val is ExtractedField<number> {
   );
 }
 
+const LENGTH_FIELD_KEYS = new Set<string>([
+  'truckRasIn',
+  'clearHeightIn',
+  'deflectorElevIn',
+  'frameHeightIn',
+]);
+
 /** Every optional extracted field and whether it carries a number or a string. */
 const INTAKE_FIELD_KINDS: readonly (readonly [
   Exclude<keyof IntakeExtractionPayload, 'documentKind'>,
@@ -361,6 +407,25 @@ export function parseAndValidateIntakeOutput(rawOutputText: string): ParseIntake
     if (!valid) {
       return { ok: false, reason: `Invalid ${key} field in intake extraction.` };
     }
+    if (LENGTH_FIELD_KEYS.has(key)) {
+      const rec = raw as Record<string, unknown>;
+      const unit = rec['unit'];
+      if (unit !== 'in' && unit !== 'mm' && unit !== 'ft') {
+        return {
+          ok: false,
+          reason: `${key} has missing or unknown unit '${String(unit)}'. Lengths must include an explicit unit ('in' | 'mm' | 'ft').`,
+        };
+      }
+    }
+    if (key === 'commodityClass') {
+      const val = (raw as ExtractedField<string>).value;
+      if (!ALLOWED_COMMODITY_CLASSES.includes(val as AllowedCommodityClass)) {
+        return {
+          ok: false,
+          reason: `Unknown commodityClass '${val}'. Must be an authoritative NFPA 13 commodity class: ${ALLOWED_COMMODITY_CLASSES.join(', ')}.`,
+        };
+      }
+    }
     if (key === 'sdc') {
       const letter = (raw as ExtractedField<string>).value.trim().toUpperCase();
       if (!/^[A-F]$/.test(letter)) {
@@ -385,6 +450,10 @@ export const LOW_CONFIDENCE_THRESHOLD = 0.8;
 function citation(fileName: string, page: number, confidence: number): string {
   const pct = Math.round(confidence * 100);
   return `Intake ${fileName} p.${page} (${pct}% confidence)`;
+}
+
+function resolveLengthUnit(f: ExtractedLengthField): LengthUnit {
+  return f.unit ?? 'in';
 }
 
 /**
@@ -428,13 +497,14 @@ export function stageIntakeConfirmationTable(
 
   if (payload.truckRasIn !== undefined) {
     const f = payload.truckRasIn;
+    const unit = resolveLengthUnit(f);
     const cite = citation(fileName, f.sourcePage, f.confidence);
     rows.push({
       id: 'intake-truckRAS',
       fieldKey: 'truckRAS',
       label: 'Truck mfr min aisle (AST)',
       currentDisplayValue: formatIn(doc.equipment.truckRAS.value),
-      extractedDisplayValue: `${f.value} in`,
+      extractedDisplayValue: `${f.value} ${unit}`,
       sourcePage: f.sourcePage,
       confidence: f.confidence,
       sourceCitation: cite,
@@ -447,7 +517,7 @@ export function stageIntakeConfirmationTable(
           section: 'equipment',
           patch: {
             truckRAS: {
-              value: IN(f.value),
+              value: lengthToMicrometres(f.value, unit),
               established: 'CATALOG',
               source: cite,
             },
@@ -459,13 +529,14 @@ export function stageIntakeConfirmationTable(
 
   if (payload.clearHeightIn !== undefined) {
     const f = payload.clearHeightIn;
+    const unit = resolveLengthUnit(f);
     const cite = citation(fileName, f.sourcePage, f.confidence);
     rows.push({
       id: 'intake-clearHeight',
       fieldKey: 'clearHeight',
       label: 'Clear internal height',
       currentDisplayValue: formatIn(doc.building.clearHeight.value),
-      extractedDisplayValue: `${f.value} in`,
+      extractedDisplayValue: `${f.value} ${unit}`,
       sourcePage: f.sourcePage,
       confidence: f.confidence,
       sourceCitation: cite,
@@ -478,7 +549,7 @@ export function stageIntakeConfirmationTable(
           section: 'building',
           patch: {
             clearHeight: {
-              value: IN(f.value),
+              value: lengthToMicrometres(f.value, unit),
               established: 'INPUT',
               source: cite,
             },
@@ -490,13 +561,14 @@ export function stageIntakeConfirmationTable(
 
   if (payload.deflectorElevIn !== undefined) {
     const f = payload.deflectorElevIn;
+    const unit = resolveLengthUnit(f);
     const cite = citation(fileName, f.sourcePage, f.confidence);
     rows.push({
       id: 'intake-deflectorElev',
       fieldKey: 'deflectorElev',
       label: 'Sprinkler deflector elev.',
       currentDisplayValue: formatIn(doc.building.deflectorElev.value),
-      extractedDisplayValue: `${f.value} in`,
+      extractedDisplayValue: `${f.value} ${unit}`,
       sourcePage: f.sourcePage,
       confidence: f.confidence,
       sourceCitation: cite,
@@ -509,7 +581,7 @@ export function stageIntakeConfirmationTable(
           section: 'building',
           patch: {
             deflectorElev: {
-              value: IN(f.value),
+              value: lengthToMicrometres(f.value, unit),
               established: 'INPUT',
               source: cite,
             },
@@ -583,13 +655,14 @@ export function stageIntakeConfirmationTable(
 
   if (payload.frameHeightIn !== undefined && bt !== undefined) {
     const f = payload.frameHeightIn;
+    const unit = resolveLengthUnit(f);
     const cite = citation(fileName, f.sourcePage, f.confidence);
     rows.push({
       id: 'intake-frameHeight',
       fieldKey: 'frameHeight',
       label: 'Frame height',
       currentDisplayValue: formatIn(bt.frameHeight.value),
-      extractedDisplayValue: `${f.value} in`,
+      extractedDisplayValue: `${f.value} ${unit}`,
       sourcePage: f.sourcePage,
       confidence: f.confidence,
       sourceCitation: cite,
@@ -603,7 +676,7 @@ export function stageIntakeConfirmationTable(
           bayTypeId: bt.id,
           patch: {
             frameHeight: {
-              value: IN(f.value),
+              value: lengthToMicrometres(f.value, unit),
               established: 'CATALOG',
               source: cite,
             },
@@ -673,8 +746,11 @@ export function stageIntakeConfirmationTable(
   return rows.map((r) => ({
     ...r,
     lowConfidence: r.confidence < LOW_CONFIDENCE_THRESHOLD,
+    sourceDocument: doc,
   }));
 }
+
+export const buildIntakeConfirmationRows = stageIntakeConfirmationTable;
 
 export interface SpecSheetIntakeInput {
   readonly documentKind: IntakeDocumentKind;
@@ -734,6 +810,14 @@ export function toggleIntakeRowAcceptance(
   );
 }
 
+/** True while the session still holds the exact document the intake rows were staged from. */
+export function isIntakeCurrent(
+  rows: readonly IntakeConfirmationRow[],
+  session: Session,
+): boolean {
+  return rows.every((r) => r.sourceDocument === session.document);
+}
+
 /**
  * Commit ONLY the user-accepted (`accepted: true`) rows from the Human
  * Confirmation Table into `session` as undoable, provenance-cited commands.
@@ -742,6 +826,13 @@ export function applyConfirmedIntakeRows(
   session: Session,
   rows: readonly IntakeConfirmationRow[],
 ): { readonly session: Session; readonly appliedCount: number; readonly refused?: string } {
+  if (!isIntakeCurrent(rows, session)) {
+    return {
+      session,
+      appliedCount: 0,
+      refused: 'The document changed since intake staging. Intake rows are stale.',
+    };
+  }
   const accepted = rows.filter((r) => r.accepted);
   const res = dispatchAll(session, accepted.map((r) => r.command));
   if (!res.ok) return { session, appliedCount: 0, refused: res.msg };
@@ -812,13 +903,12 @@ export function dispatchAll(
   session: Session,
   commands: readonly Command[],
 ): { readonly ok: true; readonly session: Session } | { readonly ok: false; readonly msg: string } {
-  let current = session;
-  for (const cmd of commands) {
-    const res = dispatch(current, cmd);
-    if (!res.ok) return { ok: false, msg: res.msg };
-    current = res.session;
+  if (commands.length === 0) {
+    return { ok: true, session };
   }
-  return { ok: true, session: current };
+  const res = dispatch(session, { type: 'batch', commands });
+  if (!res.ok) return { ok: false, msg: res.msg };
+  return { ok: true, session: res.session };
 }
 
 /**

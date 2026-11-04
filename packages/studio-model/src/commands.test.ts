@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 
-import { apply, type Command } from './commands.js';
+import { apply, type BatchCommand, type Command } from './commands.js';
 import { bayTypeForRun, locateBay, runOf, type StudioDocument, type V1Document } from './document.js';
 import { counterOf, type IdCounter } from './ids.js';
 import { IN } from './length.js';
@@ -662,4 +662,113 @@ describe('setField (S4.5)', () => {
     ).toBe(false);
   });
 });
+
+describe('BatchCommand (R1)', () => {
+  it('refuses an empty batch', () => {
+    const { doc, counter } = start();
+    const res = apply(doc, counter, { type: 'batch', commands: [] });
+    expect(res.ok).toBe(false);
+    expect((res as { msg: string }).msg).toBe('A batch must contain at least one command.');
+  });
+
+  it('aborts all-or-nothing on child refusal, leaving document and counter untouched', () => {
+    const { doc, counter } = start();
+    const originalJson = JSON.stringify(doc);
+    const originalCounter = counter.next;
+
+    const res = apply(doc, counter, {
+      type: 'batch',
+      commands: [
+        { type: 'addRun' },
+        { type: 'deleteBay', bayId: 'bay_does_not_exist' },
+      ],
+    });
+
+    expect(res.ok).toBe(false);
+    expect((res as { msg: string }).msg).toMatch(/Bay not found/);
+    expect(JSON.stringify(doc)).toBe(originalJson);
+    expect(counter.next).toBe(originalCounter);
+  });
+
+  it('applies batch commands in sequence and uses custom label', () => {
+    const { doc, counter } = start();
+    const res = apply(doc, counter, {
+      type: 'batch',
+      label: 'Add run and set project name',
+      commands: [
+        { type: 'addRun' },
+        {
+          type: 'setField',
+          label: 'Rename project',
+          change: { section: 'project', patch: { name: 'Batch Project' } },
+        },
+      ],
+    });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.label).toBe('Add run and set project name');
+    expect(res.document.runs.length).toBe(doc.runs.length + 1);
+    expect(res.document.name).toBe('Batch Project');
+    expect(res.inverse.type).toBe('batch');
+    expect((res.inverse as BatchCommand).label).toBe('Add run and set project name');
+
+    // Inverse reverses the whole batch
+    const reverted = apply(res.document, res.counter, res.inverse);
+    expect(reverted.ok).toBe(true);
+    if (!reverted.ok) return;
+    expect(reverted.document.runs.length).toBe(doc.runs.length);
+    expect(reverted.document.name).toBe(doc.name);
+  });
+
+  it('falls back to the last child command label when batch label is omitted', () => {
+    const { doc, counter } = start();
+    const res = apply(doc, counter, {
+      type: 'batch',
+      commands: [
+        { type: 'addRun' },
+        {
+          type: 'setField',
+          label: 'Rename project',
+          change: { section: 'project', patch: { name: 'New Name' } },
+        },
+      ],
+    });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    expect(res.label).toBe('Rename project');
+    expect(res.inverse.type).toBe('batch');
+  });
+
+  it('inverts child commands in reverse order so dependencies restore cleanly', () => {
+    const { doc, counter } = start();
+    const beforeJson = JSON.stringify(doc);
+
+    // Command 1: addRun (creates Run 4)
+    // Command 2: appendBay to Run 4 (depends on Run 4 created in step 1)
+    const runRes = apply(doc, counter, { type: 'addRun' });
+    expect(runRes.ok).toBe(true);
+    if (!runRes.ok) return;
+    const newRunId = runRes.document.runs[runRes.document.runs.length - 1]!.id;
+
+    const res = apply(doc, counter, {
+      type: 'batch',
+      commands: [
+        { type: 'addRun' },
+        { type: 'appendBay', runId: newRunId },
+      ],
+    });
+
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+
+    // Apply the inverse batch
+    const back = apply(res.document, res.counter, res.inverse);
+    expect(back.ok).toBe(true);
+    if (!back.ok) return;
+    expect(JSON.stringify(back.document)).toBe(beforeJson);
+  });
+});
+
 
