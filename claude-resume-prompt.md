@@ -98,23 +98,19 @@ access is not enabled for the repository and there is no tool in the session to 
 above were read through the connected Windows device, which can. Anyone quoting a CI result from a
 cloud session should say which side read it.
 
-**Verified 2026-11-02 in the container against native PostgreSQL 16 with migrations `0001`–`0015`
-applied and `RMS_REQUIRE_DB=1` set. This is the first time the whole suite has run against this
-tree. The run cited is `28f64a1` **plus the F-65 fix**, which is what makes it green:**
+**Verified 2026-11-04 on Windows against PostgreSQL 16 in WSL2 (`PCMClawUbuntu`, port 55432) with
+migrations `0001`–`0015` applied and `RMS_REQUIRE_DB=1` set. The run cited is `main` at `0910534`
+(the server-side Gemini adapter):**
 `pnpm verify` **exit 0 — 93 files, 2,341 tests, 0 skipped**, `typecheck` and type-aware `eslint` both at exit 0,
 **20 self-test invocations covering 19 checkers**, `build:web` and the bundle ceiling green,
-15 migrations, 15 declared claims.
+15 migrations, 17 declared claims. Coverage all files measures statements **94.70** · branches
+**92.55** · functions **87.99** · lines **94.70**; every per-directory floor in `vitest.config.ts`
+holds, including the new 100% floor on `apps/api/src/ai/**`.
 
-**On `28f64a1` alone — which is what `main` is — the same command is `exit 1`:** 84 files,
-2,253 tests, every one passing, and then
-**`ERROR: Coverage for functions (88.88%) does not meet "apps/api/src/app.ts" threshold (90%)`**.
-That is **F-65**: nine functions in `app.ts`, eight ever called, the ninth being the production
-clock `deps.now ?? ((): Date => new Date())` that `server.ts` runs and all 93 injected-clock test
-sites made unreachable. **`main` is red until `apps/api/src/app.clock.test.ts` lands.** Coverage all
-files measures statements **93.97** · branches **92.54** · functions **87.83** on the green tree
-and **87.73** on `28f64a1` alone ·
-lines **93.97**. v8 coverage is not bit-stable across worker scheduling, so the figure published is
-always the one from the run at the tree being cited, never the best of them.
+*History:* the 2026-11-02 container run on `28f64a1` was `exit 1` at the coverage gate (**F-65**,
+`app.ts` functions 88.88% against a 90% floor, the unreachable production clock) until
+`apps/api/src/app.clock.test.ts` landed. v8 coverage is not bit-stable across worker scheduling, so
+the figure published is always the one from the run at the tree being cited, never the best of them.
 
 *(**F-66**, found while writing this. The paragraph above replaces one that read
 **"Verified 2026-09-05 … exit 0 — **84** files, 2,252 tests … coverage 99.53 · 98.88 · 99.42 · 99.53"**
@@ -152,13 +148,11 @@ a cold session reads first and **the only one nothing gates**, so a session resu
 have rebuilt work that was already on `main`. Read `tasks/progress.md` for any figure, as step 2
 above says.)*
 
-**And nothing here has been pushed.** *(Re-measured 2026-11-02 with real pushes from both lanes:
-bridge shell → `could not read Username for 'https://github.com'`, exit 128; container → read at
-exit 0, push **403**, *"not in this session's authorized repository set"*. Run
-`git rev-list HEAD --not --remotes` for the count — it moves with every documentation commit,
-including the one that wrote this.)* `git rev-list HEAD --not --remotes` returned **18** on
-2026-10-20, including all eight feature commits above; `origin/main` is still at the sha it held on
-2026-10-05. **Push before anything else** — see `tasks/progress.md`, "Next, in order", item 1.
+**Push status, re-measured 2026-11-04:** `main` is level with `origin/main`; `git rev-list HEAD
+--not --remotes` returned **0** after `0910534` was pushed from the Windows device. Re-run it
+rather than quoting this line, since every documentation commit moves it. *(History: on 2026-11-02
+neither cloud lane could push, the bridge shell at exit 128 and the container at **403**; the
+backlog was cleared from the Windows device.)*
 
 **Reconciliation with the older figures.** The Rev C audit's *68%* and `LATEST.md`'s *70%* are
 blueprint-conformance measures — requirements met, and effort remaining — over the whole MVP-1
