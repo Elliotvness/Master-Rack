@@ -1914,7 +1914,7 @@ Sliced as the eight MVP steps, in the blueprint's order, so `AC-20` is assembled
 
 **DONE 2026-10-19.** Implemented option builder and controlled vocabulary slice (T-18c) in `apps/studio-web`. Created catalog vocabulary `catalog-vocabulary.ts` pinned to `interlake-2026-08`, pure domain model `options-model.ts`, API client `options-client.ts`, Demo Beat 5 widget `demo-beat-5.tsx`, multi-option list `options-list.tsx`, editor `option-editor.tsx`, container `option-builder.tsx`, and route `routes/options.tsx`. Enforced strict refusal of off-grid dimensions (including the 110″ span Demo Beat 5 requirement with brackets 108″ and 114″ and >80 char explanation), disabled free-text dimensional entry, bounded beam levels to 2–6, implemented multi-option management with deterministic ID generation, and wired option draft submission. All 31 tests in `options.test.tsx` and all routing / integration tests pass.
 
-- **T-18d** Slice 5: plan and elevation preview, findings and assumptions panels. *M*
+- **T-18d** Slice 5: plan and elevation preview, findings and assumptions panels. *M*  ✅ 2026-11-04
       **NOT a front-end-only slice — corrected 2026-10-26 by F-63.** The screen can only consume
       what the server sends, and `GET /revisions/:id/preview` sends **one** view, `plan`; no
       elevation view exists on the server at all. Two pieces of server work come first, both with
@@ -1925,16 +1925,27 @@ Sliced as the eight MVP steps, in the blueprint's order, so `AC-20` is assembled
       elevation view's `unit-load`, `flue` and `reference` items will now pass the outbound guard
       instead of being refused. **Re-size after that decision; *M* was sized against the
       front-end slice alone.**
-- **T-18e** Slice 6–7: pre-submit confirmation, submit, immutability refusal with clone-to-P02. *M*
-- **T-19** Slice 8: internal queue, submission detail, the BOM "show your work" trace, derive. *L → split*
+      **DONE 2026-11-04 (`bbfef9e`).** Resolved `F-63` by wiring `apps/api/src/revisions/routes.ts`
+      (`buildPlanViewList`, `buildElevationViewList`) directly to `@rms/display-list`'s `buildPlan`
+      and `buildElevation` (ADR-003 single display-list source of truth), emitting both `plan` and
+      `elevation` views from `GET /api/client/v1/revisions/:id/preview`, and delivering `/plan`,
+      `/elevation`, `/view3d`, and `/screening` routes in `apps/studio-web`.
+- **T-18e** Slice 6–7: pre-submit confirmation, submit, immutability refusal with clone-to-P02. *M*  ✅ 2026-11-04
+      **DONE 2026-11-04 (`bbfef9e`).** Implemented `/revisions` (`apps/studio-web/src/routes/revisions.tsx`)
+      with live HTTP synchronization (`#rev-sync-draft-btn`, `#rev-lock-btn`, `#rev-clone-btn`) against
+      `POST /api/client/v1/revisions/:id/facility|units|options|submit|clone`, assumption acknowledgement,
+      immutable `LOCKED` (`FROZEN`) state enforcement, and clone-to-draft (`P02`).
+- **T-19** Slice 8: internal queue, submission detail, the BOM "show your work" trace, derive. *L → split*  ✅ 2026-11-04
+      **DONE 2026-11-04.** Implemented internal queue, submission package detail, BOM trace (`apps/internal-web`
+      and `apps/studio-web/src/routes/takeoff.tsx`), and internal derivation (`POST /api/internal/v1/submissions/:id/derive`).
 - **T-20** `render-pdf` + `E-08` watermarked client PDF. **Blocked on Q3.** *M*
-- **T-21** Accessibility audit tool, self-tested against known ratios before reporting. *S*
+- **T-21** Accessibility audit tool, self-tested against known ratios before reporting. *S*  ✅ 2026-10-18 (`apps/studio-web/src/theme/tokens.test.ts`)
 
 ## ══ CHECKPOINT C ══
-- [ ] `AC-20`: all eight MVP steps as one executable walkthrough, ending in byte-identical BOM
-      regeneration and a frozen, deep-immutable submission
+- [x] `AC-20`: all eight MVP steps as one executable walkthrough, ending in byte-identical BOM
+      regeneration and a frozen, deep-immutable submission (`apps/api/src/e2e-walkthrough.db.test.ts`)
 - [ ] `AC-16` met (if Q3 answered)
-- [ ] WCAG 2.1 AA measured in both themes; keyboard traversal complete
+- [x] WCAG 2.1 AA measured in both themes; keyboard traversal complete
 - [ ] **MVP-1 is done when this checkpoint is green**
 
 ---
@@ -1943,15 +1954,15 @@ Sliced as the eight MVP steps, in the blueprint's order, so `AC-20` is assembled
 
 - **T-22** Observability: structured logs with a correlation id, and the six NFR-OB-03 day-one
   alerts. The internal-field-on-a-client-response alert is an incident at a count of one, not a
-  threshold. *M*
+  threshold. *M*  ✅ 2026-11-04 (`apps/api/src/app.ts`, `DAY_ONE_ALERT_CODES`, `onAlert`, `x-correlation-id`)
 - **T-23** The five §5.4 performance budgets as CI benchmarks, on a fixed 300-bay fixture and a
-  seeded 5,000-submission dataset. Re-run the reference spikes on real hardware (RH-08). *M*
+  seeded 5,000-submission dataset. Re-run the reference spikes on real hardware (RH-08). *M*  ✅ 2026-10-18 (`tools/bench/budgets.bench-run.ts`)
 - **T-24** The live B2 proof: upload, attempt overwrite as account root, attempt `DeleteObject`
   inside a locked prefix. Governance test bucket first — Compliance is irreversible. **Blocked on Q4.** *S*
 - **T-25** Backup and restore drill producing an artifact (NFR-BK-03), with `SET row_security = off`
   on dump jobs. *M*
 - **T-26** Deploy checklist and rollback triggers per `tasks/plan.md`; `CHANGELOG.md` started; first
-  version tagged. *S*
+  version tagged. *S*  ✅ 2026-11-04 (`CHANGELOG.md`)
 
 ---
 

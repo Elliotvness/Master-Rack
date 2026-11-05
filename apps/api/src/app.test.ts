@@ -13,6 +13,8 @@ import { findForbiddenFields } from '@rms/contracts';
 
 import {
   ACCEPTANCE_REACHABLE,
+  DAY_ONE_ALERT_CODES,
+  REPEATED_AUTHZ_DENIALS_THRESHOLD,
   RouterCoverageError,
   UNIMPLEMENTED,
   createApp,
@@ -21,6 +23,7 @@ import {
   type DenyRecorder,
   type OutboundViolation,
   type Principal,
+  type StructuredAlertEvent,
 } from './app.js';
 import { ROUTES } from './authz/routes.js';
 import {
@@ -1087,5 +1090,117 @@ describe('T-15 — AC-02, AC-03 and AC-06 re-asserted against the live router', 
     expect(findForbiddenFields(res2.json())).toEqual([]);
   });
 });
+
+describe('T-22 — observability correlation id and NFR-OB-03 day-one alerts', () => {
+  it('propagates a valid incoming x-correlation-id header and generates a fresh id when omitted or malformed (NFR-OB-01)', async () => {
+    let seq = 0;
+    const app = createApp({
+      env: ENV,
+      now: () => new Date('2026-09-03T00:00:00Z'),
+      newId: () => `generated-id-${String(++seq)}`,
+    });
+
+    const echoed = await app.inject({
+      method: 'POST',
+      url: '/api/auth/invite/accept',
+      headers: { 'x-correlation-id': 'req-trace-2026-11-04_01' },
+      payload: {},
+    });
+    expect(echoed.headers['x-correlation-id']).toBe('req-trace-2026-11-04_01');
+
+    const generated = await app.inject({
+      method: 'POST',
+      url: '/api/auth/invite/accept',
+      payload: {},
+    });
+    expect(generated.headers['x-correlation-id']).toBe('generated-id-1');
+
+    const malformed = await app.inject({
+      method: 'POST',
+      url: '/api/auth/invite/accept',
+      headers: { 'x-correlation-id': 'bad header with spaces!' },
+      payload: {},
+    });
+    expect(malformed.headers['x-correlation-id']).toBe('generated-id-2');
+
+    await app.close();
+  });
+
+  it('declares all six NFR-OB-03 day-one alert codes, fires INTERNAL_FIELD_ON_CLIENT_RESPONSE at count 1, and fires REPEATED_AUTHZ_DENIALS at threshold', async () => {
+    expect(DAY_ONE_ALERT_CODES).toEqual([
+      'INTERNAL_FIELD_ON_CLIENT_RESPONSE',
+      'REPEATED_AUTHZ_DENIALS',
+      'AUDIT_CHAIN_VERIFICATION_FAILURE',
+      'DETERMINISM_HARNESS_FAILURE',
+      'SLA_BREACH',
+      'FAILED_CATALOG_RELEASE_GATE',
+    ]);
+    expect(REPEATED_AUTHZ_DENIALS_THRESHOLD).toBe(3);
+
+    const alerts: StructuredAlertEvent[] = [];
+    const app = createApp({
+      env: ENV,
+      now: () => new Date('2026-09-03T00:00:00Z'),
+      onAlert: (alert) => {
+        alerts.push(alert);
+      },
+    });
+    app.addHook('onRequest', async (request) => {
+      request.principal = CLIENT;
+    });
+    app.addHook('preSerialization', async (request, _reply, payload) => {
+      if (request.headers['x-plant-leak'] === '1') {
+        return { ...(payload as Record<string, unknown>), margin: 0.42 };
+      }
+      return payload;
+    });
+
+    // Trigger 1: INTERNAL_FIELD_ON_CLIENT_RESPONSE fires at count 1 (INCIDENT)
+    const leakRes = await app.inject({
+      method: 'GET',
+      url: '/api/client/v1/projects?page=0',
+      headers: { 'x-correlation-id': 'cid-leak-1', 'x-plant-leak': '1' },
+    });
+    expect(leakRes.statusCode).toBe(500);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toEqual({
+      code: 'INTERNAL_FIELD_ON_CLIENT_RESPONSE',
+      severity: 'INCIDENT',
+      correlationId: 'cid-leak-1',
+      occurredAt: '2026-09-03T00:00:00.000Z',
+      detail: {
+        route: 'GET /api/client/v1/projects',
+        fields: ['margin'],
+      },
+    });
+
+    // Trigger 2: REPEATED_AUTHZ_DENIALS fires on the 3rd denial for the same principal
+    for (let i = 1; i <= 3; i += 1) {
+      const denyRes = await app.inject({
+        method: 'GET',
+        url: '/api/internal/v1/queue',
+        headers: { 'x-correlation-id': `cid-deny-${String(i)}` },
+      });
+      expect(denyRes.statusCode).toBe(404);
+    }
+    expect(alerts).toHaveLength(2);
+    expect(alerts[1]).toEqual({
+      code: 'REPEATED_AUTHZ_DENIALS',
+      severity: 'HIGH',
+      correlationId: 'cid-deny-3',
+      occurredAt: '2026-09-03T00:00:00.000Z',
+      detail: {
+        userId: CLIENT.userId,
+        organizationId: CLIENT.organizationId,
+        action: 'submission.read',
+        reason: 'actor type may not reach this namespace',
+        denyCount: 3,
+      },
+    });
+
+    await app.close();
+  });
+});
+
 
 

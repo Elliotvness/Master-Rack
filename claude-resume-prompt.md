@@ -99,13 +99,15 @@ above were read through the connected Windows device, which can. Anyone quoting 
 cloud session should say which side read it.
 
 **Verified 2026-11-04 on Windows against PostgreSQL 16 in WSL2 (`PCMClawUbuntu`, port 55432) with
-migrations `0001`–`0015` applied and `RMS_REQUIRE_DB=1` set. The run cited is `main` at `0910534`
-(the server-side Gemini adapter):**
-`pnpm verify` **exit 0 — 93 files, 2,341 tests, 0 skipped**, `typecheck` and type-aware `eslint` both at exit 0,
+migrations `0001`–`0016` applied and `RMS_REQUIRE_DB=1` set (including `POST /api/client/v1/intake`,
+`F-63` unified `@rms/display-list` preview builders, `S6` revision API sync, `T-22` observability
+correlation IDs & day-one alerts, and `T-26` `CHANGELOG.md`):**
+`pnpm verify` **exit 0 — 93 files, 2,348 tests, 0 skipped**, `typecheck` and type-aware `eslint` both at exit 0,
 **20 self-test invocations covering 19 checkers**, `build:web` and the bundle ceiling green,
-15 migrations, 17 declared claims. Coverage all files measures statements **94.70** · branches
-**92.55** · functions **87.99** · lines **94.70**; every per-directory floor in `vitest.config.ts`
-holds, including the new 100% floor on `apps/api/src/ai/**`.
+16 migrations, 17 declared claims. Coverage all files measures statements **94.65** · branches
+**92.31** · functions **87.88** · lines **94.65**; every per-directory floor in `vitest.config.ts`
+holds, including the 100% floors on all 13 pure packages, `@rms/render-canvas`, `apps/api/src/ai/**`,
+and `apps/api/src/dto/**`.
 
 *History:* the 2026-11-02 container run on `28f64a1` was `exit 1` at the coverage gate (**F-65**,
 `app.ts` functions 88.88% against a 90% floor, the unreachable production clock) until

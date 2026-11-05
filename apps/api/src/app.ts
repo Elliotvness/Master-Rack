@@ -96,6 +96,33 @@ export interface OutboundViolation {
   readonly fields: readonly string[];
 }
 
+/**
+ * Six day-one alerts required by Blueprint §5.6 NFR-OB-03 (task **T-22**).
+ *
+ * `INTERNAL_FIELD_ON_CLIENT_RESPONSE` is an incident at a count of one, not a
+ * threshold.
+ */
+export const DAY_ONE_ALERT_CODES = [
+  'INTERNAL_FIELD_ON_CLIENT_RESPONSE',
+  'REPEATED_AUTHZ_DENIALS',
+  'AUDIT_CHAIN_VERIFICATION_FAILURE',
+  'DETERMINISM_HARNESS_FAILURE',
+  'SLA_BREACH',
+  'FAILED_CATALOG_RELEASE_GATE',
+] as const;
+
+export type DayOneAlertCode = (typeof DAY_ONE_ALERT_CODES)[number];
+
+export const REPEATED_AUTHZ_DENIALS_THRESHOLD = 3;
+
+export interface StructuredAlertEvent {
+  readonly code: DayOneAlertCode;
+  readonly severity: 'INCIDENT' | 'HIGH';
+  readonly correlationId: string;
+  readonly occurredAt: string;
+  readonly detail: Readonly<Record<string, unknown>>;
+}
+
 declare module 'fastify' {
   interface FastifyInstance {
     /** Live routes collected from the Fastify router via `onRoute` (T-14a / T-15). */
@@ -105,6 +132,8 @@ declare module 'fastify' {
     principal?: Principal;
     /** Set by the gate so a handler cannot re-derive its own policy. */
     policy?: RoutePolicy;
+    /** Request correlation ID propagated on every request and response (NFR-OB-01 / T-22). */
+    correlationId?: string;
   }
 }
 
@@ -320,7 +349,11 @@ export interface AppDeps {
   readonly geminiClient?: GeminiInteractionsClient;
   /** Optional hook invoked when the app-level outbound guard catches a forbidden client field (T-15 / AC-02). */
   readonly onOutboundViolation?: (violation: OutboundViolation) => void | Promise<void>;
+  /** Optional hook invoked when a day-one alert fires (NFR-OB-02 / NFR-OB-03 / T-22). */
+  readonly onAlert?: (alert: StructuredAlertEvent) => void | Promise<void>;
 }
+
+const CORRELATION_ID_PATTERN = /^[A-Za-z0-9._-]{1,128}$/;
 
 function send(reply: FastifyReply, code: ErrorCode, message: string): FastifyReply {
   return reply.code(statusFor(code)).send(errorEnvelope(code, message));
@@ -340,6 +373,7 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
   const now = deps.now ?? ((): Date => new Date());
   const newId = deps.newId ?? ((): string => crypto.randomUUID());
   const recordDeny = deps.recordDeny;
+  const denyCounts = new Map<string, number>();
 
   const registered: string[] = [];
   app.decorate('mountedRoutes', registered);
@@ -349,6 +383,16 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
       if (m === 'HEAD' || m === 'OPTIONS') continue;
       registered.push(routeKey(m, route.url));
     }
+  });
+
+  app.addHook('onRequest', async (request, reply) => {
+    const incoming = request.headers['x-correlation-id'];
+    const cid =
+      typeof incoming === 'string' && CORRELATION_ID_PATTERN.test(incoming.trim())
+        ? incoming.trim()
+        : newId();
+    request.correlationId = cid;
+    reply.header('x-correlation-id', cid);
   });
 
   const policyOf = new Map(ROUTES.map((r) => [routeKey(r.method, r.path), r] as const));
@@ -386,7 +430,12 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
     // Namespace before action: a client on an internal path must not learn
     // which internal actions exist, so this is 404 and not 403.
     if (!namespaceAllows(policy.namespace, principal.actorType)) {
-      await audit(principal, policy.action, 'actor type may not reach this namespace');
+      await audit(
+        principal,
+        policy.action,
+        'actor type may not reach this namespace',
+        request.correlationId!,
+      );
       return send(reply, 'NOT_FOUND', 'not found');
     }
 
@@ -407,7 +456,12 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
     // must arrive with NO authority until somebody decides what it has, rather
     // than with all of it until somebody remembers to add a case here.
     if (principal.purpose !== 'full' && !ACCEPTANCE_REACHABLE.has(key)) {
-      await audit(principal, policy.action, 'acceptance session may not reach this route');
+      await audit(
+        principal,
+        policy.action,
+        'acceptance session may not reach this route',
+        request.correlationId!,
+      );
       return send(reply, 'UNAUTHENTICATED', 'authentication is not complete');
     }
 
@@ -416,7 +470,7 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
       organizationId: principal.organizationId,
     });
     if (!decision.allow) {
-      await audit(principal, policy.action, decision.reason);
+      await audit(principal, policy.action, decision.reason, request.correlationId!);
       return decision.notFound
         ? send(reply, 'NOT_FOUND', 'not found')
         : send(reply, 'FORBIDDEN_CAPABILITY', decision.reason);
@@ -424,7 +478,29 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
     return undefined;
   });
 
-  async function audit(actor: Principal, action: Action, reason: string): Promise<void> {
+  async function audit(
+    actor: Principal,
+    action: Action,
+    reason: string,
+    correlationId: string,
+  ): Promise<void> {
+    const count = (denyCounts.get(actor.userId) ?? 0) + 1;
+    denyCounts.set(actor.userId, count);
+    if (count >= REPEATED_AUTHZ_DENIALS_THRESHOLD && deps.onAlert !== undefined) {
+      await deps.onAlert({
+        code: 'REPEATED_AUTHZ_DENIALS',
+        severity: 'HIGH',
+        correlationId,
+        occurredAt: now().toISOString(),
+        detail: {
+          userId: actor.userId,
+          organizationId: actor.organizationId,
+          action,
+          reason,
+          denyCount: count,
+        },
+      });
+    }
     if (recordDeny === undefined) return;
     await recordDeny({
       actor,
@@ -440,10 +516,20 @@ export function createApp(deps: AppDeps = {}): FastifyInstance {
     if (request.policy?.namespace === 'client' && typeof payload === 'string') {
       const forbidden = findForbiddenFields(JSON.parse(payload) as unknown);
       if (forbidden.length > 0) {
+        const route = routeKey(request.method, request.routeOptions.url ?? '');
         if (deps.onOutboundViolation !== undefined) {
           await deps.onOutboundViolation({
-            route: routeKey(request.method, request.routeOptions.url ?? ''),
+            route,
             fields: forbidden,
+          });
+        }
+        if (deps.onAlert !== undefined) {
+          await deps.onAlert({
+            code: 'INTERNAL_FIELD_ON_CLIENT_RESPONSE',
+            severity: 'INCIDENT',
+            correlationId: request.correlationId!,
+            occurredAt: now().toISOString(),
+            detail: { route, fields: forbidden },
           });
         }
         reply.code(statusFor('INTERNAL_ERROR'));
