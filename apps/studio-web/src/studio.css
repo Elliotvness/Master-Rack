@@ -291,6 +291,21 @@ body {
   overflow: hidden;
 }
 
+.plan-wrap-autocad {
+  background: #000000 !important;
+}
+
+.plan-wrap-autocad .plan-bay-hovered {
+  stroke: #00d8ff;
+  stroke-dasharray: 4 2;
+}
+
+.plan-wrap-autocad .plan-bay-selected {
+  fill: rgba(0, 216, 255, 0.16);
+  stroke: #00d8ff;
+  stroke-width: 2;
+}
+
 .plan-canvas {
   display: block;
   width: 100%;
