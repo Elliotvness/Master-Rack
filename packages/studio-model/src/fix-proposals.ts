@@ -20,6 +20,7 @@ import type { StudioDocument } from './document.js';
 import type { EntityId, IdCounter } from './ids.js';
 import { IN, MICROMETRES_PER_INCH } from './length.js';
 import { planGeometry } from './plan.js';
+import { inchesForComparison } from './screening.js';
 
 export interface FixPreviewDelta {
   readonly palletPositionDelta: number;
@@ -95,13 +96,10 @@ export function proposeFixes(doc: StudioDocument, counter: IdCounter): readonly 
 
   // 1. Narrow aisle fix proposal: widen any aisle whose clear width is below truckRAS + 60 in
   const requiredClearUm = doc.equipment.truckRAS.value + IN(60);
-  for (const aisle of plan.aisles) {
+  plan.aisles.forEach((aisle, index) => {
     if (aisle.clearBetweenLoads.value < requiredClearUm) {
       const shortfallUm = requiredClearUm - aisle.clearBetweenLoads.value;
-      // Round up to nearest whole inch
-      const targetFrameToFrameUm =
-        Math.ceil((aisle.frameToFrame.value + shortfallUm) / MICROMETRES_PER_INCH) *
-        MICROMETRES_PER_INCH;
+      const targetFrameToFrameUm = aisle.frameToFrame.value + shortfallUm;
       // Extract upstream run id from `gap_<runA>_<runB>`
       const parts = aisle.aisleId.split('_');
       const runAId = `${parts[1]}_${parts[2]}` as EntityId;
@@ -110,20 +108,22 @@ export function proposeFixes(doc: StudioDocument, counter: IdCounter): readonly 
         runId: runAId,
         frameToFrame: targetFrameToFrameUm,
       };
-      const targetIn = Math.round(targetFrameToFrameUm / MICROMETRES_PER_INCH);
+      const name = `Aisle ${index + 1}`;
+      const targetFrameIn = inchesForComparison(targetFrameToFrameUm);
+      const reqClearIn = inchesForComparison(requiredClearUm);
       proposals.push(
         Object.freeze({
           id: `fix:aisle:${aisle.aisleId}`,
           findingCode: 'AISLE_CLEAR_SHORTFALL',
-          title: `Widen aisle ${aisle.aisleId} frame-to-frame to ${targetIn}"`,
-          rationale: `Increases clear distance between loads to meet ${Math.ceil(requiredClearUm / MICROMETRES_PER_INCH)}" operational target.`,
+          title: `Widen ${name} frame-to-frame to ${targetFrameIn}`,
+          rationale: `Increases clear distance between loads to meet ${reqClearIn} operational target.`,
           commands: Object.freeze([cmd]),
           previewDelta: computeDelta(doc, counter, [cmd]),
           auditAttribution: attribution,
         }),
       );
     }
-  }
+  });
 
   // 2. Bay-type fixes: off-grid beam span bracket & beam capacity step-up
   for (const bt of doc.bayTypes) {

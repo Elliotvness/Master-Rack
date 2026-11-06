@@ -1,6 +1,7 @@
 import {
   MICROMETRES_PER_INCH,
   bomForDocument,
+  runScopeLabelForLine,
   takeoffSummary,
 } from '@rms/studio-model';
 import { useMemo, useState } from 'react';
@@ -460,6 +461,7 @@ export default function RevisionsView(): React.JSX.Element {
           >
             <thead>
               <tr>
+                <th scope="col">Run</th>
                 <th scope="col">Category</th>
                 <th scope="col">Part / Unresolved Reference</th>
                 <th scope="col">Quantity</th>
@@ -474,6 +476,7 @@ export default function RevisionsView(): React.JSX.Element {
                     : line.partRef.uncataloguedPartId;
                 return (
                   <tr key={`${line.category}-${idx}`}>
+                    <td className="font-mono">{runScopeLabelForLine(line, doc)}</td>
                     <td>{line.category}</td>
                     <td className="font-mono">{partLabel}</td>
                     <td className="font-mono">

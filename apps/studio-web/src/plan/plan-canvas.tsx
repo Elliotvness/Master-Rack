@@ -10,7 +10,9 @@ import {
   type Camera,
 } from '@rms/render-canvas';
 import {
+  countFindings,
   planGeometry,
+  screeningFindingsForDocument,
   type Command,
   type StudioDocument,
 } from '@rms/studio-model';
@@ -35,24 +37,18 @@ function formatFeetInches(micrometres: number): string {
   return `${feet}'-${inches}"`;
 }
 
-/** One HUD chip. `pending` marks a measure this build does not yet produce. */
+/** One HUD chip. */
 function Chip({
   label,
   value,
-  pending = false,
   tone,
 }: {
   readonly label: string;
   readonly value: string;
-  readonly pending?: boolean;
   readonly tone?: 'pass' | 'block' | 'warn' | undefined;
 }): React.JSX.Element {
   return (
-    <span
-      className={pending ? 'chip chip-pending' : 'chip'}
-      aria-disabled={pending || undefined}
-      title={pending ? 'Not implemented — arrives with the screening checks' : undefined}
-    >
+    <span className="chip">
       <span className="chip-label k">{label}</span>
       <b
         className="chip-value v"
@@ -68,7 +64,6 @@ function Chip({
       >
         {value}
       </b>
-      {pending && <span className="visually-hidden">not implemented</span>}
     </span>
   );
 }
@@ -116,6 +111,10 @@ export function PlanCanvas({
    * re-derivation, which is blueprint §21's first performance rule.
    */
   const plan = useMemo(() => planGeometry(doc), [doc]);
+  const findingCounts = useMemo(
+    () => countFindings(screeningFindingsForDocument(doc)),
+    [doc],
+  );
 
   const list = useMemo(
     () =>
@@ -537,9 +536,21 @@ export function PlanCanvas({
                 : formatFeetInches(plan.narrowestClearAisle.value)
             }
           />
-          <Chip label="Failing" value="0" pending tone="pass" />
-          <Chip label="Awaiting input" value="5" pending tone="warn" />
-          <Chip label="Awaiting source" value="10" pending tone="warn" />
+          <Chip
+            label="Failing"
+            value={String(findingCounts.blocking)}
+            tone={findingCounts.blocking > 0 ? 'block' : 'pass'}
+          />
+          <Chip
+            label="Awaiting input"
+            value={String(findingCounts.missingInput)}
+            tone={findingCounts.missingInput > 0 ? 'warn' : 'pass'}
+          />
+          <Chip
+            label="Awaiting source"
+            value={String(findingCounts.missingSource)}
+            tone={findingCounts.missingSource > 0 ? 'warn' : 'pass'}
+          />
           <button type="button" className="btn plan-fit" onClick={fit} title="Fit to view">
             Fit
           </button>

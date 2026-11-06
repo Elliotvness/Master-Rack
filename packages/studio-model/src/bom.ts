@@ -102,6 +102,19 @@ export function umToFeet(um: number): number {
 }
 
 /**
+ * Format the run scope of a BOM line (`Run 1`, `Run 2`, or `All runs (Run 1, Run 2, Run 3)`
+ * when a line spans every run in the document).
+ */
+export function runScopeLabelForLine(line: BomLine, doc: StudioDocument): string {
+  const byId = new Map<string, string>(doc.runs.map((r) => [r.id, r.name]));
+  const names = line.sourceObjectIds.map((id) => byId.get(id) ?? id);
+  if (doc.runs.length > 1 && line.sourceObjectIds.length === doc.runs.length) {
+    return `All runs (${names.join(', ')})`;
+  }
+  return names.join(', ');
+}
+
+/**
  * Assemble RunTakeoff inputs from the studio document without performing
  * any calculation outside of @rms/kernel-bom.
  */
@@ -415,11 +428,10 @@ export function pricingForDocument(
     const frameHeightFt = umToFeet(bayType.frameHeight.value);
     frameCost += frames * frameHeightFt * rates.framePerFt;
 
-    // Load beams: bays * rows * beamLevels (pair count)
-    const beamPairs = computeBeamQty(bays, rows, beamLevels);
+    // Load beams: bays * beamLevels * 2 * rows (individual beams; a pair per level)
+    const beams = computeBeamQty(bays, beamLevels, rows);
     const beamLengthFt = umToFeet(bayType.beamLength);
-    // 2 beams per pair
-    beamCost += beamPairs * 2 * beamLengthFt * rates.beamPerFt;
+    beamCost += beams * beamLengthFt * rates.beamPerFt;
 
     // Wire decking: 2 panels per standard 96"/108" bay level, 3 panels per 144"
     const decksPerLevel = beamLengthFt > 10 ? 3 : 2;

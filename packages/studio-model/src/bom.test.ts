@@ -15,6 +15,7 @@ import {
   exportLegacyTakeoffXlsx,
   pricingForDocument,
   quoteReadinessForDocument,
+  runScopeLabelForLine,
   takeoffRunsForDocument,
   takeoffSummary,
   umToFeet,
@@ -75,6 +76,20 @@ describe('BOM and Takeoff Pricing Bridge', () => {
         expect(f.ruleText).toContain('(bays + 1) x rows');
       }
     }
+
+    // Run scope labels distinguish per-run lines (Run 1, Run 2, Run 3) from job-wide accessory lines
+    expect(resolvedFrames.map((f) => runScopeLabelForLine(f, document))).toEqual([
+      'Run 1',
+      'Run 2',
+      'Run 3',
+    ]);
+    const accessoryLine = lines.find((l) => l.category === 'ACCESSORY')!;
+    expect(runScopeLabelForLine(accessoryLine, document)).toBe(
+      'All runs (Run 1, Run 2, Run 3)',
+    );
+    expect(
+      runScopeLabelForLine({ ...accessoryLine, sourceObjectIds: ['run_unknown'] }, document),
+    ).toBe('run_unknown');
   });
 
   it('produces an accurate takeoff summary', () => {

@@ -120,6 +120,7 @@ export {
   exportLegacyTakeoffXlsx,
   pricingForDocument,
   quoteReadinessForDocument,
+  runScopeLabelForLine,
   takeoffRunsForDocument,
   takeoffSummary,
   umToFeet,

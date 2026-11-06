@@ -6,6 +6,7 @@ import {
   exportLegacyTakeoffXlsx,
   pricingForDocument,
   quoteReadinessForDocument,
+  runScopeLabelForLine,
   takeoffSummary,
   type PricingRates,
 } from '@rms/studio-model';
@@ -211,6 +212,7 @@ export default function BomView(): React.JSX.Element {
             <table className="bom-table" aria-label="Bill of materials line items">
               <thead>
                 <tr>
+                  <th scope="col">Run</th>
                   <th scope="col">Category</th>
                   <th scope="col">Part Reference</th>
                   <th scope="col">Quantity</th>
@@ -227,6 +229,7 @@ export default function BomView(): React.JSX.Element {
 
                   return (
                     <tr key={`${line.category}-${idx}`} className={line.resolved ? 'resolved-row' : 'unresolved-row'}>
+                      <td className="font-mono">{runScopeLabelForLine(line, doc)}</td>
                       <td>
                         <span className={`tag tag-accent cat-${line.category.toLowerCase()}`}>
                           {line.category}
@@ -259,6 +262,18 @@ export default function BomView(): React.JSX.Element {
                   );
                 })}
               </tbody>
+              <tfoot>
+                <tr className="resolved-row">
+                  <th scope="row" colSpan={3}>
+                    Job Total ({doc.runs.length} {doc.runs.length === 1 ? 'run' : 'runs'})
+                  </th>
+                  <td className="qty-col font-mono" colSpan={3}>
+                    {summary.totalFrames.toLocaleString()} EA upright frames ·{' '}
+                    {summary.totalBeamPairs.toLocaleString()} EA load beams ·{' '}
+                    {summary.totalAnchors.toLocaleString()} EA wedge anchors
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -277,11 +292,14 @@ export default function BomView(): React.JSX.Element {
 
             <div className="cost-breakdown">
               <div className="cost-row">
-                <span>Upright Frames ({summary.totalFrames} ea)</span>
+                <span>
+                  Upright Frames ({summary.totalFrames} ea across {doc.runs.length}{' '}
+                  {doc.runs.length === 1 ? 'run' : 'runs'})
+                </span>
                 <span className="cost-val font-mono">{formatCurrency(estimate.frameCost)}</span>
               </div>
               <div className="cost-row">
-                <span>Load Beams ({summary.totalBeamPairs * 2} ea)</span>
+                <span>Load Beams ({summary.totalBeamPairs} ea)</span>
                 <span className="cost-val font-mono">{formatCurrency(estimate.beamCost)}</span>
               </div>
               <div className="cost-row">

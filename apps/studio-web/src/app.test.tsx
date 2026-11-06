@@ -261,12 +261,21 @@ describe('routing', () => {
   });
 
   /** OD-06: micrometres are storage; a person never reads `6096000um`. */
-  it('/bom shows lengths in feet and inches, never as micrometre strings', async () => {
+  it('/bom shows lengths in feet and inches, names each line’s run, and rolls up job totals', async () => {
     renderApp('/bom');
     await screen.findByRole('heading', { level: 1, name: 'Takeoff' });
     const table = screen.getByRole('table', { name: 'Bill of materials line items' });
     expect(table.textContent).not.toMatch(/\d+um\b/);
     expect(table.textContent).toContain(`20'-0" (6096 mm)`);
+    expect(table.textContent).toContain('Run 1');
+    expect(table.textContent).toContain('Run 2');
+    expect(table.textContent).toContain('Run 3');
+    expect(table.textContent).toContain('Job Total (3 runs)');
+    expect(table.textContent).toContain(
+      '78 EA upright frames · 432 EA load beams · 312 EA wedge anchors',
+    );
+    expect(screen.getByText('Upright Frames (78 ea across 3 runs)')).toBeTruthy();
+    expect(screen.getByText('Load Beams (432 ea)')).toBeTruthy();
   });
 
   it('/bom renders the Bill of Materials table and pricing estimator', async () => {
@@ -312,16 +321,16 @@ describe('routing', () => {
   });
 
   /**
-   * The three finding chips are placeholders until S5 wires kernel-checks. They
-   * must read as not-implemented rather than as a zero, because a zero is a
-   * claim about the LAYOUT and "not implemented" is a claim about the build.
+   * The three finding chips on the plan HUD read from `screeningFindingsForDocument`
+   * so they always agree with the checks drawer beneath the drawing.
    */
-  it('/plan marks the finding chips as not implemented rather than showing zero', async () => {
+  it('/plan shows live finding counts in the HUD chips matching the checks drawer', async () => {
     renderApp('/plan');
     await screen.findByRole('heading', { level: 1 });
     for (const label of ['Failing', 'Awaiting input', 'Awaiting source']) {
       const chip = screen.getByText(label).closest('.chip');
-      expect(chip?.getAttribute('aria-disabled')).toBe('true');
+      expect(chip?.getAttribute('aria-disabled')).toBeNull();
+      expect(chip?.querySelector('.chip-value')?.textContent).toBe('2');
     }
   });
 
