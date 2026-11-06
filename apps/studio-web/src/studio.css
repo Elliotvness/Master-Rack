@@ -418,13 +418,23 @@ body {
   min-height: 320px;
   background: var(--sunk);
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+
+.plan-wrap.is-panning,
+.plan-wrap.is-panning .plan-canvas,
+.plan-wrap.is-panning .plan-bay-overlay {
+  cursor: grabbing;
 }
 
 .plan-canvas {
   display: block;
   width: 100%;
   height: 100%;
-  cursor: crosshair;
+  cursor: grab;
   touch-action: none;
 }
 
@@ -498,6 +508,29 @@ body {
 .plan-hud .plan-fit:hover {
   border-color: var(--navy);
   color: var(--navy);
+}
+
+.plan-zoom-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto;
+}
+
+.plan-hud .plan-zoom-btn {
+  padding: 6px 8px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.plan-hud .plan-zoom-pct {
+  min-width: 48px;
+  padding: 6px 8px;
+  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
+  font-size: 11px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .plan-hud-muted {

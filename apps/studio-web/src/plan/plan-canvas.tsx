@@ -494,10 +494,29 @@ export function PlanCanvas({
     [viewport],
   );
 
-  const effectiveCamera = useMemo(
-    () => camera ?? fitExtent(effectiveViewport, list.extent),
-    [camera, effectiveViewport, list.extent],
+  const fittedCamera = useMemo(
+    () => fitExtent(effectiveViewport, list.extent),
+    [effectiveViewport, list.extent],
   );
+
+  const effectiveCamera = useMemo(
+    () => camera ?? fittedCamera,
+    [camera, fittedCamera],
+  );
+
+  const [isPanning, setIsPanning] = useState(false);
+  const suppressNextBayClickRef = useRef(false);
+
+  const cameraStateRef = useRef({
+    effectiveCamera,
+    effectiveViewport,
+    fittedScale: fittedCamera.scale,
+  });
+  cameraStateRef.current = {
+    effectiveCamera,
+    effectiveViewport,
+    fittedScale: fittedCamera.scale,
+  };
 
   // Filter out canvas items that are rendered with richer blueprint styling in
   // the SVG overlay (grid bubbles, run labels, centered two-line aisle callouts).
@@ -566,6 +585,7 @@ export function PlanCanvas({
   }, [render]);
 
   const dragging = useRef<{
+    pointerId: number;
     startX: number;
     startY: number;
     lastX: number;
@@ -573,15 +593,14 @@ export function PlanCanvas({
     moved: boolean;
   } | null>(null);
 
-  const onPointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (typeof e.currentTarget.setPointerCapture === 'function') {
-      try {
-        e.currentTarget.setPointerCapture(e.pointerId);
-      } catch {
-        // jsdom does not implement pointer capture
-      }
-    }
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.button !== 1) return;
+    const target = e.target as Element | null;
+    if (target?.closest('.plan-hud, .sel-toolbar')) return;
+
+    suppressNextBayClickRef.current = false;
     dragging.current = {
+      pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
       lastX: e.clientX,
@@ -591,15 +610,29 @@ export function PlanCanvas({
   }, []);
 
   const onPointerMove = useCallback(
-    (e: React.PointerEvent<HTMLCanvasElement>) => {
+    (e: React.PointerEvent<HTMLDivElement>) => {
       const drag = dragging.current;
-      if (drag !== null) {
+      if (drag !== null && drag.pointerId === e.pointerId) {
         const dist = Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY);
-        if (dist > 3 && camera !== null) {
-          drag.moved = true;
-          setCamera(panByScreen(camera, e.clientX - drag.lastX, e.clientY - drag.lastY));
+        if (dist > 4 || drag.moved) {
+          if (!drag.moved) {
+            drag.moved = true;
+            suppressNextBayClickRef.current = true;
+            setIsPanning(true);
+            setHovered(null);
+            if (typeof e.currentTarget.setPointerCapture === 'function') {
+              try {
+                e.currentTarget.setPointerCapture(e.pointerId);
+              } catch {
+                // jsdom does not implement pointer capture
+              }
+            }
+          }
+          const dx = e.clientX - drag.lastX;
+          const dy = e.clientY - drag.lastY;
           drag.lastX = e.clientX;
           drag.lastY = e.clientY;
+          setCamera((prev) => panByScreen(prev ?? cameraStateRef.current.effectiveCamera, dx, dy));
           schedule();
         }
         return;
@@ -613,11 +646,11 @@ export function PlanCanvas({
       const nextHit = hitTestPlan(plan, world.x, world.y, effectiveCamera.scale);
       setHovered((prev) => (sameHit(prev, nextHit) ? prev : nextHit));
     },
-    [camera, effectiveCamera, effectiveViewport, plan, schedule],
+    [effectiveCamera, effectiveViewport, plan, schedule],
   );
 
   const onPointerUp = useCallback(
-    (e: React.PointerEvent<HTMLCanvasElement>) => {
+    (e: React.PointerEvent<HTMLDivElement>) => {
       if (
         typeof e.currentTarget.hasPointerCapture === 'function' &&
         e.currentTarget.hasPointerCapture(e.pointerId)
@@ -626,6 +659,15 @@ export function PlanCanvas({
       }
       const drag = dragging.current;
       dragging.current = null;
+      if (drag?.moved) {
+        setIsPanning(false);
+        return;
+      }
+
+      const target = e.target as Element | null;
+      if (target?.closest('.plan-hud, .sel-toolbar, [data-bay-id]')) {
+        return;
+      }
 
       if (drag !== null && !drag.moved) {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -644,19 +686,76 @@ export function PlanCanvas({
     [effectiveCamera, effectiveViewport, plan],
   );
 
-  const onWheel = useCallback(
-    (e: React.WheelEvent<HTMLCanvasElement>) => {
-      if (camera === null) return;
-      const rect = e.currentTarget.getBoundingClientRect();
+  // Attach a non-passive wheel listener to the stage wrapper so wheel/trackpad
+  // gestures over the canvas OR SVG bay overlays zoom/pan smoothly and never
+  // leak scroll events to the main page.
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (wrap === null) return;
+    const handleWheel = (e: WheelEvent): void => {
+      const target = e.target as Element | null;
+      if (target?.closest('.plan-hud, .sel-toolbar')) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const rect = wrap.getBoundingClientRect();
       const anchor = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      setCamera(zoomAbout(camera, viewport, anchor, e.deltaY < 0 ? 1.12 : 1 / 1.12));
-    },
-    [camera, viewport],
-  );
+      const { effectiveViewport: vp, fittedScale } = cameraStateRef.current;
+
+      const modeMultiplier = e.deltaMode === 1 ? 18 : e.deltaMode === 2 ? 120 : 1;
+      const dy = e.deltaY * modeMultiplier;
+      const dx = e.deltaX * modeMultiplier;
+
+      // Shift+wheel or clear horizontal trackpad swipe pans the drawing
+      if (
+        !e.ctrlKey &&
+        !e.metaKey &&
+        (e.shiftKey || (Math.abs(dx) > Math.abs(dy) * 1.25 && Math.abs(dx) > 2))
+      ) {
+        const panX = e.shiftKey && dx === 0 ? -dy : -dx;
+        const panY = e.shiftKey ? 0 : -dy;
+        setCamera((prev) => panByScreen(prev ?? cameraStateRef.current.effectiveCamera, panX, panY));
+        return;
+      }
+
+      const clampedDy = Math.max(-160, Math.min(160, dy));
+      const rawFactor = Math.exp(-clampedDy * 0.0022);
+      setCamera((prev) => {
+        const current = prev ?? cameraStateRef.current.effectiveCamera;
+        const minAllowed = Math.max(fittedScale * 0.35, 1 / 200_000);
+        const maxAllowed = Math.min(fittedScale * 10, 1 / 200);
+        const nextScale = Math.max(minAllowed, Math.min(maxAllowed, current.scale * rawFactor));
+        const appliedFactor = nextScale / current.scale;
+        return zoomAbout(current, vp, anchor, appliedFactor);
+      });
+    };
+
+    wrap.addEventListener('wheel', handleWheel, { passive: false });
+    return () => wrap.removeEventListener('wheel', handleWheel);
+  }, []);
 
   const fit = useCallback(() => {
-    if (viewport.width > 0) setCamera(fitExtent(viewport, list.extent));
-  }, [viewport, list.extent]);
+    setCamera(fitExtent(effectiveViewport, list.extent));
+  }, [effectiveViewport, list.extent]);
+
+  const zoomByStep = useCallback((factor: number) => {
+    const { effectiveViewport: vp, fittedScale } = cameraStateRef.current;
+    const center = { x: vp.width / 2, y: vp.height / 2 };
+    setCamera((prev) => {
+      const current = prev ?? cameraStateRef.current.effectiveCamera;
+      const minAllowed = Math.max(fittedScale * 0.35, 1 / 200_000);
+      const maxAllowed = Math.min(fittedScale * 10, 1 / 200);
+      const nextScale = Math.max(minAllowed, Math.min(maxAllowed, current.scale * factor));
+      const appliedFactor = nextScale / current.scale;
+      return zoomAbout(current, vp, center, appliedFactor);
+    });
+  }, []);
+
+  const zoomPercent = Math.max(
+    10,
+    Math.round((effectiveCamera.scale / Math.max(fittedCamera.scale, 1e-9)) * 100),
+  );
 
   const actOnSelection = useCallback(
     (act: 'insert' | 'split' | 'lock' | 'delete' | 'deselect') => {
@@ -679,7 +778,8 @@ export function PlanCanvas({
   );
 
   // Keyboard shortcuts (S4.2): I = insert bay, S = split run, L = lock/unlock,
-  // Backspace/Delete = delete bay, Escape = deselect, Ctrl/Cmd+Z = undo.
+  // Backspace/Delete = delete bay, Escape = deselect, Ctrl/Cmd+Z = undo,
+  // F = fit to view, +/= = zoom in, - = zoom out.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       const target = e.target as HTMLElement | null;
@@ -692,6 +792,24 @@ export function PlanCanvas({
         e.preventDefault();
         onUndo?.();
         return;
+      }
+
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.key === 'f' || e.key === 'F') {
+          e.preventDefault();
+          fit();
+          return;
+        }
+        if (e.key === '+' || e.key === '=') {
+          e.preventDefault();
+          zoomByStep(1.2);
+          return;
+        }
+        if (e.key === '-' || e.key === '_') {
+          e.preventDefault();
+          zoomByStep(1 / 1.2);
+          return;
+        }
       }
 
       if (activeSelection === null) return;
@@ -716,11 +834,20 @@ export function PlanCanvas({
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activeSelection, actOnSelection, onUndo]);
+  }, [activeSelection, actOnSelection, fit, onUndo, zoomByStep]);
 
   return (
     <div className="plan-stage stage">
-      <div className="blueprint canvaswrap plan-wrap" ref={wrapRef}>
+      <div
+        className={
+          isPanning ? 'blueprint canvaswrap plan-wrap is-panning' : 'blueprint canvaswrap plan-wrap'
+        }
+        ref={wrapRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
         <div className="corner tl" aria-hidden="true" />
         <div className="corner tr" aria-hidden="true" />
         <div className="corner bl" aria-hidden="true" />
@@ -729,11 +856,6 @@ export function PlanCanvas({
         <canvas
           ref={canvasRef}
           className="plan-canvas"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          onWheel={onWheel}
           role="img"
           aria-label={`Plan view: ${doc.runs.length} rack runs, ${list.items.length} drawn items`}
         />
@@ -771,6 +893,7 @@ export function PlanCanvas({
               const isSelected =
                 activeSelection?.run.runId === run.runId && activeSelection.bay.bayId === bay.bayId;
               const isHovered =
+                !isPanning &&
                 hovered?.kind === 'bay' &&
                 hovered.runId === run.runId &&
                 hovered.bayId === bay.bayId;
@@ -797,9 +920,13 @@ export function PlanCanvas({
                   tabIndex={0}
                   aria-label={`${run.label} Bay ${bay.index + 1}${bay.locked ? ' (locked)' : ''}`}
                   aria-pressed={isSelected}
-                  onClick={() =>
-                    setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index })
-                  }
+                  onClick={() => {
+                    if (suppressNextBayClickRef.current) {
+                      suppressNextBayClickRef.current = false;
+                      return;
+                    }
+                    setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index });
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
@@ -865,9 +992,43 @@ export function PlanCanvas({
             value={String(findingCounts.missingSource)}
             tone={findingCounts.missingSource > 0 ? 'warn' : 'pass'}
           />
-          <button type="button" className="btn plan-fit" onClick={fit} title="Fit to view">
-            Fit
-          </button>
+          <div className="plan-zoom-group" role="group" aria-label="Zoom controls">
+            <button
+              type="button"
+              className="btn plan-fit plan-zoom-btn"
+              onClick={() => zoomByStep(1 / 1.2)}
+              title="Zoom out (-)"
+              aria-label="Zoom out"
+            >
+              −
+            </button>
+            <button
+              type="button"
+              className="btn plan-fit plan-zoom-pct"
+              onClick={fit}
+              title="Reset zoom to fit (F)"
+              aria-label={`Zoom ${zoomPercent} percent, click to fit`}
+            >
+              {zoomPercent}%
+            </button>
+            <button
+              type="button"
+              className="btn plan-fit plan-zoom-btn"
+              onClick={() => zoomByStep(1.2)}
+              title="Zoom in (+)"
+              aria-label="Zoom in"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              className="btn plan-fit"
+              onClick={fit}
+              title="Fit to view (F)"
+            >
+              Fit
+            </button>
+          </div>
         </div>
 
         {/* S4.2 Floating selection toolbar */}
