@@ -20,8 +20,11 @@ import {
 } from '@rms/studio-model';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import type { PlanColumnOverlay, ShellOverlayState } from '../session-context.js';
 import { hitTestPlan, type PlanHit } from './hit-test.js';
 import { readPens } from './use-pens.js';
+
+export type PlanToolMode = 'select' | 'wall' | 'column' | 'calibrate';
 
 function sameHit(a: PlanHit | null, b: PlanHit | null): boolean {
   if (a === b) return true;
@@ -53,11 +56,21 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
   requiredClearAisleUm,
   camera,
   viewport,
+  shellOverlay,
+  wallDraftStart,
+  wallDraftCurrent,
+  calP1,
+  calP2,
 }: {
   readonly plan: PlanGeometry;
   readonly requiredClearAisleUm: number;
   readonly camera: Camera;
   readonly viewport: { readonly width: number; readonly height: number };
+  readonly shellOverlay?: ShellOverlayState | undefined;
+  readonly wallDraftStart?: { readonly x: number; readonly y: number } | null | undefined;
+  readonly wallDraftCurrent?: { readonly x: number; readonly y: number } | null | undefined;
+  readonly calP1?: { readonly x: number; readonly y: number } | null | undefined;
+  readonly calP2?: { readonly x: number; readonly y: number } | null | undefined;
 }): React.JSX.Element {
   const longestRun = useMemo(
     () => [...plan.runs].sort((a, b) => b.runLength.value - a.runLength.value)[0],
@@ -87,8 +100,139 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
   );
   const roundedRequiredClearUm = Math.ceil(requiredClearAisleUm / 25_400) * 25_400;
 
+  // Compute active building structural columns (grid + custom) in micrometres
+  const activeColumns = useMemo<readonly PlanColumnOverlay[]>(() => {
+    if (shellOverlay === undefined) return [];
+    const list: PlanColumnOverlay[] = [...shellOverlay.customColumns];
+    if (shellOverlay.showColumns && longestRun !== undefined) {
+      const spacingUm = shellOverlay.columnSpacingFt * 12 * 25_400;
+      const maxX = longestRun.x + longestRun.runLength.value;
+      const maxY = Math.max(lastRowBottomY, spacingUm);
+      let cIdx = 1;
+      for (let x = longestRun.x + spacingUm; x <= maxX; x += spacingUm) {
+        let rIdx = 1;
+        for (let y = firstRowY + spacingUm / 2; y <= maxY + spacingUm / 2; y += spacingUm) {
+          list.push({
+            id: `grid-col-${cIdx}-${rIdx}`,
+            xUm: x,
+            yUm: y,
+            sizeIn: shellOverlay.columnSizeIn,
+            label: `${gridLetter(cIdx - 1)}-${rIdx}`,
+          });
+          rIdx += 1;
+        }
+        cIdx += 1;
+      }
+    }
+    return list;
+  }, [shellOverlay, longestRun, firstRowY, lastRowBottomY]);
+
   return (
     <g aria-hidden="true" style={{ pointerEvents: 'none' }}>
+      {/* 0. Building Perimeter Wall Envelope & Custom Orthogonal Walls */}
+      {shellOverlay?.showPerimeterWalls && longestRun !== undefined && (
+        (() => {
+          const marginUm = 120 * 25_400; // 10'-0" perimeter aisle envelope
+          const envTl = worldToScreen(camera, viewport, {
+            x: longestRun.x - marginUm,
+            y: firstRowY - marginUm,
+          });
+          const envBr = worldToScreen(camera, viewport, {
+            x: longestRun.x + longestRun.runLength.value + marginUm,
+            y: lastRowBottomY + marginUm,
+          });
+          return (
+            <g key="perimeter-wall-envelope">
+              <rect
+                x={envTl.x}
+                y={envTl.y}
+                width={Math.max(4, envBr.x - envTl.x)}
+                height={Math.max(4, envBr.y - envTl.y)}
+                fill="none"
+                stroke="var(--ink)"
+                strokeWidth="3"
+              />
+              <text
+                x={envTl.x + 8}
+                y={envTl.y + 14}
+                fontFamily="var(--font-mono)"
+                fontSize="9.5"
+                fontWeight="600"
+                fill="var(--ink-2)"
+              >
+                BUILDING PERIMETER SHELL (8&quot; CONCRETE WALL)
+              </text>
+            </g>
+          );
+        })()
+      )}
+
+      {shellOverlay?.customWalls.map((w) => {
+        const p1 = worldToScreen(camera, viewport, { x: w.x1Um, y: w.y1Um });
+        const p2 = worldToScreen(camera, viewport, { x: w.x2Um, y: w.y2Um });
+        const lenUm = Math.hypot(w.x2Um - w.x1Um, w.y2Um - w.y1Um);
+        return (
+          <g key={w.id}>
+            <line
+              x1={p1.x}
+              y1={p1.y}
+              x2={p2.x}
+              y2={p2.y}
+              stroke="var(--ink)"
+              strokeWidth="3"
+            />
+            <text
+              x={(p1.x + p2.x) / 2}
+              y={(p1.y + p2.y) / 2 - 6}
+              textAnchor="middle"
+              fontFamily="var(--font-mono)"
+              fontSize="9.5"
+              fontWeight="600"
+              fill="var(--ink)"
+            >
+              {formatFeetInches(lenUm)} WALL
+            </text>
+          </g>
+        );
+      })}
+
+      {wallDraftStart !== null &&
+        wallDraftStart !== undefined &&
+        wallDraftCurrent !== null &&
+        wallDraftCurrent !== undefined && (
+        (() => {
+          const p1 = worldToScreen(camera, viewport, wallDraftStart);
+          const p2 = worldToScreen(camera, viewport, wallDraftCurrent);
+          const lenUm = Math.hypot(
+            wallDraftCurrent.x - wallDraftStart.x,
+            wallDraftCurrent.y - wallDraftStart.y,
+          );
+          return (
+            <g key="wall-draft-preview">
+              <line
+                x1={p1.x}
+                y1={p1.y}
+                x2={p2.x}
+                y2={p2.y}
+                stroke="var(--navy)"
+                strokeWidth="2.5"
+                strokeDasharray="5 3"
+              />
+              <text
+                x={(p1.x + p2.x) / 2}
+                y={(p1.y + p2.y) / 2 - 8}
+                textAnchor="middle"
+                fontFamily="var(--font-mono)"
+                fontSize="10"
+                fontWeight="600"
+                fill="var(--navy)"
+              >
+                {formatFeetInches(lenUm)} ORTHO WALL
+              </text>
+            </g>
+          );
+        })()
+      )}
       {/* 1. Vertical dashed column grid lines + circular grid bubbles (A..M) */}
       {longestRun !== undefined &&
         Array.from({ length: longestRun.bays.length + 1 }, (_, i) => {
@@ -318,6 +462,199 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
           </g>
         );
       })}
+
+      {/* 4. Automated Column Collision Reconciliation (Bay Bypass Spacers & Flue Straddles) */}
+      {activeColumns.length > 0 &&
+        plan.runs.map((run) => {
+          const firstRow = run.rows[0];
+          const lastRow = run.rows[run.rows.length - 1];
+          const runTopY = firstRow?.y ?? run.y;
+          const runBottomY = lastRow !== undefined ? lastRow.y + lastRow.depth : run.y;
+          const flueMidY =
+            run.rows.length > 1 && firstRow !== undefined && lastRow !== undefined
+              ? (firstRow.y + firstRow.depth + lastRow.y) / 2
+              : null;
+
+          const flueStraddleCol =
+            flueMidY !== null
+              ? activeColumns.find((col) => {
+                  const halfColUm = (col.sizeIn * 25_400) / 2;
+                  return (
+                    col.xUm + halfColUm > run.x &&
+                    col.xUm - halfColUm < run.x + run.runLength.value &&
+                    Math.abs(col.yUm - flueMidY) <= 14 * 25_400
+                  );
+                })
+              : undefined;
+
+          return (
+            <g key={`col-reconcile:${run.runId}`}>
+              {flueStraddleCol !== undefined && (
+                (() => {
+                  const pt = worldToScreen(camera, viewport, { x: run.x, y: runTopY });
+                  return (
+                    <text
+                      x={pt.x + 6}
+                      y={pt.y - 6}
+                      fontFamily="var(--font-mono)"
+                      fontSize="9.5"
+                      fontWeight="600"
+                      fill="var(--warn)"
+                    >
+                      EXPANDED FLUE · COLUMN {flueStraddleCol.label} STRADDLE RECONCILED
+                    </text>
+                  );
+                })()
+              )}
+
+              {run.bays.map((bay) => {
+                const collidingCol = activeColumns.find((col) => {
+                  const halfUm = (col.sizeIn * 25_400) / 2;
+                  const intersectsX =
+                    col.xUm + halfUm > bay.x && col.xUm - halfUm < bay.x + bay.width;
+                  const intersectsY =
+                    col.yUm + halfUm > runTopY && col.yUm - halfUm < runBottomY;
+                  const absorbedByFlue =
+                    flueMidY !== null && Math.abs(col.yUm - flueMidY) <= 14 * 25_400;
+                  return intersectsX && intersectsY && !absorbedByFlue;
+                });
+
+                if (collidingCol === undefined) return null;
+                const tl = worldToScreen(camera, viewport, { x: bay.x, y: runTopY });
+                const br = worldToScreen(camera, viewport, {
+                  x: bay.x + bay.width,
+                  y: runBottomY,
+                });
+                const w = Math.max(4, br.x - tl.x);
+                const h = Math.max(4, br.y - tl.y);
+                return (
+                  <g key={`bypass:${bay.bayId}`}>
+                    <rect
+                      x={tl.x}
+                      y={tl.y}
+                      width={w}
+                      height={h}
+                      fill="var(--warn-bg)"
+                      stroke="var(--warn)"
+                      strokeWidth="1.75"
+                    />
+                    <line
+                      x1={tl.x}
+                      y1={tl.y}
+                      x2={br.x}
+                      y2={br.y}
+                      stroke="var(--warn)"
+                      strokeWidth="1.25"
+                    />
+                    <line
+                      x1={tl.x}
+                      y1={br.y}
+                      x2={br.x}
+                      y2={tl.y}
+                      stroke="var(--warn)"
+                      strokeWidth="1.25"
+                    />
+                    <text
+                      x={tl.x + w / 2}
+                      y={tl.y + h / 2}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontFamily="var(--font-mono)"
+                      fontSize="8.5"
+                      fontWeight="600"
+                      fill="var(--warn)"
+                    >
+                      BYPASS SPACER
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          );
+        })}
+
+      {/* 5. Building Structural Columns (Concrete Pillars with X-cross) */}
+      {activeColumns.map((col) => {
+        const halfUm = (col.sizeIn * 25_400) / 2;
+        const tl = worldToScreen(camera, viewport, {
+          x: col.xUm - halfUm,
+          y: col.yUm - halfUm,
+        });
+        const br = worldToScreen(camera, viewport, {
+          x: col.xUm + halfUm,
+          y: col.yUm + halfUm,
+        });
+        const w = Math.max(6, br.x - tl.x);
+        const h = Math.max(6, br.y - tl.y);
+        return (
+          <g key={`col-pillar:${col.id}`}>
+            <rect
+              x={tl.x}
+              y={tl.y}
+              width={w}
+              height={h}
+              fill="var(--ink)"
+              stroke="var(--ink)"
+              strokeWidth="1.5"
+            />
+            <line
+              x1={tl.x}
+              y1={tl.y}
+              x2={tl.x + w}
+              y2={tl.y + h}
+              stroke="var(--paper)"
+              strokeWidth="1"
+            />
+            <line
+              x1={tl.x}
+              y1={tl.y + h}
+              x2={tl.x + w}
+              y2={tl.y}
+              stroke="var(--paper)"
+              strokeWidth="1"
+            />
+            <text
+              x={tl.x + w / 2}
+              y={tl.y - 5}
+              textAnchor="middle"
+              fontFamily="var(--font-mono)"
+              fontSize="8.5"
+              fontWeight="600"
+              fill="var(--ink)"
+            >
+              {col.label}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* 6. Two-Point Scale Calibration Line */}
+      {calP1 !== null && calP1 !== undefined && (
+        (() => {
+          const s1 = worldToScreen(camera, viewport, calP1);
+          const s2 =
+            calP2 !== null && calP2 !== undefined ? worldToScreen(camera, viewport, calP2) : null;
+          return (
+            <g key="calibration-overlay">
+              <circle cx={s1.x} cy={s1.y} r={5} fill="var(--block)" />
+              {s2 !== null && (
+                <>
+                  <line
+                    x1={s1.x}
+                    y1={s1.y}
+                    x2={s2.x}
+                    y2={s2.y}
+                    stroke="var(--block)"
+                    strokeWidth="2"
+                    strokeDasharray="4 3"
+                  />
+                  <circle cx={s2.x} cy={s2.y} r={5} fill="var(--block)" />
+                </>
+              )}
+            </g>
+          );
+        })()
+      )}
     </g>
   );
 });
@@ -393,12 +730,20 @@ export function PlanCanvas({
   document: doc,
   plan: providedPlan,
   findingCounts: providedFindingCounts,
+  toolMode = 'select',
+  shellOverlay,
+  onShellOverlayChange,
+  onToolModeChange,
   onCommand,
   onUndo,
 }: {
   readonly document: StudioDocument;
   readonly plan?: PlanGeometry | undefined;
   readonly findingCounts?: FindingCounts | undefined;
+  readonly toolMode?: PlanToolMode | undefined;
+  readonly shellOverlay?: ShellOverlayState | undefined;
+  readonly onShellOverlayChange?: React.Dispatch<React.SetStateAction<ShellOverlayState>> | undefined;
+  readonly onToolModeChange?: ((mode: PlanToolMode) => void) | undefined;
   readonly onCommand?: (command: Command) => void;
   readonly onUndo?: () => void;
 }): React.JSX.Element {
@@ -408,6 +753,11 @@ export function PlanCanvas({
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [selected, setSelected] = useState<SelectedBay | null>(null);
   const [hovered, setHovered] = useState<PlanHit | null>(null);
+  const [wallDraftStart, setWallDraftStart] = useState<{ x: number; y: number } | null>(null);
+  const [wallDraftCurrent, setWallDraftCurrent] = useState<{ x: number; y: number } | null>(null);
+  const [calP1, setCalP1] = useState<{ x: number; y: number } | null>(null);
+  const [calP2, setCalP2] = useState<{ x: number; y: number } | null>(null);
+  const [calKnownIn, setCalKnownIn] = useState<string>('480');
   const frame = useRef<number | null>(null);
 
   /**
@@ -643,10 +993,22 @@ export function PlanCanvas({
         x: e.clientX - rect.left,
         y: e.clientY - rect.top,
       });
+
+      if (toolMode === 'wall' && wallDraftStart !== null) {
+        const dx = Math.abs(world.x - wallDraftStart.x);
+        const dy = Math.abs(world.y - wallDraftStart.y);
+        const orthoPoint =
+          dx >= dy
+            ? { x: Math.round(world.x), y: wallDraftStart.y }
+            : { x: wallDraftStart.x, y: Math.round(world.y) };
+        setWallDraftCurrent(orthoPoint);
+        return;
+      }
+
       const nextHit = hitTestPlan(plan, world.x, world.y, effectiveCamera.scale);
       setHovered((prev) => (sameHit(prev, nextHit) ? prev : nextHit));
     },
-    [effectiveCamera, effectiveViewport, plan, schedule],
+    [effectiveCamera, effectiveViewport, plan, schedule, toolMode, wallDraftStart],
   );
 
   const onPointerUp = useCallback(
@@ -665,7 +1027,7 @@ export function PlanCanvas({
       }
 
       const target = e.target as Element | null;
-      if (target?.closest('.plan-hud, .sel-toolbar, [data-bay-id]')) {
+      if (target?.closest('.plan-hud, .sel-toolbar, .plan-cal-hud')) {
         return;
       }
 
@@ -675,6 +1037,75 @@ export function PlanCanvas({
           x: e.clientX - rect.left,
           y: e.clientY - rect.top,
         });
+
+        if (toolMode === 'wall') {
+          if (wallDraftStart === null) {
+            const snapped = { x: Math.round(world.x), y: Math.round(world.y) };
+            setWallDraftStart(snapped);
+            setWallDraftCurrent(snapped);
+          } else {
+            const dx = Math.abs(world.x - wallDraftStart.x);
+            const dy = Math.abs(world.y - wallDraftStart.y);
+            const endPt =
+              dx >= dy
+                ? { x: Math.round(world.x), y: wallDraftStart.y }
+                : { x: wallDraftStart.x, y: Math.round(world.y) };
+            if (Math.hypot(endPt.x - wallDraftStart.x, endPt.y - wallDraftStart.y) > 25_400 * 12) {
+              onShellOverlayChange?.((prev) => ({
+                ...prev,
+                customWalls: [
+                  ...prev.customWalls,
+                  {
+                    id: `wall-${prev.customWalls.length + 1}`,
+                    x1Um: wallDraftStart.x,
+                    y1Um: wallDraftStart.y,
+                    x2Um: endPt.x,
+                    y2Um: endPt.y,
+                  },
+                ],
+              }));
+            }
+            setWallDraftStart(null);
+            setWallDraftCurrent(null);
+          }
+          return;
+        }
+
+        if (toolMode === 'column') {
+          onShellOverlayChange?.((prev) => {
+            const idx = prev.customColumns.length + 1;
+            return {
+              ...prev,
+              customColumns: [
+                ...prev.customColumns,
+                {
+                  id: `custom-col-${idx}`,
+                  xUm: Math.round(world.x),
+                  yUm: Math.round(world.y),
+                  sizeIn: prev.columnSizeIn,
+                  label: `COL-${idx}`,
+                },
+              ],
+            };
+          });
+          return;
+        }
+
+        if (toolMode === 'calibrate') {
+          const pt = { x: Math.round(world.x), y: Math.round(world.y) };
+          if (calP1 === null || calP2 !== null) {
+            setCalP1(pt);
+            setCalP2(null);
+          } else {
+            setCalP2(pt);
+          }
+          return;
+        }
+
+        if (target?.closest('[data-bay-id]')) {
+          return;
+        }
+
         const hit = hitTestPlan(plan, world.x, world.y, effectiveCamera.scale);
         if (hit?.kind === 'bay') {
           setSelected({ runId: hit.runId, bayId: hit.bayId, bayIndex: hit.bayIndex });
@@ -683,7 +1114,16 @@ export function PlanCanvas({
         }
       }
     },
-    [effectiveCamera, effectiveViewport, plan],
+    [
+      calP1,
+      calP2,
+      effectiveCamera,
+      effectiveViewport,
+      onShellOverlayChange,
+      plan,
+      toolMode,
+      wallDraftStart,
+    ],
   );
 
   // Attach a non-passive wheel listener to the stage wrapper so wheel/trackpad
@@ -874,6 +1314,11 @@ export function PlanCanvas({
             camera={effectiveCamera}
             viewport={effectiveViewport}
             requiredClearAisleUm={doc.equipment.truckRAS.value + 60 * 25_400}
+            shellOverlay={shellOverlay}
+            wallDraftStart={wallDraftStart}
+            wallDraftCurrent={wallDraftCurrent}
+            calP1={calP1}
+            calP2={calP2}
           />
 
           {/* Bay interactive selection targets */}
@@ -1030,6 +1475,78 @@ export function PlanCanvas({
             </button>
           </div>
         </div>
+
+        {/* 2-Point Scale Calibration HUD */}
+        {toolMode === 'calibrate' && (
+          <div
+            className="seltoolbar sel-toolbar plan-cal-hud"
+            role="region"
+            aria-label="2-Point Scale Calibration"
+          >
+            <span className="what sel-title">
+              2-PT SCALE CALIBRATE:{' '}
+              {calP1 === null
+                ? 'Click Point 1 (P1) on drawing'
+                : calP2 === null
+                  ? 'Click Point 2 (P2) on drawing'
+                  : `Span: ${formatFeetInches(Math.round(Math.hypot(calP2.x - calP1.x, calP2.y - calP1.y)))}`}
+            </span>
+            {calP1 !== null && calP2 !== null && (
+              <>
+                <label htmlFor="cal-known-in" className="what">
+                  Known dist (in):
+                </label>
+                <input
+                  id="cal-known-in"
+                  type="number"
+                  min={12}
+                  step={6}
+                  className="pf-input"
+                  style={{ width: '76px' }}
+                  value={calKnownIn}
+                  onChange={(e) => setCalKnownIn(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn sel-btn"
+                  onClick={() => {
+                    const knownIn = Number(calKnownIn);
+                    const measuredIn =
+                      Math.hypot(calP2.x - calP1.x, calP2.y - calP1.y) / 25_400;
+                    if (Number.isFinite(knownIn) && knownIn > 0 && measuredIn > 0) {
+                      const ratio = measuredIn / knownIn;
+                      const pxSpan = Math.max(
+                        1,
+                        Math.hypot(calP2.x - calP1.x, calP2.y - calP1.y) * effectiveCamera.scale,
+                      );
+                      onShellOverlayChange?.((prev) => ({
+                        ...prev,
+                        calibratedScaleInPerPx: Number((knownIn / pxSpan).toFixed(4)),
+                      }));
+                      zoomByStep(ratio);
+                    }
+                    setCalP1(null);
+                    setCalP2(null);
+                    onToolModeChange?.('select');
+                  }}
+                >
+                  Apply Calibration
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              className="btn sel-btn"
+              onClick={() => {
+                setCalP1(null);
+                setCalP2(null);
+                onToolModeChange?.('select');
+              }}
+            >
+              Done
+            </button>
+          </div>
+        )}
 
         {/* S4.2 Floating selection toolbar */}
         {activeSelection !== null && (

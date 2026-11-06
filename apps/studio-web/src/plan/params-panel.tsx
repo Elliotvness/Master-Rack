@@ -78,16 +78,23 @@ export function ParamsPanel({
   document: doc,
   plan: providedPlan,
   onCommand,
+  onLoadPreset,
 }: {
   readonly document: StudioDocument;
   readonly plan?: PlanGeometry | undefined;
   readonly onCommand?: (command: Command) => void;
+  readonly onLoadPreset?: ((preset: 'benchmark-36' | 'starter-2') => void) | undefined;
 }): React.JSX.Element {
   const [prov, setProv] = useState<ProvenanceInfo | null>(null);
+  const [addBayQty, setAddBayQty] = useState<number>(2);
+  const [targetRunIndex, setTargetRunIndex] = useState<number>(0);
   const bt = doc.bayTypes[0];
   const plan = providedPlan ?? planGeometry(doc);
   const firstAisleIn =
     plan.aisles[0] !== undefined ? inches(plan.aisles[0].frameToFrame.value) : '120';
+  const firstClearAisleIn =
+    plan.aisles[0] !== undefined ? inches(plan.aisles[0].clearBetweenLoads.value) : '114';
+  const activeRun = doc.runs[targetRunIndex] ?? doc.runs[0];
 
   const send = (cmd: Command): void => {
     onCommand?.(cmd);
@@ -650,6 +657,26 @@ export function ParamsPanel({
             Frame-to-frame aisle
           </label>
           <span className="pf-value pf-controls">
+            <button
+              type="button"
+              className="pf-btn pf-btn-small"
+              title="Narrow aisle by 6 inches"
+              onClick={() => {
+                const cur = Number(firstAisleIn) || 126;
+                const nextIn = Math.max(72, cur - 6);
+                const um = parseInchesToUm(String(nextIn));
+                const firstRun = doc.runs[0];
+                if (um !== null && firstRun !== undefined) {
+                  send({
+                    type: 'setAisleAfter',
+                    runId: firstRun.id,
+                    frameToFrame: um,
+                  });
+                }
+              }}
+            >
+              −6&quot;
+            </button>
             <input
               id="f-aisle"
               type="number"
@@ -668,10 +695,113 @@ export function ParamsPanel({
               }}
             />
             <span className="pf-suffix">in</span>
+            <button
+              type="button"
+              className="pf-btn pf-btn-small"
+              title="Widen aisle by 6 inches"
+              onClick={() => {
+                const cur = Number(firstAisleIn) || 126;
+                const nextIn = Math.min(240, cur + 6);
+                const um = parseInchesToUm(String(nextIn));
+                const firstRun = doc.runs[0];
+                if (um !== null && firstRun !== undefined) {
+                  send({
+                    type: 'setAisleAfter',
+                    runId: firstRun.id,
+                    frameToFrame: um,
+                  });
+                }
+              }}
+            >
+              +6&quot;
+            </button>
           </span>
         </div>
 
         <div className="pf-row">
+          <span className="pf-label">Clear between loads</span>
+          <span className="pf-value">
+            {firstClearAisleIn}&quot;
+          </span>
+        </div>
+
+        <div className="pf-row">
+          <label htmlFor="f-target-run" className="pf-label">
+            Target run
+          </label>
+          <span className="pf-value pf-controls">
+            <select
+              id="f-target-run"
+              className="pf-select"
+              value={String(targetRunIndex)}
+              onChange={(e) => setTargetRunIndex(Number(e.target.value))}
+            >
+              {doc.runs.map((r, idx) => (
+                <option key={r.id} value={String(idx)}>
+                  {r.name} ({r.bays.length}b · {r.backToBack ? 'Double' : 'Single'})
+                </option>
+              ))}
+            </select>
+          </span>
+        </div>
+
+        <div className="pf-row">
+          <span className="pf-label">Bay increment</span>
+          <span className="pf-value pf-controls">
+            {[1, 2, 4, 6].map((n) => (
+              <button
+                key={n}
+                type="button"
+                className={addBayQty === n ? 'pf-btn pf-btn-small pf-btn-active' : 'pf-btn pf-btn-small'}
+                onClick={() => setAddBayQty(n)}
+              >
+                +{n}
+              </button>
+            ))}
+          </span>
+        </div>
+
+        <div className="pf-row pf-quick-actions">
+          <button
+            id="btn-add-bays-quick"
+            type="button"
+            className="pf-btn"
+            disabled={activeRun === undefined}
+            onClick={() => {
+              if (activeRun === undefined) return;
+              const cmds: Command[] = Array.from({ length: addBayQty }, () => ({
+                type: 'appendBay',
+                runId: activeRun.id,
+              }));
+              send({
+                type: 'batch',
+                label: `Add ${addBayQty} bay(s) to ${activeRun.name}`,
+                commands: cmds,
+              });
+            }}
+          >
+            +{addBayQty} Bay{addBayQty > 1 ? 's' : ''}
+          </button>
+          <button
+            id="btn-toggle-double-row"
+            type="button"
+            className="pf-btn"
+            disabled={activeRun === undefined}
+            onClick={() => {
+              if (activeRun === undefined) return;
+              send({
+                type: 'setField',
+                label: `Set ${activeRun.name} to ${activeRun.backToBack ? 'single row' : 'double row'}`,
+                change: {
+                  section: 'run',
+                  runId: activeRun.id,
+                  patch: { backToBack: !activeRun.backToBack },
+                },
+              });
+            }}
+          >
+            {activeRun?.backToBack ? 'Single Row' : 'Double Row'}
+          </button>
           <button
             id="addrun"
             type="button"
@@ -681,6 +811,29 @@ export function ParamsPanel({
             + Add rack run
           </button>
         </div>
+
+        {onLoadPreset !== undefined && (
+          <div className="pf-row pf-quick-actions">
+            <button
+              id="btn-preset-starter"
+              type="button"
+              className="pf-btn pf-btn-small"
+              onClick={() => onLoadPreset('starter-2')}
+              title="Reset to 1 run with 2 bays"
+            >
+              Reset (2b)
+            </button>
+            <button
+              id="btn-preset-benchmark"
+              type="button"
+              className="pf-btn pf-btn-small"
+              onClick={() => onLoadPreset('benchmark-36')}
+              title="Load 36-bay Orange Grove benchmark layout"
+            >
+              Benchmark (36b)
+            </button>
+          </div>
+        )}
       </details>
 
       <details className="pf-group">

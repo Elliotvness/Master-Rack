@@ -15,7 +15,7 @@ import { useEffect, useState } from 'react';
 
 import { ChecksDrawer } from '../checks/checks-drawer.js';
 import { ParamsPanel } from '../plan/params-panel.js';
-import { PlanCanvas } from '../plan/plan-canvas.js';
+import { PlanCanvas, type PlanToolMode } from '../plan/plan-canvas.js';
 import { useStudioSession } from '../session-context.js';
 
 const SAMPLE_FORKLIFT_EXTRACTION = {
@@ -36,7 +36,23 @@ const SAMPLE_FORKLIFT_EXTRACTION = {
  * not a second sample that could drift from them.
  */
 export default function PlanView(): React.JSX.Element {
-  const { session, plan, findingCounts, runCommand, runCommands, onUndo } = useStudioSession();
+  const {
+    session,
+    plan,
+    findingCounts,
+    shellOverlay,
+    setShellOverlay,
+    runCommand,
+    runCommands,
+    onUndo,
+    loadPreset,
+    exportProjectJson,
+    importProjectJson,
+  } = useStudioSession();
+  const [toolMode, setToolMode] = useState<PlanToolMode>('select');
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [handoffText, setHandoffText] = useState('');
+  const [handoffStatus, setHandoffStatus] = useState<string | null>(null);
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [intakeRows, setIntakeRows] = useState<readonly IntakeConfirmationRow[]>(
     [],
@@ -218,7 +234,172 @@ export default function PlanView(): React.JSX.Element {
         >
           Commands <kbd>Ctrl+K</kbd>
         </button>
+        <button
+          id="tool-select-btn"
+          type="button"
+          className="pf-btn"
+          aria-pressed={toolMode === 'select'}
+          onClick={() => setToolMode('select')}
+        >
+          Select / Pan
+        </button>
+        <button
+          id="tool-wall-btn"
+          type="button"
+          className="pf-btn"
+          aria-pressed={toolMode === 'wall'}
+          onClick={() => setToolMode((prev) => (prev === 'wall' ? 'select' : 'wall'))}
+        >
+          Draw Wall (Ortho)
+        </button>
+        <button
+          id="tool-column-btn"
+          type="button"
+          className="pf-btn"
+          aria-pressed={toolMode === 'column'}
+          onClick={() => setToolMode((prev) => (prev === 'column' ? 'select' : 'column'))}
+        >
+          Stamp Column
+        </button>
+        <button
+          id="tool-calibrate-btn"
+          type="button"
+          className="pf-btn"
+          aria-pressed={toolMode === 'calibrate'}
+          onClick={() => setToolMode((prev) => (prev === 'calibrate' ? 'select' : 'calibrate'))}
+        >
+          2-Pt Scale Calibrate
+        </button>
+        <button
+          id="toggle-perimeter-wall-btn"
+          type="button"
+          className="pf-btn"
+          aria-pressed={shellOverlay.showPerimeterWalls}
+          onClick={() =>
+            setShellOverlay((prev) => ({
+              ...prev,
+              showPerimeterWalls: !prev.showPerimeterWalls,
+            }))
+          }
+        >
+          {shellOverlay.showPerimeterWalls ? 'Perimeter Wall: On' : 'Perimeter Wall: Off'}
+        </button>
+        <label htmlFor="column-grid-select" className="visually-hidden">
+          Column Grid Spacing
+        </label>
+        <select
+          id="column-grid-select"
+          aria-label="Column Grid Spacing"
+          className="pf-input"
+          style={{ width: 'auto' }}
+          value={shellOverlay.showColumns ? String(shellOverlay.columnSpacingFt) : 'none'}
+          onChange={(e) => {
+            const val = e.target.value;
+            setShellOverlay((prev) => ({
+              ...prev,
+              showColumns: val !== 'none',
+              columnSpacingFt: val === 'none' ? prev.columnSpacingFt : (Number(val) as 30 | 40 | 50),
+            }));
+          }}
+        >
+          <option value="none">Columns: Off</option>
+          <option value="30">Columns: 30 ft Grid</option>
+          <option value="40">Columns: 40 ft Grid</option>
+          <option value="50">Columns: 50 ft Grid</option>
+        </select>
+        {(shellOverlay.customWalls.length > 0 || shellOverlay.customColumns.length > 0) && (
+          <button
+            id="clear-shell-overlays-btn"
+            type="button"
+            className="pf-btn"
+            onClick={() =>
+              setShellOverlay((prev) => ({
+                ...prev,
+                customWalls: [],
+                customColumns: [],
+              }))
+            }
+          >
+            Clear Stamped ({shellOverlay.customWalls.length + shellOverlay.customColumns.length})
+          </button>
+        )}
+        <button
+          id="open-handoff-btn"
+          type="button"
+          className="pf-btn"
+          onClick={() => {
+            setHandoffText(exportProjectJson());
+            setHandoffStatus(null);
+            setHandoffOpen((prev) => !prev);
+          }}
+        >
+          Export / Import JSON
+        </button>
       </div>
+
+      {handoffOpen && (
+        <section
+          id="handoff-panel"
+          className="cmdbar-panel"
+          aria-label="Project JSON Export and Import"
+        >
+          <h2>Project JSON Export / Client Handoff Import</h2>
+          <p>
+            Export the current studio layout JSON or paste a{' '}
+            <code>ProjectHandoffPackage</code> / <code>StudioDocument</code> JSON payload to load it.
+          </p>
+          <div className="pf-row">
+            <label htmlFor="handoff-json-textarea" className="pf-label">
+              JSON Payload
+            </label>
+            <textarea
+              id="handoff-json-textarea"
+              className="pf-input"
+              rows={5}
+              value={handoffText}
+              onChange={(e) => setHandoffText(e.target.value)}
+            />
+          </div>
+          <div className="intake-actions">
+            <button
+              id="refresh-export-json-btn"
+              type="button"
+              className="pf-btn"
+              onClick={() => {
+                const json = exportProjectJson();
+                setHandoffText(json);
+                setHandoffStatus('Exported current layout JSON to editor.');
+              }}
+            >
+              Refresh Export JSON
+            </button>
+            <button
+              id="apply-import-json-btn"
+              type="button"
+              className="pf-btn"
+              onClick={() => {
+                const res = importProjectJson(handoffText);
+                setHandoffStatus(res.message);
+              }}
+            >
+              Import JSON Payload
+            </button>
+            <button
+              id="close-handoff-btn"
+              type="button"
+              className="pf-btn"
+              onClick={() => setHandoffOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+          {handoffStatus !== null && (
+            <p id="handoff-status" role="status">
+              {handoffStatus}
+            </p>
+          )}
+        </section>
+      )}
 
       {intakeOpen && (
         <section
@@ -402,11 +583,20 @@ export default function PlanView(): React.JSX.Element {
       )}
 
       <div className="plan-layout">
-        <ParamsPanel document={session.document} plan={plan} onCommand={runCommand} />
+        <ParamsPanel
+          document={session.document}
+          plan={plan}
+          onCommand={runCommand}
+          onLoadPreset={loadPreset}
+        />
         <PlanCanvas
           document={session.document}
           plan={plan}
           findingCounts={findingCounts}
+          toolMode={toolMode}
+          onToolModeChange={setToolMode}
+          shellOverlay={shellOverlay}
+          onShellOverlayChange={setShellOverlay}
           onCommand={runCommand}
           onUndo={onUndo}
         />
