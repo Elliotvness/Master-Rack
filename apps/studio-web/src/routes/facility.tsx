@@ -69,12 +69,11 @@ export default function FacilityRoute({
     <div className="facility-page-container" id="facility-page">
       <header className="page-header">
         <div className="page-header-info">
-          <h1 className="page-title">Facility & Unit Entry</h1>
+          <h1 className="page-title">Facility</h1>
           <p className="page-description">
-            Blueprint §15.2 Step 3 (FR-CP-01..03, D-02). Record building dimensional boundaries, column
-            grid pitch, dock door positions, and operational unit loads. Every field is individually
-            markable <strong>NOT KNOWN</strong> to generate actionable engineering review findings rather
-            than defaulting or silently converting to 0.
+            Tell us about the building and the loads it stores. Answer what you know; mark anything else{' '}
+            <strong>not known</strong> and it becomes an open question with the person who can answer it —
+            never a guess, and never a zero.
           </p>
         </div>
 

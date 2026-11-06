@@ -6,8 +6,8 @@
  * it was `industry-blueprint.css`, which carried its own ungated palette and an
  * `html.dark` theme hook nothing sets (F-67). Both are gone; the component rules
  * are kept as they were, reading the tokens through their blueprint names.
+ * Fonts are linked once, in index.html — never @import here, which blocks render.
  */
-@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 /* Base Document & Typography */
 *, *::before, *::after {
   box-sizing: border-box;

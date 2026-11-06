@@ -34,13 +34,15 @@ describe('Header component', () => {
     expect(screen.getByText('No document loaded')).toBeDefined();
   });
 
-  it('renders view navigation tabs and action controls in order', () => {
+  it('renders the job steps, the active step\'s views and the action controls', () => {
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/plan']}>
         <Header canUndo={true} saveState="unsaved" />
       </MemoryRouter>,
     );
-    expect(screen.getByRole('navigation', { name: 'Studio views' })).toBeDefined();
+    expect(screen.getByRole('navigation', { name: 'Job steps' })).toBeDefined();
+    expect(screen.getByRole('navigation', { name: 'Layout views' })).toBeDefined();
+    expect(document.getElementById('step-layout')?.getAttribute('aria-current')).toBe('step');
     expect(screen.getByRole('button', { name: 'Undo' })).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Save layout' })).not.toBeNull();
   });

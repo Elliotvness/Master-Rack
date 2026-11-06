@@ -1,7 +1,7 @@
 /*
  * The shell's layout. Colours come from tokens.css and nothing here declares a
- * literal colour — a hex in this file would be a value the contrast gate never
- * sees.
+ * literal colour — `tokens.test.ts` now fails if one appears (F-67), where
+ * until 2026-11-06 this sentence said so and nineteen did.
  */
 
 * {
@@ -12,21 +12,19 @@ body {
   margin: 0;
   background: var(--paper);
   color: var(--ink);
-  font: 14px/1.5 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font: 15px/1.5 var(--font-body);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Custom sleek scrollbar matching Lead Scout */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: var(--paper);
 }
 ::-webkit-scrollbar-thumb {
   background: var(--rule);
-  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--ink-3);
@@ -38,92 +36,221 @@ body {
   height: 100vh;
 }
 
-/* --- chrome (Lead Scout Executive Dark Theme) ----------------------------- */
+/* --- chrome (ADR-020) ---------------------------------------------------- */
 
+/*
+ * Three rows on a grid: brand · job · actions, then the job steps, then the
+ * active step's views. DOM order is brand, job, steps, views, actions — the
+ * grid puts the actions back on row one without moving them in tab order.
+ */
 .chrome {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'brand job actions'
+    'steps steps steps'
+    'views views views';
+  align-items: center;
+  column-gap: var(--space-6);
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink);
+}
+
+.chrome-brand {
+  grid-area: brand;
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-  padding: 0 1rem;
-  min-height: 48px;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-divider);
-  color: var(--color-text);
+  gap: var(--space-4);
+  padding: var(--space-2) 0 var(--space-2) var(--space-6);
+}
+
+.brand-logo {
+  display: block;
+  height: 30px;
+  width: auto;
+}
+
+/* One logo at a time: colour on light, white on dark — including "follow system". */
+.brand-logo-dark { display: none; }
+:root[data-theme='dark'] .brand-logo-light { display: none; }
+:root[data-theme='dark'] .brand-logo-dark { display: block; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .brand-logo-light { display: none; }
+  :root:not([data-theme='light']) .brand-logo-dark { display: block; }
+}
+
+.chrome-product {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 19px;
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--rule);
+  white-space: nowrap;
 }
 
 .jobtag {
+  grid-area: job;
   font-family: var(--font-heading);
   font-weight: 600;
-  font-size: 1.05rem;
+  font-size: 17px;
   white-space: nowrap;
-  letter-spacing: 0.02em;
-  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--navy);
 }
 
 .jobtag[data-established='false'] {
-  color: var(--color-neutral-700);
+  color: var(--ink-2);
   font-weight: 500;
-  font-style: normal;
-}
-
-.tabs {
-  display: flex;
-  gap: 0.35rem;
-  flex: 1;
-  overflow-x: auto;
-}
-
-.tab {
-  padding: 0.4rem 0.85rem;
-  color: var(--color-neutral-700);
-  font-family: var(--font-heading);
-  font-weight: 600;
-  font-size: 0.95rem;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: all 0.15s ease;
-}
-
-.tab:hover {
-  color: var(--color-text);
-  background: color-mix(in srgb, var(--color-text) 7%, transparent);
-}
-
-/*
- * The active tab is marked by steel blue action fill, crisp text
- */
-.tab-active {
-  color: var(--color-bg) !important;
-  background: var(--color-action) !important;
-  font-weight: 600;
 }
 
 .chrome-actions {
+  grid-area: actions;
   display: flex;
-  gap: 0.5rem;
+  flex-wrap: wrap;
+  gap: var(--space-2);
   align-items: center;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-6) var(--space-2) 0;
 }
 
 .chrome-btn {
-  padding: 0.35rem 0.75rem;
-  border: 1px solid var(--color-divider);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--rule);
   background: transparent;
-  color: var(--color-text);
+  color: var(--ink);
   font-family: var(--font-heading);
-  font-size: 0.88rem;
+  font-size: 15px;
   font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
 
 .chrome-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-text) 7%, transparent);
-  border-color: var(--color-accent);
+  background: var(--sunk);
+  border-color: var(--navy-2);
 }
 
 .chrome-btn:disabled {
-  opacity: 0.45;
+  color: var(--ink-2);
+  background: var(--sunk);
   cursor: not-allowed;
+}
+
+.theme-icon {
+  display: inline-flex;
+}
+
+/* Job steps — the job in order, the active one filled. */
+.steps {
+  grid-area: steps;
+  background: var(--panel);
+  border-top: 1px solid var(--rule);
+  overflow-x: auto;
+}
+
+.steps ol {
+  display: flex;
+  margin: 0;
+  padding: 0 var(--space-4);
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  color: var(--ink);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 16px;
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+}
+
+.step:hover {
+  background: var(--sunk);
+}
+
+.step-num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.step-active {
+  color: var(--navy);
+  border-bottom-color: var(--navy);
+}
+
+.step-active .step-num {
+  color: var(--navy);
+}
+
+/* The views inside the active step, when it has more than one. */
+.step-views {
+  grid-area: views;
+  display: flex;
+  gap: 0;
+  padding: var(--space-2) var(--space-6);
+  border-top: 1px solid var(--rule);
+}
+
+.view-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--rule);
+  color: var(--ink-2);
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 15px;
+  text-decoration: none;
+}
+
+.view-tab + .view-tab {
+  border-left: none;
+}
+
+.view-tab:hover {
+  color: var(--ink);
+  background: var(--sunk);
+}
+
+.view-tab-active {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: var(--paper);
+}
+
+.view-tab-active:hover {
+  background: var(--navy);
+  color: var(--paper);
+}
+
+@media (max-width: 760px) {
+  .chrome {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'brand' 'job' 'steps' 'views' 'actions';
+  }
+  .jobtag,
+  .chrome-actions {
+    padding-left: var(--space-6);
+    justify-content: flex-start;
+  }
 }
 
 /* --- focus -------------------------------------------------------------- */
@@ -144,12 +271,16 @@ body {
 
 .banner-note {
   margin: 0;
-  padding: 0.5rem 1rem;
-  background: var(--color-surface);
-  color: var(--color-neutral-700);
-  border-bottom: 1px solid var(--color-divider);
-  font-size: 0.82rem;
+  padding: 5px var(--space-6);
+  background: var(--warn-bg);
+  color: var(--ink);
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
   line-height: 1.4;
+}
+
+.banner-note b {
+  color: var(--warn);
 }
 
 /* --- body --------------------------------------------------------------- */
@@ -737,6 +868,14 @@ body {
 
 .pf-input-short {
   width: 48px;
+}
+
+/* Facility answers reuse the numeric class but have room for their placeholder
+   ("Enter building clear height in in"), which the 62px plan width cut to "Ent". */
+.field-control-wrap .pf-input-num {
+  width: 100%;
+  max-width: 18rem;
+  text-align: left;
 }
 
 .pf-btn {

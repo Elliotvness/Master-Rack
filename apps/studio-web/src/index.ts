@@ -19,9 +19,12 @@
 export {
   DEFAULT_VIEW,
   HEADER_CONTROL_ORDER,
-  TAB_ORDER,
+  STEPS,
+  STEP_ORDER,
   VIEWS,
+  stepForPath,
   viewByPath,
+  type JobStep,
   type StudioView,
 } from './nav.js';
 

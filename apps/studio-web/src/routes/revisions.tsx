@@ -256,7 +256,7 @@ export default function RevisionsView(): React.JSX.Element {
       <div className="bom-header">
         <div>
           <h1 id="view-heading-revisions" className="bom-title">
-            Revisions
+            Review &amp; submit
           </h1>
           <p className="bom-subtitle">
             Revision Lineage, Pre-Submission Assumption Register, Immutability &amp; Internal C01

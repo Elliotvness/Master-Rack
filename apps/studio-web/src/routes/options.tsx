@@ -30,12 +30,11 @@ export default function OptionsRoute({
     <div className="options-page-container" id="options-page" data-testid="options-route">
       <header className="page-header">
         <div className="page-header-info">
-          <h1 className="page-title">Option Builder & Controlled Vocabulary</h1>
+          <h1 className="page-title">Options</h1>
           <p className="page-description">
-            Blueprint §15.2 Step 4 (FR-CP-04..07, D-03). Configure controlled selective-pallet-rack options
-            over the pinned manufacturer catalog release (Interlake 2026-08). Free-text dimensional entry
-            is forbidden. Off-grid dimensions (such as 110″ in Demo Beat 5) are strictly refused with published
-            brackets and no interpolation.
+            Build the rack options to compare, from the pinned catalog release (Interlake 2026-08) only. A
+            beam span the catalog does not publish — 110″, say — is refused and the published sizes on
+            either side are offered instead; nothing is interpolated.
           </p>
         </div>
 

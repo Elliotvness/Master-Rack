@@ -180,7 +180,7 @@ export function FieldInput({
               value={displayedVal}
               onChange={type === 'number' ? handleNumberChange : handleTextChange}
               disabled={disabled}
-              placeholder={type === 'number' ? `Enter ${label.toLowerCase()} in ${unit ?? ''}` : `Enter ${label.toLowerCase()}`}
+              placeholder={type === 'number' ? (unit !== undefined ? `Enter value (${unit})` : 'Enter value') : `Enter ${label.toLowerCase()}`}
               aria-describedby={`help-${id} who-${id}`}
               aria-invalid={inlineRefusal !== null || undefined}
             />

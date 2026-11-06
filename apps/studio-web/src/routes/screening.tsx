@@ -193,11 +193,11 @@ export default function ScreeningView(): React.JSX.Element {
       <div className="bom-header">
         <div>
           <h1 id="view-heading-screening" className="bom-title">
-            Screening
+            Checks
           </h1>
           <p className="bom-subtitle">
-            Compliance Findings, Five-Pack Authority Pins, Previewable Fix Proposals (D2, D8) &amp;
-            Obstruction-Face Registry (ADR-007).
+            Every screening finding against this layout, what it depends on, and the fix that would close
+            it. Fixes are previewed and never applied without your say-so.
           </p>
         </div>
       </div>

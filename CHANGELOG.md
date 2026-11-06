@@ -8,6 +8,10 @@ All notable changes to **Rack Master Studio** (`@rms/*`) are recorded in this fi
 - **ADR-020**: the product owner chose the Project Scout blueprint direction for `apps/studio-web` (2026-11-06) — one steel-blue palette, square corners, Barlow type, navigation by job step.
 - **F-67 (closed)**: `tokens.css` is now the only palette. `industry-blueprint.css` → `theme/components.css` with no colour of its own; 19 token names components used but nothing declared are now defined as aliases; every literal colour in `studio.css` replaced by a token. `tokens.test.ts` fails on an undefined `var(--name)` or a literal colour in any other stylesheet (both proven by planted failures). The INFO and MISSING status chips now pass AA (were 2.80:1 and 4.02:1).
 - `plan/use-pens.test.ts` pins the canvas pens' fallback colours to `tokens.css`.
+- **Navigation by job step (ADR-020)**: the chrome is brand · job · actions over a step bar — Facility, Options, Layout, Takeoff, Sheets, Review & submit — with Plan, Elevation and Checks as the Layout step's views. Facility and Options were routed but unreachable from the chrome. Keyboard order still reaches undo, save and theme last. Screen headings now match their navigation labels (Checks, Takeoff, Review & submit) with plain-language subtitles in place of section and requirement ids.
+- McMurray Stern wordmark in the chrome (colour on light, white on dark, including follow-system) and the monogram as favicon; the theme button draws its icon instead of a glyph the font lacked (it rendered as "‹"). `index.html` loads three font families instead of seven.
+- The screening-only notice is unchanged in wording, still on every view and still not dismissible; it is now a compact strip.
+- Facility number fields no longer cut their placeholder to "Ent".
 
 ## [0.1.0-mvp1] — 2026-11-04
 

@@ -519,7 +519,7 @@ describe('FacilityRoute Component (/facility)', () => {
 
     render(<FacilityRoute fetchImpl={mockFetch as unknown as typeof fetch} />);
 
-    expect(screen.getByRole('heading', { level: 1, name: 'Facility & Unit Entry' })).not.toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Facility' })).not.toBeNull();
     expect(screen.getByRole('tab', { name: '1. Facility Envelope' })).not.toBeNull();
     expect(screen.getByRole('tab', { name: /2. Handling Units/ })).not.toBeNull();
 

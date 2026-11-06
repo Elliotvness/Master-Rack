@@ -84,10 +84,11 @@ export default function BomView(): React.JSX.Element {
       <div className="bom-header">
         <div>
           <h1 id="view-heading-bom" className="bom-title">
-            BOM
+            Takeoff
           </h1>
           <p className="bom-subtitle">
-            Takeoff &amp; Commercial Pricing — derived from document runs and Interlake counting rules.
+            Quantities derived from the layout by the Interlake counting rules, the internal estimate, and
+            the lines that are not resolved yet.
           </p>
         </div>
         <div className="bom-kpis">

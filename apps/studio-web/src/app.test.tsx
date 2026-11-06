@@ -143,7 +143,7 @@ describe('routing', () => {
   it('/screening renders compliance findings, fix proposals, and D8 audit trail when a fix is accepted', async () => {
     const user = userEvent.setup();
     renderApp('/screening');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Screening' })).not.toBeNull();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Checks' })).not.toBeNull();
     expect(document.getElementById('screening-pack-pins')?.textContent).toContain(
       'mcs-2026.08',
     );
@@ -163,7 +163,7 @@ describe('routing', () => {
   it('/revisions enforces multi-reason pre-submission refusal, locks P01, clones to P02, and creates internal C01 trace', async () => {
     const user = userEvent.setup();
     renderApp('/revisions');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Revisions' })).not.toBeNull();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Review & submit' })).not.toBeNull();
     expect(document.getElementById('rev-code')?.textContent).toBe('P01');
     expect(document.getElementById('rev-state')?.textContent).toBe('DRAFT');
 
@@ -222,22 +222,22 @@ describe('routing', () => {
     }
   });
 
-  it('/facility renders the Facility & Unit Entry view', async () => {
+  it('/facility renders the Facility view', async () => {
     renderApp('/facility');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Facility & Unit Entry' })).not.toBeNull();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Facility' })).not.toBeNull();
   });
 
   it('/options renders the Option Builder view', async () => {
     renderApp('/options');
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Option Builder & Controlled Vocabulary' }),
+      await screen.findByRole('heading', { level: 1, name: 'Options' }),
     ).not.toBeNull();
   });
 
   it('/bom renders the Bill of Materials table and pricing estimator', async () => {
     const user = userEvent.setup();
     renderApp('/bom');
-    expect(await screen.findByRole('heading', { level: 1, name: 'BOM' })).not.toBeNull();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Takeoff' })).not.toBeNull();
     expect(screen.getByRole('table', { name: /bill of materials/i })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 2, name: /commercial estimator/i })).toBeTruthy();
     expect(screen.getByText(/Pallet Positions/i)).toBeTruthy();

@@ -56,8 +56,6 @@ function StudioShell({
               <Route path="/" element={<Navigate to={`/${DEFAULT_VIEW}`} replace />} />
               <Route path="/invite" element={<LAZY_VIEWS.invite />} />
               <Route path="/login" element={<LAZY_VIEWS.login />} />
-              <Route path="/facility" element={<LAZY_VIEWS.facility />} />
-              <Route path="/options" element={<LAZY_VIEWS.options />} />
               {VIEWS.map((view) => {
                 const Element = LAZY_VIEWS[view.path as keyof typeof LAZY_VIEWS];
                 return <Route key={view.path} path={`/${view.path}`} element={<Element />} />;
