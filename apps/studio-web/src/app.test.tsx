@@ -160,6 +160,32 @@ describe('routing', () => {
     );
   });
 
+  /**
+   * ADR-020's Review & submit: two REQUIRED steps, and open checks that are not.
+   * Blueprint §15: "the gap travels with the submission rather than blocking
+   * it" — so the fixture's two BLOCKING aisle findings must not stop the lock.
+   */
+  it('/revisions counts required steps down and locks with blocking checks still open', async () => {
+    const user = userEvent.setup();
+    renderApp('/revisions');
+    await screen.findByRole('heading', { level: 1, name: 'Review & submit' });
+    const left = document.getElementById('rev-required-left') as HTMLElement;
+    expect(left.textContent).toBe('2 required steps left.');
+    expect(screen.getByText('Not required to lock')).toBeTruthy();
+    expect(screen.getByRole('list', { name: 'Blocking findings' }).children.length).toBe(2);
+
+    for (const box of document.querySelectorAll('[data-assumption-key]')) {
+      await user.click(box as HTMLInputElement);
+    }
+    expect(left.textContent).toBe('1 required step left.');
+    await user.click(document.getElementById('rev-ack-disclaimer') as HTMLInputElement);
+    expect(left.textContent).toBe('Ready to lock.');
+
+    await user.click(document.getElementById('rev-lock-btn') as HTMLButtonElement);
+    expect(document.getElementById('rev-state')?.textContent).toBe('FROZEN');
+    expect(left.textContent).toBe('P01 is locked.');
+  });
+
   it('/revisions enforces multi-reason pre-submission refusal, locks P01, clones to P02, and creates internal C01 trace', async () => {
     const user = userEvent.setup();
     renderApp('/revisions');
@@ -232,6 +258,15 @@ describe('routing', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Options' }),
     ).not.toBeNull();
+  });
+
+  /** OD-06: micrometres are storage; a person never reads `6096000um`. */
+  it('/bom shows lengths in feet and inches, never as micrometre strings', async () => {
+    renderApp('/bom');
+    await screen.findByRole('heading', { level: 1, name: 'Takeoff' });
+    const table = screen.getByRole('table', { name: 'Bill of materials line items' });
+    expect(table.textContent).not.toMatch(/\d+um\b/);
+    expect(table.textContent).toContain(`20'-0" (6096 mm)`);
   });
 
   it('/bom renders the Bill of Materials table and pricing estimator', async () => {

@@ -9,6 +9,7 @@ import {
   takeoffSummary,
   type PricingRates,
 } from '@rms/studio-model';
+import { formatLength, um } from '@rms/kernel-units';
 import { useMemo, useState } from 'react';
 
 import { useStudioSession } from '../session-context.js';
@@ -30,6 +31,16 @@ function formatUnitCurrency(n: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(n);
+}
+
+/**
+ * The model records measured geometry as a storage string — `6096000um`. People
+ * read feet and inches (OD-06: micrometres are storage only), so a micrometre
+ * string is formatted on the way out and anything else is shown as written.
+ */
+function geometryText(geometry: string): string {
+  const m = /^(\d+)um$/.exec(geometry);
+  return m === null ? geometry : formatLength(um(Number(m[1])), { feetInches: true, metric: true });
 }
 
 export default function BomView(): React.JSX.Element {
@@ -224,7 +235,7 @@ export default function BomView(): React.JSX.Element {
                       <td className="part-col">
                         <span className="part-id font-mono">{partText}</span>
                         {line.partRef.kind === 'uncatalogued' && (
-                          <span className="part-geom">{line.partRef.measuredGeometry}</span>
+                          <span className="part-geom">{geometryText(line.partRef.measuredGeometry)}</span>
                         )}
                       </td>
                       <td className="qty-col font-mono">

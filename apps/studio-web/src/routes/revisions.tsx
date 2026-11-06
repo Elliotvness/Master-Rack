@@ -5,6 +5,7 @@ import {
 } from '@rms/studio-model';
 import { useMemo, useState } from 'react';
 
+import { ChecksDrawer } from '../checks/checks-drawer.js';
 import { useStudioSession } from '../session-context.js';
 
 interface AssumptionItem {
@@ -251,6 +252,9 @@ export default function RevisionsView(): React.JSX.Element {
     );
   };
 
+  const unackedCount = assumptions.filter((a) => !acknowledgedKeys.has(a.key)).length;
+  const requiredLeft = (unackedCount > 0 ? 1 : 0) + (disclaimerChecked ? 0 : 1);
+
   return (
     <section className="revisions-view" aria-labelledby="view-heading-revisions">
       <div className="bom-header">
@@ -259,10 +263,17 @@ export default function RevisionsView(): React.JSX.Element {
             Review &amp; submit
           </h1>
           <p className="bom-subtitle">
-            Revision Lineage, Pre-Submission Assumption Register, Immutability &amp; Internal C01
-            Calculation Trace.
+            Locking issues {revisionCode} as a preliminary revision that cannot be edited. Two things
+            are required first; open checks are not — they travel with the revision as findings.
           </p>
         </div>
+        <p id="rev-required-left" className="review-left" role="status">
+          {lifecycleState === 'FROZEN'
+            ? `${revisionCode} is locked.`
+            : requiredLeft === 0
+              ? 'Ready to lock.'
+              : `${requiredLeft} required step${requiredLeft === 1 ? '' : 's'} left.`}
+        </p>
       </div>
 
       {statusNotice !== null && (
@@ -274,7 +285,7 @@ export default function RevisionsView(): React.JSX.Element {
       {refusalReasons.length > 0 && (
         <div id="rev-refusal-banner" className="bom-quote-banner draft" role="alert">
           <strong>Preliminary lock refused ({refusalReasons.length} reason(s)):</strong>
-          <ul style={{ margin: '6px 0 0 18px' }}>
+          <ul className="review-reasons">
             {refusalReasons.map((r, idx) => (
               <li key={idx}>{r}</li>
             ))}
@@ -282,9 +293,94 @@ export default function RevisionsView(): React.JSX.Element {
         </div>
       )}
 
-      {/* 1. Active Revision Card & Command History */}
-      <div className="blueprint" style={{ padding: '12px', marginBottom: '16px' }}>
-        <h2 style={{ marginTop: 0 }}>Active Revision Lineage</h2>
+      <ol className="review-steps">
+        <li className="blueprint review-step" aria-labelledby="review-open-checks">
+          <i className="corner tl"></i><i className="corner tr"></i><i className="corner bl"></i><i className="corner br"></i>
+          <div className="review-step-head">
+            <h2 id="review-open-checks">Open checks</h2>
+            <span className="tag tag-neutral">Not required to lock</span>
+          </div>
+          <p className="review-note">
+            Anything still open is listed in the revision as a finding, with who can close it — the
+            gap travels with the submission rather than stopping it.
+          </p>
+          <ChecksDrawer />
+        </li>
+
+        <li className="blueprint review-step" aria-labelledby="review-assumptions">
+          <i className="corner tl"></i><i className="corner tr"></i><i className="corner bl"></i><i className="corner br"></i>
+          <div className="review-step-head">
+            <h2 id="review-assumptions">Acknowledge planning assumptions</h2>
+            <span className={unackedCount === 0 ? 'tag tag-accent' : 'tag tag-outline'}>
+              Required · {assumptions.length - unackedCount} of {assumptions.length}
+            </span>
+          </div>
+          <ul className="review-checklist" aria-label="Pre-submission assumptions">
+            {assumptions.map((a) => (
+              <li key={a.key}>
+                <label>
+                  <input
+                    type="checkbox"
+                    data-assumption-key={a.key}
+                    checked={acknowledgedKeys.has(a.key)}
+                    disabled={lifecycleState === 'FROZEN'}
+                    onChange={() => toggleAssumption(a.key)}
+                    aria-label={`Acknowledge ${a.key}`}
+                  />
+                  <span>
+                    {a.statement} <span className="review-key">{a.scope} · {a.key}</span>
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </li>
+
+        <li className="blueprint review-step" aria-labelledby="review-notice">
+          <i className="corner tl"></i><i className="corner tr"></i><i className="corner bl"></i><i className="corner br"></i>
+          <div className="review-step-head">
+            <h2 id="review-notice">Accept the preliminary notice</h2>
+            <span className={disclaimerChecked ? 'tag tag-accent' : 'tag tag-outline'}>
+              Required · {disclaimerChecked ? 'done' : 'open'}
+            </span>
+          </div>
+          <label className="review-disclaimer">
+            <input
+              id="rev-ack-disclaimer"
+              type="checkbox"
+              checked={disclaimerChecked}
+              disabled={lifecycleState === 'FROZEN'}
+              onChange={(e) => setDisclaimerChecked(e.target.checked)}
+            />
+            <span>
+              I acknowledge <code>disclaimer-v2026.09</code>: this layout is preliminary screening
+              only, unstamped, for discussion, and requires review by a licensed structural engineer
+              of record and the authority having jurisdiction.
+            </span>
+          </label>
+        </li>
+      </ol>
+
+      <div className="review-lock">
+        <button
+          id="rev-lock-btn"
+          type="button"
+          className="btn btn-primary"
+          disabled={lifecycleState === 'FROZEN'}
+          onClick={() => {
+            void handleLockPreliminary();
+          }}
+        >
+          Lock &amp; Issue Preliminary {revisionCode}
+        </button>
+        <span className="review-note">
+          A lock that is missing a required step is refused and says which.
+        </span>
+      </div>
+
+      <section className="blueprint review-revision" aria-labelledby="review-revision">
+        <i className="corner tl"></i><i className="corner tr"></i><i className="corner bl"></i><i className="corner br"></i>
+        <h2 id="review-revision">Revision</h2>
         <p id="rev-active-card" className="font-mono">
           <strong>Revision:</strong> <span id="rev-code">{revisionCode}</span> ·{' '}
           <strong>State:</strong> <span id="rev-state">{lifecycleState}</span> ·{' '}
@@ -292,26 +388,15 @@ export default function RevisionsView(): React.JSX.Element {
           <strong>Session Edits:</strong> {session.ledger.depth}
         </p>
 
-        <div
-          style={{
-            display: 'flex',
-            gap: '8px',
-            alignItems: 'center',
-            marginTop: '8px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <label htmlFor="rev-id-input" style={{ fontSize: '12px' }}>
-            Revision UUID:
-          </label>
+        <div className="review-sync">
+          <label htmlFor="rev-id-input">Revision UUID</label>
           <input
             id="rev-id-input"
             type="text"
-            className="font-mono"
+            className="input-field font-mono"
             placeholder="00000000-0000-4000-8000-000000000001"
             value={revisionIdInput}
             onChange={(e) => setRevisionIdInput(e.target.value)}
-            style={{ width: '280px', padding: '4px 6px' }}
           />
           <button
             id="rev-sync-draft-btn"
@@ -322,12 +407,12 @@ export default function RevisionsView(): React.JSX.Element {
               void handleSyncDraftToApi();
             }}
           >
-            Sync Studio Draft to Revision API
+            Sync draft to the revision
           </button>
         </div>
 
         {lifecycleState === 'FROZEN' && (
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+          <div className="review-sync">
             <button
               id="rev-clone-btn"
               type="button"
@@ -348,78 +433,10 @@ export default function RevisionsView(): React.JSX.Element {
             </button>
           </div>
         )}
-      </div>
-
-      {/* 2. Pre-Submission Assumption Register & Disclaimer */}
-      <div className="blueprint" style={{ padding: '12px', marginBottom: '16px' }}>
-        <h2 style={{ marginTop: 0 }}>Pre-Submission Assumption Register ({assumptions.length})</h2>
-        <p style={{ fontSize: '12px', marginTop: 0 }}>
-          Every planning assumption must be explicitly acknowledged before locking a preliminary
-          revision.
+        <p className="review-note">
+          Internal work derives C01 from the locked revision and never writes back to it.
         </p>
-        <table className="bom-table" aria-label="Pre-submission assumptions">
-          <thead>
-            <tr>
-              <th scope="col">Acknowledge</th>
-              <th scope="col">Assumption Key</th>
-              <th scope="col">Scope</th>
-              <th scope="col">Statement</th>
-            </tr>
-          </thead>
-          <tbody>
-            {assumptions.map((a) => (
-              <tr key={a.key}>
-                <td>
-                  <input
-                    type="checkbox"
-                    data-assumption-key={a.key}
-                    checked={acknowledgedKeys.has(a.key)}
-                    disabled={lifecycleState === 'FROZEN'}
-                    onChange={() => toggleAssumption(a.key)}
-                    aria-label={`Acknowledge ${a.key}`}
-                  />
-                </td>
-                <td>
-                  <code>{a.key}</code>
-                </td>
-                <td>{a.scope}</td>
-                <td>{a.statement}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <div style={{ marginTop: '12px' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-            <input
-              id="rev-ack-disclaimer"
-              type="checkbox"
-              checked={disclaimerChecked}
-              disabled={lifecycleState === 'FROZEN'}
-              onChange={(e) => setDisclaimerChecked(e.target.checked)}
-            />
-            <span>
-              I acknowledge <code>disclaimer-v2026.09</code>: this layout is preliminary screening
-              only, unstamped, for discussion, and requires review by a licensed structural engineer
-              of record and the authority having jurisdiction.
-            </span>
-          </label>
-        </div>
-
-        <div style={{ marginTop: '12px' }}>
-          <button
-            id="rev-lock-btn"
-            type="button"
-            className="btn btn-primary"
-            disabled={lifecycleState === 'FROZEN'}
-            onClick={() => {
-              void handleLockPreliminary();
-            }}
-          >
-            Lock &amp; Issue Preliminary {revisionCode}
-          </button>
-        </div>
-      </div>
+      </section>
 
       {/* 3. Internal Commercial C01 "Show Your Work" Calculation Trace */}
       {internalC01Created && (

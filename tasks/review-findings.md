@@ -3080,3 +3080,23 @@ planted back: `Tests 2 failed | 6 passed`; restored: `8 passed`.
 its chips are S5 placeholders (`app.test.tsx` says so) and wiring them is that slice's work. The
 fix proposal's 127" target is `proposeFixes` in `@rms/studio-model`, untouched here.
 
+## F-69 — the takeoff showed storage units to people: `6096000um` *(raised and **CLOSED** 2026-11-06, ADR-020 redesign)*
+
+**Seen** in the running studio at `1f4762c`: the BOM's part column printed `6096000um`,
+`2438400um` and `304800um` under each frame, beam and row spacer. OD-06 settled that micrometres
+are storage and people read millimetres / inches; `@rms/studio-model`'s `bomForDocument` records
+`measuredGeometry` as a storage string and `routes/bom.tsx` displayed it as written.
+
+**Fixed** at the display edge, not in the model: `geometryText` formats a `<n>um` string through
+`kernel-units`' `formatLength` (feet-inch-sixteenths, mm in parentheses) — `20'-0" (6096 mm)` —
+and shows anything else as written. The model's string is unchanged because it is part of what the
+BOM line records.
+
+**Proven.** `app.test.tsx` asserts the BOM table contains no `/\d+um\b/` and does contain
+`20'-0" (6096 mm)`; with the raw string planted back: `× /bom shows lengths in feet and inches,
+never as micrometre strings` (1 failed); restored: passes.
+
+**Also seen and NOT a defect, recorded so nobody fixes it as one.** The BOM listed what looked like
+the same six lines three times. It is one set per rack run (three runs), correct, but the table has
+no run column to say so. Adding one is a BOM-view change for whoever owns the takeoff; not done here.
+

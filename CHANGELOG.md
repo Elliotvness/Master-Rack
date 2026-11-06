@@ -13,6 +13,8 @@ All notable changes to **Rack Master Studio** (`@rms/*`) are recorded in this fi
 - The screening-only notice is unchanged in wording, still on every view and still not dismissible; it is now a compact strip.
 - Facility number fields no longer cut their placeholder to "Ent".
 - **Layout workspace**: a checks drawer under the plan (blocking findings, counts by status, a link to all checks) reading the same derivation as the Checks view, now extracted to `checks/findings.ts`; parameter groups collapse; plain labels replace API paths ("Read a spec sheet", "Commands Ctrl+K", "Sample layout … nothing here is saved yet"); the parameters scroll inside a fixed-height workspace instead of stretching the canvas.
+- **Review & submit**: replaces the Revisions page with a checklist — open checks (shown, not required: blueprint §15, "the gap travels with the submission rather than blocking it"), assumptions to acknowledge and the preliminary notice (both required), a steps-left count, then the lock; revision lineage, sync and clone below. Every control id and lock rule unchanged.
+- **F-69 (closed)**: the takeoff printed storage micrometres (`6096000um`); lengths now read `20'-0" (6096 mm)` via `kernel-units`' `formatLength`.
 - **F-68 (closed)**: "126″ vs required 126″" was a real 0.3″ shortfall rounded into a contradiction; clearance findings now print the deciding tenth ("needs 126.3″") and name aisles "Aisle 1", "Aisle 2".
 
 ## [0.1.0-mvp1] — 2026-11-04
