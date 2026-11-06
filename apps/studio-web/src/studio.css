@@ -384,9 +384,7 @@ body {
 .plan-view {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  height: 100%;
+  flex: 1 0 auto;
   gap: 0.5rem;
 }
 
@@ -522,7 +520,13 @@ body {
 
 .plan-layout {
   display: flex;
-  flex: 1;
+  flex: 0 0 auto;
+  /*
+   * A definite height, so the parameters scroll inside it rather than stretching
+   * the canvas to their full length; the checks drawer sits below and the stage
+   * scrolls to it.
+   */
+  height: max(560px, calc(100vh - 300px));
   min-height: 0;
   gap: 0.75rem;
 }
@@ -2637,6 +2641,134 @@ body {
   font-size: 0.85rem;
 }
 
+/* --- Layout step: parameter groups and the checks drawer (ADR-020) -------- */
 
+.pf-group {
+  border-bottom: 1px solid var(--rule);
+}
 
+.pf-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+  padding: 2px 0;
+}
+
+.pf-summary::-webkit-details-marker {
+  display: none;
+}
+
+.pf-summary::after {
+  content: '−';
+  font-family: var(--font-mono);
+  color: var(--ink-2);
+}
+
+.pf-group:not([open]) > .pf-summary::after {
+  content: '+';
+}
+
+.pf-summary .pf-heading {
+  margin: 0;
+}
+
+kbd {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 1px 5px;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+  color: var(--ink-2);
+}
+
+.checks-drawer {
+  margin-top: var(--space-4);
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+.checks-drawer-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--rule);
+}
+
+.checks-drawer-head h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 19px;
+}
+
+.checks-drawer-head .chrome-btn {
+  margin-left: auto;
+}
+
+.checks-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.count {
+  padding: 2px 8px;
+  font-size: 13px;
+  border: 1px solid var(--rule);
+  background: var(--na-bg);
+  color: var(--na);
+}
+
+.count-block {
+  background: var(--block-bg);
+  color: var(--block);
+  border-color: var(--block);
+  font-weight: 600;
+}
+
+.count-pass {
+  background: var(--pass-bg);
+  color: var(--pass);
+}
+
+.checks-blocking {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checks-blocking li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--rule-2);
+  font-size: 14px;
+}
+
+.checks-blocking li:first-child {
+  border-top: none;
+}
+
+.checks-blocking .tag {
+  grid-row: span 2;
+  align-self: start;
+}
+
+.checks-closure {
+  color: var(--ink-2);
+}
+
+.checks-clear {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  color: var(--pass);
+}
 

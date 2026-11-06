@@ -132,17 +132,17 @@ export function ParamsPanel({
   return (
     <div className="params">
       <p className="pf-note">
-        <b>Interactive parameters.</b> Every edit dispatches a reversible{' '}
-        <code>setField</code> command to the undo ledger. Click <code>?</code> on any row to
-        inspect provenance.
+        Edit any value; Undo reverses it. Select <b>?</b> on a row to see where its value came from.
       </p>
 
       <ProvenancePopover info={prov} onClose={() => setProv(null)} />
 
-      <section aria-labelledby="pf-project">
+      <details open className="pf-group">
+        <summary className="pf-summary">
         <h2 id="pf-project" className="pf-heading">
           Project
         </h2>
+        </summary>
         <div className="pf-row">
           <label htmlFor="f-name" className="pf-label">
             Job
@@ -203,12 +203,14 @@ export function ParamsPanel({
             />
           </span>
         </div>
-      </section>
+      </details>
 
-      <section aria-labelledby="pf-building">
+      <details open className="pf-group">
+        <summary className="pf-summary">
         <h2 id="pf-building" className="pf-heading">
           Building <span className="pf-sub">survey and declaration</span>
         </h2>
+        </summary>
 
         <div className="pf-row">
           <label htmlFor="f-clearh" className="pf-label">
@@ -506,12 +508,14 @@ export function ParamsPanel({
             />
           </span>
         </div>
-      </section>
+      </details>
 
-      <section aria-labelledby="pf-equipment">
+      <details open className="pf-group">
+        <summary className="pf-summary">
         <h2 id="pf-equipment" className="pf-heading">
           Material handling <span className="pf-sub">truck & aisle</span>
         </h2>
+        </summary>
 
         <div className="pf-row">
           <label htmlFor="f-truck" className="pf-label">
@@ -674,12 +678,14 @@ export function ParamsPanel({
             + Add rack run
           </button>
         </div>
-      </section>
+      </details>
 
-      <section aria-labelledby="pf-unit-load">
+      <details open className="pf-group">
+        <summary className="pf-summary">
         <h2 id="pf-unit-load" className="pf-heading">
           Unit load
         </h2>
+        </summary>
 
         <div className="pf-row">
           <label htmlFor="f-pw" className="pf-label">
@@ -857,13 +863,15 @@ export function ParamsPanel({
             />
           </span>
         </div>
-      </section>
+      </details>
 
       {bt !== undefined && (
-        <section aria-labelledby="pf-bay-type">
+        <details open className="pf-group">
+        <summary className="pf-summary">
           <h2 id="pf-bay-type" className="pf-heading">
             Bay type — {bt.name} <span className="pf-sub">from catalog ({doc.packs.rack || 'interlake-2026-09'})</span>
           </h2>
+        </summary>
 
           <div className="pf-row">
             <label htmlFor="f-uppart" className="pf-label">
@@ -1349,7 +1357,7 @@ export function ParamsPanel({
               </div>
             ))}
           </div>
-        </section>
+        </details>
       )}
     </div>
   );

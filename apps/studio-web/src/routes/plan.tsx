@@ -13,6 +13,7 @@ import {
 } from '@rms/studio-model';
 import { useEffect, useState } from 'react';
 
+import { ChecksDrawer } from '../checks/checks-drawer.js';
 import { ParamsPanel } from '../plan/params-panel.js';
 import { PlanCanvas } from '../plan/plan-canvas.js';
 import { useStudioSession } from '../session-context.js';
@@ -196,9 +197,8 @@ export default function PlanView(): React.JSX.Element {
         Plan
       </h1>
       <p className="scaffold-note">
-        <b>Scaffold document.</b> This is the rack-studio-v1 continuity fixture, migrated to v2 at
-        load. Editing, persistence and the revision API arrive in later slices — nothing here is
-        saved.
+        <b>Sample layout.</b> This is the rack-studio-v1 sample job, loaded for this session. Every
+        change can be undone, but nothing here is saved yet.
       </p>
 
       <div className="ai-toolbar" role="toolbar" aria-label="AI intake and command tools">
@@ -208,7 +208,7 @@ export default function PlanView(): React.JSX.Element {
           className="pf-btn"
           onClick={openSpecSheetIntake}
         >
-          Spec-Sheet Intake (POST /api/client/v1/intake · store: false)
+          Read a spec sheet
         </button>
         <button
           id="open-cmdbar-btn"
@@ -216,7 +216,7 @@ export default function PlanView(): React.JSX.Element {
           className="pf-btn"
           onClick={() => setCmdBarOpen((prev) => !prev)}
         >
-          Command Bar (Ctrl+K)
+          Commands <kbd>Ctrl+K</kbd>
         </button>
       </div>
 
@@ -226,7 +226,7 @@ export default function PlanView(): React.JSX.Element {
           className="intake-panel"
           aria-label="Spec-Sheet Human Confirmation Table"
         >
-          <h2>Human Confirmation Table (store: false)</h2>
+          <h2>Confirm what was read from the spec sheet</h2>
           <p>
             Extracted values are <b>never</b> auto-filled. Check the rows you confirm to commit
             them as reversible commands with source page provenance.
@@ -339,7 +339,7 @@ export default function PlanView(): React.JSX.Element {
           className="cmdbar-panel"
           aria-label="Deterministic Command Bar"
         >
-          <h2>Deterministic Command Bar (Ctrl+K, demo translation)</h2>
+          <h2>Commands</h2>
           <div className="pf-row">
             <label htmlFor="cmdbar-input" className="pf-label">
               Instruction
@@ -405,6 +405,8 @@ export default function PlanView(): React.JSX.Element {
         <ParamsPanel document={session.document} onCommand={runCommand} />
         <PlanCanvas document={session.document} onCommand={runCommand} onUndo={onUndo} />
       </div>
+
+      <ChecksDrawer />
     </section>
   );
 }

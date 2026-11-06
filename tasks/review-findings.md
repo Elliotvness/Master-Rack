@@ -3057,3 +3057,26 @@ on exactly those three before they were corrected.
 literal. Inline `style={{ color: '#…' }}` in `.tsx` is not scanned — `use-pens.ts` is the only `.ts`
 file with literal colours today, and it is pinned separately.
 
+## F-68 — a true shortfall reported as a contradiction: "126″ vs required 126″" *(raised and **CLOSED** 2026-11-06, ADR-020 redesign)*
+
+**Seen** in the running studio at `1f4762c`: the Screening view listed two BLOCKING findings reading
+*"Clear aisle between loads is 126" vs required 126" (RAS + 60")."* A reader concludes the check
+is broken. It was not: measured on the continuity fixture, the aisle clears **126.0"** and the
+requirement is the RAS **66.3"** + 60" = **126.3"**. The comparison ran on micrometres and was
+right; the message rounded both sides to whole inches and printed the one case rounding cannot
+represent — a shortfall smaller than half an inch. The same view's fix proposal targets 127",
+which made the pair look like three different numbers for one rule.
+
+**Fixed.** The derivation moved out of `routes/screening.tsx` into `checks/findings.ts` (ADR-020's
+checks drawer reads it too), and clearance figures print through `inchesForComparison`, which keeps
+a tenth whenever the tenth is what decides it: *"Clear between loads is 126"; the truck needs
+126.3" (RAS + 60")."* Aisles are named "Aisle 1", "Aisle 2" in plan order instead of the geometry
+ids `gap_run_0003_run_000g` / `gap_run_000g_run_000t`.
+
+**Proven.** `checks/findings.test.ts` pins the sentence and the names; with whole-inch rounding
+planted back: `Tests 2 failed | 6 passed`; restored: `8 passed`.
+
+**Not fixed, recorded.** The plan canvas HUD still shows FAILING 0 beside two BLOCKING findings —
+its chips are S5 placeholders (`app.test.tsx` says so) and wiring them is that slice's work. The
+fix proposal's 127" target is `proposeFixes` in `@rms/studio-model`, untouched here.
+

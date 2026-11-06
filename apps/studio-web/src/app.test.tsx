@@ -256,11 +256,11 @@ describe('routing', () => {
    * The plan view draws. It must NOT claim to be finished either — the document
    * is the continuity fixture and nothing is saved, so the screen says so.
    */
-  it('/plan draws and labels its document as a scaffold', async () => {
+  it('/plan draws and labels its document as a sample that is not saved', async () => {
     renderApp('/plan');
     await screen.findByRole('heading', { level: 1 });
     expect(screen.queryByText(/Not implemented/)).toBeNull();
-    expect(screen.getByText(/Scaffold document/)).toBeTruthy();
+    expect(screen.getByText(/Sample layout/)).toBeTruthy();
     expect(screen.getByText(/nothing here is saved/i)).toBeTruthy();
   });
 
@@ -293,7 +293,7 @@ describe('routing', () => {
   it('/plan renders the interactive parameter panel wired to setField', async () => {
     renderApp('/plan');
     await screen.findByRole('heading', { level: 1 });
-    expect(screen.getByText(/Interactive parameters/)).toBeTruthy();
+    expect(screen.getByText(/Undo reverses it/)).toBeTruthy();
     expect(screen.getByText('Job')).toBeTruthy();
     expect(screen.getByText('Client')).toBeTruthy();
     expect(document.getElementById('f-name')).not.toBeNull();
