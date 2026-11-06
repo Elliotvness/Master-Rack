@@ -6,12 +6,12 @@ import {
   planGeometry,
   proposeFixes,
   quoteReadinessForDocument,
+  screeningFindingsForDocument,
   type AcceptedFixAuditRecord,
   type FixProposal,
 } from '@rms/studio-model';
 import { useMemo, useState } from 'react';
 
-import { deriveScreeningFindings } from '../checks/findings.js';
 import { useStudioSession } from '../session-context.js';
 
 export default function ScreeningView(): React.JSX.Element {
@@ -25,7 +25,7 @@ export default function ScreeningView(): React.JSX.Element {
   const proposals = useMemo(() => proposeFixes(doc, session.counter), [doc, session.counter]);
   const plan = useMemo(() => planGeometry(doc), [doc]);
 
-  const findings = useMemo(() => deriveScreeningFindings(doc, plan), [doc, plan]);
+  const findings = useMemo(() => screeningFindingsForDocument(doc), [doc]);
 
   const positionLedger = useMemo(
     () =>

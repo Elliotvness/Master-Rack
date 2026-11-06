@@ -1,22 +1,28 @@
-import {
-  MICROMETRES_PER_INCH,
-  beamFamilyFromPartLabel,
-  lookupPublishedBeamSpan,
-  type PlanGeometry,
-  type StudioDocument,
-} from '@rms/studio-model';
-
 /**
- * The screening findings for one document — ONE derivation, read by the Checks
- * view and by the Layout step's checks drawer (ADR-020).
+ * Screening findings for one document — the rows the studio's Checks view and
+ * its Layout checks drawer show (ADR-020).
  *
- * Lifted verbatim out of `routes/screening.tsx`, where it lived inside a
- * component's `useMemo`. Two screens showing findings from two copies of this
- * logic would disagree the first time one of them was edited; a function both
- * call cannot.
+ * WHY THIS IS HERE AND NOT IN THE STUDIO (F-70). Until 2026-11-06 this logic
+ * ran inline in a `useMemo` inside `apps/studio-web/src/routes/screening.tsx`.
+ * `check-app-boundaries` forbids the studio bundle from binding a `derive*`
+ * name because "a studio that re-derives its own geometry is a second kernel"
+ * (ADR-016) — and an unnamed closure has no name to forbid, so the rule never
+ * saw it. Extracting it for the drawer gave it a name and the checker refused
+ * it. The remedy is not a new name in the studio: it is this package, the pure
+ * layer the studio already calls for `planGeometry`, `proposeFixes` and
+ * `quoteReadinessForDocument`, which the server can load unchanged.
+ *
+ * What this does NOT settle, and F-70 records: whether findings should reach the
+ * studio from `@rms/kernel-checks` via the server instead. The S5 slice owns that.
  *
  * Pure: no I/O, no clock, no RNG.
  */
+
+import { beamFamilyFromPartLabel, lookupPublishedBeamSpan } from './catalog-options.js';
+import type { StudioDocument } from './document.js';
+import { MICROMETRES_PER_INCH } from './length.js';
+import { planGeometry } from './plan.js';
+
 export type FindingSeverity = 'BLOCKING' | 'REVIEW' | 'MISSING_INPUT' | 'MISSING_SOURCE' | 'PASS';
 
 export interface ScreeningFindingRow {
@@ -44,10 +50,8 @@ export function inchesForComparison(um: number): string {
   return Number.isInteger(tenths) ? `${tenths}"` : `${tenths.toFixed(1)}"`;
 }
 
-export function deriveScreeningFindings(
-  doc: StudioDocument,
-  plan: Pick<PlanGeometry, 'aisles'>,
-): readonly ScreeningFindingRow[] {
+export function screeningFindingsForDocument(doc: StudioDocument): readonly ScreeningFindingRow[] {
+  const plan = planGeometry(doc);
   const rows: ScreeningFindingRow[] = [];
 
   // 1. Draft rule-pack ceiling check

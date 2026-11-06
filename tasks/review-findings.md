@@ -3067,13 +3067,13 @@ right; the message rounded both sides to whole inches and printed the one case r
 represent — a shortfall smaller than half an inch. The same view's fix proposal targets 127",
 which made the pair look like three different numbers for one rule.
 
-**Fixed.** The derivation moved out of `routes/screening.tsx` into `checks/findings.ts` (ADR-020's
+**Fixed.** The derivation moved out of `routes/screening.tsx` — first into `apps/studio-web/src/checks/findings.ts`, then, when `check-app-boundaries` refused that (F-70), into `@rms/studio-model`'s `screening.ts` as `screeningFindingsForDocument` (ADR-020's
 checks drawer reads it too), and clearance figures print through `inchesForComparison`, which keeps
 a tenth whenever the tenth is what decides it: *"Clear between loads is 126"; the truck needs
 126.3" (RAS + 60")."* Aisles are named "Aisle 1", "Aisle 2" in plan order instead of the geometry
 ids `gap_run_0003_run_000g` / `gap_run_000g_run_000t`.
 
-**Proven.** `checks/findings.test.ts` pins the sentence and the names; with whole-inch rounding
+**Proven.** The test that now lives in `packages/studio-model/src/screening.test.ts` pins the sentence and the names; with whole-inch rounding
 planted back: `Tests 2 failed | 6 passed`; restored: `8 passed`.
 
 **Not fixed, recorded.** The plan canvas HUD still shows FAILING 0 beside two BLOCKING findings —
@@ -3099,4 +3099,38 @@ never as micrometre strings` (1 failed); restored: passes.
 **Also seen and NOT a defect, recorded so nobody fixes it as one.** The BOM listed what looked like
 the same six lines three times. It is one set per rack run (three runs), correct, but the table has
 no run column to say so. Adding one is a BOM-view change for whoever owns the takeoff; not done here.
+
+## F-70 — the studio derived its own findings, unseen, because the derivation had no name *(raised 2026-11-06 by `pnpm verify` on the ADR-020 branch; **remedied** in part, **open** in part)*
+
+**What happened.** `check-app-boundaries` forbids the `studio-web` bundle from binding any
+`derive*` name: *"a studio that re-derives its own geometry is a second kernel (ADR-016), and
+ADR-018 rule 4 forbids arithmetic in a render."* At `1f4762c` the Checks view computed every
+screening finding in the browser, inside an anonymous `useMemo` closure in
+`routes/screening.tsx`. **An unnamed closure has no name to forbid**, so the checker printed PASS
+over exactly what it exists to refuse. The ADR-020 branch extracted the closure as
+`deriveScreeningFindings` so the new checks drawer could share it; the name made it visible and
+`pnpm verify` failed:
+
+```
+apps/studio-web/src/checks/findings.ts: binds 'deriveScreeningFindings' at the top level — derivation is a server authority …
+apps/studio-web/src/routes/screening.tsx: imports 'deriveScreeningFindings' — derivation is a server authority …
+```
+
+**The house defect, in its name-proxy form.** The rule's PURPOSE is "the studio does not derive";
+its MECHANISM is "the studio binds no `derive*` name". The two agree only while derivations are
+named, and a `useMemo` body never is.
+
+**Remedied (not by renaming in the studio).** The function moved to `@rms/studio-model` as
+`screeningFindingsForDocument` — the pure layer the studio already calls for `planGeometry`,
+`proposeFixes` and `quoteReadinessForDocument`, which the server can load unchanged — with
+`packages/studio-model/src/screening.test.ts` at 100 / 100 / 100 / 100 (16 tests). The studio
+holds no copy. Renaming it inside the studio to slip under `^derive` was the alternative and is
+recorded here as rejected.
+
+**Open, and not this branch's to close.** (1) Whether findings should reach the studio from
+`@rms/kernel-checks` through the server rather than from `studio-model` in the browser — the S5
+slice, which `app.test.tsx` already names as the one that wires kernel-checks. (2) The checker
+stays name-based: any other anonymous computation in a studio render is equally invisible to it.
+A structural rule (for example, no arithmetic on `@rms/*` geometry inside a component body) would
+be the mechanism the purpose describes; not written here.
 

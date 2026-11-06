@@ -175,6 +175,15 @@ export {
 } from './shell.js';
 
 export {
+  countFindings,
+  inchesForComparison,
+  screeningFindingsForDocument,
+  type FindingCounts,
+  type FindingSeverity,
+  type ScreeningFindingRow,
+} from './screening.js';
+
+export {
   acceptFixProposal,
   proposeFixes,
   type AcceptedFixAuditRecord,
