@@ -2,6 +2,13 @@
 
 All notable changes to **Rack Master Studio** (`@rms/*`) are recorded in this file.
 
+## [Unreleased]
+
+### Studio redesign — blueprint visual system (ADR-020)
+- **ADR-020**: the product owner chose the Project Scout blueprint direction for `apps/studio-web` (2026-11-06) — one steel-blue palette, square corners, Barlow type, navigation by job step.
+- **F-67 (closed)**: `tokens.css` is now the only palette. `industry-blueprint.css` → `theme/components.css` with no colour of its own; 19 token names components used but nothing declared are now defined as aliases; every literal colour in `studio.css` replaced by a token. `tokens.test.ts` fails on an undefined `var(--name)` or a literal colour in any other stylesheet (both proven by planted failures). The INFO and MISSING status chips now pass AA (were 2.80:1 and 4.02:1).
+- `plan/use-pens.test.ts` pins the canvas pens' fallback colours to `tokens.css`.
+
 ## [0.1.0-mvp1] — 2026-11-04
 
 ### Phase 0 — Governance & Baseline Infrastructure

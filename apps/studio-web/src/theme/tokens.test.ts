@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
@@ -204,6 +205,77 @@ describe('parseHex refuses rather than guesses', () => {
     'throws ColorError for %o',
     (bad) => {
       expect(() => parseHex(bad)).toThrow(ColorError);
+    },
+  );
+});
+
+/**
+ * **Every token a component uses is one this palette defines (F-67).**
+ *
+ * The contrast pairs above judge the values `tokens.css` declares. Until F-67
+ * nothing judged the names components REFERENCE, and fifteen of them — among
+ * them `--surface`, `--border`, `--ink-muted` and `--focus` — were defined
+ * nowhere, so `var(--surface)` painted the browser default while every pair in
+ * this file stayed green. A palette nobody is using passes a contrast gate
+ * perfectly. These two checks close that: a used name must be declared, and no
+ * stylesheet but `tokens.css` may carry a colour of its own.
+ */
+const SRC_DIR = fileURLToPath(new URL('..', import.meta.url));
+
+function sourceFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...sourceFiles(full));
+    else if (/\.(css|tsx?)$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)) out.push(full);
+  }
+  return out;
+}
+
+const SOURCES = sourceFiles(SRC_DIR).map((path) => ({ path, text: readFileSync(path, 'utf8') }));
+
+describe('every var(--token) in apps/studio-web/src is defined (F-67)', () => {
+  const defined = new Set<string>();
+  for (const { text } of SOURCES) {
+    for (const m of text.matchAll(/(--[a-z][a-z0-9-]*)\s*:/g)) defined.add(m[1] as string);
+    for (const m of text.matchAll(/['"](--[a-z][a-z0-9-]*)['"]\s*:/g)) defined.add(m[1] as string);
+  }
+  const used = new Map<string, string[]>();
+  for (const { path, text } of SOURCES) {
+    for (const m of text.matchAll(/var\(\s*(--[a-z][a-z0-9-]*)/g)) {
+      const name = m[1] as string;
+      used.set(name, [...(used.get(name) ?? []), relative(SRC_DIR, path)]);
+    }
+  }
+
+  it('found uses and definitions, so a pass is not vacuous', () => {
+    expect(SOURCES.length).toBeGreaterThan(20);
+    expect(used.size).toBeGreaterThan(30);
+  });
+
+  it('no component names a token that nothing declares', () => {
+    const missing = [...used].filter(([name]) => !defined.has(name)).map(([name, where]) => `${name} (${[...new Set(where)].join(', ')})`);
+    expect(missing, `undefined tokens paint the browser default:\n${missing.join('\n')}`).toEqual([]);
+  });
+});
+
+describe('no stylesheet but tokens.css declares a colour (F-67)', () => {
+  const sheets = SOURCES.filter(({ path }) => path.endsWith('.css') && !path.endsWith('tokens.css'));
+
+  it('found the other stylesheets', () => {
+    expect(sheets.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it.each(sheets.map(({ path, text }) => ({ file: relative(SRC_DIR, path), text })))(
+    '$file uses tokens, never literal colours',
+    ({ text }) => {
+      const literals = text
+        .split('\n')
+        .map((line, i) => ({ line: line.trim(), n: i + 1 }))
+        // A declaration value, never a selector: `#stage {` is an id, `color: #fff` is a colour.
+        .filter(({ line }) => !line.includes('{') && /:\s*[^;]*?(#[0-9a-fA-F]{3,8}\b|\b(rgb|rgba|hsl|hsla)\()/.test(line))
+        .map(({ line, n }) => `${n}: ${line}`);
+      expect(literals, `colour belongs in tokens.css:\n${literals.join('\n')}`).toEqual([]);
     },
   );
 });

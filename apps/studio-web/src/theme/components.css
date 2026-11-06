@@ -1,0 +1,236 @@
+/*
+ * Studio component classes — the blueprint design system's buttons, frames,
+ * tags, segmented controls, inputs and tables (ADR-020).
+ *
+ * Colour comes ONLY from tokens.css. This file declares no palette and no hex:
+ * it was `industry-blueprint.css`, which carried its own ungated palette and an
+ * `html.dark` theme hook nothing sets (F-67). Both are gone; the component rules
+ * are kept as they were, reading the tokens through their blueprint names.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+/* Base Document & Typography */
+*, *::before, *::after {
+  box-sizing: border-box;
+  border-radius: 0 !important;
+}
+
+body {
+  background-color: var(--color-bg) !important;
+  color: var(--color-text) !important;
+  font-family: var(--font-body) !important;
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: var(--font-heading) !important;
+  font-weight: var(--font-heading-weight) !important;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+
+.font-mono, code, pre {
+  font-family: var(--font-mono) !important;
+}
+
+/* Brand Logo Dual-Theme Switching */
+.brand-logo { display: block; height: 38px; width: auto; }
+.brand-logo-dark { display: none; }
+:root[data-theme='dark'] .brand-logo-dark { display: block; }
+:root[data-theme='dark'] .brand-logo-light { display: none; }
+
+/* Blueprint Wireframe Frame & + Corner Registration Marks */
+.blueprint {
+  position: relative;
+  border: 1px solid var(--color-divider) !important;
+  border-radius: 0 !important;
+  background-color: var(--color-bg);
+}
+.blueprint > .corner {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  pointer-events: none;
+  z-index: 5;
+}
+.blueprint > .corner::before,
+.blueprint > .corner::after {
+  content: "";
+  position: absolute;
+  background: currentColor;
+}
+.blueprint > .corner::before { left: 5px; top: 0; width: 1px; height: 100%; }
+.blueprint > .corner::after  { top: 5px; left: 0; width: 100%; height: 1px; }
+.blueprint > .corner.tl { top: -6px; left: -6px; }
+.blueprint > .corner.tr { top: -6px; right: -6px; }
+.blueprint > .corner.bl { bottom: -6px; left: -6px; }
+.blueprint > .corner.br { bottom: -6px; right: -6px; }
+
+/* Industry Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: var(--font-heading) !important;
+  font-weight: 600 !important;
+  font-size: 14px;
+  line-height: 1.2;
+  color: var(--color-text);
+  background: transparent;
+  border: 1px solid var(--color-divider);
+  padding: 6.8px 12.2px;
+  border-radius: 0 !important;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.blueprint > .corner { display: none; }
+
+.btn-primary {
+  background: var(--color-action) !important;
+  border-color: var(--color-action) !important;
+  color: var(--color-bg) !important;
+}
+.btn-primary:hover {
+  background: var(--color-accent-800) !important;
+  border-color: var(--color-accent-800) !important;
+}
+:root[data-theme='dark'] .btn-primary:hover {
+  background: var(--color-accent-600) !important;
+  border-color: var(--color-accent-600) !important;
+}
+
+.btn-secondary {
+  border-color: var(--color-divider) !important;
+  background: transparent !important;
+  color: var(--color-text) !important;
+}
+.btn-secondary:hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent) !important;
+}
+
+.btn-ghost {
+  border-color: transparent !important;
+  color: var(--color-accent-700) !important;
+  padding-inline: 6px;
+}
+.btn-ghost:hover {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent) !important;
+}
+
+/* Segmented Controls */
+.seg {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--color-divider);
+  border-radius: 0 !important;
+}
+.seg-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: var(--font-heading) !important;
+  font-weight: 600 !important;
+  color: var(--color-neutral-700);
+  background: transparent;
+  border: none;
+}
+.seg-opt + .seg-opt { border-left: 1px solid var(--color-divider); }
+.seg-opt.active, .seg-opt:has(input:checked), .tab-btn.active {
+  background: var(--color-action) !important;
+  color: var(--color-bg) !important;
+  border-color: var(--color-action) !important;
+  box-shadow: none !important;
+}
+.seg-opt:not(.active):hover {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  color: var(--color-text);
+}
+
+/* Tags & Badges */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 0 !important;
+  font-family: var(--font-body);
+}
+.tag-accent {
+  background: var(--color-accent-100);
+  color: var(--color-accent-800);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+.tag-neutral {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-800);
+  border: 1px solid var(--color-divider);
+}
+.tag-outline {
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent-700);
+  background: transparent;
+}
+
+/* Form Inputs */
+.input, input, select, textarea {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--color-text) !important;
+  caret-color: var(--color-accent);
+  background-color: var(--color-surface) !important;
+  border: 1px solid var(--color-divider) !important;
+  border-radius: 0 !important;
+}
+.input:hover, input:hover, select:hover, textarea:hover {
+  border-color: color-mix(in srgb, var(--color-text) 45%, transparent) !important;
+}
+.input:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible,
+button:focus-visible, a:focus-visible, [role="option"]:focus-visible, .seg-opt:focus-visible {
+  outline: 2px solid var(--color-accent) !important;
+  outline-offset: 2px;
+  border-color: var(--color-accent) !important;
+}
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--color-text); }
+thead, th {
+  background-color: var(--color-surface) !important;
+  color: var(--color-neutral-700) !important;
+  font-family: var(--font-heading) !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+th, td {
+  padding: 11px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-divider) !important;
+  vertical-align: top;
+}
+tbody tr:hover {
+  background-color: var(--color-accent-100) !important;
+}
+
+/* Scrollbar & Selection */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg); }
+::-webkit-scrollbar-thumb { background: var(--color-neutral-300); border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-neutral-400); }
+::selection { background: var(--color-accent-200); color: var(--color-text); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hot-badge, .selected-map-pin { animation: none !important; }
+}

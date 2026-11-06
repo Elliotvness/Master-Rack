@@ -38,6 +38,7 @@ date, `docs/adr/` is the only place an ADR is edited, superseded or added.**
 | [017](ADR-017-spatial-index.md) | Spatial lookup behind an interface | Accepted · 2026-09-05 |
 | [018](ADR-018-front-end-state.md) | Front-end state and the command bus | Accepted · 2026-09-05 |
 | [019](ADR-019-confidence-badges.md) | Confidence badges are display-list items | Accepted · 2026-09-05 |
+| [020](ADR-020-studio-visual-system-and-job-steps.md) | Studio visual system — blueprint palette, navigation by job step | Accepted · 2026-11-06 |
 
 ## Two records are overtaken, and saying so is the point
 

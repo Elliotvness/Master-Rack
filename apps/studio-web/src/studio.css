@@ -25,11 +25,11 @@ body {
   background: var(--paper);
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--rule);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--ink-3);
 }
 
 .studio {
@@ -321,7 +321,7 @@ body {
   border-radius: 4px;
   padding: 6px 9px;
   text-align: right;
-  box-shadow: var(--shadow-sm, 0 1px 2px rgba(20, 24, 31, 0.06));
+  box-shadow: var(--shadow-sm);
   pointer-events: auto;
 }
 
@@ -362,7 +362,7 @@ body {
   background: color-mix(in srgb, var(--surface) 93%, transparent);
   color: var(--ink-2, var(--ink));
   cursor: pointer;
-  box-shadow: var(--shadow-sm, 0 1px 2px rgba(20, 24, 31, 0.06));
+  box-shadow: var(--shadow-sm);
 }
 
 .hud .plan-fit:hover,
@@ -589,7 +589,7 @@ body {
   border: 1px solid var(--rule);
   border-radius: 6px;
   padding: 7px 9px;
-  box-shadow: 0 6px 24px rgba(20, 24, 31, 0.22);
+  box-shadow: var(--shadow-lg);
   z-index: 25;
 }
 
@@ -1378,7 +1378,7 @@ body {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(14, 18, 24, 0.45);
+  background: var(--scrim);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1906,7 +1906,7 @@ body {
   border: 2px solid var(--accent);
   border-radius: 8px;
   padding: 1.25rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .demo-beat-5-header {
@@ -1930,8 +1930,8 @@ body {
 }
 
 .demo-badge {
-  background: var(--accent-subtle, rgba(230, 81, 0, 0.12));
-  color: var(--accent, #e65100);
+  background: var(--navy-soft);
+  color: var(--navy);
   font-size: 0.72rem;
   font-weight: 700;
   padding: 0.2rem 0.5rem;
@@ -1977,9 +1977,9 @@ body {
 }
 
 .refusal-box {
-  background: #fff3e0;
-  border: 1px solid #ffb74d;
-  border-left: 4px solid var(--refusal, #c62828);
+  background: var(--warn-bg);
+  border: 1px solid var(--warn);
+  border-left: 4px solid var(--refusal);
   border-radius: 4px;
   padding: 0.85rem;
 }
@@ -1993,7 +1993,7 @@ body {
 
 .refusal-heading {
   font-size: 0.88rem;
-  color: #c62828;
+  color: var(--block);
 }
 
 .refusal-text {
@@ -2010,7 +2010,7 @@ body {
   gap: 0.4rem;
   margin-top: 0.6rem;
   padding-top: 0.6rem;
-  border-top: 1px dashed rgba(0, 0, 0, 0.15);
+  border-top: 1px dashed var(--rule);
 }
 
 .bracket-prompt {
@@ -2026,9 +2026,9 @@ body {
 }
 
 .accepted-box {
-  background: #e8f5e9;
-  border: 1px solid #a5d6a7;
-  border-left: 4px solid #2e7d32;
+  background: var(--pass-bg);
+  border: 1px solid var(--pass);
+  border-left: 4px solid var(--pass);
   border-radius: 4px;
   padding: 0.85rem;
 }
@@ -2038,7 +2038,7 @@ body {
   align-items: center;
   gap: 0.6rem;
   margin-bottom: 0.4rem;
-  color: #2e7d32;
+  color: var(--pass);
   font-size: 0.88rem;
 }
 
@@ -2120,7 +2120,7 @@ body {
 }
 
 .option-summary-card {
-  background: var(--surface-alt, #f7f9fa);
+  background: var(--surface-alt);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 1.25rem;

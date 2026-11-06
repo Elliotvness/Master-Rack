@@ -3017,3 +3017,43 @@ not written here.
 session's own draft. **That is the gate failing closed on an ambiguous page and it is the correct
 behaviour** — the remedy taken was to write coverage figures with `·` separators, not to loosen the
 pattern that guards the project's answer.
+
+## F-67 — a contrast gate over a palette the screens were not using *(raised and **CLOSED** 2026-11-06, ADR-020 redesign)*
+
+**What was wrong.** `tokens.test.ts` checked every declared contrast pair in both themes, and every
+pair was green. Meanwhile `apps/studio-web` painted from three places: the gated `tokens.css`; a
+second stylesheet, `industry-blueprint.css`, declaring an ungated `--color-*` palette whose dark
+theme keyed on `html.dark` although `theme.ts` stamps `data-theme`; and **nineteen token names that
+nothing declared** — `--surface`, `--border`, `--ink-muted`, `--focus`, `--accent`, `--refusal`,
+`--chrome-ink` and twelve more. Each `var()` of an undefined name falls back to the browser default
+or to an inline literal, so the screens rendered grey-on-grey with Material orange, red and green
+literals (`#e65100`, `#c62828`, `#2e7d32`) that no check could see. Seen on the running app at
+`1f4762c`, 2026-11-06. `studio.css` opened with *"nothing here declares a literal colour — a hex in
+this file would be a value the contrast gate never sees"* and carried nineteen.
+
+**The house defect, exactly.** A gate over values, and nothing over whether the values are the ones
+in use. A palette nobody references passes a contrast suite perfectly.
+
+**Fixed (ADR-020).** One palette in `tokens.css`; the old names kept as aliases (`var()` only, never
+a colour); `industry-blueprint.css` reduced to `theme/components.css` with no palette; every literal
+in `studio.css` replaced by a token. Two checks added to `tokens.test.ts`: every `var(--name)` in
+`apps/studio-web/src` must be declared somewhere in it, and no `.css` but `tokens.css` may carry a
+`#hex`, `rgb()` or `hsl()` value.
+
+**Proven to fire.** The undefined-name check went red on first run on four names the manual audit
+had missed (`--chrome-ink`, `--chrome-ink-muted`, `--block-ink`, `--color-neutral-800`). Then,
+planted and reverted: `color: var(--planted-undefined)` in `components.css` →
+`× no component names a token that nothing declares … --planted-undefined (theme/components.css)`;
+`color: #123456;` in `studio.css` → `× 'studio.css' uses tokens, never literal colours … 2506: color:
+#123456;`. Both green again after revert (105 passed).
+
+**Also found and pinned.** `plan/use-pens.ts` falls back to literal colours before the stylesheet
+applies — a second copy of the light palette. The first draft of the new fallbacks disagreed with
+`tokens.css` on three pens; `plan/use-pens.test.ts` now pins every fallback to `:root` and went red
+on exactly those three before they were corrected.
+
+**Blind spots, stated.** The check reads source text: a token name built at run time
+(`` `var(--${x})` ``) is invisible to it, as is colour set from TypeScript through a style object's
+literal. Inline `style={{ color: '#…' }}` in `.tsx` is not scanned — `use-pens.ts` is the only `.ts`
+file with literal colours today, and it is pinned separately.
+

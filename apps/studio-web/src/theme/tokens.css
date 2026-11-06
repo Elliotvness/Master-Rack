@@ -1,158 +1,234 @@
 /*
- * Studio design tokens — lifted verbatim from the published artifact.
+ * Studio design tokens — the ONE palette, and the only file that defines colour.
  *
- * Chrome navy #1F3864 is the reference drawing set's title-block banner (PDF
- * fill 0.121569 0.219608 0.392157). The canvas pens are real plot-table
- * colours. Neutrals are biased cool toward the navy.
+ * Source: the "MCS Project Scout" blueprint design system, adopted for the
+ * studio by the product owner on 2026-11-06 (ADR-020). Steel-blue accent,
+ * neutral greys, Barlow / Barlow Condensed / JetBrains Mono, square corners.
  *
- * **These values are copied, not chosen.** The artifact is the design of record
- * and matching it exactly is the requirement; where a pair falls below WCAG AA
- * that is recorded in `pairs.ts` with its measured ratio rather than corrected
- * here, because silently altering a brand palette is not this file's decision
- * to make.
+ * **What changed and why it is recorded.** Until ADR-020 this file held the
+ * published artifact's navy palette as "copied, not chosen", while a second
+ * stylesheet (`industry-blueprint.css`) declared a parallel `--color-*` palette
+ * that no contrast check read, keyed its dark theme on `html.dark` although
+ * `theme.ts` stamps `data-theme`, and left fifteen token names that components
+ * used defined nowhere at all (F-67). The palette below replaces both. Every
+ * other stylesheet REFERENCES these names; `tokens.test.ts` now fails if any
+ * custom-property reference in `apps/studio-web/src` names a token this file
+ * does not define.
  *
- * Three-state theme: an explicit choice stamps `data-theme` on the root, and
- * the unset default follows `prefers-color-scheme`. Every token is defined on
- * bare `:root` first, so no colour has its only definition inside a media
- * query.
+ * Three-state theme, unchanged: an explicit choice stamps `data-theme` on the
+ * root and the unset default follows `prefers-color-scheme`. Every colour token
+ * is defined on bare `:root` first, so none has its only definition inside a
+ * media query.
  */
 
 :root {
   color-scheme: light;
 
-  --paper: #fbfaf8;
-  --panel: #ffffff;
-  --sunk: #f2f1ee;
+  --paper: #f2f2f3;
+  --panel: #f8f8f9;
+  --sunk: #e9e9ea;
   --raise: #ffffff;
 
-  --ink: #14181f;
-  --ink-2: #4a5261;
-  --ink-3: #7c8494;
+  --ink: #1d1f20;
+  --ink-2: #5d5d60;
+  --ink-3: #7a7a7d;
 
-  --rule: #deddd8;
-  --rule-2: #eae9e5;
+  --rule: #d0d1d4;
+  --rule-2: #e1e2e4;
 
-  --navy: #1f3864;
-  --navy-2: #35548c;
-  --navy-soft: #e8edf6;
+  --navy: #416180;
+  --navy-2: #5980a6;
+  --navy-soft: #eef6ff;
 
   --pass: #2f6b4f;
-  --warn: #a9670a;
+  --warn: #8a5300;
   --block: #a93226;
-  --na: #8a9099;
+  --na: #5d5d60;
 
   --pass-bg: #e7f0ea;
   --warn-bg: #fbf0dc;
   --block-bg: #f8e7e4;
-  --na-bg: #efefef;
+  --na-bg: #e7e7ea;
 
-  --sel: #1f3864;
-  --sel-bg: rgba(31, 56, 100, 0.1);
+  --sel: #416180;
+  --sel-bg: rgba(65, 97, 128, 0.12);
 
-  --pen-upright: #1f3864;
-  --pen-beam: #2f6b4f;
-  --pen-pallet: #9aa3b2;
+  --pen-upright: #2c455d;
+  --pen-beam: #416180;
+  --pen-pallet: #9aa9bb;
   --pen-anno: #a93226;
-  --pen-dim: #7c8494;
-  --pen-grid: #e6e5e0;
+  --pen-dim: #5d5d60;
+  --pen-grid: #e1e2e4;
   --pen-flue: #a9670a;
   --pen-ref: #7a5ea8;
-  --pen-bldg: #4a5261;
+  --pen-bldg: #424244;
   --pen-lock: #a9670a;
 
-  --shadow: 0 1px 2px rgba(20, 24, 31, 0.06), 0 4px 14px rgba(20, 24, 31, 0.05);
+  --shadow: 0 1px 2px rgba(43, 43, 45, 0.14), 0 3px 10px rgba(43, 43, 45, 0.1);
+  --scrim: rgba(29, 31, 32, 0.45);
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --paper: #0e1218;
-  --panel: #161b23;
-  --sunk: #11161d;
-  --raise: #1b212b;
+  --paper: #1d1f20;
+  --panel: #242628;
+  --sunk: #18191a;
+  --raise: #2b2b2d;
 
-  --ink: #e6e8ec;
-  --ink-2: #a2aab8;
-  --ink-3: #737c8b;
+  --ink: #f2f2f3;
+  --ink-2: #d4d4d7;
+  --ink-3: #98989b;
 
-  --rule: #262d38;
-  --rule-2: #1e242d;
+  --rule: #3a3c3f;
+  --rule-2: #2c2e30;
 
-  --navy: #8fb0e8;
-  --navy-2: #6d93d4;
-  --navy-soft: #1a2436;
+  --navy: #b5d9fd;
+  --navy-2: #749dc4;
+  --navy-soft: #1d2d3d;
 
   --pass: #63b287;
   --warn: #dfa33f;
   --block: #e07868;
-  --na: #7d8593;
+  --na: #b7b7ba;
 
   --pass-bg: #14261c;
   --warn-bg: #2a2010;
   --block-bg: #2c1714;
-  --na-bg: #1c2028;
+  --na-bg: #2b2b2d;
 
-  --sel: #8fb0e8;
-  --sel-bg: rgba(143, 176, 232, 0.14);
+  --sel: #b5d9fd;
+  --sel-bg: rgba(181, 217, 253, 0.14);
 
-  --pen-upright: #8fb0e8;
-  --pen-beam: #63b287;
+  --pen-upright: #b5d9fd;
+  --pen-beam: #749dc4;
   --pen-pallet: #5c6474;
   --pen-anno: #e07868;
-  --pen-dim: #737c8b;
-  --pen-grid: #1c222b;
+  --pen-dim: #98989b;
+  --pen-grid: #2a2c2f;
   --pen-flue: #dfa33f;
-  --pen-ref: #7a5ea8;
-  --pen-bldg: #a2aab8;
+  --pen-ref: #9a7bd6;
+  --pen-bldg: #b7b7ba;
   --pen-lock: #dfa33f;
 
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.45);
+  --scrim: rgba(0, 0, 0, 0.6);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --paper: #0e1218;
-    --panel: #161b23;
-    --sunk: #11161d;
-    --raise: #1b212b;
+    --paper: #1d1f20;
+    --panel: #242628;
+    --sunk: #18191a;
+    --raise: #2b2b2d;
 
-    --ink: #e6e8ec;
-    --ink-2: #a2aab8;
-    --ink-3: #737c8b;
+    --ink: #f2f2f3;
+    --ink-2: #d4d4d7;
+    --ink-3: #98989b;
 
-    --rule: #262d38;
-    --rule-2: #1e242d;
+    --rule: #3a3c3f;
+    --rule-2: #2c2e30;
 
-    --navy: #8fb0e8;
-    --navy-2: #6d93d4;
-    --navy-soft: #1a2436;
+    --navy: #b5d9fd;
+    --navy-2: #749dc4;
+    --navy-soft: #1d2d3d;
 
     --pass: #63b287;
     --warn: #dfa33f;
     --block: #e07868;
-    --na: #7d8593;
+    --na: #b7b7ba;
 
     --pass-bg: #14261c;
     --warn-bg: #2a2010;
     --block-bg: #2c1714;
-    --na-bg: #1c2028;
+    --na-bg: #2b2b2d;
 
-    --sel: #8fb0e8;
-    --sel-bg: rgba(143, 176, 232, 0.14);
+    --sel: #b5d9fd;
+    --sel-bg: rgba(181, 217, 253, 0.14);
 
-    --pen-upright: #8fb0e8;
-    --pen-beam: #63b287;
+    --pen-upright: #b5d9fd;
+    --pen-beam: #749dc4;
     --pen-pallet: #5c6474;
     --pen-anno: #e07868;
-    --pen-dim: #737c8b;
-    --pen-grid: #1c222b;
+    --pen-dim: #98989b;
+    --pen-grid: #2a2c2f;
     --pen-flue: #dfa33f;
-    --pen-ref: #7a5ea8;
-    --pen-bldg: #a2aab8;
+    --pen-ref: #9a7bd6;
+    --pen-bldg: #b7b7ba;
     --pen-lock: #dfa33f;
 
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.35);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 3px 10px rgba(0, 0, 0, 0.45);
+  --scrim: rgba(0, 0, 0, 0.6);
   }
+}
+
+/*
+ * Theme-independent tokens and ALIASES.
+ *
+ * Declared on `html`, the same element `data-theme` is stamped on, so every
+ * alias resolves against whichever palette is active. An alias holds a var()
+ * and never a colour: a hex here would be a second palette, which is exactly
+ * the F-67 defect this file closes.
+ */
+html {
+  --font-heading: 'Barlow Condensed', system-ui, sans-serif;
+  --font-heading-weight: 600;
+  --font-body: 'Barlow', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-condensed: var(--font-heading);
+
+  --space-1: 3.4px;
+  --space-2: 6.8px;
+  --space-3: 10.2px;
+  --space-4: 13.6px;
+  --space-6: 20.4px;
+  --space-8: 27.2px;
+
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+
+  --shadow-sm: var(--shadow);
+  --shadow-lg: var(--shadow);
+
+  /* The blueprint system's names, kept so its component rules read naturally. */
+  --color-bg: var(--paper);
+  --color-surface: var(--sunk);
+  --color-text: var(--ink);
+  --color-divider: var(--rule);
+  --color-accent: var(--navy-2);
+  --color-action: var(--navy);
+  --color-neutral-100: var(--panel);
+  --color-neutral-200: var(--rule-2);
+  --color-neutral-300: var(--rule);
+  --color-neutral-400: var(--ink-3);
+  --color-neutral-700: var(--ink-2);
+  --color-accent-100: var(--navy-soft);
+  --color-accent-200: var(--sel-bg);
+  --color-accent-300: var(--navy-2);
+  --color-accent-600: var(--navy-2);
+  --color-accent-700: var(--navy);
+  --color-accent-800: var(--navy);
+
+  /* Names components used that NOTHING defined before F-67 (19, found by the gate), now pointed at the palette. */
+  --ink-muted: var(--ink-2);
+  --surface: var(--panel);
+  --surface-raised: var(--raise);
+  --surface-alt: var(--sunk);
+  --border: var(--rule);
+  --border-control: var(--ink-3);
+  --accent: var(--navy);
+  --focus: var(--sel);
+  --pass-ink: var(--pass);
+  --warn-ink: var(--warn);
+  --status-ok: var(--pass);
+  --status-warning: var(--warn);
+  --status-danger: var(--block);
+  --refusal: var(--block);
+  --block-ink: var(--block);
+  --chrome-ink: var(--ink);
+  --chrome-ink-muted: var(--ink-2);
+  --color-neutral-800: var(--ink);
 }

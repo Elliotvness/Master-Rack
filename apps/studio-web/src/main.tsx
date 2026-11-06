@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router';
 
 import { App } from './app.js';
 import './theme/tokens.css';
-import './theme/industry-blueprint.css';
+import './theme/components.css';
 import './studio.css';
 
 const host = document.getElementById('root');

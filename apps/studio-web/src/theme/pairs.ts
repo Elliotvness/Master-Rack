@@ -43,6 +43,24 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = Object.freeze([
   { foreground: '--block', background: '--block-bg', minimum: AA_TEXT, why: 'a BLOCKING status chip' },
   { foreground: '--warn', background: '--panel', minimum: AA_TEXT, why: 'warning text on a panel' },
   {
+    foreground: '--warn',
+    background: '--warn-bg',
+    minimum: AA_TEXT,
+    why: 'the MISSING / ENGINEERING status chip — accepted at 4.02:1 until ADR-020 fixed it',
+  },
+  {
+    foreground: '--na',
+    background: '--na-bg',
+    minimum: AA_TEXT,
+    why: 'the INFO / WAIVED status chip — accepted at 2.80:1 until ADR-020 fixed it',
+  },
+  {
+    foreground: '--paper',
+    background: '--navy',
+    minimum: AA_TEXT,
+    why: 'the label on a primary button and the active job step',
+  },
+  {
     foreground: '--sel',
     background: '--panel',
     minimum: AA_NON_TEXT,
@@ -59,11 +77,10 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = Object.freeze([
  * inherited. An exemption nobody re-checks is a hole with a docstring, which is
  * this repository's own recurring defect.
  *
- * **Why they are accepted at all:** the palette is lifted verbatim from the
- * published artifact, which is the design of record. Silently altering a brand
- * colour to satisfy a gate is not a decision this file gets to take alone, and
- * neither is weakening the gate. Recording the measurement is the honest third
- * option, and it leaves the choice visible to whoever wants to make it.
+ * **Why one is accepted at all:** ADR-020 replaced the artifact's palette with
+ * the blueprint system and fixed the two status chips that were below AA; the
+ * one pair left is a placeholder tint whose job is to look lighter than text.
+ * Recording the measurement keeps that choice visible rather than inherited.
  *
  * `--rule` is deliberately absent from BOTH lists: it separates regions and is
  * decorative. WCAG 1.4.11 governs components and meaningful graphics, not panel
@@ -84,37 +101,17 @@ export const ACCEPTED_BELOW_AA: readonly AcceptedBelowAA[] = Object.freeze([
     foreground: '--ink-3',
     background: '--panel',
     minimum: AA_TEXT,
-    measured: { light: 3.76, dark: 4.1 },
+    measured: { light: 4.03, dark: 5.28 },
     why:
-      'The artifact uses --ink-3 for small uppercase labels — HUD chip keys at 9px, section ' +
-      'headings, hints. It is below AA at any size and is carried verbatim from the design of ' +
-      'record. Raising it is a palette change and belongs to whoever owns the palette.',
+      'Placeholder text and disabled hints only — never a label, a value or a status. ADR-020 ' +
+      'kept it one step lighter than --ink-2 so an empty field reads as empty; it passes in dark ' +
+      'and is 0.47 short in light. Anything a user must read uses --ink-2 (6.18:1).',
   },
   {
     foreground: '--ink-3',
     background: '--paper',
     minimum: AA_TEXT,
-    measured: { light: 3.6, dark: 4.46 },
+    measured: { light: 3.82, dark: 5.75 },
     why: 'The same token against the page rather than a panel.',
-  },
-  {
-    foreground: '--na',
-    background: '--na-bg',
-    minimum: AA_TEXT,
-    measured: { light: 2.8, dark: 4.39 },
-    why:
-      'The INFO / WAIVED status chip. At 2.80:1 in light this is the WORST pair in the palette ' +
-      'and the one most worth revisiting — a grey-on-grey chip is hard to read for anyone, not ' +
-      'only at AA. It is carried verbatim because the artifact is the design of record, and it ' +
-      'is recorded here rather than quietly corrected so the choice stays visible.',
-  },
-  {
-    foreground: '--warn',
-    background: '--warn-bg',
-    minimum: AA_TEXT,
-    measured: { light: 4.02, dark: 7.2 },
-    why:
-      'The screening banner and the MISSING / ENGINEERING status chips. Light theme is 4.02:1 ' +
-      'against a 4.5 minimum — close, and short. Dark clears it comfortably.',
   },
 ]);
