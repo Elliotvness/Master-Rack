@@ -217,371 +217,6 @@ export default function PlanView(): React.JSX.Element {
         change can be undone, but nothing here is saved yet.
       </p>
 
-      <div className="ai-toolbar" role="toolbar" aria-label="AI intake and command tools">
-        <button
-          id="open-intake-btn"
-          type="button"
-          className="pf-btn"
-          onClick={openSpecSheetIntake}
-        >
-          Read a spec sheet
-        </button>
-        <button
-          id="open-cmdbar-btn"
-          type="button"
-          className="pf-btn"
-          onClick={() => setCmdBarOpen((prev) => !prev)}
-        >
-          Commands <kbd>Ctrl+K</kbd>
-        </button>
-        <button
-          id="tool-select-btn"
-          type="button"
-          className="pf-btn"
-          aria-pressed={toolMode === 'select'}
-          onClick={() => setToolMode('select')}
-        >
-          Select / Pan
-        </button>
-        <button
-          id="tool-wall-btn"
-          type="button"
-          className="pf-btn"
-          aria-pressed={toolMode === 'wall'}
-          onClick={() => setToolMode((prev) => (prev === 'wall' ? 'select' : 'wall'))}
-        >
-          Draw Wall (Ortho)
-        </button>
-        <button
-          id="tool-column-btn"
-          type="button"
-          className="pf-btn"
-          aria-pressed={toolMode === 'column'}
-          onClick={() => setToolMode((prev) => (prev === 'column' ? 'select' : 'column'))}
-        >
-          Stamp Column
-        </button>
-        <button
-          id="tool-calibrate-btn"
-          type="button"
-          className="pf-btn"
-          aria-pressed={toolMode === 'calibrate'}
-          onClick={() => setToolMode((prev) => (prev === 'calibrate' ? 'select' : 'calibrate'))}
-        >
-          2-Pt Scale Calibrate
-        </button>
-        <button
-          id="toggle-perimeter-wall-btn"
-          type="button"
-          className="pf-btn"
-          aria-pressed={shellOverlay.showPerimeterWalls}
-          onClick={() =>
-            setShellOverlay((prev) => ({
-              ...prev,
-              showPerimeterWalls: !prev.showPerimeterWalls,
-            }))
-          }
-        >
-          {shellOverlay.showPerimeterWalls ? 'Perimeter Wall: On' : 'Perimeter Wall: Off'}
-        </button>
-        <label htmlFor="column-grid-select" className="visually-hidden">
-          Column Grid Spacing
-        </label>
-        <select
-          id="column-grid-select"
-          aria-label="Column Grid Spacing"
-          className="pf-input"
-          style={{ width: 'auto' }}
-          value={shellOverlay.showColumns ? String(shellOverlay.columnSpacingFt) : 'none'}
-          onChange={(e) => {
-            const val = e.target.value;
-            setShellOverlay((prev) => ({
-              ...prev,
-              showColumns: val !== 'none',
-              columnSpacingFt: val === 'none' ? prev.columnSpacingFt : (Number(val) as 30 | 40 | 50),
-            }));
-          }}
-        >
-          <option value="none">Columns: Off</option>
-          <option value="30">Columns: 30 ft Grid</option>
-          <option value="40">Columns: 40 ft Grid</option>
-          <option value="50">Columns: 50 ft Grid</option>
-        </select>
-        {(shellOverlay.customWalls.length > 0 || shellOverlay.customColumns.length > 0) && (
-          <button
-            id="clear-shell-overlays-btn"
-            type="button"
-            className="pf-btn"
-            onClick={() =>
-              setShellOverlay((prev) => ({
-                ...prev,
-                customWalls: [],
-                customColumns: [],
-              }))
-            }
-          >
-            Clear Stamped ({shellOverlay.customWalls.length + shellOverlay.customColumns.length})
-          </button>
-        )}
-        <button
-          id="open-handoff-btn"
-          type="button"
-          className="pf-btn"
-          onClick={() => {
-            setHandoffText(exportProjectJson());
-            setHandoffStatus(null);
-            setHandoffOpen((prev) => !prev);
-          }}
-        >
-          Export / Import JSON
-        </button>
-      </div>
-
-      {handoffOpen && (
-        <section
-          id="handoff-panel"
-          className="cmdbar-panel"
-          aria-label="Project JSON Export and Import"
-        >
-          <h2>Project JSON Export / Client Handoff Import</h2>
-          <p>
-            Export the current studio layout JSON or paste a{' '}
-            <code>ProjectHandoffPackage</code> / <code>StudioDocument</code> JSON payload to load it.
-          </p>
-          <div className="pf-row">
-            <label htmlFor="handoff-json-textarea" className="pf-label">
-              JSON Payload
-            </label>
-            <textarea
-              id="handoff-json-textarea"
-              className="pf-input"
-              rows={5}
-              value={handoffText}
-              onChange={(e) => setHandoffText(e.target.value)}
-            />
-          </div>
-          <div className="intake-actions">
-            <button
-              id="refresh-export-json-btn"
-              type="button"
-              className="pf-btn"
-              onClick={() => {
-                const json = exportProjectJson();
-                setHandoffText(json);
-                setHandoffStatus('Exported current layout JSON to editor.');
-              }}
-            >
-              Refresh Export JSON
-            </button>
-            <button
-              id="apply-import-json-btn"
-              type="button"
-              className="pf-btn"
-              onClick={() => {
-                const res = importProjectJson(handoffText);
-                setHandoffStatus(res.message);
-              }}
-            >
-              Import JSON Payload
-            </button>
-            <button
-              id="close-handoff-btn"
-              type="button"
-              className="pf-btn"
-              onClick={() => setHandoffOpen(false)}
-            >
-              Close
-            </button>
-          </div>
-          {handoffStatus !== null && (
-            <p id="handoff-status" role="status">
-              {handoffStatus}
-            </p>
-          )}
-        </section>
-      )}
-
-      {intakeOpen && (
-        <section
-          id="intake-panel"
-          className="intake-panel"
-          aria-label="Spec-Sheet Human Confirmation Table"
-        >
-          <h2>Confirm what was read from the spec sheet</h2>
-          <p>
-            Extracted values are <b>never</b> auto-filled. Check the rows you confirm to commit
-            them as reversible commands with source page provenance.
-          </p>
-          <div className="pf-row">
-            <label htmlFor="intake-doc-kind" className="pf-label">
-              Document Kind
-            </label>
-            <select
-              id="intake-doc-kind"
-              className="pf-input"
-              value={intakeDocKind}
-              onChange={(e) => setIntakeDocKind(e.target.value as IntakeDocumentKind)}
-            >
-              <option value="FORKLIFT_SPEC_SHEET">Forklift Spec Sheet</option>
-              <option value="SITE_SURVEY_CHECKLIST">Site Survey Checklist</option>
-              <option value="RACK_SUBMITTAL">Rack Submittal</option>
-            </select>
-            <label htmlFor="intake-file-name" className="pf-label">
-              Source File
-            </label>
-            <input
-              id="intake-file-name"
-              type="text"
-              className="pf-input"
-              value={intakeFileName}
-              onChange={(e) => setIntakeFileName(e.target.value)}
-            />
-            <input
-              id="intake-base64"
-              type="hidden"
-              value={intakeBase64}
-              onChange={(e) => setIntakeBase64(e.target.value)}
-            />
-            <button
-              id="extract-intake-api-btn"
-              type="button"
-              className="pf-btn"
-              onClick={() => void extractViaIntakeEndpoint()}
-            >
-              Extract Dimensions
-            </button>
-          </div>
-          <table id="intake-confirm-table" aria-label="Intake confirmation rows">
-            <thead>
-              <tr>
-                <th scope="col">Field</th>
-                <th scope="col">Current Value</th>
-                <th scope="col">Extracted Value</th>
-                <th scope="col">Source Page / Confidence</th>
-                <th scope="col">Accept</th>
-              </tr>
-            </thead>
-            <tbody>
-              {intakeRows.map((row) => (
-                <tr key={row.id} className={row.lowConfidence ? 'intake-low-confidence' : undefined}>
-                  <td>{row.label}</td>
-                  <td>{row.currentDisplayValue}</td>
-                  <td>{row.extractedDisplayValue}</td>
-                  <td>
-                    {row.sourceCitation}
-                    {row.lowConfidence && <b> (low confidence, verify against source)</b>}
-                  </td>
-                  <td>
-                    <input
-                      type="checkbox"
-                      data-intake-row={row.id}
-                      aria-label={`Accept ${row.label}`}
-                      checked={row.accepted}
-                      onChange={() =>
-                        setIntakeRows((prev) =>
-                          toggleIntakeRowAcceptance(prev, row.id),
-                        )
-                      }
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="intake-actions">
-            <button
-              id="apply-intake-btn"
-              type="button"
-              className="pf-btn"
-              onClick={applyCheckedIntakeRows}
-            >
-              Apply Checked Rows
-            </button>
-            <button
-              id="close-intake-btn"
-              type="button"
-              className="pf-btn"
-              onClick={() => setIntakeOpen(false)}
-            >
-              Close Intake
-            </button>
-          </div>
-          {intakeStatus !== null && (
-            <p id="intake-status" role="status">
-              {intakeStatus}
-            </p>
-          )}
-        </section>
-      )}
-
-      {cmdBarOpen && (
-        <section
-          id="cmdbar-panel"
-          className="cmdbar-panel"
-          aria-label="Deterministic Command Bar"
-        >
-          <h2>Commands</h2>
-          <div className="pf-row">
-            <label htmlFor="cmdbar-input" className="pf-label">
-              Instruction
-            </label>
-            <input
-              id="cmdbar-input"
-              type="text"
-              className="pf-input"
-              value={cmdBarInput}
-              onChange={(e) => setCmdBarInput(e.target.value)}
-            />
-            <button
-              id="cmdbar-preview-btn"
-              type="button"
-              className="pf-btn"
-              onClick={buildCommandPreview}
-            >
-              Preview Commands
-            </button>
-          </div>
-          {cmdPreview !== null && (
-            <div id="cmdbar-preview-card" className="cmdbar-preview-card">
-              <h3>Command Preview Card</h3>
-              <ul>
-                {cmdPreview.descriptions.map((desc, idx) => (
-                  <li key={idx}>{desc}</li>
-                ))}
-              </ul>
-              <p>
-                Positions: {cmdPreview.beforePositions} → {cmdPreview.afterPositions} (Δ{' '}
-                {cmdPreview.deltaPositions}) · Bays: {cmdPreview.beforeBays} →{' '}
-                {cmdPreview.afterBays} · Narrowest Clear Aisle:{' '}
-                {cmdPreview.beforeNarrowestAisleIn ?? '—'}&quot; →{' '}
-                {cmdPreview.afterNarrowestAisleIn ?? '—'}&quot;
-              </p>
-              {cmdPreview.refused.length > 0 && (
-                <ul id="cmdbar-refused" aria-label="Refused commands">
-                  {cmdPreview.refused.map((r, idx) => (
-                    <li key={idx}>{r}</li>
-                  ))}
-                </ul>
-              )}
-              <button
-                id="cmdbar-execute-btn"
-                type="button"
-                className="pf-btn"
-                disabled={cmdPreview.refused.length > 0}
-                onClick={executePreviewedCommands}
-              >
-                Execute
-              </button>
-            </div>
-          )}
-          {cmdStatus !== null && (
-            <p id="cmdbar-status" role="status">
-              {cmdStatus}
-            </p>
-          )}
-        </section>
-      )}
-
       <div className="plan-layout">
         <ParamsPanel
           document={session.document}
@@ -589,17 +224,425 @@ export default function PlanView(): React.JSX.Element {
           onCommand={runCommand}
           onLoadPreset={loadPreset}
         />
-        <PlanCanvas
-          document={session.document}
-          plan={plan}
-          findingCounts={findingCounts}
-          toolMode={toolMode}
-          onToolModeChange={setToolMode}
-          shellOverlay={shellOverlay}
-          onShellOverlayChange={setShellOverlay}
-          onCommand={runCommand}
-          onUndo={onUndo}
-        />
+        <div className="plan-canvas-column">
+          <PlanCanvas
+            document={session.document}
+            plan={plan}
+            findingCounts={findingCounts}
+            toolMode={toolMode}
+            onToolModeChange={setToolMode}
+            shellOverlay={shellOverlay}
+            onShellOverlayChange={setShellOverlay}
+            onCommand={runCommand}
+            onUndo={onUndo}
+          />
+
+          <div className="plan-bottom-dock" role="region" aria-label="Plan bottom command dock">
+            {handoffOpen && (
+              <section
+                id="handoff-panel"
+                className="cmdbar-panel plan-dock-popover"
+                aria-label="Project JSON Export and Import"
+              >
+                <div className="plan-dock-popover-head">
+                  <h2>Project JSON Export / Client Handoff Import</h2>
+                  <button
+                    type="button"
+                    className="pf-btn pf-btn-small"
+                    onClick={() => setHandoffOpen(false)}
+                    aria-label="Close JSON panel"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p>
+                  Export the current studio layout JSON or paste a{' '}
+                  <code>ProjectHandoffPackage</code> / <code>StudioDocument</code> JSON payload to
+                  load it.
+                </p>
+                <div className="pf-row">
+                  <label htmlFor="handoff-json-textarea" className="pf-label">
+                    JSON Payload
+                  </label>
+                  <textarea
+                    id="handoff-json-textarea"
+                    className="pf-input"
+                    rows={4}
+                    value={handoffText}
+                    onChange={(e) => setHandoffText(e.target.value)}
+                  />
+                </div>
+                <div className="intake-actions">
+                  <button
+                    id="refresh-export-json-btn"
+                    type="button"
+                    className="pf-btn"
+                    onClick={() => {
+                      const json = exportProjectJson();
+                      setHandoffText(json);
+                      setHandoffStatus('Exported current layout JSON to editor.');
+                    }}
+                  >
+                    Refresh Export JSON
+                  </button>
+                  <button
+                    id="apply-import-json-btn"
+                    type="button"
+                    className="pf-btn"
+                    onClick={() => {
+                      const res = importProjectJson(handoffText);
+                      setHandoffStatus(res.message);
+                    }}
+                  >
+                    Import JSON Payload
+                  </button>
+                  <button
+                    id="close-handoff-btn"
+                    type="button"
+                    className="pf-btn"
+                    onClick={() => setHandoffOpen(false)}
+                  >
+                    Close
+                  </button>
+                </div>
+                {handoffStatus !== null && (
+                  <p id="handoff-status" role="status">
+                    {handoffStatus}
+                  </p>
+                )}
+              </section>
+            )}
+
+            {intakeOpen && (
+              <section
+                id="intake-panel"
+                className="intake-panel plan-dock-popover"
+                aria-label="Spec-Sheet Human Confirmation Table"
+              >
+                <div className="plan-dock-popover-head">
+                  <h2>Confirm what was read from the spec sheet</h2>
+                  <button
+                    type="button"
+                    className="pf-btn pf-btn-small"
+                    onClick={() => setIntakeOpen(false)}
+                    aria-label="Close spec sheet intake"
+                  >
+                    ×
+                  </button>
+                </div>
+                <p>
+                  Extracted values are <b>never</b> auto-filled. Check the rows you confirm to
+                  commit them as reversible commands with source page provenance.
+                </p>
+                <div className="pf-row">
+                  <label htmlFor="intake-doc-kind" className="pf-label">
+                    Document Kind
+                  </label>
+                  <select
+                    id="intake-doc-kind"
+                    className="pf-input"
+                    value={intakeDocKind}
+                    onChange={(e) => setIntakeDocKind(e.target.value as IntakeDocumentKind)}
+                  >
+                    <option value="FORKLIFT_SPEC_SHEET">Forklift Spec Sheet</option>
+                    <option value="SITE_SURVEY_CHECKLIST">Site Survey Checklist</option>
+                    <option value="RACK_SUBMITTAL">Rack Submittal</option>
+                  </select>
+                  <label htmlFor="intake-file-name" className="pf-label">
+                    Source File
+                  </label>
+                  <input
+                    id="intake-file-name"
+                    type="text"
+                    className="pf-input"
+                    value={intakeFileName}
+                    onChange={(e) => setIntakeFileName(e.target.value)}
+                  />
+                  <input
+                    id="intake-base64"
+                    type="hidden"
+                    value={intakeBase64}
+                    onChange={(e) => setIntakeBase64(e.target.value)}
+                  />
+                  <button
+                    id="extract-intake-api-btn"
+                    type="button"
+                    className="pf-btn"
+                    onClick={() => void extractViaIntakeEndpoint()}
+                  >
+                    Extract Dimensions
+                  </button>
+                </div>
+                <table id="intake-confirm-table" aria-label="Intake confirmation rows">
+                  <thead>
+                    <tr>
+                      <th scope="col">Field</th>
+                      <th scope="col">Current Value</th>
+                      <th scope="col">Extracted Value</th>
+                      <th scope="col">Source Page / Confidence</th>
+                      <th scope="col">Accept</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {intakeRows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className={row.lowConfidence ? 'intake-low-confidence' : undefined}
+                      >
+                        <td>{row.label}</td>
+                        <td>{row.currentDisplayValue}</td>
+                        <td>{row.extractedDisplayValue}</td>
+                        <td>
+                          {row.sourceCitation}
+                          {row.lowConfidence && <b> (low confidence, verify against source)</b>}
+                        </td>
+                        <td>
+                          <input
+                            type="checkbox"
+                            data-intake-row={row.id}
+                            aria-label={`Accept ${row.label}`}
+                            checked={row.accepted}
+                            onChange={() =>
+                              setIntakeRows((prev) => toggleIntakeRowAcceptance(prev, row.id))
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="intake-actions">
+                  <button
+                    id="apply-intake-btn"
+                    type="button"
+                    className="pf-btn"
+                    onClick={applyCheckedIntakeRows}
+                  >
+                    Apply Checked Rows
+                  </button>
+                  <button
+                    id="close-intake-btn"
+                    type="button"
+                    className="pf-btn"
+                    onClick={() => setIntakeOpen(false)}
+                  >
+                    Close Intake
+                  </button>
+                </div>
+                {intakeStatus !== null && (
+                  <p id="intake-status" role="status">
+                    {intakeStatus}
+                  </p>
+                )}
+              </section>
+            )}
+
+            {cmdBarOpen && (
+              <section
+                id="cmdbar-panel"
+                className="cmdbar-panel plan-dock-popover"
+                aria-label="Deterministic Command Bar"
+              >
+                <div className="plan-dock-popover-head">
+                  <h2>Commands</h2>
+                  <button
+                    type="button"
+                    className="pf-btn pf-btn-small"
+                    onClick={() => setCmdBarOpen(false)}
+                    aria-label="Close command bar"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="pf-row">
+                  <label htmlFor="cmdbar-input" className="pf-label">
+                    Instruction
+                  </label>
+                  <input
+                    id="cmdbar-input"
+                    type="text"
+                    className="pf-input"
+                    value={cmdBarInput}
+                    onChange={(e) => setCmdBarInput(e.target.value)}
+                  />
+                  <button
+                    id="cmdbar-preview-btn"
+                    type="button"
+                    className="pf-btn"
+                    onClick={buildCommandPreview}
+                  >
+                    Preview Commands
+                  </button>
+                </div>
+                {cmdPreview !== null && (
+                  <div id="cmdbar-preview-card" className="cmdbar-preview-card">
+                    <h3>Command Preview Card</h3>
+                    <ul>
+                      {cmdPreview.descriptions.map((desc, idx) => (
+                        <li key={idx}>{desc}</li>
+                      ))}
+                    </ul>
+                    <p>
+                      Positions: {cmdPreview.beforePositions} → {cmdPreview.afterPositions} (Δ{' '}
+                      {cmdPreview.deltaPositions}) · Bays: {cmdPreview.beforeBays} →{' '}
+                      {cmdPreview.afterBays} · Narrowest Clear Aisle:{' '}
+                      {cmdPreview.beforeNarrowestAisleIn ?? '—'}&quot; →{' '}
+                      {cmdPreview.afterNarrowestAisleIn ?? '—'}&quot;
+                    </p>
+                    {cmdPreview.refused.length > 0 && (
+                      <ul id="cmdbar-refused" aria-label="Refused commands">
+                        {cmdPreview.refused.map((r, idx) => (
+                          <li key={idx}>{r}</li>
+                        ))}
+                      </ul>
+                    )}
+                    <button
+                      id="cmdbar-execute-btn"
+                      type="button"
+                      className="pf-btn"
+                      disabled={cmdPreview.refused.length > 0}
+                      onClick={executePreviewedCommands}
+                    >
+                      Execute
+                    </button>
+                  </div>
+                )}
+                {cmdStatus !== null && (
+                  <p id="cmdbar-status" role="status">
+                    {cmdStatus}
+                  </p>
+                )}
+              </section>
+            )}
+
+            <div className="ai-toolbar" role="toolbar" aria-label="AI intake and command tools">
+              <button
+                id="open-intake-btn"
+                type="button"
+                className="pf-btn"
+                aria-pressed={intakeOpen}
+                onClick={openSpecSheetIntake}
+              >
+                Read a spec sheet
+              </button>
+              <button
+                id="open-cmdbar-btn"
+                type="button"
+                className="pf-btn"
+                aria-pressed={cmdBarOpen}
+                onClick={() => setCmdBarOpen((prev) => !prev)}
+              >
+                Commands <kbd>Ctrl+K</kbd>
+              </button>
+              <button
+                id="tool-select-btn"
+                type="button"
+                className="pf-btn"
+                aria-pressed={toolMode === 'select'}
+                onClick={() => setToolMode('select')}
+              >
+                Select / Pan
+              </button>
+              <button
+                id="tool-wall-btn"
+                type="button"
+                className="pf-btn"
+                aria-pressed={toolMode === 'wall'}
+                onClick={() => setToolMode((prev) => (prev === 'wall' ? 'select' : 'wall'))}
+              >
+                Draw Wall (Ortho)
+              </button>
+              <button
+                id="tool-column-btn"
+                type="button"
+                className="pf-btn"
+                aria-pressed={toolMode === 'column'}
+                onClick={() => setToolMode((prev) => (prev === 'column' ? 'select' : 'column'))}
+              >
+                Stamp Column
+              </button>
+              <button
+                id="tool-calibrate-btn"
+                type="button"
+                className="pf-btn"
+                aria-pressed={toolMode === 'calibrate'}
+                onClick={() =>
+                  setToolMode((prev) => (prev === 'calibrate' ? 'select' : 'calibrate'))
+                }
+              >
+                2-Pt Scale Calibrate
+              </button>
+              <button
+                id="toggle-perimeter-wall-btn"
+                type="button"
+                className="pf-btn"
+                aria-pressed={shellOverlay.showPerimeterWalls}
+                onClick={() =>
+                  setShellOverlay((prev) => ({
+                    ...prev,
+                    showPerimeterWalls: !prev.showPerimeterWalls,
+                  }))
+                }
+              >
+                {shellOverlay.showPerimeterWalls ? 'Perimeter Wall: On' : 'Perimeter Wall: Off'}
+              </button>
+              <label htmlFor="column-grid-select" className="visually-hidden">
+                Column Grid Spacing
+              </label>
+              <select
+                id="column-grid-select"
+                aria-label="Column Grid Spacing"
+                className="pf-input"
+                style={{ width: 'auto' }}
+                value={shellOverlay.showColumns ? String(shellOverlay.columnSpacingFt) : 'none'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setShellOverlay((prev) => ({
+                    ...prev,
+                    showColumns: val !== 'none',
+                    columnSpacingFt:
+                      val === 'none' ? prev.columnSpacingFt : (Number(val) as 30 | 40 | 50),
+                  }));
+                }}
+              >
+                <option value="none">Columns: Off</option>
+                <option value="30">Columns: 30 ft Grid</option>
+                <option value="40">Columns: 40 ft Grid</option>
+                <option value="50">Columns: 50 ft Grid</option>
+              </select>
+              {(shellOverlay.customWalls.length > 0 || shellOverlay.customColumns.length > 0) && (
+                <button
+                  id="clear-shell-overlays-btn"
+                  type="button"
+                  className="pf-btn"
+                  onClick={() =>
+                    setShellOverlay((prev) => ({
+                      ...prev,
+                      customWalls: [],
+                      customColumns: [],
+                    }))
+                  }
+                >
+                  Clear Stamped (
+                  {shellOverlay.customWalls.length + shellOverlay.customColumns.length})
+                </button>
+              )}
+              <button
+                id="open-handoff-btn"
+                type="button"
+                className="pf-btn"
+                aria-pressed={handoffOpen}
+                onClick={() => {
+                  setHandoffText(exportProjectJson());
+                  setHandoffStatus(null);
+                  setHandoffOpen((prev) => !prev);
+                }}
+              >
+                Export / Import JSON
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <ChecksDrawer />
