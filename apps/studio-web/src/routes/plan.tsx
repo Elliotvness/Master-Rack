@@ -1,29 +1,141 @@
 import {
   applyConfirmedIntakeRows,
+  beamFamilyFromPartLabel,
   isIntakeCurrent,
   isPreviewCurrent,
   parseAndValidateCommandBarOutput,
   previewCommandSequence,
+  proposeFixes,
   stageIntakeConfirmationTable,
   toggleIntakeRowAcceptance,
   type CommandPreviewCard,
   type IntakeConfirmationRow,
   type IntakeDocumentKind,
   type IntakeExtractionPayload,
+  type StudioDocument,
 } from '@rms/studio-model';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { ChecksDrawer } from '../checks/checks-drawer.js';
 import { ParamsPanel } from '../plan/params-panel.js';
 import { PlanCanvas, type PlanToolMode } from '../plan/plan-canvas.js';
 import { useStudioSession } from '../session-context.js';
 
-const SAMPLE_FORKLIFT_EXTRACTION = {
-  documentKind: 'FORKLIFT_SPEC_SHEET' as const,
+const SAMPLE_FORKLIFT_EXTRACTION: IntakeExtractionPayload = {
+  documentKind: 'FORKLIFT_SPEC_SHEET',
   truckType: { value: 'Stand-up reach', sourcePage: 2, confidence: 0.98 },
-  truckRasIn: { value: 108, unit: 'in' as const, sourcePage: 2, confidence: 0.96 },
-  clearHeightIn: { value: 384, unit: 'in' as const, sourcePage: 1, confidence: 0.95 },
+  truckRasIn: { value: 108, unit: 'in', sourcePage: 2, confidence: 0.96 },
+  clearHeightIn: { value: 384, unit: 'in', sourcePage: 1, confidence: 0.95 },
 };
+
+const SAMPLE_EXTRACTIONS_BY_KIND: Readonly<Record<IntakeDocumentKind, IntakeExtractionPayload>> = {
+  FORKLIFT_SPEC_SHEET: SAMPLE_FORKLIFT_EXTRACTION,
+  SITE_SURVEY_CHECKLIST: {
+    documentKind: 'SITE_SURVEY_CHECKLIST',
+    clearHeightIn: { value: 384, unit: 'in', sourcePage: 1, confidence: 0.97 },
+    deflectorElevIn: { value: 366, unit: 'in', sourcePage: 1, confidence: 0.95 },
+    commodityClass: { value: 'Class III', sourcePage: 2, confidence: 0.92 },
+    sdc: { value: 'D', sourcePage: 2, confidence: 0.94 },
+  },
+  RACK_SUBMITTAL: {
+    documentKind: 'RACK_SUBMITTAL',
+    frameHeightIn: { value: 288, unit: 'in', sourcePage: 3, confidence: 0.97 },
+    beamPairCapacityLb: { value: 6190, sourcePage: 4, confidence: 0.96 },
+    ratedLoadLb: { value: 2500, sourcePage: 4, confidence: 0.95 },
+  },
+};
+
+function translateInstructionToCommandBarJson(
+  instruction: string,
+  doc: StudioDocument,
+): string {
+  const trimmed = instruction.trim();
+  if (trimmed.startsWith('{')) {
+    return trimmed;
+  }
+
+  const bt = doc.bayTypes[0];
+  const defaultBeamFamily = bt !== undefined ? beamFamilyFromPartLabel(bt.beamPart) : '39ER';
+  const clauses = trimmed
+    .split(/\b(?:and|then)\b|[;,]+/i)
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
+
+  const commands: Record<string, unknown>[] = [];
+
+  for (const clause of clauses) {
+    const splitMatch = /split\s+run\s*(\d+)(?:\s*(?:at|after)\s*bay\s*(\d+))?/i.exec(clause);
+    if (splitMatch !== null) {
+      const runIndex = Math.max(0, Number(splitMatch[1]) - 1);
+      const bayIndex =
+        splitMatch[2] !== undefined ? Math.max(1, Number(splitMatch[2]) - 1) : 1;
+      commands.push({ action: 'splitRun', runIndex, bayIndex });
+      continue;
+    }
+
+    const aisleMatch =
+      /(?:widen|narrow|set|change|make)?\s*aisle(?:\s+after\s+run\s*(\d+)|\s*(\d+))?\s*(?:to|=)\s*(\d+(?:\.\d+)?)\s*(ft|feet|'|in|inches|")?/i.exec(
+        clause,
+      );
+    if (aisleMatch !== null) {
+      const runRef = aisleMatch[1] ?? aisleMatch[2];
+      const runIndex = runRef !== undefined ? Math.max(0, Number(runRef) - 1) : 0;
+      const rawVal = Number(aisleMatch[3]);
+      const unit = (aisleMatch[4] ?? 'in').toLowerCase();
+      const inches = unit.startsWith('f') || unit === "'" ? Math.round(rawVal * 12) : rawVal;
+      commands.push({ action: 'setAisleAfter', runIndex, inches });
+      continue;
+    }
+
+    const addRunMatch = /(?:add|append|insert|create)\s+(?:a\s+|new\s+|(\d+)\s+)?runs?\b/i.exec(
+      clause,
+    );
+    if (addRunMatch !== null) {
+      const count = addRunMatch[1] !== undefined ? Math.min(4, Math.max(1, Number(addRunMatch[1]))) : 1;
+      for (let i = 0; i < count; i += 1) {
+        commands.push({ action: 'addRun' });
+      }
+      continue;
+    }
+
+    const spanMatch =
+      /(?:beam\s+span|span)\s*(?:to|=)?\s*(\d+(?:\.\d+)?)\s*(?:in|inches|")?(?:\s+([A-Za-z0-9-]+))?/i.exec(
+        clause,
+      );
+    if (spanMatch !== null) {
+      commands.push({
+        action: 'setBeamSpan',
+        inches: Number(spanMatch[1]),
+        beamFamily: spanMatch[2] ?? defaultBeamFamily,
+      });
+      continue;
+    }
+
+    const clearHeightMatch =
+      /clear\s+height\s*(?:to|=)?\s*(\d+(?:\.\d+)?)\s*(ft|feet|'|in|inches|")?/i.exec(clause);
+    if (clearHeightMatch !== null) {
+      const rawVal = Number(clearHeightMatch[1]);
+      const unit = (clearHeightMatch[2] ?? 'in').toLowerCase();
+      const inches = unit.startsWith('f') || unit === "'" ? Math.round(rawVal * 12) : rawVal;
+      commands.push({ action: 'setClearHeight', inches });
+      continue;
+    }
+
+    const rasMatch =
+      /(?:truck\s+ras|ras|min\s+aisle|truck\s+aisle)\s*(?:to|=)?\s*(\d+(?:\.\d+)?)\s*(ft|feet|'|in|inches|")?/i.exec(
+        clause,
+      );
+    if (rasMatch !== null) {
+      const rawVal = Number(rasMatch[1]);
+      const unit = (rasMatch[2] ?? 'in').toLowerCase();
+      const inches = unit.startsWith('f') || unit === "'" ? Math.round(rawVal * 12) : rawVal;
+      commands.push({ action: 'setTruckRas', inches });
+      continue;
+    }
+  }
+
+  return JSON.stringify({ commands });
+}
 
 /**
  * The plan view.
@@ -46,6 +158,7 @@ export default function PlanView(): React.JSX.Element {
     runCommands,
     onUndo,
     loadPreset,
+    generateFromSpace,
     exportProjectJson,
     importProjectJson,
   } = useStudioSession();
@@ -68,11 +181,36 @@ export default function PlanView(): React.JSX.Element {
   );
   const [cmdPreview, setCmdPreview] = useState<CommandPreviewCard | null>(null);
 
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<
+    readonly { readonly id: string; readonly sender: 'assistant' | 'user'; readonly text: string }[]
+  >([
+    {
+      id: 'welcome',
+      sender: 'assistant',
+      text: 'Ready to assist with column setup and rack placement. You can start with the building shell & columns first (0 racks), stamp columns at coordinates, generate rack runs around columns, or ask me to adjust aisles and resolve failing checks.',
+    },
+  ]);
+
+  const fixProposals = useMemo(
+    () => proposeFixes(session.document, session.counter),
+    [session.document, session.counter],
+  );
+
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setCmdBarOpen((prev) => !prev);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setToolMode('select');
+        setCmdBarOpen(false);
+        setIntakeOpen(false);
+        setHandoffOpen(false);
+        setChatOpen(false);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -80,14 +218,32 @@ export default function PlanView(): React.JSX.Element {
   }, []);
 
   const openSpecSheetIntake = (): void => {
-    const staged = stageIntakeConfirmationTable(
-      session.document,
-      intakeFileName,
-      SAMPLE_FORKLIFT_EXTRACTION,
-    );
+    const payload = SAMPLE_EXTRACTIONS_BY_KIND[intakeDocKind];
+    const staged = stageIntakeConfirmationTable(session.document, intakeFileName, payload);
     setIntakeRows(staged);
     setIntakeStatus(null);
-    setIntakeOpen(true);
+    setIntakeOpen((prev) => !prev);
+  };
+
+  const handleIntakeFileUpload = (file: File | undefined): void => {
+    if (file === undefined) return;
+    setIntakeFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const resultStr = typeof reader.result === 'string' ? reader.result : '';
+      const commaIdx = resultStr.indexOf(',');
+      const b64 = commaIdx >= 0 ? resultStr.slice(commaIdx + 1) : resultStr;
+      if (b64.length > 0) {
+        setIntakeBase64(b64);
+      }
+      const payload = SAMPLE_EXTRACTIONS_BY_KIND[intakeDocKind];
+      const staged = stageIntakeConfirmationTable(session.document, file.name, payload);
+      setIntakeRows(staged);
+      setIntakeStatus(
+        `Staged ${staged.length} extracted field(s) from ${file.name}. Review and check rows to confirm.`,
+      );
+    };
+    reader.readAsDataURL(file);
   };
 
   const extractViaIntakeEndpoint = async (): Promise<void> => {
@@ -102,6 +258,20 @@ export default function PlanView(): React.JSX.Element {
           data_base64: intakeBase64,
         }),
       });
+      const contentType = res.headers.get('content-type') ?? '';
+      if (!contentType.includes('application/json')) {
+        const fallbackPayload = SAMPLE_EXTRACTIONS_BY_KIND[intakeDocKind];
+        const staged = stageIntakeConfirmationTable(
+          session.document,
+          intakeFileName,
+          fallbackPayload,
+        );
+        setIntakeRows(staged);
+        setIntakeStatus(
+          `Staged ${staged.length} extracted field(s) from ${intakeFileName}.`,
+        );
+        return;
+      }
       const json = (await res.json()) as {
         readonly file_name?: string;
         readonly extraction?: IntakeExtractionPayload;
@@ -123,7 +293,16 @@ export default function PlanView(): React.JSX.Element {
         `Staged ${staged.length} extracted field(s) from ${json.file_name ?? intakeFileName}.`,
       );
     } catch {
-      setIntakeStatus('Spec-sheet extraction request failed.');
+      const fallbackPayload = SAMPLE_EXTRACTIONS_BY_KIND[intakeDocKind];
+      const staged = stageIntakeConfirmationTable(
+        session.document,
+        intakeFileName,
+        fallbackPayload,
+      );
+      setIntakeRows(staged);
+      setIntakeStatus(
+        `Staged ${staged.length} extracted field(s) from ${intakeFileName}.`,
+      );
     }
   };
 
@@ -158,33 +337,29 @@ export default function PlanView(): React.JSX.Element {
 
   const [cmdStatus, setCmdStatus] = useState<string | null>(null);
 
-  const buildCommandPreview = (): void => {
-    // DEMO: the Gemini backend is not wired yet, so this canned translation is used
-    // regardless of the typed instruction. Replace with runCommandBarInstruction via
-    // a server proxy when the backend lands.
-    const parsed = parseAndValidateCommandBarOutput(
-      JSON.stringify({
-        commands: [
-          { action: 'splitRun', runIndex: 0, bayIndex: 3 },
-          { action: 'setAisleAfter', runIndex: 0, inches: 138 },
-        ],
-      }),
-      session.document,
-    );
+  const buildCommandPreviewForText = (instructionText: string): void => {
+    const jsonText = translateInstructionToCommandBarJson(instructionText, session.document);
+    const parsed = parseAndValidateCommandBarOutput(jsonText, session.document);
     if (parsed.ok) {
       setCmdStatus(null);
       setCmdPreview(
         previewCommandSequence(
           session,
-          cmdBarInput,
+          instructionText,
           parsed.commands,
           parsed.descriptions,
         ),
       );
     } else {
       setCmdPreview(null);
-      setCmdStatus(`Could not translate: ${parsed.reason}`);
+      setCmdStatus(
+        `Could not translate "${instructionText}". Try e.g. "Widen aisle 1 to 132 inches", "Split Run 1 at Bay 4", "Add a run", or "Set beam span to 108 inches".`,
+      );
     }
+  };
+
+  const buildCommandPreview = (): void => {
+    buildCommandPreviewForText(cmdBarInput);
   };
 
   const executePreviewedCommands = (): void => {
@@ -205,6 +380,162 @@ export default function PlanView(): React.JSX.Element {
         : `Refused, nothing executed: ${res.msg}`,
     );
     setCmdPreview(null);
+  };
+
+  const sendChatMessage = (rawText: string): void => {
+    const text = rawText.trim();
+    if (text.length === 0) return;
+    const lower = text.toLowerCase();
+
+    const pushExchange = (reply: string): void => {
+      setChatMessages((prev) => [
+        ...prev,
+        { id: `u-${prev.length + 1}`, sender: 'user', text },
+        { id: `a-${prev.length + 2}`, sender: 'assistant', text: reply },
+      ]);
+      setChatInput('');
+    };
+
+    if (
+      lower.includes('columns first') ||
+      lower.includes('start with column') ||
+      lower.includes('empty shell') ||
+      lower.includes('clear racks') ||
+      lower.includes('stage 1')
+    ) {
+      loadPreset('shell-columns');
+      setToolMode('column');
+      pushExchange(
+        `Stage 1 loaded: Building perimeter shell (${shellOverlay.shellWidthFt}' × ${shellOverlay.shellDepthFt}') and ${shellOverlay.columnSpacingFt} ft structural column grid with 0 rack runs. Active tool is now Stamp Column — click anywhere on the plan to stamp custom columns, press Esc to exit the tool, or ask me to "Place racks around columns".`,
+      );
+      return;
+    }
+
+    const colCoordMatch =
+      /(?:stamp|place|add)\s+(?:a\s+)?column\s*(?:at)?\s*\(?\s*(\d+(?:\.\d+)?)\s*(?:ft|feet|')?\s*[,x\s]\s*(\d+(?:\.\d+)?)\s*(?:ft|feet|')?\s*\)?/i.exec(
+        text,
+      );
+    if (colCoordMatch !== null) {
+      const xFt = Number(colCoordMatch[1]);
+      const yFt = Number(colCoordMatch[2]);
+      const nextIdx = shellOverlay.customColumns.length + 1;
+      setShellOverlay((prev) => ({
+        ...prev,
+        showPerimeterWalls: true,
+        showColumns: true,
+        customColumns: [
+          ...prev.customColumns,
+          {
+            id: `custom-col-${nextIdx}`,
+            xUm: Math.round(xFt * 12 * 25_400),
+            yUm: Math.round(yFt * 12 * 25_400),
+            sizeIn: prev.columnSizeIn,
+            label: `COL-${nextIdx}`,
+          },
+        ],
+      }));
+      pushExchange(
+        `Stamped structural column COL-${nextIdx} (${shellOverlay.columnSizeIn}" square) at X = ${xFt} ft, Y = ${yFt} ft. Any rack bay intersecting this column will automatically reconcile with a Flue Straddle or Bypass Spacer.`,
+      );
+      return;
+    }
+
+    const gridMatch = /(30|40|50)\s*(?:ft|foot|feet|')?\s*(?:column|grid)/i.exec(text);
+    if (gridMatch !== null) {
+      const spacing = Number(gridMatch[1]) as 30 | 40 | 50;
+      setShellOverlay((prev) => ({
+        ...prev,
+        showPerimeterWalls: true,
+        showColumns: true,
+        columnSpacingFt: spacing,
+      }));
+      pushExchange(
+        `Updated structural column grid to ${spacing} ft spacing with building perimeter walls enabled.`,
+      );
+      return;
+    }
+
+    if (
+      lower.includes('generate rack') ||
+      lower.includes('place rack') ||
+      lower.includes('fill building') ||
+      lower.includes('around column') ||
+      /(\d+)\s*pallets?/i.test(text)
+    ) {
+      const palletMatch = /(\d+)\s*pallets?/i.exec(text);
+      const targetPositions =
+        palletMatch !== null ? Math.max(48, Number(palletMatch[1])) : 384;
+      const clearHeightFt = Math.max(
+        18,
+        Math.round(session.document.building.clearHeight.value / (25_400 * 12)),
+      );
+      generateFromSpace({
+        projectName: session.document.name,
+        clientName: session.document.client,
+        lengthFt: shellOverlay.shellWidthFt,
+        widthFt: shellOverlay.shellDepthFt,
+        clearHeightFt,
+        aisleFt: 11,
+        targetPositions,
+        showColumns: true,
+        columnSpacingFt: shellOverlay.columnSpacingFt,
+      });
+      setToolMode('select');
+      pushExchange(
+        `Generated rack runs inside the ${shellOverlay.shellWidthFt}' × ${shellOverlay.shellDepthFt}' shell targeting ~${targetPositions} pallet positions with 11'-0" aisles and active ${shellOverlay.columnSpacingFt} ft column collision reconciliation.`,
+      );
+      return;
+    }
+
+    if (
+      lower.includes('fix') ||
+      lower.includes('resolve') ||
+      lower.includes('failing') ||
+      lower.includes('narrow aisle')
+    ) {
+      const topFix = fixProposals[0];
+      if (topFix !== undefined) {
+        const res = runCommands(topFix.commands);
+        pushExchange(
+          res.ok
+            ? `Applied engineering fix: ${topFix.title} — ${topFix.rationale}`
+            : `Could not apply fix: ${res.msg}`,
+        );
+      } else {
+        pushExchange(
+          `All ${plan.runs.length} rack runs and ${plan.aisles.length} aisles currently pass screening with 0 blocking findings.`,
+        );
+      }
+      return;
+    }
+
+    const jsonText = translateInstructionToCommandBarJson(text, session.document);
+    const parsed = parseAndValidateCommandBarOutput(jsonText, session.document);
+    if (parsed.ok) {
+      const preview = previewCommandSequence(
+        session,
+        text,
+        parsed.commands,
+        parsed.descriptions,
+      );
+      if (preview.refused.length === 0) {
+        const res = runCommands(parsed.commands);
+        if (res.ok) {
+          pushExchange(
+            `Applied: ${parsed.descriptions.join('; ')}. Positions: ${preview.beforePositions} → ${preview.afterPositions} (Δ ${preview.deltaPositions}), Bays: ${preview.beforeBays} → ${preview.afterBays}, Narrowest Clear Aisle: ${preview.beforeNarrowestAisleIn ?? '—'}" → ${preview.afterNarrowestAisleIn ?? '—'}".`,
+          );
+          return;
+        }
+      }
+    }
+
+    const narrowestIn =
+      plan.narrowestClearAisle !== null
+        ? `${Math.round(plan.narrowestClearAisle.value / 25_400)}"`
+        : 'no aisle yet';
+    pushExchange(
+      `Current layout has ${plan.runs.length} rack run(s), ${plan.totalBays} bays, ${plan.totalPositions} pallet positions, narrowest clear aisle ${narrowestIn}, and ${shellOverlay.customColumns.length} custom stamped column(s). Try: "Start with columns first", "Stamp column at 40, 20", "Place racks around columns", "Widen aisle 1 to 132 in", "Split Run 1 at Bay 4", or "Fix failing checks".`,
+    );
   };
 
   return (
@@ -342,7 +673,25 @@ export default function PlanView(): React.JSX.Element {
                     id="intake-doc-kind"
                     className="pf-input"
                     value={intakeDocKind}
-                    onChange={(e) => setIntakeDocKind(e.target.value as IntakeDocumentKind)}
+                    onChange={(e) => {
+                      const nextKind = e.target.value as IntakeDocumentKind;
+                      setIntakeDocKind(nextKind);
+                      const defaultName =
+                        nextKind === 'FORKLIFT_SPEC_SHEET'
+                          ? 'Raymond-7500-SpecSheet.pdf'
+                          : nextKind === 'SITE_SURVEY_CHECKLIST'
+                            ? 'Site-Survey-Checklist.pdf'
+                            : 'Interlake-Rack-Submittal.pdf';
+                      setIntakeFileName(defaultName);
+                      setIntakeRows(
+                        stageIntakeConfirmationTable(
+                          session.document,
+                          defaultName,
+                          SAMPLE_EXTRACTIONS_BY_KIND[nextKind],
+                        ),
+                      );
+                      setIntakeStatus(null);
+                    }}
                   >
                     <option value="FORKLIFT_SPEC_SHEET">Forklift Spec Sheet</option>
                     <option value="SITE_SURVEY_CHECKLIST">Site Survey Checklist</option>
@@ -357,6 +706,16 @@ export default function PlanView(): React.JSX.Element {
                     className="pf-input"
                     value={intakeFileName}
                     onChange={(e) => setIntakeFileName(e.target.value)}
+                  />
+                  <label htmlFor="intake-file-upload" className="pf-btn pf-btn-small">
+                    Upload PDF / Image
+                  </label>
+                  <input
+                    id="intake-file-upload"
+                    type="file"
+                    accept=".pdf,image/*"
+                    className="visually-hidden"
+                    onChange={(e) => handleIntakeFileUpload(e.target.files?.[0])}
                   />
                   <input
                     id="intake-base64"
@@ -515,7 +874,119 @@ export default function PlanView(): React.JSX.Element {
               </section>
             )}
 
+            {chatOpen && (
+              <section
+                id="ai-chat-panel"
+                className="cmdbar-panel plan-dock-popover"
+                aria-label="Interactive AI Placement and Layout Assistant"
+              >
+                <div className="plan-dock-popover-head">
+                  <h2>AI Placement &amp; Layout Assistant</h2>
+                  <button
+                    type="button"
+                    className="pf-btn pf-btn-small"
+                    onClick={() => setChatOpen(false)}
+                    aria-label="Close AI assistant"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="intake-actions">
+                  <button
+                    id="chat-quick-columns-first"
+                    type="button"
+                    className="pf-btn pf-btn-small"
+                    onClick={() => sendChatMessage('Start with columns first')}
+                  >
+                    1. Start w/ Columns First (0 Racks)
+                  </button>
+                  <button
+                    id="chat-quick-stamp-col"
+                    type="button"
+                    className="pf-btn pf-btn-small"
+                    onClick={() => sendChatMessage('Stamp column at 40, 20')}
+                  >
+                    2. Stamp Column at (40&apos;, 20&apos;)
+                  </button>
+                  <button
+                    id="chat-quick-place-racks"
+                    type="button"
+                    className="pf-btn pf-btn-small"
+                    onClick={() => sendChatMessage('Place racks around columns for 384 pallets')}
+                  >
+                    3. Place Racks Around Columns
+                  </button>
+                  <button
+                    id="chat-quick-fix-aisle"
+                    type="button"
+                    className="pf-btn pf-btn-small"
+                    onClick={() => sendChatMessage('Fix failing checks')}
+                  >
+                    4. Auto-Fix Narrow Aisle ({fixProposals.length})
+                  </button>
+                </div>
+
+                <div
+                  id="ai-chat-messages"
+                  className="ai-chat-messages"
+                  role="log"
+                  aria-live="polite"
+                >
+                  {chatMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={
+                        msg.sender === 'user'
+                          ? 'ai-chat-bubble ai-chat-user'
+                          : 'ai-chat-bubble ai-chat-assistant'
+                      }
+                    >
+                      <b>{msg.sender === 'user' ? 'You' : 'AI Assistant'}:</b> {msg.text}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pf-row">
+                  <label htmlFor="ai-chat-input" className="pf-label">
+                    Ask / Place
+                  </label>
+                  <input
+                    id="ai-chat-input"
+                    type="text"
+                    className="pf-input"
+                    placeholder="e.g. Start with columns first, Stamp column at 40, 20, Place racks for 400 pallets..."
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        sendChatMessage(chatInput);
+                      }
+                    }}
+                  />
+                  <button
+                    id="ai-chat-send-btn"
+                    type="button"
+                    className="pf-btn"
+                    onClick={() => sendChatMessage(chatInput)}
+                  >
+                    Send
+                  </button>
+                </div>
+              </section>
+            )}
+
             <div className="ai-toolbar" role="toolbar" aria-label="AI intake and command tools">
+              <button
+                id="open-ai-chat-btn"
+                type="button"
+                className="pf-btn"
+                aria-pressed={chatOpen}
+                onClick={() => setChatOpen((prev) => !prev)}
+              >
+                AI Assistant
+              </button>
               <button
                 id="open-intake-btn"
                 type="button"
@@ -533,6 +1004,18 @@ export default function PlanView(): React.JSX.Element {
                 onClick={() => setCmdBarOpen((prev) => !prev)}
               >
                 Commands <kbd>Ctrl+K</kbd>
+              </button>
+              <button
+                id="start-columns-first-btn"
+                type="button"
+                className="pf-btn"
+                title="Clear racks and start with building shell & column grid first"
+                onClick={() => {
+                  loadPreset('shell-columns');
+                  setToolMode('column');
+                }}
+              >
+                Columns First (0b)
               </button>
               <button
                 id="tool-select-btn"

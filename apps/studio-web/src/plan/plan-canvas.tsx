@@ -100,18 +100,43 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
   );
   const roundedRequiredClearUm = Math.ceil(requiredClearAisleUm / 25_400) * 25_400;
 
+  const shellBounds = useMemo(() => {
+    if (longestRun !== undefined) {
+      return {
+        minX: longestRun.x,
+        maxX: longestRun.x + longestRun.runLength.value,
+        minY: firstRowY,
+        maxY: lastRowBottomY,
+      };
+    }
+    const widthUm = (shellOverlay?.shellWidthFt ?? 110) * 12 * 25_400;
+    const depthUm = (shellOverlay?.shellDepthFt ?? 60) * 12 * 25_400;
+    return {
+      minX: 0,
+      maxX: widthUm,
+      minY: 0,
+      maxY: depthUm,
+    };
+  }, [
+    longestRun,
+    firstRowY,
+    lastRowBottomY,
+    shellOverlay?.shellWidthFt,
+    shellOverlay?.shellDepthFt,
+  ]);
+
   // Compute active building structural columns (grid + custom) in micrometres
   const activeColumns = useMemo<readonly PlanColumnOverlay[]>(() => {
     if (shellOverlay === undefined) return [];
     const list: PlanColumnOverlay[] = [...shellOverlay.customColumns];
-    if (shellOverlay.showColumns && longestRun !== undefined) {
+    if (shellOverlay.showColumns) {
       const spacingUm = shellOverlay.columnSpacingFt * 12 * 25_400;
-      const maxX = longestRun.x + longestRun.runLength.value;
-      const maxY = Math.max(lastRowBottomY, spacingUm);
+      const maxX = shellBounds.maxX;
+      const maxY = Math.max(shellBounds.maxY, spacingUm);
       let cIdx = 1;
-      for (let x = longestRun.x + spacingUm; x <= maxX; x += spacingUm) {
+      for (let x = shellBounds.minX + spacingUm; x <= maxX; x += spacingUm) {
         let rIdx = 1;
-        for (let y = firstRowY + spacingUm / 2; y <= maxY + spacingUm / 2; y += spacingUm) {
+        for (let y = shellBounds.minY + spacingUm / 2; y <= maxY + spacingUm / 2; y += spacingUm) {
           list.push({
             id: `grid-col-${cIdx}-${rIdx}`,
             xUm: x,
@@ -125,21 +150,21 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
       }
     }
     return list;
-  }, [shellOverlay, longestRun, firstRowY, lastRowBottomY]);
+  }, [shellOverlay, shellBounds]);
 
   return (
     <g aria-hidden="true" style={{ pointerEvents: 'none' }}>
       {/* 0. Building Perimeter Wall Envelope & Custom Orthogonal Walls */}
-      {shellOverlay?.showPerimeterWalls && longestRun !== undefined && (
+      {shellOverlay?.showPerimeterWalls && (
         (() => {
           const marginUm = 120 * 25_400; // 10'-0" perimeter aisle envelope
           const envTl = worldToScreen(camera, viewport, {
-            x: longestRun.x - marginUm,
-            y: firstRowY - marginUm,
+            x: shellBounds.minX - marginUm,
+            y: shellBounds.minY - marginUm,
           });
           const envBr = worldToScreen(camera, viewport, {
-            x: longestRun.x + longestRun.runLength.value + marginUm,
-            y: lastRowBottomY + marginUm,
+            x: shellBounds.maxX + marginUm,
+            y: shellBounds.maxY + marginUm,
           });
           return (
             <g key="perimeter-wall-envelope">
@@ -160,8 +185,24 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
                 fontWeight="600"
                 fill="var(--ink-2)"
               >
-                BUILDING PERIMETER SHELL (8&quot; CONCRETE WALL)
+                BUILDING PERIMETER SHELL (8&quot; CONCRETE WALL ·{' '}
+                {shellOverlay.shellWidthFt ?? 110}&apos; × {shellOverlay.shellDepthFt ?? 60}&apos;)
               </text>
+              {plan.runs.length === 0 && (
+                <text
+                  x={(envTl.x + envBr.x) / 2}
+                  y={envTl.y + 34}
+                  textAnchor="middle"
+                  fontFamily="var(--font-mono)"
+                  fontSize="10"
+                  fontWeight="600"
+                  fill="var(--navy)"
+                >
+                  STAGE 1: COLUMNS &amp; SHELL READY ({activeColumns.length} COLUMNS) — STAMP
+                  COLUMNS OR USE &apos;+ ADD RACK RUN&apos; / &apos;AI ASSISTANT&apos; TO PLACE
+                  RACKS
+                </text>
+              )}
             </g>
           );
         })()
@@ -774,6 +815,28 @@ export function PlanCanvas({
     [providedFindingCounts, doc],
   );
 
+  const effectiveExtent = useMemo(() => {
+    if (plan.extent.width.value > 0 && plan.extent.height.value > 0) {
+      return plan.extent;
+    }
+    const widthUm = (shellOverlay?.shellWidthFt ?? 110) * 12 * 25_400;
+    const heightUm = (shellOverlay?.shellDepthFt ?? 60) * 12 * 25_400;
+    return {
+      width: {
+        value: widthUm,
+        unit: 'um' as const,
+        origin: 'DERIVED' as const,
+        established: true as const,
+      },
+      height: {
+        value: heightUm,
+        unit: 'um' as const,
+        origin: 'DERIVED' as const,
+        established: true as const,
+      },
+    };
+  }, [plan.extent, shellOverlay?.shellDepthFt, shellOverlay?.shellWidthFt]);
+
   const list = useMemo(
     () =>
       buildDetailedPlan({
@@ -799,10 +862,10 @@ export function PlanCanvas({
           frameToFrame: a.frameToFrame,
           clearBetweenLoads: a.clearBetweenLoads,
         })),
-        extent: plan.extent,
+        extent: effectiveExtent,
         overallLength: plan.overallLength,
       }),
-    [doc.id, doc.revision, plan],
+    [doc.id, doc.revision, effectiveExtent, plan],
   );
 
   // Resolve current selection against the live plan so an undone or deleted bay
@@ -1218,10 +1281,21 @@ export function PlanCanvas({
   );
 
   // Keyboard shortcuts (S4.2): I = insert bay, S = split run, L = lock/unlock,
-  // Backspace/Delete = delete bay, Escape = deselect, Ctrl/Cmd+Z = undo,
-  // F = fit to view, +/= = zoom in, - = zoom out.
+  // Backspace/Delete = delete bay, Escape = exit active tool & deselect,
+  // Ctrl/Cmd+Z = undo, F = fit to view, +/= = zoom in, - = zoom out.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setWallDraftStart(null);
+        setWallDraftCurrent(null);
+        setCalP1(null);
+        setCalP2(null);
+        actOnSelection('deselect');
+        onToolModeChange?.('select');
+        return;
+      }
+
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || target?.isContentEditable) {
@@ -1266,15 +1340,12 @@ export function PlanCanvas({
       } else if (e.key === 'Backspace' || e.key === 'Delete') {
         e.preventDefault();
         actOnSelection('delete');
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        actOnSelection('deselect');
       }
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activeSelection, actOnSelection, fit, onUndo, zoomByStep]);
+  }, [activeSelection, actOnSelection, fit, onToolModeChange, onUndo, zoomByStep]);
 
   return (
     <div className="plan-stage stage">
@@ -1636,7 +1707,9 @@ export function PlanCanvas({
           Locked bay
         </span>
         <span className="legend-right right">
-          CLICK A BAY OR AISLE TO SELECT · DRAG TO PAN · SCROLL TO ZOOM
+          {toolMode && toolMode !== 'select'
+            ? `ACTIVE TOOL: ${toolMode.toUpperCase()} — CLICK DRAWING TO PLACE · PRESS ESC TO EXIT`
+            : 'CLICK A BAY OR AISLE TO SELECT · DRAG TO PAN · SCROLL TO ZOOM'}
         </span>
       </div>
     </div>

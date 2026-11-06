@@ -806,6 +806,34 @@ body {
   margin-top: 8px;
 }
 
+.ai-chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  margin: 8px 0;
+  padding: 6px 8px;
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+}
+
+.ai-chat-bubble {
+  padding: 6px 8px;
+  border-radius: 3px;
+  line-height: 1.4;
+}
+
+.ai-chat-assistant {
+  background: var(--paper);
+  border-left: 3px solid var(--navy);
+}
+
+.ai-chat-user {
+  background: var(--panel);
+  border-left: 3px solid var(--ink-2);
+}
+
 .ai-toolbar {
   pointer-events: auto;
   display: flex;

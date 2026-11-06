@@ -46,6 +46,8 @@ export interface ShellOverlayState {
   readonly showColumns: boolean;
   readonly columnSpacingFt: 30 | 40 | 50;
   readonly columnSizeIn: number;
+  readonly shellWidthFt: number;
+  readonly shellDepthFt: number;
   readonly customWalls: readonly PlanWallOverlay[];
   readonly customColumns: readonly PlanColumnOverlay[];
   readonly calibratedScaleInPerPx: number | null;
@@ -77,7 +79,7 @@ export interface StudioSessionValue {
   readonly runCommands: (commands: readonly Command[]) => SessionResult;
   readonly onUndo: () => SessionResult;
   readonly onRedo: () => SessionResult;
-  readonly loadPreset: (preset: 'benchmark-36' | 'starter-2') => void;
+  readonly loadPreset: (preset: 'benchmark-36' | 'starter-2' | 'shell-columns') => void;
   readonly generateFromSpace: (input: StarterSpaceInput) => void;
   readonly exportProjectJson: () => string;
   readonly importProjectJson: (rawJson: string) => { readonly ok: boolean; readonly message: string };
@@ -88,6 +90,8 @@ const DEFAULT_SHELL_OVERLAY: ShellOverlayState = {
   showColumns: false,
   columnSpacingFt: 40,
   columnSizeIn: 16,
+  shellWidthFt: 110,
+  shellDepthFt: 60,
   customWalls: [],
   customColumns: [],
   calibratedScaleInPerPx: null,
@@ -121,6 +125,19 @@ function buildStarterTwoBaySession(): Session {
       ...doc,
       name: 'Starter 2-Bay Concept',
       runs: [singleRun],
+    },
+    counter: base.counter,
+    ledger: EMPTY_LEDGER,
+  };
+}
+
+function buildShellColumnsFirstSession(): Session {
+  const base = createInitialSession();
+  return {
+    document: {
+      ...base.document,
+      name: 'Building Shell & Column Grid (Pre-Rack)',
+      runs: [],
     },
     counter: base.counter,
     ledger: EMPTY_LEDGER,
@@ -186,13 +203,23 @@ export function StudioSessionProvider({
     return result;
   }, [session, onRefusal]);
 
-  const loadPreset = useCallback((preset: 'benchmark-36' | 'starter-2'): void => {
-    if (preset === 'starter-2') {
-      setSession(buildStarterTwoBaySession());
-    } else {
-      setSession(createInitialSession());
-    }
-  }, []);
+  const loadPreset = useCallback(
+    (preset: 'benchmark-36' | 'starter-2' | 'shell-columns'): void => {
+      if (preset === 'starter-2') {
+        setSession(buildStarterTwoBaySession());
+      } else if (preset === 'shell-columns') {
+        setSession(buildShellColumnsFirstSession());
+        setShellOverlay((prev) => ({
+          ...prev,
+          showPerimeterWalls: true,
+          showColumns: true,
+        }));
+      } else {
+        setSession(createInitialSession());
+      }
+    },
+    [],
+  );
 
   const generateFromSpace = useCallback((input: StarterSpaceInput): void => {
     const base = createInitialSession();
@@ -287,6 +314,8 @@ export function StudioSessionProvider({
       showPerimeterWalls: true,
       showColumns: input.showColumns,
       columnSpacingFt: input.columnSpacingFt,
+      shellWidthFt: Math.max(40, Math.round(input.lengthFt)),
+      shellDepthFt: Math.max(30, Math.round(input.widthFt)),
     }));
   }, []);
 

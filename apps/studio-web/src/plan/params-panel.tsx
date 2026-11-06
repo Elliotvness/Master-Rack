@@ -83,7 +83,9 @@ export function ParamsPanel({
   readonly document: StudioDocument;
   readonly plan?: PlanGeometry | undefined;
   readonly onCommand?: (command: Command) => void;
-  readonly onLoadPreset?: ((preset: 'benchmark-36' | 'starter-2') => void) | undefined;
+  readonly onLoadPreset?:
+    | ((preset: 'benchmark-36' | 'starter-2' | 'shell-columns') => void)
+    | undefined;
 }): React.JSX.Element {
   const [prov, setProv] = useState<ProvenanceInfo | null>(null);
   const [addBayQty, setAddBayQty] = useState<number>(2);
@@ -814,6 +816,15 @@ export function ParamsPanel({
 
         {onLoadPreset !== undefined && (
           <div className="pf-row pf-quick-actions">
+            <button
+              id="btn-preset-columns-first"
+              type="button"
+              className="pf-btn pf-btn-small"
+              onClick={() => onLoadPreset('shell-columns')}
+              title="Start with empty building shell and column grid before placing racks"
+            >
+              Columns First (0b)
+            </button>
             <button
               id="btn-preset-starter"
               type="button"
