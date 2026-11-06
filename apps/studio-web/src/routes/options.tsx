@@ -39,7 +39,8 @@ export default function OptionsRoute({
         </div>
 
         <div className="page-header-controls">
-          <div className="revision-selector-wrap">
+          <details className="revision-selector-wrap">
+            <summary className="selector-label">Advanced: Revision Target</summary>
             <label htmlFor="options-revision-id-input" className="selector-label">
               Active Revision ID:
             </label>
@@ -52,7 +53,7 @@ export default function OptionsRoute({
               placeholder="UUID revision id"
               data-testid="options-revision-input"
             />
-          </div>
+          </details>
         </div>
       </header>
 

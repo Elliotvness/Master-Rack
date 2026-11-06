@@ -218,7 +218,7 @@ export default function RevisionsView(): React.JSX.Element {
     setRefusalReasons([]);
     setLifecycleState('FROZEN');
     setStatusNotice(
-      `Revision ${revisionCode} locked as FROZEN. WORM manifest queued for 7-year compliance retention.`,
+      `Revision ${revisionCode} locked as FROZEN and recorded in the revision history.`,
     );
   };
 
@@ -329,7 +329,7 @@ export default function RevisionsView(): React.JSX.Element {
                     aria-label={`Acknowledge ${a.key}`}
                   />
                   <span>
-                    {a.statement} <span className="review-key">{a.scope} · {a.key}</span>
+                    {a.statement} <span className="review-key">({a.scope})</span>
                   </span>
                 </label>
               </li>
@@ -354,7 +354,7 @@ export default function RevisionsView(): React.JSX.Element {
               onChange={(e) => setDisclaimerChecked(e.target.checked)}
             />
             <span>
-              I acknowledge <code>disclaimer-v2026.09</code>: this layout is preliminary screening
+              I acknowledge the preliminary screening notice: this layout is preliminary screening
               only, unstamped, for discussion, and requires review by a licensed structural engineer
               of record and the authority having jurisdiction.
             </span>
@@ -385,32 +385,36 @@ export default function RevisionsView(): React.JSX.Element {
         <p id="rev-active-card" className="font-mono">
           <strong>Revision:</strong> <span id="rev-code">{revisionCode}</span> ·{' '}
           <strong>State:</strong> <span id="rev-state">{lifecycleState}</span> ·{' '}
-          <strong>Pack Authority:</strong> <code>{doc.packs.structural}</code> ·{' '}
           <strong>Session Edits:</strong> {session.ledger.depth}
         </p>
 
-        <div className="review-sync">
-          <label htmlFor="rev-id-input">Revision UUID</label>
-          <input
-            id="rev-id-input"
-            type="text"
-            className="input-field font-mono"
-            placeholder="00000000-0000-4000-8000-000000000001"
-            value={revisionIdInput}
-            onChange={(e) => setRevisionIdInput(e.target.value)}
-          />
-          <button
-            id="rev-sync-draft-btn"
-            type="button"
-            className="btn"
-            disabled={lifecycleState === 'FROZEN'}
-            onClick={() => {
-              void handleSyncDraftToApi();
-            }}
-          >
-            Sync draft to the revision
-          </button>
-        </div>
+        <details className="review-sync-details">
+          <summary style={{ cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>
+            Advanced: Server Revision Sync
+          </summary>
+          <div className="review-sync" style={{ marginTop: '8px' }}>
+            <label htmlFor="rev-id-input">Revision UUID</label>
+            <input
+              id="rev-id-input"
+              type="text"
+              className="input-field font-mono"
+              placeholder="00000000-0000-4000-8000-000000000001"
+              value={revisionIdInput}
+              onChange={(e) => setRevisionIdInput(e.target.value)}
+            />
+            <button
+              id="rev-sync-draft-btn"
+              type="button"
+              className="btn"
+              disabled={lifecycleState === 'FROZEN'}
+              onClick={() => {
+                void handleSyncDraftToApi();
+              }}
+            >
+              Sync draft to the revision
+            </button>
+          </div>
+        </details>
 
         {lifecycleState === 'FROZEN' && (
           <div className="review-sync">
@@ -424,19 +428,22 @@ export default function RevisionsView(): React.JSX.Element {
             >
               Clone to Draft P02
             </button>
-            <button
-              id="rev-create-c01-btn"
-              type="button"
-              className="btn"
-              onClick={handleCreateInternalC01}
-            >
-              Create Internal Commercial Revision C01
-            </button>
+            <details style={{ display: 'inline-block', marginLeft: '8px' }}>
+              <summary className="btn" style={{ cursor: 'pointer', display: 'inline-block' }}>
+                Internal Estimator Tools
+              </summary>
+              <button
+                id="rev-create-c01-btn"
+                type="button"
+                className="btn"
+                style={{ marginLeft: '8px' }}
+                onClick={handleCreateInternalC01}
+              >
+                Create Internal Commercial Revision C01
+              </button>
+            </details>
           </div>
         )}
-        <p className="review-note">
-          Internal work derives C01 from the locked revision and never writes back to it.
-        </p>
       </section>
 
       {/* 3. Internal Commercial C01 "Show Your Work" Calculation Trace */}

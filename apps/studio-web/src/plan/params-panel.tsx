@@ -11,6 +11,7 @@ import {
   lookupPublishedBeamSpan,
   planGeometry,
   type Command,
+  type PlanGeometry,
   type StudioDocument,
   type Witnessed,
 } from '@rms/studio-model';
@@ -75,14 +76,16 @@ function ProvBtn({
 
 export function ParamsPanel({
   document: doc,
+  plan: providedPlan,
   onCommand,
 }: {
   readonly document: StudioDocument;
+  readonly plan?: PlanGeometry | undefined;
   readonly onCommand?: (command: Command) => void;
 }): React.JSX.Element {
   const [prov, setProv] = useState<ProvenanceInfo | null>(null);
   const bt = doc.bayTypes[0];
-  const plan = planGeometry(doc);
+  const plan = providedPlan ?? planGeometry(doc);
   const firstAisleIn =
     plan.aisles[0] !== undefined ? inches(plan.aisles[0].frameToFrame.value) : '120';
 
@@ -137,10 +140,10 @@ export function ParamsPanel({
 
       <ProvenancePopover info={prov} onClose={() => setProv(null)} />
 
-      <details open className="pf-group">
+      <details className="pf-group">
         <summary className="pf-summary">
         <h2 id="pf-project" className="pf-heading">
-          Project
+          Project <span className="pf-sub">{doc.name} · Rev {doc.revision}</span>
         </h2>
         </summary>
         <div className="pf-row">
@@ -205,10 +208,10 @@ export function ParamsPanel({
         </div>
       </details>
 
-      <details open className="pf-group">
+      <details className="pf-group">
         <summary className="pf-summary">
         <h2 id="pf-building" className="pf-heading">
-          Building <span className="pf-sub">survey and declaration</span>
+          Building <span className="pf-sub">{inches(doc.building.clearHeight.value)}&quot; clear · {doc.building.insurer}</span>
         </h2>
         </summary>
 
@@ -541,7 +544,7 @@ export function ParamsPanel({
                             truckRAS: {
                               value: planning.planningAstUm,
                               established: 'UNKNOWN',
-                              source: `forklift-planning-2026.09 (${planning.manufacturerBand} · MS-6, MS-14 planning seed)`,
+                              source: `forklift-planning-2026.09 (${planning.manufacturerBand} planning seed)`,
                             },
                           }
                         : { truckType: nextType },
@@ -564,7 +567,7 @@ export function ParamsPanel({
                   doc.equipment.truckType,
                   undefined,
                   'CATALOG',
-                  `Seed pack ${doc.packs.forklift || 'forklift-planning-2026.09'} (MS-6, MS-14)`,
+                  `Seed pack ${doc.packs.forklift || 'forklift-planning-2026.09'}`,
                 )
               }
             />
@@ -680,10 +683,10 @@ export function ParamsPanel({
         </div>
       </details>
 
-      <details open className="pf-group">
+      <details className="pf-group">
         <summary className="pf-summary">
         <h2 id="pf-unit-load" className="pf-heading">
-          Unit load
+          Unit load <span className="pf-sub">{inches(doc.unitLoad.palletW)}×{inches(doc.unitLoad.palletD)}&quot; · {doc.unitLoad.weight.toLocaleString()} lb</span>
         </h2>
         </summary>
 

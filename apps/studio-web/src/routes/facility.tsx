@@ -1,4 +1,4 @@
-import { useState, type JSX } from 'react';
+import { useMemo, useState, type JSX } from 'react';
 import { Button } from '../components/button.js';
 import { useToasts } from '../components/toast.js';
 import { FacilityForm } from '../facility/facility-form.js';
@@ -37,8 +37,8 @@ export default function FacilityRoute({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
-  const findings = collectFindings(facility, units);
-  const isReady = readyToSubmit(facility, units);
+  const findings = useMemo(() => collectFindings(facility, units), [facility, units]);
+  const isReady = useMemo(() => readyToSubmit(facility, units), [facility, units]);
 
   const handleSave = async (): Promise<void> => {
     setIsSaving(true);
@@ -78,7 +78,8 @@ export default function FacilityRoute({
         </div>
 
         <div className="page-header-controls">
-          <div className="revision-selector-wrap">
+          <details className="revision-selector-wrap">
+            <summary className="selector-label">Advanced: Revision Target</summary>
             <label htmlFor="revision-id-input" className="selector-label">
               Active Revision ID:
             </label>
@@ -91,7 +92,7 @@ export default function FacilityRoute({
               placeholder="UUID revision id"
               disabled={isSaving}
             />
-          </div>
+          </details>
 
           <div className="header-actions">
             <Button

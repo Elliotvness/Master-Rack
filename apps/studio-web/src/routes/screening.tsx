@@ -3,10 +3,8 @@ import {
   OBSTRUCTION_ENTITY_KINDS,
   acceptFixProposal,
   lostPositionLedger,
-  planGeometry,
   proposeFixes,
   quoteReadinessForDocument,
-  screeningFindingsForDocument,
   type AcceptedFixAuditRecord,
   type FixProposal,
 } from '@rms/studio-model';
@@ -15,7 +13,7 @@ import { useMemo, useState } from 'react';
 import { useStudioSession } from '../session-context.js';
 
 export default function ScreeningView(): React.JSX.Element {
-  const { session, runCommands } = useStudioSession();
+  const { session, plan, findings, runCommands } = useStudioSession();
   const doc = session.document;
 
   const [auditRecords, setAuditRecords] = useState<readonly AcceptedFixAuditRecord[]>([]);
@@ -23,9 +21,6 @@ export default function ScreeningView(): React.JSX.Element {
 
   const readiness = useMemo(() => quoteReadinessForDocument(doc), [doc]);
   const proposals = useMemo(() => proposeFixes(doc, session.counter), [doc, session.counter]);
-  const plan = useMemo(() => planGeometry(doc), [doc]);
-
-  const findings = useMemo(() => screeningFindingsForDocument(doc), [doc]);
 
   const positionLedger = useMemo(
     () =>
@@ -54,10 +49,16 @@ export default function ScreeningView(): React.JSX.Element {
       >
         <strong>{readiness.watermark ?? 'Valid for Quote (Screening Complete)'}</strong>
         {!readiness.isQuoteReady && (
-          <span className="bom-quote-reasons">
-            {' — '}
-            {readiness.blockingReasons.join(' ')}
-          </span>
+          <details className="bom-quote-reasons" style={{ display: 'inline-block', marginLeft: '8px' }}>
+            <summary style={{ cursor: 'pointer' }}>
+              {readiness.blockingReasons.length} items pending verification
+            </summary>
+            <ul style={{ margin: '6px 0 0', paddingLeft: '18px' }}>
+              {readiness.blockingReasons.map((r, i) => (
+                <li key={i}>{r}</li>
+              ))}
+            </ul>
+          </details>
         )}
       </div>
 
@@ -79,10 +80,12 @@ export default function ScreeningView(): React.JSX.Element {
         </div>
       </div>
 
-      {/* 1. Pinned Authority Packs */}
-      <div className="blueprint" style={{ padding: '12px', marginBottom: '16px' }}>
-        <h2 style={{ marginTop: 0 }}>Pinned Authority Packs (I4)</h2>
-        <div id="screening-pack-pins" style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+      {/* 1. Reference Standards & Catalog Packs */}
+      <details className="blueprint" style={{ padding: '12px', marginBottom: '16px' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
+          Reference Standards &amp; Catalog Packs
+        </summary>
+        <div id="screening-pack-pins" style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '8px' }}>
           <span>
             <strong>Rack Catalog:</strong> <code>{doc.packs.rack}</code>
           </span>
@@ -99,11 +102,11 @@ export default function ScreeningView(): React.JSX.Element {
             <strong>Structural Rules:</strong> <code>{doc.packs.structural}</code>
           </span>
         </div>
-      </div>
+      </details>
 
-      {/* 2. Previewable Fix Proposals (ADR-010, D2, D8) */}
+      {/* 2. Previewable Fix Proposals */}
       <div className="blueprint" style={{ padding: '12px', marginBottom: '16px' }}>
-        <h2 style={{ marginTop: 0 }}>Previewable Fix Proposals ({proposals.length})</h2>
+        <h2 style={{ marginTop: 0 }}>Suggested Layout Adjustments ({proposals.length})</h2>
         <p style={{ fontSize: '12px', marginTop: 0 }}>
           Candidate remediations are computed deterministically and never auto-apply without explicit
           acceptance.
@@ -155,7 +158,7 @@ export default function ScreeningView(): React.JSX.Element {
 
         {auditRecords.length > 0 && (
           <div id="screening-audit-log" style={{ marginTop: '12px' }}>
-            <h3>Accepted Fix Audit Trail (D8)</h3>
+            <h3>Applied Adjustments Log</h3>
             <ul>
               {auditRecords.map((rec, idx) => (
                 <li key={`${rec.proposalId}-${idx}`}>
@@ -173,7 +176,6 @@ export default function ScreeningView(): React.JSX.Element {
         <table className="bom-table" aria-label="Compliance screening findings">
           <thead>
             <tr>
-              <th scope="col">Code</th>
               <th scope="col">Severity</th>
               <th scope="col">Subject</th>
               <th scope="col">Finding Summary</th>
@@ -183,9 +185,6 @@ export default function ScreeningView(): React.JSX.Element {
           <tbody>
             {findings.map((f, idx) => (
               <tr key={`${f.code}-${idx}`}>
-                <td>
-                  <code>{f.code}</code>
-                </td>
                 <td>
                   <span className="tag tag-accent">{f.severity}</span>
                 </td>
@@ -199,10 +198,12 @@ export default function ScreeningView(): React.JSX.Element {
       </div>
 
       {/* 4. Obstruction-Face Registry & Position Accounting Ledger */}
-      <div className="blueprint" style={{ padding: '12px' }}>
-        <h2 style={{ marginTop: 0 }}>Warehouse Shell &amp; Position Accounting (ADR-007)</h2>
-        <p style={{ fontSize: '12px' }}>
-          <strong>Registered Obstruction Face Kinds ({OBSTRUCTION_ENTITY_KINDS.length}):</strong>{' '}
+      <details className="blueprint" style={{ padding: '12px' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
+          Warehouse Shell &amp; Position Accounting ({positionLedger.netUsablePositions} net usable positions)
+        </summary>
+        <p style={{ fontSize: '12px', marginTop: '8px' }}>
+          <strong>Tracked Obstruction Types ({OBSTRUCTION_ENTITY_KINDS.length}):</strong>{' '}
           {OBSTRUCTION_ENTITY_KINDS.join(', ')}
         </p>
         <p id="screening-position-identity" className="font-mono" style={{ fontSize: '13px' }}>
@@ -210,7 +211,7 @@ export default function ScreeningView(): React.JSX.Element {
           {LOST_POSITION_REASONS.length} tracked reasons) = Net Usable (
           {positionLedger.netUsablePositions})
         </p>
-      </div>
+      </details>
     </section>
   );
 }

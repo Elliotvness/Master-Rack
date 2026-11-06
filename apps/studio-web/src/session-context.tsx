@@ -2,11 +2,17 @@ import {
   EMPTY_LEDGER,
   canRedo,
   canUndo,
+  countFindings,
   dispatch,
   migrate,
+  planGeometry,
   redo,
+  screeningFindingsForDocument,
   undo,
   type Command,
+  type FindingCounts,
+  type PlanGeometry,
+  type ScreeningFindingRow,
   type Session,
   type SessionResult,
 } from '@rms/studio-model';
@@ -16,6 +22,9 @@ import fixture from '../../../fixtures/continuity/rack-studio-v1.json';
 
 export interface StudioSessionValue {
   readonly session: Session;
+  readonly plan: PlanGeometry;
+  readonly findings: readonly ScreeningFindingRow[];
+  readonly findingCounts: FindingCounts;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
   readonly runCommand: (command: Command) => SessionResult;
@@ -94,9 +103,19 @@ export function StudioSessionProvider({
     return result;
   }, [session, onRefusal]);
 
+  const plan = useMemo(() => planGeometry(session.document), [session.document]);
+  const findings = useMemo(
+    () => screeningFindingsForDocument(session.document),
+    [session.document],
+  );
+  const findingCounts = useMemo(() => countFindings(findings), [findings]);
+
   const value = useMemo<StudioSessionValue>(
     () => ({
       session,
+      plan,
+      findings,
+      findingCounts,
       canUndo: canUndo(session.ledger),
       canRedo: canRedo(session.ledger),
       runCommand,
@@ -104,7 +123,7 @@ export function StudioSessionProvider({
       onUndo,
       onRedo,
     }),
-    [session, runCommand, runCommands, onUndo, onRedo],
+    [session, plan, findings, findingCounts, runCommand, runCommands, onUndo, onRedo],
   );
 
   return <StudioSessionContext.Provider value={value}>{children}</StudioSessionContext.Provider>;

@@ -593,7 +593,7 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
       expect.objectContaining({ method: 'POST' }),
     );
     expect(document.getElementById('intake-status')?.textContent).toMatch(
-      /Staged 1 extracted field\(s\) from Crown-RM6000\.pdf via \/api\/client\/v1\/intake/,
+      /Staged 1 extracted field\(s\) from Crown-RM6000\.pdf/,
     );
     fetchSpy.mockRestore();
   });

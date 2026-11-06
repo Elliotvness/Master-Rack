@@ -14,12 +14,62 @@ import {
   planGeometry,
   screeningFindingsForDocument,
   type Command,
+  type FindingCounts,
+  type PlanGeometry,
   type StudioDocument,
 } from '@rms/studio-model';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { hitTestPlan, type PlanHit } from './hit-test.js';
 import { readPens } from './use-pens.js';
+
+function sameHit(a: PlanHit | null, b: PlanHit | null): boolean {
+  if (a === b) return true;
+  if (a === null || b === null || a.kind !== b.kind) return false;
+  if (a.kind === 'bay' && b.kind === 'bay') {
+    return a.runId === b.runId && a.bayId === b.bayId;
+  }
+  if (a.kind === 'run' && b.kind === 'run') {
+    return a.runId === b.runId;
+  }
+  if (a.kind === 'aisle' && b.kind === 'aisle') {
+    return a.aisleId === b.aisleId;
+  }
+  return false;
+}
+
+const PalletWashOverlay = memo(function PalletWashOverlay({
+  plan,
+  camera,
+  viewport,
+}: {
+  readonly plan: PlanGeometry;
+  readonly camera: Camera;
+  readonly viewport: { readonly width: number; readonly height: number };
+}): React.JSX.Element {
+  return (
+    <g aria-hidden="true">
+      {plan.runs.map((run) =>
+        run.pallets.map((p) => {
+          const tl = worldToScreen(camera, viewport, { x: p.x, y: p.y });
+          const w = p.width * camera.scale;
+          const h = p.depth * camera.scale;
+          return (
+            <rect
+              key={`pallet:${p.id}`}
+              x={tl.x}
+              y={tl.y}
+              width={Math.max(1, w)}
+              height={Math.max(1, h)}
+              className="plan-pallet-wash"
+              style={{ pointerEvents: 'none' }}
+            />
+          );
+        }),
+      )}
+    </g>
+  );
+});
 
 /**
  * Feet and inches, for the HUD only.
@@ -90,10 +140,14 @@ export interface SelectedBay {
  */
 export function PlanCanvas({
   document: doc,
+  plan: providedPlan,
+  findingCounts: providedFindingCounts,
   onCommand,
   onUndo,
 }: {
   readonly document: StudioDocument;
+  readonly plan?: PlanGeometry | undefined;
+  readonly findingCounts?: FindingCounts | undefined;
   readonly onCommand?: (command: Command) => void;
   readonly onUndo?: () => void;
 }): React.JSX.Element {
@@ -110,10 +164,13 @@ export function PlanCanvas({
    * camera, not on the viewport — so pan and zoom cost a redraw and never a
    * re-derivation, which is blueprint §21's first performance rule.
    */
-  const plan = useMemo(() => planGeometry(doc), [doc]);
+  const plan = useMemo(
+    () => providedPlan ?? planGeometry(doc),
+    [providedPlan, doc],
+  );
   const findingCounts = useMemo(
-    () => countFindings(screeningFindingsForDocument(doc)),
-    [doc],
+    () => providedFindingCounts ?? countFindings(screeningFindingsForDocument(doc)),
+    [providedFindingCounts, doc],
   );
 
   const list = useMemo(
@@ -285,7 +342,8 @@ export function PlanCanvas({
         x: e.clientX - rect.left,
         y: e.clientY - rect.top,
       });
-      setHovered(hitTestPlan(plan, world.x, world.y, effectiveCamera.scale));
+      const nextHit = hitTestPlan(plan, world.x, world.y, effectiveCamera.scale);
+      setHovered((prev) => (sameHit(prev, nextHit) ? prev : nextHit));
     },
     [camera, effectiveCamera, effectiveViewport, plan, schedule],
   );
@@ -421,24 +479,11 @@ export function PlanCanvas({
           aria-label="Interactive bay overlay"
         >
           {/* Semi-transparent pallet wash footprints matching blueprint specification */}
-          {plan.runs.map((run) =>
-            run.pallets.map((p) => {
-              const tl = worldToScreen(effectiveCamera, effectiveViewport, { x: p.x, y: p.y });
-              const w = p.width * effectiveCamera.scale;
-              const h = p.depth * effectiveCamera.scale;
-              return (
-                <rect
-                  key={`pallet:${p.id}`}
-                  x={tl.x}
-                  y={tl.y}
-                  width={Math.max(1, w)}
-                  height={Math.max(1, h)}
-                  className="plan-pallet-wash"
-                  style={{ pointerEvents: 'none' }}
-                />
-              );
-            }),
-          )}
+          <PalletWashOverlay
+            plan={plan}
+            camera={effectiveCamera}
+            viewport={effectiveViewport}
+          />
 
           {/* Bay interactive selection targets */}
           {plan.runs.map((run) => {

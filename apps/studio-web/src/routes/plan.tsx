@@ -36,7 +36,7 @@ const SAMPLE_FORKLIFT_EXTRACTION = {
  * not a second sample that could drift from them.
  */
 export default function PlanView(): React.JSX.Element {
-  const { session, runCommand, runCommands, onUndo } = useStudioSession();
+  const { session, plan, findingCounts, runCommand, runCommands, onUndo } = useStudioSession();
   const [intakeOpen, setIntakeOpen] = useState(false);
   const [intakeRows, setIntakeRows] = useState<readonly IntakeConfirmationRow[]>(
     [],
@@ -104,10 +104,10 @@ export default function PlanView(): React.JSX.Element {
       );
       setIntakeRows(staged);
       setIntakeStatus(
-        `Staged ${staged.length} extracted field(s) from ${json.file_name ?? intakeFileName} via /api/client/v1/intake (store: false).`,
+        `Staged ${staged.length} extracted field(s) from ${json.file_name ?? intakeFileName}.`,
       );
     } catch {
-      setIntakeStatus('Intake API request failed.');
+      setIntakeStatus('Spec-sheet extraction request failed.');
     }
   };
 
@@ -136,7 +136,7 @@ export default function PlanView(): React.JSX.Element {
     // Applied rows leave the table so a second click cannot apply them twice.
     setIntakeRows((prev) => prev.filter((r) => !r.accepted));
     setIntakeStatus(
-      `Applied ${accepted.length} confirmed row(s) with source provenance (store: false).`,
+      `Applied ${accepted.length} confirmed row(s) with source provenance.`,
     );
   };
 
@@ -241,9 +241,9 @@ export default function PlanView(): React.JSX.Element {
               value={intakeDocKind}
               onChange={(e) => setIntakeDocKind(e.target.value as IntakeDocumentKind)}
             >
-              <option value="FORKLIFT_SPEC_SHEET">FORKLIFT_SPEC_SHEET</option>
-              <option value="SITE_SURVEY_CHECKLIST">SITE_SURVEY_CHECKLIST</option>
-              <option value="RACK_SUBMITTAL">RACK_SUBMITTAL</option>
+              <option value="FORKLIFT_SPEC_SHEET">Forklift Spec Sheet</option>
+              <option value="SITE_SURVEY_CHECKLIST">Site Survey Checklist</option>
+              <option value="RACK_SUBMITTAL">Rack Submittal</option>
             </select>
             <label htmlFor="intake-file-name" className="pf-label">
               Source File
@@ -267,7 +267,7 @@ export default function PlanView(): React.JSX.Element {
               className="pf-btn"
               onClick={() => void extractViaIntakeEndpoint()}
             >
-              Extract via /api/client/v1/intake
+              Extract Dimensions
             </button>
           </div>
           <table id="intake-confirm-table" aria-label="Intake confirmation rows">
@@ -402,8 +402,14 @@ export default function PlanView(): React.JSX.Element {
       )}
 
       <div className="plan-layout">
-        <ParamsPanel document={session.document} onCommand={runCommand} />
-        <PlanCanvas document={session.document} onCommand={runCommand} onUndo={onUndo} />
+        <ParamsPanel document={session.document} plan={plan} onCommand={runCommand} />
+        <PlanCanvas
+          document={session.document}
+          plan={plan}
+          findingCounts={findingCounts}
+          onCommand={runCommand}
+          onUndo={onUndo}
+        />
       </div>
 
       <ChecksDrawer />

@@ -2,10 +2,11 @@ import {
   SUBMITTAL_13_SHEETS,
   buildDetailedPlan,
   exportDisplayListDxf,
+  type DisplayList,
   type SubmittalSheetId,
   type SubmittalSheetSpec,
 } from '@rms/display-list';
-import { planGeometry, type StudioDocument } from '@rms/studio-model';
+import { type StudioDocument } from '@rms/studio-model';
 import { useMemo, useState } from 'react';
 
 import { ElevationSvg } from '../elevation/elevation-svg.js';
@@ -15,38 +16,13 @@ export type SheetId = SubmittalSheetId;
 
 const SHEETS: readonly SubmittalSheetSpec[] = SUBMITTAL_13_SHEETS;
 
-function PlanSheetSvg({ document: doc }: { readonly document: StudioDocument }): React.JSX.Element {
-  const plan = useMemo(() => planGeometry(doc), [doc]);
-  const list = useMemo(
-    () =>
-      buildDetailedPlan({
-        revisionHash: `doc:${doc.id}:${doc.revision}`,
-        runs: plan.runs.map((r) => ({
-          runId: r.runId,
-          label: r.label,
-          x: r.x,
-          y: r.y,
-          runLength: r.runLength,
-          bayPitch: r.bayPitch,
-          uprightFace: r.uprightFace,
-          rows: r.rows,
-          bays: r.bays,
-          pallets: r.pallets,
-          longitudinalFlue: r.longitudinalFlue,
-        })),
-        aisles: plan.aisles.map((a) => ({
-          aisleId: a.aisleId,
-          x: a.x,
-          y: a.y,
-          length: a.length,
-          frameToFrame: a.frameToFrame,
-          clearBetweenLoads: a.clearBetweenLoads,
-        })),
-        extent: plan.extent,
-        overallLength: plan.overallLength,
-      }),
-    [doc.id, doc.revision, plan],
-  );
+function PlanSheetSvg({
+  document: doc,
+  list,
+}: {
+  readonly document: StudioDocument;
+  readonly list: DisplayList;
+}): React.JSX.Element {
 
   const pad = 1_200_000;
   const vbW = Math.max(list.extent.width, 2_540_000) + pad * 2;
@@ -159,11 +135,41 @@ function PlanSheetSvg({ document: doc }: { readonly document: StudioDocument }):
  * delegated-design note, and empty preliminary stamp box.
  */
 export default function SheetsView(): React.JSX.Element {
-  const { session } = useStudioSession();
+  const { session, plan } = useStudioSession();
   const doc = session.document;
   const [activeSheet, setActiveSheet] = useState<SheetId>('R-101');
   const [dxfNotice, setDxfNotice] = useState<string | null>(null);
-  const plan = useMemo(() => planGeometry(doc), [doc]);
+
+  const detailedPlan = useMemo(
+    () =>
+      buildDetailedPlan({
+        revisionHash: `doc:${doc.id}:${doc.revision}`,
+        runs: plan.runs.map((r) => ({
+          runId: r.runId,
+          label: r.label,
+          x: r.x,
+          y: r.y,
+          runLength: r.runLength,
+          bayPitch: r.bayPitch,
+          uprightFace: r.uprightFace,
+          rows: r.rows,
+          bays: r.bays,
+          pallets: r.pallets,
+          longitudinalFlue: r.longitudinalFlue,
+        })),
+        aisles: plan.aisles.map((a) => ({
+          aisleId: a.aisleId,
+          x: a.x,
+          y: a.y,
+          length: a.length,
+          frameToFrame: a.frameToFrame,
+          clearBetweenLoads: a.clearBetweenLoads,
+        })),
+        extent: plan.extent,
+        overallLength: plan.overallLength,
+      }),
+    [doc.id, doc.revision, plan],
+  );
 
   const currentSpec: SubmittalSheetSpec = SHEETS.find((s) => s.id === activeSheet) ?? SHEETS[1]!;
 
@@ -180,33 +186,7 @@ export default function SheetsView(): React.JSX.Element {
   }, [currentSpec.category, doc.bayTypes, plan.extent.height.value, plan.extent.width.value]);
 
   const handleExportDxf = () => {
-    const list = buildDetailedPlan({
-      revisionHash: `doc:${doc.id}:${doc.revision}`,
-      runs: plan.runs.map((r) => ({
-        runId: r.runId,
-        label: r.label,
-        x: r.x,
-        y: r.y,
-        runLength: r.runLength,
-        bayPitch: r.bayPitch,
-        uprightFace: r.uprightFace,
-        rows: r.rows,
-        bays: r.bays,
-        pallets: r.pallets,
-        longitudinalFlue: r.longitudinalFlue,
-      })),
-      aisles: plan.aisles.map((a) => ({
-        aisleId: a.aisleId,
-        x: a.x,
-        y: a.y,
-        length: a.length,
-        frameToFrame: a.frameToFrame,
-        clearBetweenLoads: a.clearBetweenLoads,
-      })),
-      extent: plan.extent,
-      overallLength: plan.overallLength,
-    });
-    const dxf = exportDisplayListDxf(list, doc.name);
+    const dxf = exportDisplayListDxf(detailedPlan, doc.name);
     setDxfNotice(`Exported AutoCAD LT DXF (${dxf.split('\n').length} lines · 7 layers).`);
   };
 
@@ -255,7 +235,9 @@ export default function SheetsView(): React.JSX.Element {
         <div id="sheetpage" className="sheet-page" role="region" aria-label={`Sheet ${currentSpec.id}`}>
           <div id="sheetmain" className="sheet-main">
             <div id="sheetdrawing" className="sheet-drawing">
-              {currentSpec.category === 'plan' && <PlanSheetSvg document={doc} />}
+              {currentSpec.category === 'plan' && (
+                <PlanSheetSvg document={doc} list={detailedPlan} />
+              )}
               {currentSpec.category === 'elevation' && <ElevationSvg document={doc} id="sheet-elev-svg" />}
               {currentSpec.id === 'R-401' && (
                 <div className="sheet-plaque" data-sheet-plaque="R-401">

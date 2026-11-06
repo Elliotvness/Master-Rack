@@ -80,10 +80,16 @@ export default function BomView(): React.JSX.Element {
       >
         <strong>{readiness.watermark ?? 'Valid for Quote (Screening Complete)'}</strong>
         {!readiness.isQuoteReady && (
-          <span className="bom-quote-reasons">
-            {' — '}
-            {readiness.blockingReasons.join(' ')}
-          </span>
+          <details className="bom-quote-reasons" style={{ display: 'inline-block', marginLeft: '8px' }}>
+            <summary style={{ cursor: 'pointer' }}>
+              {readiness.blockingReasons.length} items pending verification
+            </summary>
+            <ul style={{ margin: '6px 0 0', paddingLeft: '18px' }}>
+              {readiness.blockingReasons.map((r, i) => (
+                <li key={i}>{r}</li>
+              ))}
+            </ul>
+          </details>
         )}
       </div>
 
@@ -190,7 +196,7 @@ export default function BomView(): React.JSX.Element {
                   setExportNotice(res.reason);
                 }}
               >
-                Export Takeoff (.xlsx · MS-13)
+                Export Takeoff (.xlsx)
               </button>
               <button
                 type="button"
@@ -303,11 +309,23 @@ export default function BomView(): React.JSX.Element {
                 <span className="cost-val font-mono">{formatCurrency(estimate.beamCost)}</span>
               </div>
               <div className="cost-row">
-                <span>Wire Decks ({summary.totalDecks} panels)</span>
+                <span>
+                  Wire Decks (
+                  {summary.totalDecks > 0
+                    ? `${summary.totalDecks} panels`
+                    : 'budgetary allowance'}
+                  )
+                </span>
                 <span className="cost-val font-mono">{formatCurrency(estimate.deckCost)}</span>
               </div>
               <div className="cost-row">
-                <span>Row Spacers ({summary.totalSpacers} ea)</span>
+                <span>
+                  Row Spacers (
+                  {summary.totalSpacers > 0
+                    ? `${summary.totalSpacers} ea`
+                    : 'budgetary allowance'}
+                  )
+                </span>
                 <span className="cost-val font-mono">{formatCurrency(estimate.spacerCost)}</span>
               </div>
               <div className="cost-row">
@@ -331,18 +349,9 @@ export default function BomView(): React.JSX.Element {
                 <span>Sales Tax ({Number((rates.taxRate * 100).toFixed(2))}%)</span>
                 <span className="cost-val font-mono">{formatCurrency(estimate.salesTax)}</span>
               </div>
-              <div className="cost-divider" />
-              <div className="cost-row bold">
-                <span>Total Cost</span>
-                <span className="cost-val font-mono">{formatCurrency(estimate.subtotalBeforeMargin)}</span>
-              </div>
-              <div className="cost-row margin-row">
-                <span>Target Gross Margin ({Math.round(rates.marginRate * 100)}%)</span>
-                <span className="cost-val font-mono">{formatCurrency(estimate.targetMargin)}</span>
-              </div>
               <div className="cost-divider thick" />
               <div className="cost-row grand-total">
-                <span>Total Proposal</span>
+                <span>Estimated Proposal Total</span>
                 <span className="cost-val highlight font-mono">{formatCurrency(estimate.totalPrice)}</span>
               </div>
               <div className="cost-unit-pos font-mono">
@@ -350,8 +359,18 @@ export default function BomView(): React.JSX.Element {
               </div>
             </div>
 
-            <div className="rate-controls">
-              <h3 className="rate-controls-title">Rate Parameters</h3>
+            <details className="rate-controls">
+              <summary className="rate-controls-title" style={{ cursor: 'pointer' }}>
+                Internal Estimator Rates &amp; Margin
+              </summary>
+              <div className="cost-row">
+                <span>Internal Cost Basis</span>
+                <span className="cost-val font-mono">{formatCurrency(estimate.subtotalBeforeMargin)}</span>
+              </div>
+              <div className="cost-row margin-row">
+                <span>Target Gross Margin ({Math.round(rates.marginRate * 100)}%)</span>
+                <span className="cost-val font-mono">{formatCurrency(estimate.targetMargin)}</span>
+              </div>
               <div className="control-field">
                 <label htmlFor="rate-frame">Frame $/ft</label>
                 <input
@@ -401,7 +420,7 @@ export default function BomView(): React.JSX.Element {
                   onChange={(e) => handleRateChange('marginRate', parseFloat(e.target.value) / 100)}
                 />
               </div>
-            </div>
+            </details>
           </div>
         </aside>
       </div>
