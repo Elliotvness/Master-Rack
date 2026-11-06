@@ -98,11 +98,16 @@ access is not enabled for the repository and there is no tool in the session to 
 above were read through the connected Windows device, which can. Anyone quoting a CI result from a
 cloud session should say which side read it.
 
+**Verified 2026-11-06 in the container, branch `task/studio-blueprint-redesign` (ADR-020), against native
+PostgreSQL 16 on port 55432 with `RMS_REQUIRE_DB=1`:** `pnpm verify` **exit 0 — 95 files, 2,395 tests, 0 skipped** (the three "skipped" strings in the log are self-test case names; the P-03 line is its own loud sample-size notice). Coverage all files: statements **94.83** · branches **92.51** · functions **88** · lines **94.83**; `studio-web` bundle **101 KB gz**.
+The two new test files are `apps/studio-web/src/plan/use-pens.test.ts` and
+`packages/studio-model/src/screening.test.ts`; the new front-end file is `checks/checks-drawer.tsx`.
+
 **Verified 2026-11-04 on Windows against PostgreSQL 16 in WSL2 (`PCMClawUbuntu`, port 55432) with
 migrations `0001`–`0016` applied and `RMS_REQUIRE_DB=1` set (including `POST /api/client/v1/intake`,
 `F-63` unified `@rms/display-list` preview builders, `S6` revision API sync, `T-22` observability
 correlation IDs & day-one alerts, and `T-26` `CHANGELOG.md`):**
-`pnpm verify` **exit 0 — 93 files, 2,348 tests, 0 skipped**, `typecheck` and type-aware `eslint` both at exit 0,
+`pnpm verify` **exit 0 at 93 files, 2,348 tests, 0 skipped** *(that date's tree; superseded above)*, `typecheck` and type-aware `eslint` both at exit 0,
 **20 self-test invocations covering 19 checkers**, `build:web` and the bundle ceiling green,
 16 migrations, 17 declared claims. Coverage all files measures statements **94.65** · branches
 **92.31** · functions **87.88** · lines **94.65**; every per-directory floor in `vitest.config.ts`
