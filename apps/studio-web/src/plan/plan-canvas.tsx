@@ -38,35 +38,286 @@ function sameHit(a: PlanHit | null, b: PlanHit | null): boolean {
   return false;
 }
 
+function gridLetter(index: number): string {
+  let n = index;
+  let out = '';
+  do {
+    out = String.fromCharCode(65 + (n % 26)) + out;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return out;
+}
+
 const PalletWashOverlay = memo(function PalletWashOverlay({
   plan,
+  requiredClearAisleUm,
   camera,
   viewport,
 }: {
   readonly plan: PlanGeometry;
+  readonly requiredClearAisleUm: number;
   readonly camera: Camera;
   readonly viewport: { readonly width: number; readonly height: number };
 }): React.JSX.Element {
+  const longestRun = useMemo(
+    () => [...plan.runs].sort((a, b) => b.runLength.value - a.runLength.value)[0],
+    [plan.runs],
+  );
+
+  const firstRowY =
+    plan.runs.length > 0
+      ? Math.min(...plan.runs.map((r) => r.rows[0]?.y ?? r.y))
+      : 0;
+  const lastRowBottomY =
+    plan.runs.length > 0
+      ? Math.max(
+          ...plan.runs.map((r) => {
+            const last = r.rows[r.rows.length - 1];
+            return last !== undefined ? last.y + last.depth : r.y;
+          }),
+        )
+      : 0;
+
+  const topEdgeScreen = worldToScreen(camera, viewport, { x: 0, y: firstRowY });
+  const bottomEdgeScreen = worldToScreen(camera, viewport, { x: 0, y: lastRowBottomY });
+  const bubbleCy = topEdgeScreen.y - 34;
+
+  const firstFailingAisleIndex = plan.aisles.findIndex(
+    (a) => a.clearBetweenLoads.value < requiredClearAisleUm,
+  );
+  const roundedRequiredClearUm = Math.ceil(requiredClearAisleUm / 25_400) * 25_400;
+
   return (
-    <g aria-hidden="true">
-      {plan.runs.map((run) =>
-        run.pallets.map((p) => {
-          const tl = worldToScreen(camera, viewport, { x: p.x, y: p.y });
-          const w = p.width * camera.scale;
-          const h = p.depth * camera.scale;
+    <g aria-hidden="true" style={{ pointerEvents: 'none' }}>
+      {/* 1. Vertical dashed column grid lines + circular grid bubbles (A..M) */}
+      {longestRun !== undefined &&
+        Array.from({ length: longestRun.bays.length + 1 }, (_, i) => {
+          const worldX = longestRun.x + i * longestRun.bayPitch.value;
+          const pt = worldToScreen(camera, viewport, { x: worldX, y: firstRowY });
           return (
-            <rect
-              key={`pallet:${p.id}`}
-              x={tl.x}
-              y={tl.y}
-              width={Math.max(1, w)}
-              height={Math.max(1, h)}
-              className="plan-pallet-wash"
-              style={{ pointerEvents: 'none' }}
-            />
+            <g key={`col-grid:${i}`}>
+              <line
+                x1={pt.x}
+                y1={bubbleCy + 9.5}
+                x2={pt.x}
+                y2={bottomEdgeScreen.y + 10}
+                stroke="var(--rule)"
+                strokeWidth="1"
+                strokeDasharray="3 3"
+              />
+              <circle
+                cx={pt.x}
+                cy={bubbleCy}
+                r={9.5}
+                fill="var(--paper)"
+                stroke="var(--ink-2)"
+                strokeWidth="1"
+              />
+              <text
+                x={pt.x}
+                y={bubbleCy + 0.5}
+                textAnchor="middle"
+                dominantBaseline="central"
+                fontFamily="var(--font-mono)"
+                fontSize="9.5"
+                fontWeight="500"
+                fill="var(--ink-2)"
+              >
+                {gridLetter(i)}
+              </text>
+            </g>
           );
-        }),
-      )}
+        })}
+
+      {/* 2. Aisle callout bands (with amber highlight + dashed end-caps on the primary failing aisle) */}
+      {plan.aisles.map((aisle, idx) => {
+        const upperRun = plan.runs[idx];
+        const lowerRun = plan.runs[idx + 1];
+        const upperLastRow = upperRun?.rows[upperRun.rows.length - 1];
+        const lowerFirstRow = lowerRun?.rows[0];
+        const bandTopWorldY =
+          upperLastRow !== undefined ? upperLastRow.y + upperLastRow.depth : aisle.y;
+        const bandBottomWorldY =
+          lowerFirstRow !== undefined
+            ? lowerFirstRow.y
+            : aisle.y + aisle.frameToFrame.value;
+
+        const tl = worldToScreen(camera, viewport, { x: aisle.x, y: bandTopWorldY });
+        const br = worldToScreen(camera, viewport, {
+          x: aisle.x + aisle.length,
+          y: bandBottomWorldY,
+        });
+        const w = Math.max(1, br.x - tl.x);
+        const h = Math.max(1, br.y - tl.y);
+        const midX = (tl.x + br.x) / 2;
+        const midY = (tl.y + br.y) / 2;
+        const isHighlightedFailing = idx === firstFailingAisleIndex;
+
+        const line1 = `AISLE ${idx + 1} · ${formatFeetInches(aisle.frameToFrame.value)} FRAME TO FRAME`;
+        const line2 = isHighlightedFailing
+          ? `${formatFeetInches(aisle.clearBetweenLoads.value)} clear between loads · truck needs ${formatFeetInches(roundedRequiredClearUm)}`
+          : `${formatFeetInches(aisle.clearBetweenLoads.value)} clear between loads`;
+
+        return (
+          <g key={`aisle-band:${aisle.aisleId}`}>
+            {isHighlightedFailing && (
+              <>
+                <rect
+                  x={tl.x}
+                  y={tl.y}
+                  width={w}
+                  height={h}
+                  fill="var(--warn-bg)"
+                />
+                <line
+                  x1={tl.x}
+                  y1={tl.y}
+                  x2={tl.x}
+                  y2={br.y}
+                  stroke="var(--pen-upright)"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 3"
+                />
+                <line
+                  x1={br.x}
+                  y1={tl.y}
+                  x2={br.x}
+                  y2={br.y}
+                  stroke="var(--pen-upright)"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 3"
+                />
+              </>
+            )}
+            <text
+              x={midX}
+              y={midY - 7}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontFamily="var(--font-mono)"
+              fontSize="10"
+              fontWeight="600"
+              letterSpacing="0.04em"
+              fill={isHighlightedFailing ? 'var(--warn)' : 'var(--ink-2)'}
+            >
+              {line1}
+            </text>
+            <text
+              x={midX}
+              y={midY + 8}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontFamily="var(--font-mono)"
+              fontSize="10"
+              fontWeight="500"
+              fill={isHighlightedFailing ? 'var(--warn)' : 'var(--ink-2)'}
+            >
+              {line2}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* 3. Pallet footprints with internal crossbars + crisp rack row/bay framing + left Run labels */}
+      {plan.runs.map((run) => {
+        const firstRow = run.rows[0];
+        const lastRow = run.rows[run.rows.length - 1];
+        const runTopWorld = firstRow?.y ?? run.y;
+        const runBottomWorld =
+          lastRow !== undefined ? lastRow.y + lastRow.depth : run.y;
+        const labelPt = worldToScreen(camera, viewport, {
+          x: run.x,
+          y: (runTopWorld + runBottomWorld) / 2,
+        });
+
+        return (
+          <g key={`run-graphic:${run.runId}`}>
+            <text
+              x={labelPt.x - 12}
+              y={labelPt.y}
+              textAnchor="end"
+              dominantBaseline="central"
+              fontFamily="var(--font-mono)"
+              fontSize="10.5"
+              fontWeight="500"
+              fill="var(--ink-2)"
+            >
+              {run.label}
+            </text>
+
+            {run.pallets.map((p) => {
+              const tl = worldToScreen(camera, viewport, { x: p.x, y: p.y });
+              const w = Math.max(1, p.width * camera.scale);
+              const h = Math.max(1, p.depth * camera.scale);
+              const cx = tl.x + w / 2;
+              const cy = tl.y + h / 2;
+              return (
+                <g key={`pallet:${p.id}`}>
+                  <rect
+                    x={tl.x}
+                    y={tl.y}
+                    width={w}
+                    height={h}
+                    className="plan-pallet-wash"
+                  />
+                  <line
+                    x1={cx}
+                    y1={tl.y + 1}
+                    x2={cx}
+                    y2={tl.y + h - 1}
+                    stroke="var(--paper)"
+                    strokeWidth="1.5"
+                  />
+                  <line
+                    x1={tl.x + 1}
+                    y1={cy}
+                    x2={tl.x + w - 1}
+                    y2={cy}
+                    stroke="var(--paper)"
+                    strokeWidth="1.5"
+                  />
+                </g>
+              );
+            })}
+
+            {run.rows.map((row, rowIdx) => {
+              const rowTl = worldToScreen(camera, viewport, { x: run.x, y: row.y });
+              const rowW = Math.max(1, run.runLength.value * camera.scale);
+              const rowH = Math.max(1, row.depth * camera.scale);
+              return (
+                <g key={`row-frame:${run.runId}:${rowIdx}`}>
+                  <rect
+                    x={rowTl.x}
+                    y={rowTl.y}
+                    width={rowW}
+                    height={rowH}
+                    fill="none"
+                    stroke="var(--pen-upright)"
+                    strokeWidth="1.75"
+                  />
+                  {Array.from({ length: run.bays.length + 1 }, (_, i) => {
+                    const ux = worldToScreen(camera, viewport, {
+                      x: run.x + i * run.bayPitch.value,
+                      y: row.y,
+                    }).x;
+                    return (
+                      <line
+                        key={`upright-div:${run.runId}:${rowIdx}:${i}`}
+                        x1={ux}
+                        y1={rowTl.y}
+                        x2={ux}
+                        y2={rowTl.y + rowH}
+                        stroke="var(--pen-upright)"
+                        strokeWidth="1.5"
+                      />
+                    );
+                  })}
+                </g>
+              );
+            })}
+          </g>
+        );
+      })}
     </g>
   );
 });
@@ -248,6 +499,23 @@ export function PlanCanvas({
     [camera, effectiveViewport, list.extent],
   );
 
+  // Filter out canvas items that are rendered with richer blueprint styling in
+  // the SVG overlay (grid bubbles, run labels, centered two-line aisle callouts).
+  const canvasList = useMemo(
+    () => ({
+      ...list,
+      items: list.items.filter(
+        (item) =>
+          !item.id.startsWith('grid:') &&
+          !item.id.endsWith(':label') &&
+          !item.id.endsWith(':flue:longitudinal') &&
+          !item.id.endsWith(':frame-to-frame') &&
+          !item.id.endsWith(':clear-between-loads'),
+      ),
+    }),
+    [list],
+  );
+
   const render = useCallback(() => {
     const canvas = canvasRef.current;
     if (canvas === null || camera === null || viewport.width === 0) return;
@@ -261,9 +529,9 @@ export function PlanCanvas({
     canvas.style.height = `${viewport.height}px`;
 
     const pens = readPens(window.document.documentElement);
-    draw(ctx, list, { camera, viewport, dpr, pens });
+    draw(ctx, canvasList, { camera, viewport, dpr, pens });
     drawOverlays(ctx, { camera, viewport, dpr, pens, includeLegend: false });
-  }, [camera, list, viewport]);
+  }, [camera, canvasList, viewport]);
 
   useEffect(() => {
     render();
@@ -483,6 +751,7 @@ export function PlanCanvas({
             plan={plan}
             camera={effectiveCamera}
             viewport={effectiveViewport}
+            requiredClearAisleUm={doc.equipment.truckRAS.value + 60 * 25_400}
           />
 
           {/* Bay interactive selection targets */}

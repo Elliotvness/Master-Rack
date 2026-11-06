@@ -201,12 +201,12 @@ export function draw(
         ctx.moveTo(a.x, a.y);
         ctx.lineTo(z.x, z.y);
 
-        // 45-degree architectural slash ticks at endpoints
-        const t = 3.5;
-        ctx.moveTo(a.x - t, a.y + t);
-        ctx.lineTo(a.x + t, a.y - t);
-        ctx.moveTo(z.x - t, z.y + t);
-        ctx.lineTo(z.x + t, z.y - t);
+        // Perpendicular architectural end-ticks (|———— text ————|)
+        const t = 5;
+        ctx.moveTo(a.x, a.y - t);
+        ctx.lineTo(a.x, a.y + t);
+        ctx.moveTo(z.x, z.y - t);
+        ctx.lineTo(z.x, z.y + t);
         ctx.stroke();
 
         const midX = (a.x + z.x) / 2;
@@ -217,11 +217,11 @@ export function draw(
           typeof ctx.measureText === 'function' ? ctx.measureText(txt).width : txt.length * 6;
 
         ctx.fillStyle = pens.background;
-        ctx.fillRect(midX - textWidth / 2 - 3, midY - 6 - 7, textWidth + 6, 14);
+        ctx.fillRect(midX - textWidth / 2 - 8, midY - 7, textWidth + 16, 14);
 
-        ctx.fillStyle = item.text.established ? pens.ink : pens.unestablished;
+        ctx.fillStyle = item.text.established ? pens.inkMuted : pens.unestablished;
         ctx.textAlign = 'center';
-        ctx.fillText(txt, midX, midY - 6);
+        ctx.fillText(txt, midX, midY);
         ctx.textAlign = 'left';
         break;
       }
