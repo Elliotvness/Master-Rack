@@ -597,6 +597,43 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
     );
     fetchSpy.mockRestore();
   });
+
+  it('supports Columns First (0b) starter mode, Escape to exit tools/popovers, and interactive AI Assistant placement', async () => {
+    const user = userEvent.setup();
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1 });
+
+    // Click Columns First (0b) in the bottom dock -> 0 rack runs + activates Stamp Column tool
+    const colsFirstBtn = document.getElementById('start-columns-first-btn') as HTMLButtonElement;
+    await user.click(colsFirstBtn);
+
+    const canvas = document.querySelector('canvas.plan-canvas') as HTMLCanvasElement;
+    expect(canvas.getAttribute('aria-label')).toMatch(/0 rack runs/);
+
+    const colToolBtn = document.getElementById('tool-column-btn') as HTMLButtonElement;
+    const selToolBtn = document.getElementById('tool-select-btn') as HTMLButtonElement;
+    expect(colToolBtn.getAttribute('aria-pressed')).toBe('true');
+
+    // Press Escape -> exits Stamp Column tool back to Select / Pan
+    await user.keyboard('{Escape}');
+    expect(colToolBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(selToolBtn.getAttribute('aria-pressed')).toBe('true');
+
+    // Open interactive AI Assistant chat, stamp a column at (40', 20'), and place racks around columns
+    const aiChatBtn = document.getElementById('open-ai-chat-btn') as HTMLButtonElement;
+    await user.click(aiChatBtn);
+    expect(document.getElementById('ai-chat-panel')).not.toBeNull();
+
+    await user.click(document.getElementById('chat-quick-stamp-col') as HTMLButtonElement);
+    expect(document.getElementById('ai-chat-messages')?.textContent).toMatch(/COL-1/);
+
+    await user.click(document.getElementById('chat-quick-place-racks') as HTMLButtonElement);
+    expect(canvas.getAttribute('aria-label')).not.toMatch(/0 rack runs/);
+
+    // Press Escape -> closes the AI Assistant popover
+    await user.keyboard('{Escape}');
+    expect(document.getElementById('ai-chat-panel')).toBeNull();
+  });
 });
 
 describe('the theme toggle', () => {
