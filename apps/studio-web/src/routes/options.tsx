@@ -2,6 +2,7 @@ import { useState, type JSX } from 'react';
 import { useToasts } from '../components/toast.js';
 import { OptionBuilder } from '../options/option-builder.js';
 import type { SaveOptionsResult } from '../options/options-client.js';
+import { useOptionalStudioSession } from '../session-context.js';
 
 export interface OptionsRouteProps {
   readonly initialRevisionId?: string | undefined;
@@ -20,6 +21,7 @@ export default function OptionsRoute({
   fetchImpl,
 }: OptionsRouteProps): JSX.Element {
   const { push } = useToasts();
+  const studioSession = useOptionalStudioSession();
   const [revisionId, setRevisionId] = useState<string>(initialRevisionId);
   const [showComparisonGuide, setShowComparisonGuide] = useState<boolean>(false);
 
@@ -139,6 +141,149 @@ export default function OptionsRoute({
       )}
 
       <main className="options-page-main">
+        {studioSession !== null && (
+          <section
+            id="saved-plan-snapshots-section"
+            className="cmdbar-panel"
+            aria-label="Interactive Plan Option Comparison and Snapshots"
+          >
+            <div className="plan-dock-popover-head">
+              <h2>Active Plan &amp; Saved Option Snapshots</h2>
+              <button
+                id="options-save-snapshot-btn"
+                type="button"
+                className="pf-btn"
+                onClick={() => {
+                  const snap = studioSession.saveCurrentSnapshot();
+                  push(`Saved "${snap.label}" (${snap.positionsCount} positions).`, 'info');
+                }}
+              >
+                + Snapshot Active Plan ({studioSession.plan.totalPositions} pos)
+              </button>
+            </div>
+            <table aria-label="Plan option comparison matrix">
+              <thead>
+                <tr>
+                  <th scope="col">Option / Snapshot</th>
+                  <th scope="col">Runs</th>
+                  <th scope="col">Bays</th>
+                  <th scope="col">Pallet Positions</th>
+                  <th scope="col">Narrowest Clear Aisle</th>
+                  <th scope="col">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <strong>Option A: High-Density Reach (9&apos;-6&quot; Aisle)</strong>
+                  </td>
+                  <td>4</td>
+                  <td>40</td>
+                  <td>480</td>
+                  <td>108&quot;</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="pf-btn pf-btn-small"
+                      onClick={() => {
+                        studioSession.generateFromSpace({
+                          projectName: studioSession.session.document.name,
+                          clientName: studioSession.session.document.client,
+                          lengthFt: studioSession.shellOverlay.shellWidthFt,
+                          widthFt: studioSession.shellOverlay.shellDepthFt,
+                          clearHeightFt: 28,
+                          aisleFt: 9.5,
+                          targetPositions: 480,
+                          showColumns: true,
+                          columnSpacingFt: studioSession.shellOverlay.columnSpacingFt,
+                        });
+                        push('Applied Option A (High-Density Reach) to active Plan.', 'info');
+                      }}
+                    >
+                      Apply to Active Plan
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong>Option B: Balanced Selective (11&apos;-0&quot; Aisle)</strong>
+                  </td>
+                  <td>3</td>
+                  <td>36</td>
+                  <td>576</td>
+                  <td>126&quot;</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="pf-btn pf-btn-small"
+                      onClick={() => {
+                        studioSession.loadPreset('benchmark-36');
+                        push('Applied Option B (36-Bay Benchmark) to active Plan.', 'info');
+                      }}
+                    >
+                      Apply to Active Plan
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong>Option C: Wide-Aisle Counterbalance (12&apos;-0&quot; Aisle)</strong>
+                  </td>
+                  <td>3</td>
+                  <td>30</td>
+                  <td>360</td>
+                  <td>138&quot;</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="pf-btn pf-btn-small"
+                      onClick={() => {
+                        studioSession.generateFromSpace({
+                          projectName: studioSession.session.document.name,
+                          clientName: studioSession.session.document.client,
+                          lengthFt: studioSession.shellOverlay.shellWidthFt,
+                          widthFt: studioSession.shellOverlay.shellDepthFt,
+                          clearHeightFt: 28,
+                          aisleFt: 12,
+                          targetPositions: 360,
+                          showColumns: true,
+                          columnSpacingFt: studioSession.shellOverlay.columnSpacingFt,
+                        });
+                        push('Applied Option C (Wide-Aisle Counterbalance) to active Plan.', 'info');
+                      }}
+                    >
+                      Apply to Active Plan
+                    </button>
+                  </td>
+                </tr>
+                {studioSession.savedSnapshots.map((snap) => (
+                  <tr key={snap.id} data-snapshot-id={snap.id}>
+                    <td>
+                      <strong>{snap.label}</strong>
+                    </td>
+                    <td>{snap.runsCount}</td>
+                    <td>{snap.baysCount}</td>
+                    <td>{snap.positionsCount}</td>
+                    <td>{snap.narrowestAisleIn !== null ? `${snap.narrowestAisleIn}"` : '—'}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="pf-btn pf-btn-small"
+                        onClick={() => {
+                          studioSession.restoreSnapshot(snap.id);
+                          push(`Restored "${snap.label}" to active Plan.`, 'info');
+                        }}
+                      >
+                        Restore Snapshot
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+
         <OptionBuilder
           revisionId={revisionId}
           onSaveSuccess={handleSaveSuccess}

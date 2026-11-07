@@ -154,6 +154,33 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
 
   return (
     <g aria-hidden="true" style={{ pointerEvents: 'none' }}>
+      {/* -1. Floorplan Image Underlay (CAD / Site Survey Raster) */}
+      {shellOverlay?.underlayDataUrl !== null &&
+        shellOverlay?.underlayDataUrl !== undefined &&
+        (() => {
+          const marginUm = 120 * 25_400;
+          const uTl = worldToScreen(camera, viewport, {
+            x: shellBounds.minX - marginUm,
+            y: shellBounds.minY - marginUm,
+          });
+          const uBr = worldToScreen(camera, viewport, {
+            x: shellBounds.maxX + marginUm,
+            y: shellBounds.maxY + marginUm,
+          });
+          return (
+            <image
+              key="floorplan-underlay"
+              href={shellOverlay.underlayDataUrl}
+              x={uTl.x}
+              y={uTl.y}
+              width={Math.max(4, uBr.x - uTl.x)}
+              height={Math.max(4, uBr.y - uTl.y)}
+              opacity={shellOverlay.underlayOpacity ?? 0.45}
+              preserveAspectRatio="none"
+            />
+          );
+        })()}
+
       {/* 0. Building Perimeter Wall Envelope & Custom Orthogonal Walls */}
       {shellOverlay?.showPerimeterWalls && (
         (() => {
@@ -793,6 +820,7 @@ export function PlanCanvas({
   const [camera, setCamera] = useState<Camera | null>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [selected, setSelected] = useState<SelectedBay | null>(null);
+  const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [hovered, setHovered] = useState<PlanHit | null>(null);
   const [wallDraftStart, setWallDraftStart] = useState<{ x: number; y: number } | null>(null);
   const [wallDraftCurrent, setWallDraftCurrent] = useState<{ x: number; y: number } | null>(null);
@@ -878,6 +906,11 @@ export function PlanCanvas({
     if (bay === undefined) return null;
     return { run, bay };
   }, [plan, selected]);
+
+  const activeSelectedColumn = useMemo(() => {
+    if (selectedColumnId === null || shellOverlay === undefined) return null;
+    return shellOverlay.customColumns.find((c) => c.id === selectedColumnId) ?? null;
+  }, [selectedColumnId, shellOverlay]);
 
   // Track the element's size rather than the window's: the rail and the banner
   // both change the stage's width without the window resizing.
@@ -1165,15 +1198,17 @@ export function PlanCanvas({
           return;
         }
 
-        if (target?.closest('[data-bay-id]')) {
+        if (target?.closest('[data-bay-id], [data-column-id]')) {
           return;
         }
 
         const hit = hitTestPlan(plan, world.x, world.y, effectiveCamera.scale);
         if (hit?.kind === 'bay') {
           setSelected({ runId: hit.runId, bayId: hit.bayId, bayIndex: hit.bayIndex });
+          setSelectedColumnId(null);
         } else {
           setSelected(null);
+          setSelectedColumnId(null);
         }
       }
     },
@@ -1291,6 +1326,7 @@ export function PlanCanvas({
         setWallDraftCurrent(null);
         setCalP1(null);
         setCalP2(null);
+        setSelectedColumnId(null);
         actOnSelection('deselect');
         onToolModeChange?.('select');
         return;
@@ -1326,6 +1362,16 @@ export function PlanCanvas({
         }
       }
 
+      if (activeSelectedColumn !== null && (e.key === 'Backspace' || e.key === 'Delete')) {
+        e.preventDefault();
+        onShellOverlayChange?.((prev) => ({
+          ...prev,
+          customColumns: prev.customColumns.filter((c) => c.id !== activeSelectedColumn.id),
+        }));
+        setSelectedColumnId(null);
+        return;
+      }
+
       if (activeSelection === null) return;
 
       if (e.key === 'i' || e.key === 'I') {
@@ -1345,7 +1391,16 @@ export function PlanCanvas({
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activeSelection, actOnSelection, fit, onToolModeChange, onUndo, zoomByStep]);
+  }, [
+    activeSelectedColumn,
+    activeSelection,
+    actOnSelection,
+    fit,
+    onShellOverlayChange,
+    onToolModeChange,
+    onUndo,
+    zoomByStep,
+  ]);
 
   return (
     <div className="plan-stage stage">
@@ -1479,6 +1534,45 @@ export function PlanCanvas({
                 );
               }),
           )}
+          {/* Custom column interactive selection targets */}
+          {shellOverlay?.customColumns.map((col) => {
+            const halfUm = Math.max(col.sizeIn * 25_400, 24 * 25_400);
+            const tl = worldToScreen(effectiveCamera, effectiveViewport, {
+              x: col.xUm - halfUm,
+              y: col.yUm - halfUm,
+            });
+            const br = worldToScreen(effectiveCamera, effectiveViewport, {
+              x: col.xUm + halfUm,
+              y: col.yUm + halfUm,
+            });
+            const isSelectedCol = activeSelectedColumn?.id === col.id;
+            return (
+              <rect
+                key={`col-hit:${col.id}`}
+                data-column-id={col.id}
+                data-selected={isSelectedCol ? 'true' : 'false'}
+                className={
+                  isSelectedCol ? 'plan-bay-overlay plan-bay-selected' : 'plan-bay-overlay'
+                }
+                x={tl.x}
+                y={tl.y}
+                width={Math.max(12, br.x - tl.x)}
+                height={Math.max(12, br.y - tl.y)}
+                role="button"
+                tabIndex={0}
+                aria-label={`Custom column ${col.label}`}
+                aria-pressed={isSelectedCol}
+                onClick={() => {
+                  if (suppressNextBayClickRef.current) {
+                    suppressNextBayClickRef.current = false;
+                    return;
+                  }
+                  setSelected(null);
+                  setSelectedColumnId(col.id);
+                }}
+              />
+            );
+          })}
         </svg>
 
         {/* Top right HUD summary chips */}
@@ -1586,6 +1680,7 @@ export function PlanCanvas({
                       Math.hypot(calP2.x - calP1.x, calP2.y - calP1.y) / 25_400;
                     if (Number.isFinite(knownIn) && knownIn > 0 && measuredIn > 0) {
                       const ratio = measuredIn / knownIn;
+                      const worldScaleRatio = knownIn / measuredIn;
                       const pxSpan = Math.max(
                         1,
                         Math.hypot(calP2.x - calP1.x, calP2.y - calP1.y) * effectiveCamera.scale,
@@ -1593,6 +1688,14 @@ export function PlanCanvas({
                       onShellOverlayChange?.((prev) => ({
                         ...prev,
                         calibratedScaleInPerPx: Number((knownIn / pxSpan).toFixed(4)),
+                        shellWidthFt: Math.max(
+                          30,
+                          Math.min(600, Math.round(prev.shellWidthFt * worldScaleRatio)),
+                        ),
+                        shellDepthFt: Math.max(
+                          20,
+                          Math.min(400, Math.round(prev.shellDepthFt * worldScaleRatio)),
+                        ),
                       }));
                       zoomByStep(ratio);
                     }
@@ -1615,6 +1718,100 @@ export function PlanCanvas({
               }}
             >
               Done
+            </button>
+          </div>
+        )}
+
+        {/* Selected Custom Column Floating Toolbar */}
+        {activeSelectedColumn !== null && (
+          <div
+            id="coltoolbar"
+            className="seltoolbar sel-toolbar"
+            role="toolbar"
+            aria-label="Selected column actions"
+          >
+            <span className="what sel-title">
+              {activeSelectedColumn.label} · (
+              {(activeSelectedColumn.xUm / (25_400 * 12)).toFixed(1)}&apos;,{' '}
+              {(activeSelectedColumn.yUm / (25_400 * 12)).toFixed(1)}&apos;)
+            </span>
+            <button
+              type="button"
+              className="btn sel-btn"
+              onClick={() =>
+                onShellOverlayChange?.((prev) => ({
+                  ...prev,
+                  customColumns: prev.customColumns.map((c) =>
+                    c.id === activeSelectedColumn.id ? { ...c, xUm: c.xUm - 12 * 25_400 } : c,
+                  ),
+                }))
+              }
+            >
+              ← −1&apos;
+            </button>
+            <button
+              type="button"
+              className="btn sel-btn"
+              onClick={() =>
+                onShellOverlayChange?.((prev) => ({
+                  ...prev,
+                  customColumns: prev.customColumns.map((c) =>
+                    c.id === activeSelectedColumn.id ? { ...c, xUm: c.xUm + 12 * 25_400 } : c,
+                  ),
+                }))
+              }
+            >
+              +1&apos; →
+            </button>
+            <button
+              type="button"
+              className="btn sel-btn"
+              onClick={() =>
+                onShellOverlayChange?.((prev) => ({
+                  ...prev,
+                  customColumns: prev.customColumns.map((c) =>
+                    c.id === activeSelectedColumn.id ? { ...c, yUm: c.yUm - 12 * 25_400 } : c,
+                  ),
+                }))
+              }
+            >
+              ↑ −1&apos;
+            </button>
+            <button
+              type="button"
+              className="btn sel-btn"
+              onClick={() =>
+                onShellOverlayChange?.((prev) => ({
+                  ...prev,
+                  customColumns: prev.customColumns.map((c) =>
+                    c.id === activeSelectedColumn.id ? { ...c, yUm: c.yUm + 12 * 25_400 } : c,
+                  ),
+                }))
+              }
+            >
+              +1&apos; ↓
+            </button>
+            <button
+              id="delete-selected-column-btn"
+              type="button"
+              className="btn sel-btn sel-btn-danger"
+              onClick={() => {
+                onShellOverlayChange?.((prev) => ({
+                  ...prev,
+                  customColumns: prev.customColumns.filter((c) => c.id !== activeSelectedColumn.id),
+                }));
+                setSelectedColumnId(null);
+              }}
+            >
+              Delete column <b>⌫</b>
+            </button>
+            <button
+              type="button"
+              className="btn sel-btn"
+              aria-label="Clear column selection"
+              onClick={() => setSelectedColumnId(null)}
+            >
+              ×
             </button>
           </div>
         )}

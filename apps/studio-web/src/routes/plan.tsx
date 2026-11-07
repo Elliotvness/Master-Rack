@@ -8,6 +8,7 @@ import {
   proposeFixes,
   stageIntakeConfirmationTable,
   toggleIntakeRowAcceptance,
+  type Command,
   type CommandPreviewCard,
   type IntakeConfirmationRow,
   type IntakeDocumentKind,
@@ -137,6 +138,88 @@ function translateInstructionToCommandBarJson(
   return JSON.stringify({ commands });
 }
 
+function parseExtendedNaturalLanguageCommands(
+  instruction: string,
+  doc: StudioDocument,
+): { readonly commands: readonly Command[]; readonly descriptions: readonly string[] } {
+  const jsonText = translateInstructionToCommandBarJson(instruction, doc);
+  const parsed = parseAndValidateCommandBarOutput(jsonText, doc);
+  const commands: Command[] = parsed.ok ? [...parsed.commands] : [];
+  const descriptions: string[] = parsed.ok ? [...parsed.descriptions] : [];
+
+  const clauses = instruction
+    .trim()
+    .split(/\b(?:and|then)\b|[;,]+/i)
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0);
+
+  for (const clause of clauses) {
+    const addBaysMatch =
+      /(?:add|append)\s+(\d+)\s+bays?(?:\s+to\s+run\s*(\d+))?/i.exec(clause);
+    if (addBaysMatch !== null) {
+      const qty = Math.min(12, Math.max(1, Number(addBaysMatch[1])));
+      const runIdx = addBaysMatch[2] !== undefined ? Math.max(0, Number(addBaysMatch[2]) - 1) : 0;
+      const targetRun = doc.runs[runIdx];
+      if (targetRun !== undefined) {
+        for (let i = 0; i < qty; i += 1) {
+          commands.push({ type: 'appendBay', runId: targetRun.id });
+        }
+        descriptions.push(`Append ${qty} bay(s) to ${targetRun.name}`);
+      }
+      continue;
+    }
+
+    const delBayMatch =
+      /(?:delete|remove)\s+bay\s*(\d+)(?:\s+(?:of|in|from)\s+run\s*(\d+))?/i.exec(clause);
+    if (delBayMatch !== null) {
+      const bayIdx = Math.max(0, Number(delBayMatch[1]) - 1);
+      const runIdx = delBayMatch[2] !== undefined ? Math.max(0, Number(delBayMatch[2]) - 1) : 0;
+      const targetRun = doc.runs[runIdx];
+      const targetBay = targetRun?.bays[bayIdx];
+      if (targetRun !== undefined && targetBay !== undefined) {
+        commands.push({ type: 'deleteBay', bayId: targetBay.id });
+        descriptions.push(`Delete Bay ${bayIdx + 1} from ${targetRun.name}`);
+      }
+      continue;
+    }
+
+    const lockBayMatch =
+      /(lock|unlock)\s+bay\s*(\d+)(?:\s+(?:of|in)\s+run\s*(\d+))?/i.exec(clause);
+    if (lockBayMatch !== null) {
+      const bayIdx = Math.max(0, Number(lockBayMatch[2]) - 1);
+      const runIdx = lockBayMatch[3] !== undefined ? Math.max(0, Number(lockBayMatch[3]) - 1) : 0;
+      const targetRun = doc.runs[runIdx];
+      const targetBay = targetRun?.bays[bayIdx];
+      if (targetRun !== undefined && targetBay !== undefined) {
+        commands.push({ type: 'toggleLock', bayId: targetBay.id });
+        descriptions.push(
+          `${lockBayMatch[1]?.toLowerCase() === 'unlock' ? 'Unlock' : 'Lock'} Bay ${bayIdx + 1} in ${targetRun.name}`,
+        );
+      }
+      continue;
+    }
+
+    const rowConfigMatch =
+      /(?:set|make)\s+run\s*(\d+)\s+(?:to\s+)?(double|single|back-to-back)/i.exec(clause);
+    if (rowConfigMatch !== null) {
+      const runIdx = Math.max(0, Number(rowConfigMatch[1]) - 1);
+      const isDouble = rowConfigMatch[2]?.toLowerCase() !== 'single';
+      const targetRun = doc.runs[runIdx];
+      if (targetRun !== undefined) {
+        commands.push({
+          type: 'setField',
+          label: `Set ${targetRun.name} to ${isDouble ? 'double row' : 'single row'}`,
+          change: { section: 'run', runId: targetRun.id, patch: { backToBack: isDouble } },
+        });
+        descriptions.push(`Set ${targetRun.name} to ${isDouble ? 'double row' : 'single row'}`);
+      }
+      continue;
+    }
+  }
+
+  return { commands, descriptions };
+}
+
 /**
  * The plan view.
  *
@@ -154,6 +237,8 @@ export default function PlanView(): React.JSX.Element {
     findingCounts,
     shellOverlay,
     setShellOverlay,
+    savedSnapshots,
+    saveCurrentSnapshot,
     runCommand,
     runCommands,
     onUndo,
@@ -338,22 +423,21 @@ export default function PlanView(): React.JSX.Element {
   const [cmdStatus, setCmdStatus] = useState<string | null>(null);
 
   const buildCommandPreviewForText = (instructionText: string): void => {
-    const jsonText = translateInstructionToCommandBarJson(instructionText, session.document);
-    const parsed = parseAndValidateCommandBarOutput(jsonText, session.document);
-    if (parsed.ok) {
+    const ext = parseExtendedNaturalLanguageCommands(instructionText, session.document);
+    if (ext.commands.length > 0) {
       setCmdStatus(null);
       setCmdPreview(
         previewCommandSequence(
           session,
           instructionText,
-          parsed.commands,
-          parsed.descriptions,
+          ext.commands,
+          ext.descriptions,
         ),
       );
     } else {
       setCmdPreview(null);
       setCmdStatus(
-        `Could not translate "${instructionText}". Try e.g. "Widen aisle 1 to 132 inches", "Split Run 1 at Bay 4", "Add a run", or "Set beam span to 108 inches".`,
+        `Could not translate "${instructionText}". Try e.g. "Widen aisle 1 to 132 inches", "Split Run 1 at Bay 4", "Add 4 bays to Run 1", "Set Run 1 to single row", or "Set beam span to 108 inches".`,
       );
     }
   };
@@ -509,20 +593,56 @@ export default function PlanView(): React.JSX.Element {
       return;
     }
 
-    const jsonText = translateInstructionToCommandBarJson(text, session.document);
-    const parsed = parseAndValidateCommandBarOutput(jsonText, session.document);
-    if (parsed.ok) {
+    const shellSizeMatch =
+      /(?:shell|building|envelope)\s*(?:to|=)?\s*(\d+)\s*(?:ft|')?\s*(?:x|by|,)\s*(\d+)\s*(?:ft|')?/i.exec(
+        text,
+      );
+    if (shellSizeMatch !== null) {
+      const nextW = Math.max(30, Math.min(600, Number(shellSizeMatch[1])));
+      const nextD = Math.max(20, Math.min(400, Number(shellSizeMatch[2])));
+      setShellOverlay((prev) => ({
+        ...prev,
+        showPerimeterWalls: true,
+        shellWidthFt: nextW,
+        shellDepthFt: nextD,
+      }));
+      pushExchange(`Updated building perimeter shell envelope to ${nextW}' × ${nextD}'.`);
+      return;
+    }
+
+    const delColMatch = /(?:delete|remove)\s+column\s*(col-\d+|\d+)/i.exec(text);
+    if (delColMatch !== null) {
+      const rawRef = delColMatch[1]?.toUpperCase() ?? '';
+      const targetLabel = rawRef.startsWith('COL-') ? rawRef : `COL-${rawRef}`;
+      setShellOverlay((prev) => ({
+        ...prev,
+        customColumns: prev.customColumns.filter((c) => c.label.toUpperCase() !== targetLabel),
+      }));
+      pushExchange(`Removed custom structural column ${targetLabel} from the floorplan.`);
+      return;
+    }
+
+    if (lower.includes('snapshot') || lower.includes('save option')) {
+      const snap = saveCurrentSnapshot();
+      pushExchange(
+        `Saved "${snap.label}" (${snap.positionsCount} pallet positions, ${snap.baysCount} bays) to Step 2 Options comparison table.`,
+      );
+      return;
+    }
+
+    const ext = parseExtendedNaturalLanguageCommands(text, session.document);
+    if (ext.commands.length > 0) {
       const preview = previewCommandSequence(
         session,
         text,
-        parsed.commands,
-        parsed.descriptions,
+        ext.commands,
+        ext.descriptions,
       );
       if (preview.refused.length === 0) {
-        const res = runCommands(parsed.commands);
+        const res = runCommands(ext.commands);
         if (res.ok) {
           pushExchange(
-            `Applied: ${parsed.descriptions.join('; ')}. Positions: ${preview.beforePositions} → ${preview.afterPositions} (Δ ${preview.deltaPositions}), Bays: ${preview.beforeBays} → ${preview.afterBays}, Narrowest Clear Aisle: ${preview.beforeNarrowestAisleIn ?? '—'}" → ${preview.afterNarrowestAisleIn ?? '—'}".`,
+            `Applied: ${ext.descriptions.join('; ')}. Positions: ${preview.beforePositions} → ${preview.afterPositions} (Δ ${preview.deltaPositions}), Bays: ${preview.beforeBays} → ${preview.afterBays}, Narrowest Clear Aisle: ${preview.beforeNarrowestAisleIn ?? '—'}" → ${preview.afterNarrowestAisleIn ?? '—'}".`,
           );
           return;
         }
@@ -1093,6 +1213,119 @@ export default function PlanView(): React.JSX.Element {
                 <option value="40">Columns: 40 ft Grid</option>
                 <option value="50">Columns: 50 ft Grid</option>
               </select>
+              {(shellOverlay.showPerimeterWalls || shellOverlay.showColumns) && (
+                <>
+                  <label htmlFor="shell-width-ft-input" className="visually-hidden">
+                    Shell Width (ft)
+                  </label>
+                  <input
+                    id="shell-width-ft-input"
+                    aria-label="Shell Width (ft)"
+                    type="number"
+                    min={30}
+                    max={600}
+                    step={10}
+                    className="pf-input"
+                    style={{ width: '58px' }}
+                    title="Building Shell Width (ft)"
+                    value={shellOverlay.shellWidthFt}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (Number.isFinite(v) && v >= 30) {
+                        setShellOverlay((prev) => ({ ...prev, shellWidthFt: v }));
+                      }
+                    }}
+                  />
+                  <span>×</span>
+                  <label htmlFor="shell-depth-ft-input" className="visually-hidden">
+                    Shell Depth (ft)
+                  </label>
+                  <input
+                    id="shell-depth-ft-input"
+                    aria-label="Shell Depth (ft)"
+                    type="number"
+                    min={20}
+                    max={400}
+                    step={10}
+                    className="pf-input"
+                    style={{ width: '58px' }}
+                    title="Building Shell Depth (ft)"
+                    value={shellOverlay.shellDepthFt}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      if (Number.isFinite(v) && v >= 20) {
+                        setShellOverlay((prev) => ({ ...prev, shellDepthFt: v }));
+                      }
+                    }}
+                  />
+                </>
+              )}
+              <label
+                id="upload-underlay-label"
+                htmlFor="underlay-file-upload"
+                className="pf-btn"
+                title="Upload a floorplan image (PNG/JPG/SVG) underneath the blueprint canvas"
+              >
+                {shellOverlay.underlayDataUrl !== null ? 'Underlay: Loaded' : 'Floorplan Image'}
+              </label>
+              <input
+                id="underlay-file-upload"
+                type="file"
+                accept="image/*"
+                className="visually-hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file === undefined) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    if (typeof reader.result === 'string') {
+                      setShellOverlay((prev) => ({
+                        ...prev,
+                        showPerimeterWalls: true,
+                        underlayDataUrl: reader.result as string,
+                      }));
+                    }
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+              {shellOverlay.underlayDataUrl !== null && (
+                <>
+                  <label htmlFor="underlay-opacity-select" className="visually-hidden">
+                    Underlay Opacity
+                  </label>
+                  <select
+                    id="underlay-opacity-select"
+                    aria-label="Underlay Opacity"
+                    className="pf-input"
+                    style={{ width: 'auto' }}
+                    value={String(shellOverlay.underlayOpacity)}
+                    onChange={(e) =>
+                      setShellOverlay((prev) => ({
+                        ...prev,
+                        underlayOpacity: Number(e.target.value),
+                      }))
+                    }
+                  >
+                    <option value="0.25">25% Opacity</option>
+                    <option value="0.45">45% Opacity</option>
+                    <option value="0.7">70% Opacity</option>
+                  </select>
+                  <button
+                    id="clear-underlay-btn"
+                    type="button"
+                    className="pf-btn"
+                    onClick={() =>
+                      setShellOverlay((prev) => ({
+                        ...prev,
+                        underlayDataUrl: null,
+                      }))
+                    }
+                  >
+                    Clear Image
+                  </button>
+                </>
+              )}
               {(shellOverlay.customWalls.length > 0 || shellOverlay.customColumns.length > 0) && (
                 <button
                   id="clear-shell-overlays-btn"
@@ -1110,6 +1343,15 @@ export default function PlanView(): React.JSX.Element {
                   {shellOverlay.customWalls.length + shellOverlay.customColumns.length})
                 </button>
               )}
+              <button
+                id="save-plan-snapshot-btn"
+                type="button"
+                className="pf-btn"
+                title="Save the current Plan layout as a custom Option in Step 2 Options comparison"
+                onClick={() => saveCurrentSnapshot()}
+              >
+                Snapshot Option ({savedSnapshots.length})
+              </button>
               <button
                 id="open-handoff-btn"
                 type="button"

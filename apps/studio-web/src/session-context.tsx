@@ -48,9 +48,23 @@ export interface ShellOverlayState {
   readonly columnSizeIn: number;
   readonly shellWidthFt: number;
   readonly shellDepthFt: number;
+  readonly underlayDataUrl: string | null;
+  readonly underlayOpacity: number;
   readonly customWalls: readonly PlanWallOverlay[];
   readonly customColumns: readonly PlanColumnOverlay[];
   readonly calibratedScaleInPerPx: number | null;
+}
+
+export interface SavedPlanSnapshot {
+  readonly id: string;
+  readonly label: string;
+  readonly runsCount: number;
+  readonly baysCount: number;
+  readonly positionsCount: number;
+  readonly narrowestAisleIn: number | null;
+  readonly document: StudioDocument;
+  readonly counter: Session['counter'];
+  readonly shellOverlay: ShellOverlayState;
 }
 
 export interface StarterSpaceInput {
@@ -74,6 +88,9 @@ export interface StudioSessionValue {
   readonly canRedo: boolean;
   readonly shellOverlay: ShellOverlayState;
   readonly setShellOverlay: React.Dispatch<React.SetStateAction<ShellOverlayState>>;
+  readonly savedSnapshots: readonly SavedPlanSnapshot[];
+  readonly saveCurrentSnapshot: (label?: string) => SavedPlanSnapshot;
+  readonly restoreSnapshot: (snapshotId: string) => void;
   readonly runCommand: (command: Command) => SessionResult;
   /** All-or-nothing: applies every command or none. */
   readonly runCommands: (commands: readonly Command[]) => SessionResult;
@@ -92,6 +109,8 @@ const DEFAULT_SHELL_OVERLAY: ShellOverlayState = {
   columnSizeIn: 16,
   shellWidthFt: 110,
   shellDepthFt: 60,
+  underlayDataUrl: null,
+  underlayOpacity: 0.45,
   customWalls: [],
   customColumns: [],
   calibratedScaleInPerPx: null,
@@ -153,6 +172,7 @@ export function StudioSessionProvider({
 }): React.JSX.Element {
   const [session, setSession] = useState<Session>(createInitialSession);
   const [shellOverlay, setShellOverlay] = useState<ShellOverlayState>(DEFAULT_SHELL_OVERLAY);
+  const [savedSnapshots, setSavedSnapshots] = useState<readonly SavedPlanSnapshot[]>([]);
 
   const runCommand = useCallback(
     (command: Command): SessionResult => {
@@ -413,6 +433,45 @@ export function StudioSessionProvider({
   );
   const findingCounts = useMemo(() => countFindings(findings), [findings]);
 
+  const saveCurrentSnapshot = useCallback(
+    (label?: string): SavedPlanSnapshot => {
+      const idx = savedSnapshots.length + 1;
+      const optionCode = String.fromCharCode(67 + idx); // D, E, F...
+      const narrowestIn =
+        plan.narrowestClearAisle !== null
+          ? Math.round(plan.narrowestClearAisle.value / 25_400)
+          : null;
+      const snap: SavedPlanSnapshot = {
+        id: `snap-${idx}`,
+        label: label?.trim() || `Option ${optionCode}: Custom Plan Snapshot #${idx}`,
+        runsCount: plan.runs.length,
+        baysCount: plan.totalBays,
+        positionsCount: plan.totalPositions,
+        narrowestAisleIn: narrowestIn,
+        document: session.document,
+        counter: session.counter,
+        shellOverlay,
+      };
+      setSavedSnapshots((prev) => [...prev, snap]);
+      return snap;
+    },
+    [plan, savedSnapshots.length, session.counter, session.document, shellOverlay],
+  );
+
+  const restoreSnapshot = useCallback(
+    (snapshotId: string): void => {
+      const found = savedSnapshots.find((s) => s.id === snapshotId);
+      if (found === undefined) return;
+      setSession({
+        document: found.document,
+        counter: found.counter,
+        ledger: EMPTY_LEDGER,
+      });
+      setShellOverlay(found.shellOverlay);
+    },
+    [savedSnapshots],
+  );
+
   const value = useMemo<StudioSessionValue>(
     () => ({
       session,
@@ -423,6 +482,9 @@ export function StudioSessionProvider({
       canRedo: canRedo(session.ledger),
       shellOverlay,
       setShellOverlay,
+      savedSnapshots,
+      saveCurrentSnapshot,
+      restoreSnapshot,
       runCommand,
       runCommands,
       onUndo,
@@ -438,6 +500,9 @@ export function StudioSessionProvider({
       findings,
       findingCounts,
       shellOverlay,
+      savedSnapshots,
+      saveCurrentSnapshot,
+      restoreSnapshot,
       runCommand,
       runCommands,
       onUndo,
