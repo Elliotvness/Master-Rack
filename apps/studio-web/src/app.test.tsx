@@ -634,6 +634,28 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
     await user.keyboard('{Escape}');
     expect(document.getElementById('ai-chat-panel')).toBeNull();
   });
+
+  it('renders the Main Page, User Access & System Guide at /welcome and enables one-click role access', async () => {
+    const user = userEvent.setup();
+    renderApp('/welcome');
+
+    const heading = await screen.findByRole('heading', {
+      level: 1,
+      name: /Warehouse Rack Layout, AI Placement & Submittal Portal/i,
+    });
+    expect(heading).toBeTruthy();
+
+    expect(document.getElementById('role-access-grid')).not.toBeNull();
+    expect(document.getElementById('workflow-guide-grid')).not.toBeNull();
+    expect(document.getElementById('shortcuts-reference-table')).not.toBeNull();
+
+    // One-click Engineer role access signs the user in and enters the Plan studio
+    const engBtn = document.getElementById('quick-access-engineer') as HTMLButtonElement;
+    await user.click(engBtn);
+
+    await screen.findByRole('heading', { level: 1, name: 'Plan' });
+    expect(document.getElementById('user-badge')?.textContent).toMatch(/Applications Engineer/i);
+  });
 });
 
 describe('the theme toggle', () => {

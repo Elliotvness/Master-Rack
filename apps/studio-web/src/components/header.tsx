@@ -150,6 +150,14 @@ export function Header({
             {SAVE_LABEL[saveState]}
           </button>
           <ThemeToggle />
+          <Link
+            id="portal-hub-btn"
+            to="/welcome"
+            className="chrome-btn"
+            title="Open Main Page, User Access & System Guide"
+          >
+            Main Page &amp; Guide
+          </Link>
 
           {isAuthenticated && user ? (
             <div className="auth-chrome-group" id="auth-chrome-controls">

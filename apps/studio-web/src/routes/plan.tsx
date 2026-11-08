@@ -16,6 +16,7 @@ import {
   type StudioDocument,
 } from '@rms/studio-model';
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 
 import { ChecksDrawer } from '../checks/checks-drawer.js';
 import { ParamsPanel } from '../plan/params-panel.js';
@@ -665,7 +666,10 @@ export default function PlanView(): React.JSX.Element {
       </h1>
       <p className="scaffold-note">
         <b>Sample layout.</b> This is the rack-studio-v1 sample job, loaded for this session. Every
-        change can be undone, but nothing here is saved yet.
+        change can be undone, but nothing here is saved yet.{' '}
+        <Link id="plan-open-portal-link" to="/welcome">
+          Open Main Page, User Access &amp; System Guide →
+        </Link>
       </p>
 
       <div className="plan-layout">
