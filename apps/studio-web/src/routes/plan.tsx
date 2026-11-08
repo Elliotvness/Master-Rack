@@ -701,6 +701,28 @@ export default function PlanView(): React.JSX.Element {
         >
           Save IDB Now
         </button>{' '}
+        <button
+          id="open-intake-btn"
+          type="button"
+          className="pf-btn pf-btn-small"
+          aria-pressed={intakeOpen}
+          onClick={openSpecSheetIntake}
+        >
+          Read a spec sheet
+        </button>{' '}
+        <button
+          id="open-handoff-btn"
+          type="button"
+          className="pf-btn pf-btn-small"
+          aria-pressed={handoffOpen}
+          onClick={() => {
+            setHandoffText(exportProjectJson());
+            setHandoffStatus(null);
+            setHandoffOpen((prev) => !prev);
+          }}
+        >
+          Export / Import JSON
+        </button>{' '}
         <Link id="plan-open-portal-link" to="/welcome">
           Open Main Page, User Access &amp; System Guide →
         </Link>
@@ -1070,6 +1092,28 @@ export default function PlanView(): React.JSX.Element {
                           setCmdStatus('Saved workspace snapshot to IndexedDB.');
                         },
                       },
+                      {
+                        id: 'cmdk-item-read-spec-sheet',
+                        group: 'Smart / System',
+                        label: 'Read a spec sheet (AI Spec Sheet Intake)',
+                        alias: 'SPEC SHEET',
+                        run: () => {
+                          setCmdBarOpen(false);
+                          openSpecSheetIntake();
+                        },
+                      },
+                      {
+                        id: 'cmdk-item-handoff-json',
+                        group: 'Utilities',
+                        label: 'Export / Import Project JSON',
+                        alias: 'JSON IO',
+                        run: () => {
+                          setCmdBarOpen(false);
+                          setHandoffText(exportProjectJson());
+                          setHandoffStatus(null);
+                          setHandoffOpen(true);
+                        },
+                      },
                     ]
                       .filter((item) => {
                         const q = cmdkQuery.trim().toLowerCase();
@@ -1263,274 +1307,462 @@ export default function PlanView(): React.JSX.Element {
               </section>
             )}
 
-            <div className="ai-toolbar" role="toolbar" aria-label="AI intake and command tools">
-              <button
-                id="open-ai-chat-btn"
-                type="button"
-                className="pf-btn"
-                aria-pressed={chatOpen}
-                onClick={() => setChatOpen((prev) => !prev)}
+            <div
+              id="plan-floating-dock"
+              className="ai-toolbar plan-floating-dock"
+              role="toolbar"
+              aria-label="Floating CAD drafting, utilities, and smart dock"
+            >
+              {/* Group 1: Drafting */}
+              <div
+                id="dock-group-drafting"
+                className="dock-group"
+                role="group"
+                aria-label="Drafting tools"
               >
-                AI Assistant
-              </button>
-              <button
-                id="open-intake-btn"
-                type="button"
-                className="pf-btn"
-                aria-pressed={intakeOpen}
-                onClick={openSpecSheetIntake}
-              >
-                Read a spec sheet
-              </button>
-              <button
-                id="open-cmdbar-btn"
-                type="button"
-                className="pf-btn"
-                aria-pressed={cmdBarOpen}
-                onClick={() => setCmdBarOpen((prev) => !prev)}
-              >
-                Commands <kbd>Ctrl+K</kbd>
-              </button>
-              <button
-                id="start-columns-first-btn"
-                type="button"
-                className="pf-btn"
-                title="Clear racks and start with building shell & column grid first"
-                onClick={() => {
-                  loadPreset('shell-columns');
-                  setToolMode('column');
-                }}
-              >
-                Columns First (0b)
-              </button>
-              <button
-                id="tool-select-btn"
-                type="button"
-                className="pf-btn"
-                aria-pressed={toolMode === 'select'}
-                onClick={() => setToolMode('select')}
-              >
-                Select / Pan
-              </button>
-              <button
-                id="tool-wall-btn"
-                type="button"
-                className="pf-btn"
-                aria-pressed={toolMode === 'wall'}
-                onClick={() => setToolMode((prev) => (prev === 'wall' ? 'select' : 'wall'))}
-              >
-                Draw Wall (Ortho)
-              </button>
-              <button
-                id="tool-column-btn"
-                type="button"
-                className="pf-btn"
-                aria-pressed={toolMode === 'column'}
-                onClick={() => setToolMode((prev) => (prev === 'column' ? 'select' : 'column'))}
-              >
-                Stamp Column
-              </button>
-              <button
-                id="tool-calibrate-btn"
-                type="button"
-                className="pf-btn"
-                aria-pressed={toolMode === 'calibrate'}
-                onClick={() =>
-                  setToolMode((prev) => (prev === 'calibrate' ? 'select' : 'calibrate'))
-                }
-              >
-                2-Pt Scale Calibrate
-              </button>
-              <button
-                id="toggle-perimeter-wall-btn"
-                type="button"
-                className="pf-btn"
-                aria-pressed={shellOverlay.showPerimeterWalls}
-                onClick={() =>
-                  setShellOverlay((prev) => ({
-                    ...prev,
-                    showPerimeterWalls: !prev.showPerimeterWalls,
-                  }))
-                }
-              >
-                {shellOverlay.showPerimeterWalls ? 'Perimeter Wall: On' : 'Perimeter Wall: Off'}
-              </button>
-              <label htmlFor="column-grid-select" className="visually-hidden">
-                Column Grid Spacing
-              </label>
-              <select
-                id="column-grid-select"
-                aria-label="Column Grid Spacing"
-                className="pf-input"
-                style={{ width: 'auto' }}
-                value={shellOverlay.showColumns ? String(shellOverlay.columnSpacingFt) : 'none'}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setShellOverlay((prev) => ({
-                    ...prev,
-                    showColumns: val !== 'none',
-                    columnSpacingFt:
-                      val === 'none' ? prev.columnSpacingFt : (Number(val) as 30 | 40 | 50),
-                  }));
-                }}
-              >
-                <option value="none">Columns: Off</option>
-                <option value="30">Columns: 30 ft Grid</option>
-                <option value="40">Columns: 40 ft Grid</option>
-                <option value="50">Columns: 50 ft Grid</option>
-              </select>
-              {(shellOverlay.showPerimeterWalls || shellOverlay.showColumns) && (
-                <>
-                  <label htmlFor="shell-width-ft-input" className="visually-hidden">
-                    Shell Width (ft)
-                  </label>
-                  <input
-                    id="shell-width-ft-input"
-                    aria-label="Shell Width (ft)"
-                    type="number"
-                    min={30}
-                    max={600}
-                    step={10}
-                    className="pf-input"
-                    style={{ width: '58px' }}
-                    title="Building Shell Width (ft)"
-                    value={shellOverlay.shellWidthFt}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      if (Number.isFinite(v) && v >= 30) {
-                        setShellOverlay((prev) => ({ ...prev, shellWidthFt: v }));
-                      }
-                    }}
-                  />
-                  <span>×</span>
-                  <label htmlFor="shell-depth-ft-input" className="visually-hidden">
-                    Shell Depth (ft)
-                  </label>
-                  <input
-                    id="shell-depth-ft-input"
-                    aria-label="Shell Depth (ft)"
-                    type="number"
-                    min={20}
-                    max={400}
-                    step={10}
-                    className="pf-input"
-                    style={{ width: '58px' }}
-                    title="Building Shell Depth (ft)"
-                    value={shellOverlay.shellDepthFt}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      if (Number.isFinite(v) && v >= 20) {
-                        setShellOverlay((prev) => ({ ...prev, shellDepthFt: v }));
-                      }
-                    }}
-                  />
-                </>
-              )}
-              <label
-                id="upload-underlay-label"
-                htmlFor="underlay-file-upload"
-                className="pf-btn"
-                title="Upload a floorplan image (PNG/JPG/SVG) underneath the blueprint canvas"
-              >
-                {shellOverlay.underlayDataUrl !== null ? 'Underlay: Loaded' : 'Floorplan Image'}
-              </label>
-              <input
-                id="underlay-file-upload"
-                type="file"
-                accept="image/*"
-                className="visually-hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file === undefined) return;
-                  const reader = new FileReader();
-                  reader.onload = () => {
-                    if (typeof reader.result === 'string') {
-                      setShellOverlay((prev) => ({
-                        ...prev,
-                        showPerimeterWalls: true,
-                        underlayDataUrl: reader.result as string,
-                      }));
-                    }
-                  };
-                  reader.readAsDataURL(file);
-                }}
-              />
-              {shellOverlay.underlayDataUrl !== null && (
-                <>
-                  <label htmlFor="underlay-opacity-select" className="visually-hidden">
-                    Underlay Opacity
-                  </label>
-                  <select
-                    id="underlay-opacity-select"
-                    aria-label="Underlay Opacity"
-                    className="pf-input"
-                    style={{ width: 'auto' }}
-                    value={String(shellOverlay.underlayOpacity)}
-                    onChange={(e) =>
-                      setShellOverlay((prev) => ({
-                        ...prev,
-                        underlayOpacity: Number(e.target.value),
-                      }))
-                    }
-                  >
-                    <option value="0.25">25% Opacity</option>
-                    <option value="0.45">45% Opacity</option>
-                    <option value="0.7">70% Opacity</option>
-                  </select>
-                  <button
-                    id="clear-underlay-btn"
-                    type="button"
-                    className="pf-btn"
-                    onClick={() =>
-                      setShellOverlay((prev) => ({
-                        ...prev,
-                        underlayDataUrl: null,
-                      }))
-                    }
-                  >
-                    Clear Image
-                  </button>
-                </>
-              )}
-              {(shellOverlay.customWalls.length > 0 || shellOverlay.customColumns.length > 0) && (
                 <button
-                  id="clear-shell-overlays-btn"
+                  id="tool-select-btn"
                   type="button"
-                  className="pf-btn"
+                  className="pf-btn dock-icon-btn"
+                  aria-pressed={toolMode === 'select'}
+                  aria-label="Select / Pan (M)"
+                  title="Select / Pan (M)"
+                  onClick={() => setToolMode('select')}
+                >
+                  <svg
+                    className="dock-svg-icon"
+                    viewBox="0 0 16 16"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 2l9.5 4.5-4.2 1.3-1.8 4.2L3 2z" />
+                    <path d="M8.5 8.5l4 4" />
+                  </svg>
+                  <span className="dock-tooltip">Select / Pan (M)</span>
+                </button>
+                <button
+                  id="tool-wall-btn"
+                  type="button"
+                  className="pf-btn dock-icon-btn"
+                  aria-pressed={toolMode === 'wall'}
+                  aria-label="Draw Wall (Ortho) (W)"
+                  title="Draw Wall (Ortho) (W)"
+                  onClick={() => setToolMode((prev) => (prev === 'wall' ? 'select' : 'wall'))}
+                >
+                  <svg
+                    className="dock-svg-icon"
+                    viewBox="0 0 16 16"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <rect x="1.5" y="3" width="13" height="10" rx="1" />
+                    <line x1="1.5" y1="8" x2="14.5" y2="8" />
+                    <line x1="6" y1="3" x2="6" y2="8" />
+                    <line x1="10" y1="8" x2="10" y2="13" />
+                  </svg>
+                  <span className="dock-tooltip">Draw Wall (Ortho) (W)</span>
+                </button>
+                <button
+                  id="tool-column-btn"
+                  type="button"
+                  className="pf-btn dock-icon-btn"
+                  aria-pressed={toolMode === 'column'}
+                  aria-label="Stamp Column (C)"
+                  title="Stamp Column (C)"
+                  onClick={() => setToolMode((prev) => (prev === 'column' ? 'select' : 'column'))}
+                >
+                  <svg
+                    className="dock-svg-icon"
+                    viewBox="0 0 16 16"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="3" width="10" height="10" rx="1" />
+                    <line x1="3" y1="3" x2="13" y2="13" />
+                    <line x1="13" y1="3" x2="3" y2="13" />
+                  </svg>
+                  <span className="dock-tooltip">Stamp Column (C)</span>
+                </button>
+                <button
+                  id="start-columns-first-btn"
+                  type="button"
+                  className="pf-btn dock-icon-btn"
+                  aria-label="Columns First (0b)"
+                  title="Clear racks and start with building shell & column grid first"
+                  onClick={() => {
+                    loadPreset('shell-columns');
+                    setToolMode('column');
+                  }}
+                >
+                  <svg
+                    className="dock-svg-icon"
+                    viewBox="0 0 16 16"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <rect x="2" y="2" width="3.5" height="3.5" />
+                    <rect x="10.5" y="2" width="3.5" height="3.5" />
+                    <rect x="2" y="10.5" width="3.5" height="3.5" />
+                    <rect x="10.5" y="10.5" width="3.5" height="3.5" />
+                  </svg>
+                  <span className="dock-tooltip">Columns First (0b)</span>
+                </button>
+                <label htmlFor="column-grid-select" className="visually-hidden">
+                  Column Grid Spacing
+                </label>
+                <select
+                  id="column-grid-select"
+                  aria-label="Column Grid Spacing"
+                  className="pf-input dock-compact-select"
+                  title="Column Grid Spacing"
+                  value={shellOverlay.showColumns ? String(shellOverlay.columnSpacingFt) : 'none'}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setShellOverlay((prev) => ({
+                      ...prev,
+                      showColumns: val !== 'none',
+                      columnSpacingFt:
+                        val === 'none' ? prev.columnSpacingFt : (Number(val) as 30 | 40 | 50),
+                    }));
+                  }}
+                >
+                  <option value="none">Cols: Off</option>
+                  <option value="30">Cols: 30&apos;</option>
+                  <option value="40">Cols: 40&apos;</option>
+                  <option value="50">Cols: 50&apos;</option>
+                </select>
+                <button
+                  id="toggle-perimeter-wall-btn"
+                  type="button"
+                  className="pf-btn dock-icon-btn"
+                  aria-pressed={shellOverlay.showPerimeterWalls}
+                  aria-label={
+                    shellOverlay.showPerimeterWalls ? 'Perimeter Wall: On' : 'Perimeter Wall: Off'
+                  }
+                  title={
+                    shellOverlay.showPerimeterWalls ? 'Perimeter Wall: On' : 'Perimeter Wall: Off'
+                  }
                   onClick={() =>
                     setShellOverlay((prev) => ({
                       ...prev,
-                      customWalls: [],
-                      customColumns: [],
+                      showPerimeterWalls: !prev.showPerimeterWalls,
                     }))
                   }
                 >
-                  Clear Stamped (
-                  {shellOverlay.customWalls.length + shellOverlay.customColumns.length})
+                  <svg
+                    className="dock-svg-icon"
+                    viewBox="0 0 16 16"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <rect x="1.5" y="2.5" width="13" height="11" strokeDasharray="3 1.5" />
+                    <rect x="4" y="5" width="8" height="6" />
+                  </svg>
+                  <span className="dock-tooltip">
+                    {shellOverlay.showPerimeterWalls ? 'Perimeter Wall: On' : 'Perimeter Wall: Off'}
+                  </span>
                 </button>
-              )}
-              <button
-                id="save-plan-snapshot-btn"
-                type="button"
-                className="pf-btn"
-                title="Save the current Plan layout as a custom Option in Step 2 Options comparison"
-                onClick={() => saveCurrentSnapshot()}
+                {(shellOverlay.showPerimeterWalls || shellOverlay.showColumns) && (
+                  <>
+                    <label htmlFor="shell-width-ft-input" className="visually-hidden">
+                      Shell Width (ft)
+                    </label>
+                    <input
+                      id="shell-width-ft-input"
+                      aria-label="Shell Width (ft)"
+                      type="number"
+                      min={30}
+                      max={600}
+                      step={10}
+                      className="pf-input dock-dim-input"
+                      title="Building Shell Width (ft)"
+                      value={shellOverlay.shellWidthFt}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        if (Number.isFinite(v) && v >= 30) {
+                          setShellOverlay((prev) => ({ ...prev, shellWidthFt: v }));
+                        }
+                      }}
+                    />
+                    <span className="dock-dim-sep">×</span>
+                    <label htmlFor="shell-depth-ft-input" className="visually-hidden">
+                      Shell Depth (ft)
+                    </label>
+                    <input
+                      id="shell-depth-ft-input"
+                      aria-label="Shell Depth (ft)"
+                      type="number"
+                      min={20}
+                      max={400}
+                      step={10}
+                      className="pf-input dock-dim-input"
+                      title="Building Shell Depth (ft)"
+                      value={shellOverlay.shellDepthFt}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        if (Number.isFinite(v) && v >= 20) {
+                          setShellOverlay((prev) => ({ ...prev, shellDepthFt: v }));
+                        }
+                      }}
+                    />
+                  </>
+                )}
+                {(shellOverlay.customWalls.length > 0 || shellOverlay.customColumns.length > 0) && (
+                  <button
+                    id="clear-shell-overlays-btn"
+                    type="button"
+                    className="pf-btn dock-icon-btn"
+                    aria-label={`Clear Stamped (${shellOverlay.customWalls.length + shellOverlay.customColumns.length})`}
+                    title={`Clear Stamped (${shellOverlay.customWalls.length + shellOverlay.customColumns.length})`}
+                    onClick={() =>
+                      setShellOverlay((prev) => ({
+                        ...prev,
+                        customWalls: [],
+                        customColumns: [],
+                      }))
+                    }
+                  >
+                    <span className="dock-badge">
+                      ×{shellOverlay.customWalls.length + shellOverlay.customColumns.length}
+                    </span>
+                    <span className="dock-tooltip">
+                      Clear Stamped (
+                      {shellOverlay.customWalls.length + shellOverlay.customColumns.length})
+                    </span>
+                  </button>
+                )}
+              </div>
+
+              <span className="dock-divider" aria-hidden="true" />
+
+              {/* Group 2: Utilities */}
+              <div
+                id="dock-group-utilities"
+                className="dock-group"
+                role="group"
+                aria-label="Utility tools"
               >
-                Snapshot Option ({savedSnapshots.length})
-              </button>
-              <button
-                id="open-handoff-btn"
-                type="button"
-                className="pf-btn"
-                aria-pressed={handoffOpen}
-                onClick={() => {
-                  setHandoffText(exportProjectJson());
-                  setHandoffStatus(null);
-                  setHandoffOpen((prev) => !prev);
-                }}
+                <button
+                  id="tool-calibrate-btn"
+                  type="button"
+                  className="pf-btn dock-icon-btn"
+                  aria-pressed={toolMode === 'calibrate'}
+                  aria-label="2-Pt Scale Calibrate"
+                  title="2-Pt Scale Calibrate"
+                  onClick={() =>
+                    setToolMode((prev) => (prev === 'calibrate' ? 'select' : 'calibrate'))
+                  }
+                >
+                  <svg
+                    className="dock-svg-icon"
+                    viewBox="0 0 16 16"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <rect x="1.5" y="5" width="13" height="6" rx="1" />
+                    <line x1="4.5" y1="5" x2="4.5" y2="8" />
+                    <line x1="8" y1="5" x2="8" y2="9" />
+                    <line x1="11.5" y1="5" x2="11.5" y2="8" />
+                  </svg>
+                  <span className="dock-tooltip">2-Pt Scale Calibrate</span>
+                </button>
+                <label
+                  id="upload-underlay-label"
+                  htmlFor="underlay-file-upload"
+                  className="pf-btn dock-icon-btn"
+                  aria-label={
+                    shellOverlay.underlayDataUrl !== null ? 'Underlay: Loaded' : 'Floorplan Image'
+                  }
+                  title="Upload a floorplan image (PNG/JPG/SVG) underneath the blueprint canvas"
+                >
+                  <svg
+                    className="dock-svg-icon"
+                    viewBox="0 0 16 16"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <rect x="2" y="2.5" width="12" height="11" rx="1.5" />
+                    <circle cx="5.5" cy="6" r="1.2" />
+                    <path d="M2.5 12l3.5-3.5 2.5 2.5 2-2 3 3" />
+                  </svg>
+                  <span className="dock-tooltip">
+                    {shellOverlay.underlayDataUrl !== null ? 'Underlay: Loaded' : 'Floorplan Image'}
+                  </span>
+                </label>
+                <input
+                  id="underlay-file-upload"
+                  type="file"
+                  accept="image/*"
+                  className="visually-hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file === undefined) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      if (typeof reader.result === 'string') {
+                        setShellOverlay((prev) => ({
+                          ...prev,
+                          showPerimeterWalls: true,
+                          underlayDataUrl: reader.result as string,
+                        }));
+                      }
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+                {shellOverlay.underlayDataUrl !== null && (
+                  <>
+                    <label htmlFor="underlay-opacity-select" className="visually-hidden">
+                      Underlay Opacity
+                    </label>
+                    <select
+                      id="underlay-opacity-select"
+                      aria-label="Underlay Opacity"
+                      className="pf-input dock-compact-select"
+                      value={String(shellOverlay.underlayOpacity)}
+                      onChange={(e) =>
+                        setShellOverlay((prev) => ({
+                          ...prev,
+                          underlayOpacity: Number(e.target.value),
+                        }))
+                      }
+                    >
+                      <option value="0.25">25%</option>
+                      <option value="0.45">45%</option>
+                      <option value="0.7">70%</option>
+                    </select>
+                    <button
+                      id="clear-underlay-btn"
+                      type="button"
+                      className="pf-btn dock-icon-btn"
+                      aria-label="Clear Image"
+                      title="Clear Floorplan Image"
+                      onClick={() =>
+                        setShellOverlay((prev) => ({
+                          ...prev,
+                          underlayDataUrl: null,
+                        }))
+                      }
+                    >
+                      <span className="dock-badge">×Img</span>
+                      <span className="dock-tooltip">Clear Image</span>
+                    </button>
+                  </>
+                )}
+                <button
+                  id="save-plan-snapshot-btn"
+                  type="button"
+                  className="pf-btn dock-icon-btn"
+                  aria-label={`Snapshot Option (${savedSnapshots.length})`}
+                  title="Save the current Plan layout as a custom Option in Step 2 Options comparison"
+                  onClick={() => saveCurrentSnapshot()}
+                >
+                  <svg
+                    className="dock-svg-icon"
+                    viewBox="0 0 16 16"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <path d="M2.5 5h2l1-1.5h5L11.5 5h2a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z" />
+                    <circle cx="8" cy="9" r="2.2" />
+                  </svg>
+                  <span className="dock-badge">{savedSnapshots.length}</span>
+                  <span className="dock-tooltip">Snapshot Option ({savedSnapshots.length})</span>
+                </button>
+              </div>
+
+              <span className="dock-divider" aria-hidden="true" />
+
+              {/* Group 3: Smart / System */}
+              <div
+                id="dock-group-smart"
+                className="dock-group"
+                role="group"
+                aria-label="Smart and system tools"
               >
-                Export / Import JSON
-              </button>
+                <button
+                  id="open-ai-chat-btn"
+                  type="button"
+                  className="pf-btn dock-icon-btn"
+                  aria-pressed={chatOpen}
+                  aria-label="AI Assistant"
+                  title="AI Assistant"
+                  onClick={() => setChatOpen((prev) => !prev)}
+                >
+                  <svg
+                    className="dock-svg-icon"
+                    viewBox="0 0 16 16"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <path d="M8 1.5l1.6 4.1L13.7 7l-4.1 1.6L8 12.7 6.4 8.6 2.3 7l4.1-1.4L8 1.5z" />
+                    <path d="M13 11.5l.6 1.4 1.4.6-1.4.6-.6 1.4-.6-1.4-1.4-.6 1.4-.6.6-1.4z" />
+                  </svg>
+                  <span className="dock-tooltip">AI Assistant</span>
+                </button>
+                <button
+                  id="open-cmdbar-btn"
+                  type="button"
+                  className="pf-btn dock-icon-btn dock-cmd-btn"
+                  aria-pressed={cmdBarOpen}
+                  aria-label="Commands Ctrl+K"
+                  title="Commands (Ctrl+K)"
+                  onClick={() => setCmdBarOpen((prev) => !prev)}
+                >
+                  <svg
+                    className="dock-svg-icon"
+                    viewBox="0 0 16 16"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" />
+                    <path d="M4.5 6l2.5 2-2.5 2" />
+                    <line x1="8.5" y1="10" x2="11.5" y2="10" />
+                  </svg>
+                  <kbd className="dock-kbd">Ctrl+K</kbd>
+                  <span className="dock-tooltip">Commands (Ctrl+K)</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

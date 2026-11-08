@@ -775,6 +775,24 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
     expect(document.getElementById('autosave-idb-badge')?.textContent).toMatch(
       /IndexedDB Auto-Saved/i,
     );
+
+    // 6. Floating CAD Dock groups, SVG icons + tooltips, and offloaded Command Palette actions
+    const floatingDock = document.getElementById('plan-floating-dock');
+    expect(floatingDock).not.toBeNull();
+    expect(document.getElementById('dock-group-drafting')).not.toBeNull();
+    expect(document.getElementById('dock-group-utilities')).not.toBeNull();
+    expect(document.getElementById('dock-group-smart')).not.toBeNull();
+    expect(floatingDock?.querySelectorAll('.dock-divider').length).toBe(2);
+    expect(floatingDock?.querySelectorAll('svg.dock-svg-icon').length).toBeGreaterThanOrEqual(8);
+    expect(floatingDock?.querySelectorAll('.dock-tooltip').length).toBeGreaterThanOrEqual(8);
+
+    // Infrequent actions (Read a spec sheet, Export / Import Project JSON) are searchable in Ctrl+K
+    await user.clear(cmdkInput);
+    await user.type(cmdkInput, 'spec sheet');
+    const readSpecItem = document.getElementById('cmdk-item-read-spec-sheet') as HTMLButtonElement;
+    expect(readSpecItem).not.toBeNull();
+    await user.click(readSpecItem);
+    expect(document.getElementById('intake-panel')).not.toBeNull();
   });
 });
 
