@@ -49,11 +49,10 @@ body {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-areas:
-    'brand job actions'
-    'steps steps steps'
-    'views views views';
+    'brand steps job'
+    'views views actions';
   align-items: center;
-  column-gap: var(--space-6);
+  column-gap: var(--space-4);
   background: var(--zinc-900);
   border-bottom: 1px solid var(--zinc-800);
   color: var(--zinc-200);
@@ -63,13 +62,13 @@ body {
   grid-area: brand;
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-2) 0 var(--space-2) var(--space-6);
+  gap: var(--space-3);
+  padding: 4px 0 4px var(--space-4);
 }
 
 .brand-logo {
   display: block;
-  height: 30px;
+  height: 24px;
   width: auto;
 }
 
@@ -80,8 +79,8 @@ body {
 .chrome-product {
   font-family: var(--font-heading);
   font-weight: 600;
-  font-size: 19px;
-  padding-left: var(--space-4);
+  font-size: 16px;
+  padding-left: var(--space-3);
   border-left: 1px solid var(--zinc-800);
   color: var(--zinc-200);
   white-space: nowrap;
@@ -91,7 +90,8 @@ body {
   grid-area: job;
   font-family: var(--font-heading);
   font-weight: 600;
-  font-size: 17px;
+  font-size: 14px;
+  padding-right: var(--space-4);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -107,10 +107,12 @@ body {
   grid-area: actions;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 6px;
   align-items: center;
   justify-content: flex-end;
-  padding: var(--space-2) var(--space-6) var(--space-2) 0;
+  padding: 4px var(--space-4) 4px 0;
+  background: var(--zinc-950);
+  border-top: 1px solid var(--zinc-800);
 }
 
 .chrome-btn {
@@ -118,13 +120,13 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 36px;
-  padding: 0 12px;
+  min-height: 28px;
+  padding: 0 10px;
   border: 1px solid var(--zinc-700);
-  background: var(--zinc-950);
+  background: var(--zinc-900);
   color: var(--zinc-200);
   font-family: var(--font-heading);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
@@ -151,30 +153,29 @@ body {
 .steps {
   grid-area: steps;
   background: var(--zinc-900);
-  border-top: 1px solid var(--zinc-800);
   overflow-x: auto;
 }
 
 .steps ol {
   display: flex;
   margin: 0;
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-2);
   list-style: none;
 }
 
 .step {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 14px;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
   color: var(--zinc-300);
   font-family: var(--font-heading);
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
   text-decoration: none;
   white-space: nowrap;
-  border-bottom: 3px solid transparent;
+  border-bottom: 2px solid transparent;
 }
 
 .step:hover {
@@ -184,7 +185,7 @@ body {
 
 .step-num {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--zinc-400);
 }
@@ -204,7 +205,7 @@ body {
   grid-area: views;
   display: flex;
   gap: 0;
-  padding: var(--space-2) var(--space-6);
+  padding: 4px var(--space-4);
   background: var(--zinc-950);
   border-top: 1px solid var(--zinc-800);
 }
@@ -212,14 +213,14 @@ body {
 .view-tab {
   display: inline-flex;
   align-items: center;
-  min-height: 34px;
-  padding: 0 14px;
+  min-height: 28px;
+  padding: 0 12px;
   border: 1px solid var(--zinc-700);
   background: var(--zinc-900);
   color: var(--zinc-300);
   font-family: var(--font-heading);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 13px;
   text-decoration: none;
 }
 
@@ -269,20 +270,54 @@ body {
   border-radius: 2px;
 }
 
-/* --- banner ------------------------------------------------------------- */
+/* --- banner (compact footer bar) ---------------------------------------- */
+
+.banner-footer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 3px var(--space-4);
+  background: var(--zinc-900);
+  border-top: 1px solid var(--zinc-800);
+  flex-shrink: 0;
+}
+
+.banner-footer-collapsed .banner-note {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
 
 .banner-note {
   margin: 0;
-  padding: 5px var(--space-6);
-  background: var(--zinc-900);
-  color: var(--zinc-300);
-  border-bottom: 1px solid var(--zinc-800);
-  font-size: 13px;
-  line-height: 1.4;
+  padding: 0;
+  background: transparent;
+  color: var(--zinc-400);
+  font-size: 11px;
+  line-height: 1.3;
 }
 
 .banner-note b {
   color: var(--elev-warn);
+}
+
+.banner-dismiss-btn {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border: 1px solid var(--zinc-700);
+  border-radius: 3px;
+  background: var(--zinc-950);
+  color: var(--zinc-400);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.banner-dismiss-btn:hover {
+  border-color: var(--safety-orange);
+  color: var(--zinc-100);
 }
 
 /* --- body --------------------------------------------------------------- */
@@ -300,7 +335,7 @@ body {
   flex-direction: column;
   min-height: 0;
   min-width: 0;
-  padding: 0.75rem 1rem;
+  padding: 0.45rem 0.75rem;
   overflow-y: auto;
   background: var(--zinc-950);
   color: var(--zinc-200);
@@ -1461,7 +1496,7 @@ body {
 .elevation-stage {
   position: relative;
   flex: 1;
-  min-height: 480px;
+  min-height: 520px;
   border: 1px solid var(--zinc-800);
   border-radius: 6px;
   background: var(--zinc-950);
@@ -1470,6 +1505,37 @@ body {
   justify-content: flex-start;
   padding: 0;
   overflow: hidden;
+}
+
+.elev-spatial-breadcrumb {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  z-index: 6;
+  pointer-events: none;
+  padding: 6px 10px;
+  border-left: 3px solid var(--safety-orange);
+  background: color-mix(in srgb, var(--zinc-900) 88%, transparent);
+  border-top: 1px solid var(--zinc-800);
+  border-right: 1px solid var(--zinc-800);
+  border-bottom: 1px solid var(--zinc-800);
+  border-radius: 4px;
+}
+
+.elev-breadcrumb-primary {
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--zinc-100);
+}
+
+.elev-breadcrumb-sub {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  color: var(--zinc-400);
 }
 
 .elevation-canvas-underlay {
@@ -1484,7 +1550,7 @@ body {
 .elevation-svg {
   position: relative;
   z-index: 2;
-  width: 65%;
+  width: 72%;
   height: 100%;
 }
 
@@ -1630,8 +1696,8 @@ body {
   top: 0;
   right: 16px;
   bottom: 0;
-  width: 34%;
-  min-width: 300px;
+  width: 36%;
+  min-width: 320px;
   z-index: 5;
   pointer-events: none;
 }
@@ -1643,7 +1709,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 10px;
+  padding: 4px 10px;
   border-radius: 4px;
   border: 1px solid var(--zinc-700);
   background: var(--zinc-900);
@@ -1653,9 +1719,23 @@ body {
   white-space: nowrap;
 }
 
+.elev-coord-pill::before {
+  content: '';
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  width: 64px;
+  border-top: 1.5px dashed var(--zinc-400);
+  pointer-events: none;
+}
+
 .elev-coord-pill-clash {
   border-color: var(--safety-orange);
   background: var(--zinc-900);
+}
+
+.elev-coord-pill-clash::before {
+  border-top-color: var(--safety-orange);
 }
 
 .elev-coord-pill-ceiling {
@@ -1663,24 +1743,35 @@ body {
   background: var(--zinc-900);
 }
 
+.elev-coord-pill-ceiling::before {
+  border-top-color: var(--elev-danger);
+}
+
 .elev-coord-pill-deflector {
   border-color: var(--elev-warn);
   background: var(--zinc-900);
 }
 
+.elev-coord-pill-deflector::before {
+  border-top-color: var(--elev-warn);
+}
+
 .elev-coord-tick {
   display: inline-block;
-  width: 16px;
-  height: 1px;
-  background: var(--zinc-400);
+  width: 14px;
+  height: 0;
+  border-top: 1.5px dashed var(--zinc-400);
+  background: transparent;
 }
 
 .elev-coord-tick-ceiling {
-  background: var(--elev-danger);
+  border-top-color: var(--elev-danger);
+  background: transparent;
 }
 
 .elev-coord-tick-deflector {
-  background: var(--elev-warn);
+  border-top-color: var(--elev-warn);
+  background: transparent;
 }
 
 .elev-coord-btn {

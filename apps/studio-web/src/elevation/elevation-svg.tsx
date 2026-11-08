@@ -22,8 +22,59 @@ import {
 import { useMemo } from 'react';
 
 const UM_PER_INCH = 25_400;
-export const ELEV_VB_PAD_TOP_UM = 1_500_000;
-export const ELEV_VB_PAD_BOTTOM_UM = 750_000;
+export const ELEV_VB_PAD_TOP_UM = 36 * UM_PER_INCH;
+export const ELEV_VB_PAD_BOTTOM_UM = 30 * UM_PER_INCH;
+
+export interface ElevationVerticalMetrics {
+  readonly maxModelHeightUm: number;
+  readonly padTopUm: number;
+  readonly padBottomUm: number;
+  readonly totalVbHeightUm: number;
+  readonly flipY: (modelYUm: number) => number;
+  readonly yPercentForUm: (modelYUm: number) => number;
+  readonly yPercentForInches: (elevIn: number) => number;
+}
+
+export function getElevationVerticalMetrics(doc: StudioDocument): ElevationVerticalMetrics {
+  const run = doc.runs[0];
+  const bt = run !== undefined ? bayTypeForRun(doc, run) : doc.bayTypes[0];
+  const frameHeightUm = bt?.frameHeight.value ?? 240 * UM_PER_INCH;
+  const topBeamUm =
+    bt !== undefined && bt.beamLevels.length > 0
+      ? Math.max(...bt.beamLevels)
+      : 180 * UM_PER_INCH;
+  const loadHUm = Math.min(Math.max(12 * UM_PER_INCH, doc.unitLoad.height), 72 * UM_PER_INCH);
+  const clearHeightUm = doc.building.clearHeight.value;
+  const deflectorUm = doc.building.deflectorElev.value;
+
+  const maxModelHeightUm = Math.max(
+    frameHeightUm,
+    topBeamUm + loadHUm + 12 * UM_PER_INCH,
+    clearHeightUm,
+    deflectorUm,
+    240 * UM_PER_INCH,
+  );
+  const padTopUm = ELEV_VB_PAD_TOP_UM;
+  const padBottomUm = ELEV_VB_PAD_BOTTOM_UM;
+  const totalVbHeightUm = maxModelHeightUm + padTopUm + padBottomUm;
+
+  const flipY = (modelYUm: number): number => maxModelHeightUm - modelYUm;
+  const yPercentForUm = (modelYUm: number): number => {
+    const distFromVbTop = flipY(modelYUm) + padTopUm;
+    return Math.round((distFromVbTop / totalVbHeightUm) * 10000) / 100;
+  };
+  const yPercentForInches = (elevIn: number): number => yPercentForUm(elevIn * UM_PER_INCH);
+
+  return {
+    maxModelHeightUm,
+    padTopUm,
+    padBottomUm,
+    totalVbHeightUm,
+    flipY,
+    yPercentForUm,
+    yPercentForInches,
+  };
+}
 
 /**
  * Snap a raw elevation in inches to a valid roll-formed teardrop or structural
@@ -425,17 +476,17 @@ export function ElevationSvg({
 
   // Model coordinates are integer micrometres with y=0 at the slab.
   // SVG viewBox uses micrometres directly so X and Y share the exact same scale.
+  const vertMetrics = useMemo(() => getElevationVerticalMetrics(doc), [doc]);
   const padLeft = 1_450_000;
-  const padRight = 3_400_000;
-  const padTop = ELEV_VB_PAD_TOP_UM;
-  const padBottom = ELEV_VB_PAD_BOTTOM_UM;
+  const padRight = 5_200_000;
+  const padTop = vertMetrics.padTopUm;
 
   const vbX = -padLeft;
   const vbY = -padTop;
   const vbW = list.extent.width + padLeft + padRight;
-  const vbH = list.extent.height + padTop + padBottom;
+  const vbH = vertMetrics.totalVbHeightUm;
 
-  const flipY = (modelY: number): number => list.extent.height - modelY;
+  const flipY = vertMetrics.flipY;
   const fontSize = 110_000;
   const strokeW = 22_000;
 
@@ -452,7 +503,7 @@ export function ElevationSvg({
       id={id}
       className="elevation-svg"
       viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
-      preserveAspectRatio="xMidYMid meet"
+      preserveAspectRatio="xMinYMid meet"
       role="img"
       aria-label={`Bay elevation drawing for ${doc.name}`}
     >
@@ -596,18 +647,25 @@ export function ElevationSvg({
           const isDragging = activeDragIndex === idx;
           const palletsCount = Math.max(1, bt.palletsPerBay);
           const loadW = doc.unitLoad.palletW;
-          const loadH = doc.unitLoad.height;
+          const loadH = Math.min(Math.max(12 * UM_PER_INCH, doc.unitLoad.height), 72 * UM_PER_INCH);
           const gapTotal = Math.max(
             0,
             list.extent.width - postChannelWidthUm * 2 - palletsCount * loadW,
           );
           const bayGap = gapTotal / (palletsCount + 1);
-          const nextObstacleBottomUm =
-            bt.beamLevels[idx + 1] !== undefined
-              ? bt.beamLevels[idx + 1]! - beamFaceUm
-              : clearHeightUm;
+          const hasNextBeam = bt.beamLevels[idx + 1] !== undefined;
+          const nextObstacleBottomUm = hasNextBeam
+            ? bt.beamLevels[idx + 1]! - beamFaceUm
+            : clearHeightUm;
           const loadTopUm = elevUm + loadH;
-          const clearanceUm = nextObstacleBottomUm - loadTopUm;
+          // Constrain the visual lift-off zone on the top level so it never stretches to the ceiling
+          const visualBandTopUm = hasNextBeam
+            ? nextObstacleBottomUm
+            : Math.min(clearHeightUm, loadTopUm + Math.max(minLiftOffIn, 6) * UM_PER_INCH);
+          const visualBandHeightUm = Math.max(
+            90_000,
+            Math.abs(visualBandTopUm - loadTopUm),
+          );
 
           return (
             <g key={`beam-assembly-${idx}`} data-beam-assembly={idx}>
@@ -667,9 +725,9 @@ export function ElevationSvg({
                       isLiftOffClash ? 'elev-liftoff-clash-rect' : 'elev-liftoff-ok-rect'
                     }
                     x={postChannelWidthUm}
-                    y={flipY(Math.max(loadTopUm, nextObstacleBottomUm))}
+                    y={flipY(Math.max(loadTopUm, visualBandTopUm))}
                     width={Math.max(200_000, list.extent.width - postChannelWidthUm * 2)}
-                    height={Math.max(90_000, Math.abs(clearanceUm))}
+                    height={visualBandHeightUm}
                   />
                   <text
                     className={
@@ -678,7 +736,7 @@ export function ElevationSvg({
                         : 'elev-text elev-liftoff-ok-text'
                     }
                     x={list.extent.width / 2}
-                    y={flipY((loadTopUm + nextObstacleBottomUm) / 2) + 32_000}
+                    y={flipY((loadTopUm + visualBandTopUm) / 2) + 32_000}
                     fontSize={fontSize * 0.78}
                     textAnchor="middle"
                   >

@@ -365,8 +365,21 @@ describe('routing', () => {
     expect(svg?.querySelectorAll('[data-item-kind="unit-load"]').length).toBe(1);
     expect(svg?.textContent).toContain('VERIFY');
 
-    // 1. Physical beam face thickness, upright diagonal bracing, slab, ceiling, and T.O.B. CAD dimension chain
+    // 1. Physical beam face thickness, upright diagonal bracing, slab, ceiling, T.O.B. CAD dimension chain, and spatial breadcrumb
     expect(document.getElementById('elevation-canvas')).not.toBeNull();
+    expect(document.getElementById('elev-spatial-breadcrumb')?.textContent).toContain(
+      'RUN 1 · BAY 1',
+    );
+    expect(document.getElementById('elev-spatial-breadcrumb')?.textContent).toContain(
+      'UPDATING PROFILE:',
+    );
+    const bayCtxSelect = document.getElementById('elev-bay-context-select') as HTMLSelectElement;
+    expect(bayCtxSelect).not.toBeNull();
+    await user.selectOptions(bayCtxSelect, '0:1');
+    expect(document.getElementById('elev-spatial-breadcrumb')?.textContent).toContain(
+      'RUN 1 · BAY 2',
+    );
+
     expect(document.getElementById('elevsvg-concrete-slab')).not.toBeNull();
     expect(document.getElementById('elevsvg-ceiling-limit-line')).not.toBeNull();
     expect(document.getElementById('elevsvg-upright-bracing')).not.toBeNull();
@@ -374,6 +387,12 @@ describe('routing', () => {
     expect(svg?.querySelectorAll('[data-beam-face-index]').length).toBe(3);
     expect(document.getElementById('elevsvg-cad-dim-chain')).not.toBeNull();
     expect(svg?.textContent).toContain('T.O.B.');
+
+    // Top beam level (L3) unit load and lift-off rect are constrained to fixed height (no infinite stretch into ceiling)
+    const topLoadRect = svg?.querySelector('rect[data-ghost-load-level="2"]') as SVGRectElement;
+    const topLiftOffRect = svg?.querySelector('[data-liftoff-level="2"] rect') as SVGRectElement;
+    expect(Number(topLoadRect?.getAttribute('height'))).toBe(48 * 25400);
+    expect(Number(topLiftOffRect?.getAttribute('height'))).toBeLessThanOrEqual(8 * 25400);
 
     // 2. Ghosted Pallet Loads toggle & Lift-Off Clearance zones
     expect(svg?.querySelectorAll('[data-ghost-load-level]').length).toBeGreaterThanOrEqual(3);

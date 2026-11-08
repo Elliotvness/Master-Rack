@@ -2,12 +2,10 @@ import { bayTypeForRun, type Command } from '@rms/studio-model';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
-  ELEV_VB_PAD_BOTTOM_UM,
-  ELEV_VB_PAD_TOP_UM,
   ElevationSvg,
   beamFaceHeightInFromPart,
-  buildDocumentElevation,
   computeElevationClearances,
+  getElevationVerticalMetrics,
   renderElevationCanvas,
   snapToPitchInches,
 } from '../elevation/elevation-svg.js';
@@ -32,8 +30,11 @@ interface EditingElevationTarget {
 export default function ElevationView(): React.JSX.Element {
   const { session, runCommand } = useStudioSession();
   const doc = session.document;
-  const run = doc.runs[0];
+  const [selectedRunIndex, setSelectedRunIndex] = useState<number>(0);
+  const [selectedBayIndex, setSelectedBayIndex] = useState<number>(0);
+  const run = doc.runs[selectedRunIndex] ?? doc.runs[0];
   const bt = run !== undefined ? bayTypeForRun(doc, run) : doc.bayTypes[0];
+  const bayCountInRun = run !== undefined ? Math.max(1, run.bays.length) : 12;
 
   const defaultBeamFaceIn = bt !== undefined ? beamFaceHeightInFromPart(bt.beamPart) : 4.0;
   const [pitchIn, setPitchIn] = useState<number>(2);
@@ -78,20 +79,13 @@ export default function ElevationView(): React.JSX.Element {
   const frameHeightIn = bt !== undefined ? Math.round(bt.frameHeight.value / UM_PER_INCH) : 240;
   const maxVertIn = Math.max(clearHeightIn + 24, frameHeightIn + 48, 300);
 
-  const elevationDisplayList = useMemo(() => buildDocumentElevation(doc), [doc]);
-  const extentHeightUm = elevationDisplayList.extent.height;
-  const totalVbHeightUm = extentHeightUm + ELEV_VB_PAD_TOP_UM + ELEV_VB_PAD_BOTTOM_UM;
-
-  const yPercentForInches = (elevIn: number): number => {
-    const elevUm = elevIn * UM_PER_INCH;
-    const svgY = extentHeightUm - elevUm + ELEV_VB_PAD_TOP_UM;
-    return Math.max(4, Math.min(96, Math.round((svgY / totalVbHeightUm) * 10000) / 100));
-  };
+  const vertMetrics = useMemo(() => getElevationVerticalMetrics(doc), [doc]);
+  const yPercentForInches = vertMetrics.yPercentForInches;
 
   const clearHeightTopPct = yPercentForInches(clearHeightIn);
   const deflectorTopPct = Math.max(
     yPercentForInches(deflectorIn),
-    Math.min(92, clearHeightTopPct + 6.5),
+    Math.min(92, clearHeightTopPct + 5.5),
   );
 
   // Keep the HTML5 canvas layer synchronized with state
@@ -270,6 +264,29 @@ export default function ElevationView(): React.JSX.Element {
           role="toolbar"
           aria-label="Elevation CAD controls"
         >
+          <label htmlFor="elev-bay-context-select" className="elev-toolbar-label">
+            Bay Context
+            <select
+              id="elev-bay-context-select"
+              aria-label="Active Bay Context"
+              className="pf-input dock-compact-select"
+              value={`${selectedRunIndex}:${selectedBayIndex}`}
+              onChange={(e) => {
+                const [rStr, bStr] = e.target.value.split(':');
+                setSelectedRunIndex(Number(rStr) || 0);
+                setSelectedBayIndex(Number(bStr) || 0);
+              }}
+            >
+              {doc.runs.map((r, rIdx) =>
+                Array.from({ length: Math.max(1, r.bays.length) }, (_, bIdx) => (
+                  <option key={`${r.id}-${bIdx}`} value={`${rIdx}:${bIdx}`}>
+                    Run {rIdx + 1} · Bay {bIdx + 1}
+                  </option>
+                )),
+              )}
+            </select>
+          </label>
+
           <label htmlFor="elev-pitch-select" className="elev-toolbar-label">
             Pitch
             <select
@@ -398,6 +415,21 @@ export default function ElevationView(): React.JSX.Element {
         onPointerMove={handleStagePointerMove}
         onPointerUp={handleStagePointerUp}
       >
+        {/* Top-Left Spatial Context Breadcrumb Overlay */}
+        <div
+          id="elev-spatial-breadcrumb"
+          className="elev-spatial-breadcrumb"
+          aria-label="Active elevation bay context"
+        >
+          <div className="elev-breadcrumb-primary">
+            RUN {selectedRunIndex + 1} · BAY {selectedBayIndex + 1}
+          </div>
+          <div className="elev-breadcrumb-sub">
+            UPDATING PROFILE: {(bt?.name ?? 'TYPE A').toUpperCase()} ({bayCountInRun}-BAY{' '}
+            {run?.backToBack ? 'BACK-TO-BACK' : 'AISLE'} RUN)
+          </div>
+        </div>
+
         <canvas
           ref={canvasRef}
           id="elevation-canvas"

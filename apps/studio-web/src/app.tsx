@@ -47,7 +47,6 @@ function StudioShell({
   return (
     <div className="studio bg-zinc-950 text-gray-200" data-industrial-theme="dark">
       <Header canUndo={canUndo} onUndo={onUndo} fetchImpl={fetchImpl} />
-      <Banner />
 
       <div className="studio-body">
         <main className="stage" id="stage">
@@ -76,6 +75,8 @@ function StudioShell({
           </Suspense>
         </main>
       </div>
+
+      <Banner />
 
       <ToastRegion messages={messages} />
     </div>
