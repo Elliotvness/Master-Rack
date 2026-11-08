@@ -950,6 +950,7 @@ export function PlanCanvas({
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [selected, setSelected] = useState<SelectedBay | null>(null);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
+  const [selectedAisleId, setSelectedAisleId] = useState<string | null>(null);
   const [hovered, setHovered] = useState<PlanHit | null>(null);
   const [wallDraftStart, setWallDraftStart] = useState<{ x: number; y: number } | null>(null);
   const [wallDraftCurrent, setWallDraftCurrent] = useState<{ x: number; y: number } | null>(null);
@@ -1047,6 +1048,16 @@ export function PlanCanvas({
     if (selectedColumnId === null || shellOverlay === undefined) return null;
     return shellOverlay.customColumns.find((c) => c.id === selectedColumnId) ?? null;
   }, [selectedColumnId, shellOverlay]);
+
+  const activeSelectedAisle = useMemo(() => {
+    if (selectedAisleId === null) return null;
+    const index = plan.aisles.findIndex((a) => a.aisleId === selectedAisleId);
+    if (index < 0) return null;
+    const aisle = plan.aisles[index];
+    const upperRun = plan.runs[index];
+    if (aisle === undefined || upperRun === undefined) return null;
+    return { index, aisle, upperRun };
+  }, [plan.aisles, plan.runs, selectedAisleId]);
 
   // Track the element's size rather than the window's: the rail and the banner
   // both change the stage's width without the window resizing.
@@ -1334,7 +1345,7 @@ export function PlanCanvas({
           return;
         }
 
-        if (target?.closest('[data-bay-id], [data-column-id]')) {
+        if (target?.closest('[data-bay-id], [data-column-id], [data-aisle-id]')) {
           return;
         }
 
@@ -1342,9 +1353,15 @@ export function PlanCanvas({
         if (hit?.kind === 'bay') {
           setSelected({ runId: hit.runId, bayId: hit.bayId, bayIndex: hit.bayIndex });
           setSelectedColumnId(null);
+          setSelectedAisleId(null);
+        } else if (hit?.kind === 'aisle') {
+          setSelected(null);
+          setSelectedColumnId(null);
+          setSelectedAisleId(hit.aisleId);
         } else {
           setSelected(null);
           setSelectedColumnId(null);
+          setSelectedAisleId(null);
         }
       }
     },
@@ -1463,6 +1480,7 @@ export function PlanCanvas({
         setCalP1(null);
         setCalP2(null);
         setSelectedColumnId(null);
+        setSelectedAisleId(null);
         actOnSelection('deselect');
         onToolModeChange?.('select');
         return;
@@ -1633,11 +1651,15 @@ export function PlanCanvas({
                       return;
                     }
                     setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index });
+                    setSelectedColumnId(null);
+                    setSelectedAisleId(null);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
                       setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index });
+                      setSelectedColumnId(null);
+                      setSelectedAisleId(null);
                     }
                   }}
                 />
@@ -1704,7 +1726,74 @@ export function PlanCanvas({
                     return;
                   }
                   setSelected(null);
+                  setSelectedAisleId(null);
                   setSelectedColumnId(col.id);
+                }}
+              />
+            );
+          })}
+
+          {/* Aisle interactive selection targets */}
+          {plan.aisles.map((aisle, idx) => {
+            const upperRun = plan.runs[idx];
+            const lowerRun = plan.runs[idx + 1];
+            const upperLastRow = upperRun?.rows[upperRun.rows.length - 1];
+            const lowerFirstRow = lowerRun?.rows[0];
+            const bandTopWorldY =
+              upperLastRow !== undefined ? upperLastRow.y + upperLastRow.depth : aisle.y;
+            const bandBottomWorldY =
+              lowerFirstRow !== undefined
+                ? lowerFirstRow.y
+                : aisle.y + aisle.frameToFrame.value;
+
+            const tl = worldToScreen(effectiveCamera, effectiveViewport, {
+              x: aisle.x,
+              y: bandTopWorldY,
+            });
+            const br = worldToScreen(effectiveCamera, effectiveViewport, {
+              x: aisle.x + aisle.length,
+              y: bandBottomWorldY,
+            });
+            const isSelectedAisle = activeSelectedAisle?.aisle.aisleId === aisle.aisleId;
+            const isHoveredAisle =
+              !isPanning && hovered?.kind === 'aisle' && hovered.aisleId === aisle.aisleId;
+
+            return (
+              <rect
+                key={`aisle-hit:${aisle.aisleId}`}
+                data-aisle-id={aisle.aisleId}
+                data-selected={isSelectedAisle ? 'true' : 'false'}
+                className={
+                  isSelectedAisle
+                    ? 'plan-bay-overlay plan-bay-selected'
+                    : isHoveredAisle
+                      ? 'plan-bay-overlay plan-bay-hovered'
+                      : 'plan-bay-overlay'
+                }
+                x={tl.x}
+                y={tl.y}
+                width={Math.max(8, br.x - tl.x)}
+                height={Math.max(8, br.y - tl.y)}
+                role="button"
+                tabIndex={0}
+                aria-label={`Aisle ${idx + 1} (${formatFeetInches(aisle.frameToFrame.value)} frame to frame)`}
+                aria-pressed={isSelectedAisle}
+                onClick={() => {
+                  if (suppressNextBayClickRef.current) {
+                    suppressNextBayClickRef.current = false;
+                    return;
+                  }
+                  setSelected(null);
+                  setSelectedColumnId(null);
+                  setSelectedAisleId(aisle.aisleId);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setSelected(null);
+                    setSelectedColumnId(null);
+                    setSelectedAisleId(aisle.aisleId);
+                  }
                 }}
               />
             );
@@ -1946,6 +2035,61 @@ export function PlanCanvas({
               className="btn sel-btn"
               aria-label="Clear column selection"
               onClick={() => setSelectedColumnId(null)}
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {/* Selected Aisle Floating Toolbar (-6" / +6") */}
+        {activeSelectedAisle !== null && (
+          <div
+            id="aisletoolbar"
+            className="seltoolbar sel-toolbar"
+            role="toolbar"
+            aria-label="Selected aisle actions"
+          >
+            <span id="aisletitle" className="what sel-title">
+              Aisle {activeSelectedAisle.index + 1} ·{' '}
+              {formatFeetInches(activeSelectedAisle.aisle.frameToFrame.value)} Frame-to-Frame (
+              {formatFeetInches(activeSelectedAisle.aisle.clearBetweenLoads.value)} Clear)
+            </span>
+            <button
+              id="aisle-sub-6-btn"
+              type="button"
+              className="btn sel-btn"
+              onClick={() =>
+                onCommand?.({
+                  type: 'setAisleAfter',
+                  runId: activeSelectedAisle.upperRun.runId,
+                  frameToFrame: Math.max(
+                    48 * 25_400,
+                    activeSelectedAisle.aisle.frameToFrame.value - 6 * 25_400,
+                  ),
+                })
+              }
+            >
+              − 6&quot;
+            </button>
+            <button
+              id="aisle-add-6-btn"
+              type="button"
+              className="btn sel-btn"
+              onClick={() =>
+                onCommand?.({
+                  type: 'setAisleAfter',
+                  runId: activeSelectedAisle.upperRun.runId,
+                  frameToFrame: activeSelectedAisle.aisle.frameToFrame.value + 6 * 25_400,
+                })
+              }
+            >
+              + 6&quot;
+            </button>
+            <button
+              type="button"
+              className="btn sel-btn"
+              aria-label="Clear aisle selection"
+              onClick={() => setSelectedAisleId(null)}
             >
               ×
             </button>
