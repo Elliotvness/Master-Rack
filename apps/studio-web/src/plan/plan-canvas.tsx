@@ -430,8 +430,8 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
         );
       })}
 
-      {/* 3. Pallet footprints with internal crossbars + crisp rack row/bay framing + left Run labels */}
-      {plan.runs.map((run) => {
+      {/* 3. CAD Plan Geometry: Starter/Adder Bays, Front & Back Beam Lines, Upright Footplates (4-Bolt) + Double-Web Channels, and Flue Ties */}
+      {plan.runs.map((run, runIdx) => {
         const firstRow = run.rows[0];
         const lastRow = run.rows[run.rows.length - 1];
         const runTopWorld = firstRow?.y ?? run.y;
@@ -442,86 +442,369 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
           y: (runTopWorld + runBottomWorld) / 2,
         });
 
+        const bayScreenPitch = run.bayPitch.value * camera.scale;
+        const fpSize = Math.max(6, Math.min(16, Math.max(7, bayScreenPitch * 0.14)));
+        const fpHalf = fpSize / 2;
+        const webHalf = Math.max(1.2, fpHalf * 0.34);
+        const boltOffset = Math.max(1.4, fpHalf * 0.56);
+        const boltRadius = Math.max(0.65, fpSize * 0.075);
+
         return (
-          <g key={`run-graphic:${run.runId}`}>
+          <g key={`run-graphic:${run.runId}`} className="cad-run-group">
             <text
-              x={labelPt.x - 12}
+              x={labelPt.x - 14}
               y={labelPt.y}
               textAnchor="end"
               dominantBaseline="central"
               fontFamily="var(--font-mono)"
               fontSize="10.5"
-              fontWeight="500"
-              fill="var(--ink-2)"
+              fontWeight="600"
+              fill="var(--pen-upright)"
             >
               {run.label}
             </text>
 
+            {/* Unit load footprint (subtle dashed outline so CAD upright footplates & beam lines stay primary) */}
             {run.pallets.map((p) => {
               const tl = worldToScreen(camera, viewport, { x: p.x, y: p.y });
               const w = Math.max(1, p.width * camera.scale);
               const h = Math.max(1, p.depth * camera.scale);
-              const cx = tl.x + w / 2;
-              const cy = tl.y + h / 2;
               return (
-                <g key={`pallet:${p.id}`}>
-                  <rect
-                    x={tl.x}
-                    y={tl.y}
-                    width={w}
-                    height={h}
-                    className="plan-pallet-wash"
-                  />
-                  <line
-                    x1={cx}
-                    y1={tl.y + 1}
-                    x2={cx}
-                    y2={tl.y + h - 1}
-                    stroke="var(--paper)"
-                    strokeWidth="1.5"
-                  />
-                  <line
-                    x1={tl.x + 1}
-                    y1={cy}
-                    x2={tl.x + w - 1}
-                    y2={cy}
-                    stroke="var(--paper)"
-                    strokeWidth="1.5"
-                  />
-                </g>
+                <rect
+                  key={`pallet:${p.id}`}
+                  x={tl.x}
+                  y={tl.y}
+                  width={w}
+                  height={h}
+                  className="plan-pallet-wash"
+                />
               );
             })}
 
+            {/* Back-to-back Row Spacer / Flue Ties (CAD Magenta --pen-flue connecting Row 0 bottom footplates to Row 1 top footplates) */}
+            {run.rows.length > 1 &&
+              firstRow !== undefined &&
+              lastRow !== undefined &&
+              (() => {
+                const topRowBottomY = worldToScreen(camera, viewport, {
+                  x: run.x,
+                  y: firstRow.y + firstRow.depth,
+                }).y;
+                const botRowTopY = worldToScreen(camera, viewport, {
+                  x: run.x,
+                  y: lastRow.y,
+                }).y;
+                const flueMidScreenY = (topRowBottomY + botRowTopY) / 2;
+                const flueInches =
+                  run.longitudinalFlue !== null
+                    ? Math.round(run.longitudinalFlue.width.value / 25_400)
+                    : Math.round((lastRow.y - (firstRow.y + firstRow.depth)) / 25_400);
+                const lastUprightX = worldToScreen(camera, viewport, {
+                  x: run.x + run.bays.length * run.bayPitch.value,
+                  y: firstRow.y,
+                }).x;
+
+                return (
+                  <g key={`flue-ties:${run.runId}`} className="cad-flue-ties">
+                    {Array.from({ length: run.bays.length + 1 }, (_, i) => {
+                      const ux = worldToScreen(camera, viewport, {
+                        x: run.x + i * run.bayPitch.value,
+                        y: firstRow.y,
+                      }).x;
+                      return (
+                        <line
+                          key={`flue-tie:${run.runId}:${i}`}
+                          x1={ux}
+                          y1={topRowBottomY + fpHalf * 0.4}
+                          x2={ux}
+                          y2={botRowTopY - fpHalf * 0.4}
+                          stroke="var(--pen-flue)"
+                          strokeWidth="1.85"
+                        />
+                      );
+                    })}
+                    {/* CAD "FLUE" callout arrow on the right end of the first back-to-back run */}
+                    {runIdx === 0 && bayScreenPitch >= 38 && (
+                      <g className="cad-flue-callout">
+                        <line
+                          x1={lastUprightX + 3}
+                          y1={flueMidScreenY}
+                          x2={lastUprightX + 28}
+                          y2={flueMidScreenY}
+                          stroke="var(--pen-beam)"
+                          strokeWidth="1.2"
+                        />
+                        <polygon
+                          points={`${lastUprightX + 2},${flueMidScreenY} ${lastUprightX + 7},${flueMidScreenY - 2.2} ${lastUprightX + 7},${flueMidScreenY + 2.2}`}
+                          fill="var(--pen-beam)"
+                        />
+                        <text
+                          x={lastUprightX + 32}
+                          y={flueMidScreenY}
+                          dominantBaseline="central"
+                          fontFamily="var(--font-mono)"
+                          fontSize="9"
+                          fontWeight="600"
+                          fill="var(--pen-upright)"
+                        >
+                          {flueInches}&quot; FLUE
+                        </text>
+                      </g>
+                    )}
+                  </g>
+                );
+              })()}
+
+            {/* Rows: Front & Back Beam Lines (--pen-beam) + Upright Footplates & Double-Web Channels (--pen-upright) */}
             {run.rows.map((row, rowIdx) => {
               const rowTl = worldToScreen(camera, viewport, { x: run.x, y: row.y });
-              const rowW = Math.max(1, run.runLength.value * camera.scale);
-              const rowH = Math.max(1, row.depth * camera.scale);
+              const rowH = Math.max(2, row.depth * camera.scale);
+              const backBeamY = rowTl.y;
+              const frontBeamY = rowTl.y + rowH;
+
               return (
-                <g key={`row-frame:${run.runId}:${rowIdx}`}>
-                  <rect
-                    x={rowTl.x}
-                    y={rowTl.y}
-                    width={rowW}
-                    height={rowH}
-                    fill="none"
-                    stroke="var(--pen-upright)"
-                    strokeWidth="1.75"
-                  />
+                <g key={`row-frame:${run.runId}:${rowIdx}`} className="cad-row-frame">
+                  {/* Front & Back Beam Lines per Bay + STARTER BAY / ADDER BAY labels */}
+                  {run.bays.map((bay, bayIdx) => {
+                    const leftUprightX = worldToScreen(camera, viewport, {
+                      x: run.x + bayIdx * run.bayPitch.value,
+                      y: row.y,
+                    }).x;
+                    const rightUprightX = worldToScreen(camera, viewport, {
+                      x: run.x + (bayIdx + 1) * run.bayPitch.value,
+                      y: row.y,
+                    }).x;
+                    const beamStartX = leftUprightX + webHalf;
+                    const beamEndX = Math.max(beamStartX + 1, rightUprightX - webHalf);
+                    const bayMidX = (leftUprightX + rightUprightX) / 2;
+                    const bayMidY = rowTl.y + rowH / 2;
+                    const showCalloutsOnBay =
+                      runIdx === 0 && bayIdx === 0 && rowIdx === 0 && bayScreenPitch >= 32;
+
+                    return (
+                      <g key={`bay-beams:${run.runId}:${rowIdx}:${bay.bayId}`}>
+                        {/* BACK BEAM LINE */}
+                        <line
+                          x1={beamStartX}
+                          y1={backBeamY}
+                          x2={beamEndX}
+                          y2={backBeamY}
+                          stroke="var(--pen-beam)"
+                          strokeWidth="1.85"
+                        />
+                        {/* FRONT BEAM LINE */}
+                        <line
+                          x1={beamStartX}
+                          y1={frontBeamY}
+                          x2={beamEndX}
+                          y2={frontBeamY}
+                          stroke="var(--pen-beam)"
+                          strokeWidth="1.85"
+                        />
+
+                        {/* STARTER BAY / ADDER BAY label */}
+                        {rowIdx === run.rows.length - 1 &&
+                          bayScreenPitch >= 48 &&
+                          bayIdx <= 1 && (
+                            <text
+                              x={bayMidX}
+                              y={bayMidY}
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fontFamily="var(--font-mono)"
+                              fontSize={bayScreenPitch >= 85 ? '9.5' : '8'}
+                              fontWeight="600"
+                              letterSpacing="0.08em"
+                              fill="var(--pen-upright)"
+                            >
+                              {bayIdx === 0 ? 'STARTER BAY' : 'ADDER BAY'}
+                            </text>
+                          )}
+
+                        {/* CAD Leader Callouts (BACK BEAM LINE, FRONT BEAM LINE, UPRIGHT) */}
+                        {showCalloutsOnBay && (
+                          <g className="cad-bay-callouts">
+                            {/* BACK BEAM LINE leader */}
+                            <polyline
+                              points={`${bayMidX},${backBeamY - 1} ${bayMidX},${backBeamY - 14} ${bayMidX + 18},${backBeamY - 14}`}
+                              fill="none"
+                              stroke="var(--pen-beam)"
+                              strokeWidth="1.15"
+                            />
+                            <polygon
+                              points={`${bayMidX},${backBeamY} ${bayMidX - 2.2},${backBeamY - 6} ${bayMidX + 2.2},${backBeamY - 6}`}
+                              fill="var(--pen-beam)"
+                            />
+                            <text
+                              x={bayMidX + 21}
+                              y={backBeamY - 14}
+                              dominantBaseline="central"
+                              fontFamily="var(--font-mono)"
+                              fontSize="8.5"
+                              fontWeight="600"
+                              fill="var(--pen-upright)"
+                            >
+                              BACK BEAM LINE
+                            </text>
+
+                            {/* FRONT BEAM LINE leader */}
+                            <polyline
+                              points={`${bayMidX},${frontBeamY + 1} ${bayMidX},${frontBeamY + 14} ${bayMidX + 18},${frontBeamY + 14}`}
+                              fill="none"
+                              stroke="var(--pen-beam)"
+                              strokeWidth="1.15"
+                            />
+                            <polygon
+                              points={`${bayMidX},${frontBeamY} ${bayMidX - 2.2},${frontBeamY + 6} ${bayMidX + 2.2},${frontBeamY + 6}`}
+                              fill="var(--pen-beam)"
+                            />
+                            <text
+                              x={bayMidX + 21}
+                              y={frontBeamY + 14}
+                              dominantBaseline="central"
+                              fontFamily="var(--font-mono)"
+                              fontSize="8.5"
+                              fontWeight="600"
+                              fill="var(--pen-upright)"
+                            >
+                              FRONT BEAM LINE
+                            </text>
+
+                            {/* UPRIGHT leader */}
+                            <line
+                              x1={leftUprightX - webHalf - 1}
+                              y1={bayMidY}
+                              x2={leftUprightX - webHalf - 20}
+                              y2={bayMidY}
+                              stroke="var(--pen-beam)"
+                              strokeWidth="1.15"
+                            />
+                            <polygon
+                              points={`${leftUprightX - webHalf},${bayMidY} ${leftUprightX - webHalf - 6},${bayMidY - 2.2} ${leftUprightX - webHalf - 6},${bayMidY + 2.2}`}
+                              fill="var(--pen-beam)"
+                            />
+                            <text
+                              x={leftUprightX - webHalf - 23}
+                              y={bayMidY}
+                              textAnchor="end"
+                              dominantBaseline="central"
+                              fontFamily="var(--font-mono)"
+                              fontSize="8.5"
+                              fontWeight="600"
+                              fill="var(--pen-upright)"
+                            >
+                              UPRIGHT
+                            </text>
+                          </g>
+                        )}
+                      </g>
+                    );
+                  })}
+
+                  {/* Uprights: Square Front & Back Footplates with 4 Corner Anchor Bolt Holes + Double-Web Upright Channel */}
                   {Array.from({ length: run.bays.length + 1 }, (_, i) => {
                     const ux = worldToScreen(camera, viewport, {
                       x: run.x + i * run.bayPitch.value,
                       y: row.y,
                     }).x;
+                    const topFpY = backBeamY - fpHalf * 0.4;
+                    const botFpY = frontBeamY - fpHalf * 1.6;
+                    const topFpCy = topFpY + fpHalf;
+                    const botFpCy = botFpY + fpHalf;
+                    const webTopY = topFpY + fpSize * 0.25;
+                    const webBotY = botFpY + fpSize * 0.75;
+
                     return (
-                      <line
+                      <g
                         key={`upright-div:${run.runId}:${rowIdx}:${i}`}
-                        x1={ux}
-                        y1={rowTl.y}
-                        x2={ux}
-                        y2={rowTl.y + rowH}
-                        stroke="var(--pen-upright)"
-                        strokeWidth="1.5"
-                      />
+                        className="cad-upright-assembly"
+                      >
+                        {/* Back (Top) Square Footplate */}
+                        <rect
+                          x={ux - fpHalf}
+                          y={topFpY}
+                          width={fpSize}
+                          height={fpSize}
+                          fill="var(--sunk)"
+                          stroke="var(--pen-upright)"
+                          strokeWidth="1.35"
+                        />
+                        {/* Front (Bottom) Square Footplate */}
+                        <rect
+                          x={ux - fpHalf}
+                          y={botFpY}
+                          width={fpSize}
+                          height={fpSize}
+                          fill="var(--sunk)"
+                          stroke="var(--pen-upright)"
+                          strokeWidth="1.35"
+                        />
+
+                        {/* 4 Corner Anchor Bolt Holes inside Back & Front Footplates */}
+                        {fpSize >= 7.5 && (
+                          <>
+                            <circle
+                              cx={ux - boltOffset}
+                              cy={topFpCy - boltOffset}
+                              r={boltRadius}
+                              fill="var(--pen-upright)"
+                            />
+                            <circle
+                              cx={ux + boltOffset}
+                              cy={topFpCy - boltOffset}
+                              r={boltRadius}
+                              fill="var(--pen-upright)"
+                            />
+                            <circle
+                              cx={ux - boltOffset}
+                              cy={topFpCy + boltOffset}
+                              r={boltRadius}
+                              fill="var(--pen-upright)"
+                            />
+                            <circle
+                              cx={ux + boltOffset}
+                              cy={topFpCy + boltOffset}
+                              r={boltRadius}
+                              fill="var(--pen-upright)"
+                            />
+                            <circle
+                              cx={ux - boltOffset}
+                              cy={botFpCy - boltOffset}
+                              r={boltRadius}
+                              fill="var(--pen-upright)"
+                            />
+                            <circle
+                              cx={ux + boltOffset}
+                              cy={botFpCy - boltOffset}
+                              r={boltRadius}
+                              fill="var(--pen-upright)"
+                            />
+                            <circle
+                              cx={ux - boltOffset}
+                              cy={botFpCy + boltOffset}
+                              r={boltRadius}
+                              fill="var(--pen-upright)"
+                            />
+                            <circle
+                              cx={ux + boltOffset}
+                              cy={botFpCy + boltOffset}
+                              r={boltRadius}
+                              fill="var(--pen-upright)"
+                            />
+                          </>
+                        )}
+
+                        {/* Double-Web Upright Frame Channel (|| with end caps inside the footplates) */}
+                        <rect
+                          x={ux - webHalf}
+                          y={webTopY}
+                          width={webHalf * 2}
+                          height={Math.max(1, webBotY - webTopY)}
+                          fill="var(--sunk)"
+                          stroke="var(--pen-upright)"
+                          strokeWidth="1.35"
+                        />
+                      </g>
                     );
                   })}
                 </g>

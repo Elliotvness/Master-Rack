@@ -159,12 +159,12 @@ export function draw(
          * flue washes stay light enough to read dimensions through.
          */
         ctx.globalAlpha =
-          item.item === 'unit-load'
+          item.item === 'unit-load' || item.id.includes(':row:')
             ? 0
             : item.item === 'aisle' || item.item === 'no-rack-zone'
               ? 0.1
               : item.item === 'flue'
-                ? 0.3
+                ? 0.15
                 : 0.85;
         ctx.fillRect(tl.x, tl.y, w, h);
         ctx.globalAlpha = 1;

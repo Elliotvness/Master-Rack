@@ -53,13 +53,13 @@
   --sel: #416180;
   --sel-bg: rgba(65, 97, 128, 0.12);
 
-  --pen-upright: #2c455d;
-  --pen-beam: #416180;
+  --pen-upright: #15803d;
+  --pen-beam: #d9381e;
   --pen-pallet: #9aa9bb;
   --pen-anno: #a93226;
   --pen-dim: #5d5d60;
   --pen-grid: #e1e2e4;
-  --pen-flue: #a9670a;
+  --pen-flue: #a21caf;
   --pen-ref: #7a5ea8;
   --pen-bldg: #424244;
   --pen-lock: #a9670a;
@@ -73,7 +73,7 @@
 
   --paper: #1d1f20;
   --panel: #242628;
-  --sunk: #18191a;
+  --sunk: #0b0d0e;
   --raise: #2b2b2d;
 
   --ink: #f2f2f3;
@@ -100,13 +100,13 @@
   --sel: #b5d9fd;
   --sel-bg: rgba(181, 217, 253, 0.14);
 
-  --pen-upright: #b5d9fd;
-  --pen-beam: #749dc4;
+  --pen-upright: #00e639;
+  --pen-beam: #ff3b14;
   --pen-pallet: #5c6474;
   --pen-anno: #e07868;
   --pen-dim: #98989b;
   --pen-grid: #2a2c2f;
-  --pen-flue: #dfa33f;
+  --pen-flue: #e633ff;
   --pen-ref: #9a7bd6;
   --pen-bldg: #b7b7ba;
   --pen-lock: #dfa33f;
@@ -121,7 +121,7 @@
 
     --paper: #1d1f20;
     --panel: #242628;
-    --sunk: #18191a;
+    --sunk: #0b0d0e;
     --raise: #2b2b2d;
 
     --ink: #f2f2f3;
@@ -148,13 +148,13 @@
     --sel: #b5d9fd;
     --sel-bg: rgba(181, 217, 253, 0.14);
 
-    --pen-upright: #b5d9fd;
-    --pen-beam: #749dc4;
+    --pen-upright: #00e639;
+    --pen-beam: #ff3b14;
     --pen-pallet: #5c6474;
     --pen-anno: #e07868;
     --pen-dim: #98989b;
     --pen-grid: #2a2c2f;
-    --pen-flue: #dfa33f;
+    --pen-flue: #e633ff;
     --pen-ref: #9a7bd6;
     --pen-bldg: #b7b7ba;
     --pen-lock: #dfa33f;

@@ -720,9 +720,11 @@ body {
 
 .plan-pallet-wash {
   fill: var(--pen-pallet);
-  fill-opacity: 0.18;
+  fill-opacity: 0.06;
   stroke: var(--pen-pallet);
-  stroke-width: 1px;
+  stroke-width: 0.9px;
+  stroke-dasharray: 3 2;
+  stroke-opacity: 0.45;
 }
 
 .plan-bay-overlay {
