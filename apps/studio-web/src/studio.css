@@ -1321,6 +1321,7 @@ body {
 .sheet-drawing {
   flex: 1;
   border: 1px solid var(--border);
+  background: var(--sunk);
   display: flex;
   align-items: center;
   justify-content: center;
