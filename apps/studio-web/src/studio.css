@@ -770,15 +770,45 @@ body {
 
 .plan-dock-popover {
   pointer-events: auto;
-  width: min(760px, calc(100vw - 64px));
-  max-height: 46vh;
+  width: min(880px, calc(100vw - 48px));
+  max-height: 52vh;
   overflow-y: auto;
   background: var(--panel);
   border: 1px solid var(--rule);
-  padding: 12px 14px;
+  padding: 14px 16px;
   box-shadow: var(--shadow-lg);
   color: var(--ink);
   font-size: 0.82rem;
+}
+
+.plan-dock-popover .pf-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.plan-dock-popover .pf-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.plan-dock-popover input[type='text'].pf-input,
+.plan-dock-popover textarea.pf-input {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  padding: 7px 10px;
+  font-size: 0.84rem;
+}
+
+.plan-dock-popover select.pf-input {
+  max-width: 220px;
+  padding: 5px 8px;
 }
 
 .plan-dock-popover-head {
@@ -810,10 +840,11 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 180px;
+  min-height: 96px;
+  max-height: 240px;
   overflow-y: auto;
   margin: 8px 0;
-  padding: 6px 8px;
+  padding: 8px 10px;
   background: var(--sunk);
   border: 1px solid var(--rule);
 }
