@@ -351,7 +351,8 @@ describe('routing', () => {
     expect(screen.getAllByText('VERIFY').length).toBeGreaterThan(0);
   });
 
-  it('/elevation renders the inline SVG elevation with floor storage and VERIFY datums (S3.3)', async () => {
+  it('/elevation renders the inline SVG elevation with floor storage, CAD bracing, beam face thickness, ghosted loads, snap-to-pitch, and inline dimension editing (S3.3)', async () => {
+    const user = userEvent.setup();
     renderApp('/elevation');
     await screen.findByRole('heading', { level: 1 });
     expect(screen.queryByText(/Not implemented/)).toBeNull();
@@ -361,6 +362,45 @@ describe('routing', () => {
     expect(svg?.querySelectorAll('[data-item-kind="beam"]').length).toBe(3);
     expect(svg?.querySelectorAll('[data-item-kind="unit-load"]').length).toBe(1);
     expect(svg?.textContent).toContain('VERIFY');
+
+    // 1. Physical beam face thickness, upright diagonal bracing, slab, ceiling, and T.O.B. CAD dimension chain
+    expect(document.getElementById('elevation-canvas')).not.toBeNull();
+    expect(document.getElementById('elevsvg-concrete-slab')).not.toBeNull();
+    expect(document.getElementById('elevsvg-ceiling-limit-line')).not.toBeNull();
+    expect(document.getElementById('elevsvg-upright-bracing')).not.toBeNull();
+    expect(svg?.querySelectorAll('.elev-bracing-strut').length).toBeGreaterThan(0);
+    expect(svg?.querySelectorAll('[data-beam-face-index]').length).toBe(3);
+    expect(document.getElementById('elevsvg-cad-dim-chain')).not.toBeNull();
+    expect(svg?.textContent).toContain('T.O.B.');
+
+    // 2. Ghosted Pallet Loads toggle & Lift-Off Clearance zones
+    expect(svg?.querySelectorAll('[data-ghost-load-level]').length).toBeGreaterThanOrEqual(3);
+    expect(svg?.querySelectorAll('[data-liftoff-level]').length).toBe(3);
+    const toggleLoadsBtn = document.getElementById('elev-toggle-loads-btn') as HTMLButtonElement;
+    await user.click(toggleLoadsBtn);
+    expect(svg?.querySelectorAll('[data-ghost-load-level]').length).toBe(0);
+    await user.click(toggleLoadsBtn);
+    expect(svg?.querySelectorAll('[data-ghost-load-level]').length).toBeGreaterThanOrEqual(3);
+
+    // 3. Inline Click-to-Type Dimension Editing with Snap-to-Pitch (typing 63 in 2" pitch mode snaps to 64" T.O.B.)
+    const dimBtn0 = document.getElementById('elev-dim-btn-0') as HTMLButtonElement;
+    expect(dimBtn0.textContent).toContain('60"');
+    await user.click(dimBtn0);
+    const inlineInput = document.getElementById('elev-inline-dim-input') as HTMLInputElement;
+    expect(inlineInput).not.toBeNull();
+    await user.clear(inlineInput);
+    await user.type(inlineInput, '63{Enter}');
+    expect(document.getElementById('elev-dim-btn-0')?.textContent).toContain('64"');
+
+    // 4. Inline Click-to-Type Ceiling Clear Height Verification
+    const clearHeightTag = document.getElementById('elev-clear-height-tag') as HTMLButtonElement;
+    expect(clearHeightTag.textContent).toContain('VERIFY');
+    await user.click(clearHeightTag);
+    const ceilingInput = document.getElementById('elev-inline-dim-input') as HTMLInputElement;
+    await user.clear(ceilingInput);
+    await user.type(ceilingInput, '300{Enter}');
+    expect(document.getElementById('elev-clear-height-tag')?.textContent).toContain('300"');
+    expect(document.getElementById('elev-clear-height-tag')?.textContent).toContain('VERIFIED');
   });
 
   it('/sheets renders the ANSI D sheet preview, honest fitted scale, and switches sheets (S3.4)', async () => {

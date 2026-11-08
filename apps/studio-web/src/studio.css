@@ -1315,6 +1315,14 @@ body {
 
 .elevation-header {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.elevation-title-group {
+  display: flex;
   align-items: baseline;
   gap: 0.75rem;
 }
@@ -1326,29 +1334,199 @@ body {
 
 .elevation-sub {
   color: var(--ink-muted);
-  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.elevation-toolbar {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--zinc-800);
+  border-radius: 6px;
+  background: var(--zinc-900);
+}
+
+.elev-toolbar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.74rem;
+  color: var(--ink-2);
+}
+
+.elev-autofix-btn {
+  border-color: var(--safety-orange);
+  background: var(--safety-orange-bg);
+  color: var(--safety-orange);
+  font-weight: 600;
+}
+
+.elev-clash-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.elev-clash-banner-ok {
+  border: 1px solid var(--pass);
+  background: var(--pass-bg);
+  color: var(--pass);
+}
+
+.elev-clash-banner-alert {
+  border: 1px solid var(--safety-orange);
+  background: var(--safety-orange-bg);
+  color: var(--safety-orange);
+  font-weight: 600;
+}
+
+.elev-status-readout {
+  color: var(--ink);
+  font-weight: 500;
 }
 
 .elevation-stage {
+  position: relative;
   flex: 1;
-  min-height: 360px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
+  min-height: 460px;
+  border: 1px solid var(--zinc-800);
+  border-radius: 6px;
+  background: var(--zinc-950);
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0.75rem;
+  justify-content: flex-start;
+  padding: 0.75rem 1.25rem;
+  overflow: hidden;
+}
+
+.elevation-canvas-underlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.14;
+  pointer-events: none;
 }
 
 .elevation-svg {
-  width: 100%;
+  position: relative;
+  z-index: 2;
+  width: 66%;
   height: 100%;
-  max-height: 72vh;
+  max-height: 74vh;
+}
+
+.elev-slab-block {
+  fill: var(--zinc-800);
+  stroke: var(--pen-bldg);
 }
 
 .elev-slab {
   stroke: var(--pen-bldg);
+}
+
+.elev-slab-label {
+  fill: var(--ink-2);
+  font-family: var(--font-mono);
+}
+
+.elev-ceiling-line {
+  stroke: var(--block);
+}
+
+.elev-ceiling-label {
+  fill: var(--block);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.elev-deflector-line {
+  stroke: var(--warn);
+}
+
+.elev-bracing-post-inner,
+.elev-bracing-strut {
+  stroke: var(--pen-upright);
+  opacity: 0.78;
+}
+
+.elev-beam-face {
+  fill: var(--safety-orange);
+  stroke: var(--pen-beam);
+  cursor: ns-resize;
+  opacity: 0.9;
+}
+
+.elev-beam-face-dragging {
+  fill: var(--warn);
+  stroke: var(--safety-orange);
+  opacity: 1;
+}
+
+.elev-beam-face-clash {
+  fill: var(--block);
+  stroke: var(--block);
+}
+
+.elev-ghost-load {
+  fill: var(--sel-bg);
+  stroke: var(--pen-pallet);
+  pointer-events: none;
+}
+
+.elev-ghost-load-clash {
+  fill: var(--block-bg);
+  stroke: var(--block);
+}
+
+.elev-liftoff-ok-rect {
+  fill: var(--pass-bg);
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.elev-liftoff-clash-rect {
+  fill: var(--safety-orange-bg);
+  stroke: var(--safety-orange);
+  stroke-width: 18000;
+  pointer-events: none;
+}
+
+.elev-liftoff-ok-text {
+  fill: var(--pass);
+  font-family: var(--font-mono);
+}
+
+.elev-liftoff-clash-text {
+  fill: var(--safety-orange);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.elev-cad-chain-line,
+.elev-cad-ext-line,
+.elev-cad-tick {
+  stroke: var(--pen-dim);
+}
+
+.elev-cad-tob-callout {
+  cursor: pointer;
+}
+
+.elev-cad-tob-text {
+  fill: var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 600;
 }
 
 .elev-line-upright {
@@ -1380,6 +1558,177 @@ body {
 .elev-text-unestablished {
   fill: var(--status-warning);
   font-weight: 700;
+}
+
+.elev-coordinate-overlays {
+  position: absolute;
+  top: 0;
+  right: 16px;
+  bottom: 0;
+  width: 34%;
+  min-width: 280px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.elev-coord-pill {
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--zinc-800);
+  background: color-mix(in srgb, var(--zinc-900) 94%, transparent);
+  box-shadow: var(--shadow);
+  pointer-events: auto;
+  white-space: nowrap;
+}
+
+.elev-coord-pill-clash {
+  border-color: var(--safety-orange);
+  background: var(--safety-orange-bg);
+}
+
+.elev-coord-pill-ceiling {
+  border-color: var(--block);
+}
+
+.elev-coord-pill-deflector {
+  border-color: var(--warn);
+}
+
+.elev-coord-tick {
+  display: inline-block;
+  width: 14px;
+  height: 1px;
+  background: var(--ink-2);
+}
+
+.elev-coord-tick-ceiling {
+  background: var(--block);
+}
+
+.elev-coord-tick-deflector {
+  background: var(--warn);
+}
+
+.elev-coord-btn {
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  padding: 1px 4px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.elev-coord-btn-ceiling {
+  color: var(--block);
+  font-weight: 700;
+}
+
+.elev-coord-btn-deflector {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.elev-tob-num {
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.elev-tob-tag {
+  font-family: var(--font-body);
+  font-size: 0.68rem;
+  color: var(--ink-2);
+}
+
+.elev-verify-tag {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-size: 0.65rem;
+  font-style: italic;
+}
+
+.elev-liftoff-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--pass-bg);
+  color: var(--pass);
+}
+
+.elev-liftoff-badge-clash {
+  background: var(--safety-orange-bg);
+  color: var(--safety-orange);
+  border: 1px solid var(--safety-orange);
+  font-weight: 700;
+}
+
+.elev-pitch-steppers {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.elev-step-btn {
+  padding: 1px 5px;
+  border: 1px solid var(--zinc-800);
+  border-radius: 3px;
+  background: var(--zinc-950);
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  cursor: pointer;
+}
+
+.elev-step-btn:hover {
+  border-color: var(--safety-orange);
+  color: var(--safety-orange);
+}
+
+.elev-inline-editor {
+  position: absolute;
+  left: 8px;
+  transform: translateY(-50%);
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--safety-orange);
+  background: var(--zinc-900);
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
+}
+
+.elev-inline-label {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.elev-inline-input {
+  width: 68px;
+  padding: 3px 6px;
+  border: 1px solid var(--safety-orange);
+  border-radius: 4px;
+  background: var(--zinc-950);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
 }
 
 /* --- S3.4 sheets view --------------------------------------------------- */
