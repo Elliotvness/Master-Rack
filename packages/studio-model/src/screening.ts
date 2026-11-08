@@ -130,6 +130,17 @@ export function screeningFindingsForDocument(doc: StudioDocument): readonly Scre
         closureText: 'Published catalog pair capacity satisfied.',
       });
     }
+
+    if (bt.frameDepth > 0 && bt.frameHeight.value / bt.frameDepth > 6) {
+      const ratio = (bt.frameHeight.value / bt.frameDepth).toFixed(1);
+      rows.push({
+        code: 'OVERTURNING_RATIO_EXCEEDED',
+        severity: 'REVIEW',
+        subject: bt.name,
+        summary: 'Exceeds 6:1 — reinforced anchoring required. Overhead ties highly recommended for SDC D stability.',
+        closureText: `Height-to-depth ratio is ${ratio}:1 (ANSI MH16.1 §1.4.7: >6:1 requires baseplates & anchors designed for 350 lb lateral forklift impact; overhead row ties mandated above 8:1).`,
+      });
+    }
   }
 
   // 4. Unestablished building & fire protection fields (MS-1..MS-18)

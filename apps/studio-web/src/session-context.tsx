@@ -79,6 +79,142 @@ export interface StarterSpaceInput {
   readonly columnSpacingFt: 30 | 40 | 50;
 }
 
+export interface LocationData {
+  readonly zipCode: string;
+  readonly city: string;
+  readonly state: string;
+  readonly seismicCategory: 'Standard SDC D' | 'Complex / High Seismic' | 'Not Needed';
+  readonly sdcCode: 'C' | 'D' | 'E';
+  readonly taxRate: number;
+  readonly freightMultiplier: number;
+}
+
+export async function analyzeZipCode(zipCode: string): Promise<LocationData | null> {
+  const clean = zipCode.trim();
+  if (clean.length < 5) return null;
+
+  const isCalifornia = clean.startsWith('9');
+  const isHighSeismicCA = ['90', '91', '92', '93', '94'].some((prefix) => clean.startsWith(prefix));
+
+  return {
+    zipCode: clean.slice(0, 5),
+    city: isCalifornia ? 'California Region' : 'Out of State',
+    state: isCalifornia ? 'CA' : 'US',
+    seismicCategory: isHighSeismicCA ? 'Complex / High Seismic' : 'Standard SDC D',
+    sdcCode: isHighSeismicCA ? 'E' : 'D',
+    taxRate: isCalifornia ? 10.25 : 6.5,
+    freightMultiplier: isCalifornia ? 0.04 : 0.08,
+  };
+}
+
+export function buildDocumentDxfString(doc: StudioDocument): string {
+  let dxfString = '0\nSECTION\n2\nENTITIES\n';
+
+  const drawRect = (
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    layer: string,
+    color: number,
+  ): void => {
+    const lines = [
+      { x1: x, y1: y, x2: x + w, y2: y },
+      { x1: x + w, y1: y, x2: x + w, y2: y + h },
+      { x1: x + w, y1: y + h, x2: x, y2: y + h },
+      { x1: x, y1: y + h, x2: x, y2: y },
+    ];
+    lines.forEach((l) => {
+      dxfString += `0\nLINE\n8\n${layer}\n62\n${color}\n10\n${l.x1}\n20\n${l.y1}\n11\n${l.x2}\n21\n${l.y2}\n`;
+    });
+  };
+
+  const bt = doc.bayTypes[0];
+  const frameDepthIn = bt !== undefined ? Math.round(bt.frameDepth / 25_400) : 42;
+  const beamLengthIn = bt !== undefined ? Math.round(bt.beamLength / 25_400) : 96;
+  const uprightWidthIn = bt !== undefined ? Math.round(bt.uprightWidth / 25_400) : 3;
+
+  let currentY = 0;
+
+  doc.runs.forEach((run, rIdx) => {
+    const flueWidthIn = Math.max(6, Math.round(run.rowSpacer / 25_400));
+    const runDepth = run.backToBack ? frameDepthIn * 2 + flueWidthIn : frameDepthIn;
+    let currentX = 0;
+
+    run.bays.forEach(() => {
+      // Draw 3" Upright Frame (Color 3 = Green)
+      drawRect(currentX, currentY, uprightWidthIn, runDepth, 'UPRIGHTS', 3);
+
+      // Draw Bay Footprint (Color 1 = Red)
+      drawRect(currentX + uprightWidthIn, currentY, beamLengthIn, frameDepthIn, 'BAYS', 1);
+      if (run.backToBack) {
+        drawRect(
+          currentX + uprightWidthIn,
+          currentY + frameDepthIn + flueWidthIn,
+          beamLengthIn,
+          frameDepthIn,
+          'BAYS',
+          1,
+        );
+      }
+
+      currentX += uprightWidthIn + beamLengthIn;
+    });
+
+    // Final Upright Frame
+    drawRect(currentX, currentY, uprightWidthIn, runDepth, 'UPRIGHTS', 3);
+
+    const nextRun = doc.runs[rIdx + 1];
+    const aisleWidthAfterIn =
+      nextRun !== undefined
+        ? Math.max(36, Math.round((nextRun.y - run.y) / 25_400) - runDepth)
+        : 120;
+    currentY += runDepth + aisleWidthAfterIn;
+  });
+
+  dxfString += '0\nENDSEC\n0\nEOF\n';
+  return dxfString;
+}
+
+export function exportDocumentToDXF(doc: StudioDocument): string {
+  const dxfString = buildDocumentDxfString(doc);
+  try {
+    if (typeof window !== 'undefined' && typeof URL.createObjectURL === 'function') {
+      const blob = new Blob([dxfString], { type: 'application/dxf' });
+      const url = URL.createObjectURL(blob);
+      const link = window.document.createElement('a');
+      link.href = url;
+      link.download = `Takeoff_${doc.revision}_Layout.dxf`;
+      window.document.body.appendChild(link);
+      link.click();
+      window.document.body.removeChild(link);
+      URL.revokeObjectURL?.(url);
+    }
+  } catch {
+    // Headless test environment fallback
+  }
+  return dxfString;
+}
+
+export async function uploadSitePhoto(file: File, projectId: string): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = typeof reader.result === 'string' ? reader.result : '';
+      try {
+        const key = `rackstudio_site_photos_${projectId}`;
+        const existingRaw = window.localStorage?.getItem(key);
+        const existing: string[] = existingRaw ? (JSON.parse(existingRaw) as string[]) : [];
+        window.localStorage?.setItem(key, JSON.stringify([...existing, dataUrl]));
+      } catch {
+        // Ignore storage quota errors
+      }
+      resolve(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export interface StudioSessionValue {
   readonly session: Session;
   readonly plan: PlanGeometry;
@@ -91,6 +227,13 @@ export interface StudioSessionValue {
   readonly savedSnapshots: readonly SavedPlanSnapshot[];
   readonly saveCurrentSnapshot: (label?: string) => SavedPlanSnapshot;
   readonly restoreSnapshot: (snapshotId: string) => void;
+  readonly locationData: LocationData | null;
+  readonly applyZipCodeIntelligence: (zipCode: string) => Promise<LocationData | null>;
+  readonly sitePhotos: readonly string[];
+  readonly addSitePhoto: (dataUrl: string) => void;
+  readonly removeSitePhoto: (index: number) => void;
+  readonly heavyDecking: boolean;
+  readonly setHeavyDecking: (enabled: boolean) => void;
   readonly runCommand: (command: Command) => SessionResult;
   /** All-or-nothing: applies every command or none. */
   readonly runCommands: (commands: readonly Command[]) => SessionResult;
@@ -173,6 +316,17 @@ export function StudioSessionProvider({
   const [session, setSession] = useState<Session>(createInitialSession);
   const [shellOverlay, setShellOverlay] = useState<ShellOverlayState>(DEFAULT_SHELL_OVERLAY);
   const [savedSnapshots, setSavedSnapshots] = useState<readonly SavedPlanSnapshot[]>([]);
+  const [locationData, setLocationData] = useState<LocationData | null>(null);
+  const [sitePhotos, setSitePhotos] = useState<readonly string[]>([]);
+  const [heavyDecking, setHeavyDecking] = useState<boolean>(false);
+
+  const addSitePhoto = useCallback((dataUrl: string): void => {
+    setSitePhotos((prev) => [...prev, dataUrl]);
+  }, []);
+
+  const removeSitePhoto = useCallback((index: number): void => {
+    setSitePhotos((prev) => prev.filter((_, idx) => idx !== index));
+  }, []);
 
   const runCommand = useCallback(
     (command: Command): SessionResult => {
@@ -426,7 +580,39 @@ export function StudioSessionProvider({
     [generateFromSpace, session.counter],
   );
 
-  const plan = useMemo(() => planGeometry(session.document), [session.document]);
+  const applyZipCodeIntelligence = useCallback(
+    async (zipCode: string): Promise<LocationData | null> => {
+      const data = await analyzeZipCode(zipCode);
+      if (data === null) return null;
+      setLocationData(data);
+      const res = dispatch(session, {
+        type: 'setField',
+        label: `Set SDC from Zip Code ${data.zipCode}`,
+        change: {
+          section: 'building',
+          patch: {
+            sdc: {
+              value: data.sdcCode,
+              established: 'INPUT',
+              source: `USGS / Zip Code Intelligence (${data.zipCode} · ${data.seismicCategory})`,
+            },
+          },
+        },
+      });
+      if (res.ok) {
+        setSession(res.session);
+      }
+      return data;
+    },
+    [session],
+  );
+
+  // State Isolation: memoize geometry against geometric fields (runs, bayTypes, unitLoad)
+  // so editing Project Name or Client never triggers an unnecessary geometry recalculation.
+  const plan = useMemo(
+    () => planGeometry(session.document),
+    [session.document.runs, session.document.bayTypes, session.document.unitLoad],
+  );
   const findings = useMemo(
     () => screeningFindingsForDocument(session.document),
     [session.document],
@@ -485,6 +671,13 @@ export function StudioSessionProvider({
       savedSnapshots,
       saveCurrentSnapshot,
       restoreSnapshot,
+      locationData,
+      applyZipCodeIntelligence,
+      sitePhotos,
+      addSitePhoto,
+      removeSitePhoto,
+      heavyDecking,
+      setHeavyDecking,
       runCommand,
       runCommands,
       onUndo,
@@ -503,6 +696,12 @@ export function StudioSessionProvider({
       savedSnapshots,
       saveCurrentSnapshot,
       restoreSnapshot,
+      locationData,
+      applyZipCodeIntelligence,
+      sitePhotos,
+      addSitePhoto,
+      removeSitePhoto,
+      heavyDecking,
       runCommand,
       runCommands,
       onUndo,

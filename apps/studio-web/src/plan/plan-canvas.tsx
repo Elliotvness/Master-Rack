@@ -20,7 +20,11 @@ import {
 } from '@rms/studio-model';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import type { PlanColumnOverlay, ShellOverlayState } from '../session-context.js';
+import {
+  exportDocumentToDXF,
+  type PlanColumnOverlay,
+  type ShellOverlayState,
+} from '../session-context.js';
 import { hitTestPlan, type PlanHit } from './hit-test.js';
 import { readPens } from './use-pens.js';
 
@@ -1863,6 +1867,17 @@ export function PlanCanvas({
             >
               Fit
             </button>
+            <button
+              id="plan-export-dxf-btn"
+              type="button"
+              className="btn plan-fit"
+              onClick={() => {
+                exportDocumentToDXF(doc);
+              }}
+              title="Export AutoCAD .DXF block layout"
+            >
+              .DXF
+            </button>
           </div>
         </div>
 
@@ -2097,60 +2112,130 @@ export function PlanCanvas({
         )}
 
         {/* S4.2 Floating selection toolbar */}
-        {activeSelection !== null && (
-          <div
-            id="seltoolbar"
-            className="seltoolbar sel-toolbar"
-            role="toolbar"
-            aria-label="Selected bay actions"
-          >
-            <span id="seltitle" className="what sel-title">
-              {activeSelection.run.label} · Bay {activeSelection.bay.index + 1}
-              {activeSelection.bay.locked ? ' (LOCKED)' : ''}
-            </span>
-            <button
-              type="button"
-              className="btn sel-btn"
-              data-act="insert"
-              onClick={() => actOnSelection('insert')}
+        {activeSelection !== null && (() => {
+          const docRun = doc.runs.find((r) => r.id === activeSelection.run.runId);
+          const flueIn = docRun !== undefined ? Math.max(6, Math.round(docRun.rowSpacer / 25_400)) : 6;
+          return (
+            <div
+              id="seltoolbar"
+              className="seltoolbar sel-toolbar"
+              role="toolbar"
+              aria-label="Selected bay actions"
             >
-              Insert after <b>I</b>
-            </button>
-            <button
-              type="button"
-              className="btn sel-btn"
-              data-act="split"
-              onClick={() => actOnSelection('split')}
-            >
-              Split run <b>S</b>
-            </button>
-            <button
-              type="button"
-              className="btn sel-btn"
-              data-act="lock"
-              onClick={() => actOnSelection('lock')}
-            >
-              {activeSelection.bay.locked ? 'Unlock (L)' : 'Lock (L)'}
-            </button>
-            <button
-              type="button"
-              className="btn sel-btn sel-btn-danger"
-              data-act="delete"
-              onClick={() => actOnSelection('delete')}
-            >
-              Delete bay <b>⌫</b>
-            </button>
-            <button
-              type="button"
-              className="btn sel-btn"
-              data-act="deselect"
-              aria-label="Clear selection"
-              onClick={() => actOnSelection('deselect')}
-            >
-              ×
-            </button>
-          </div>
-        )}
+              <span id="seltitle" className="what sel-title">
+                {activeSelection.run.label} · Bay {activeSelection.bay.index + 1}
+                {activeSelection.bay.locked ? ' (LOCKED)' : ''}
+              </span>
+              <button
+                type="button"
+                className="btn sel-btn"
+                data-act="insert"
+                onClick={() => actOnSelection('insert')}
+              >
+                Insert after <b>I</b>
+              </button>
+              <button
+                type="button"
+                className="btn sel-btn"
+                data-act="split"
+                onClick={() => actOnSelection('split')}
+              >
+                Split run <b>S</b>
+              </button>
+              <button
+                type="button"
+                className="btn sel-btn"
+                data-act="lock"
+                onClick={() => actOnSelection('lock')}
+              >
+                {activeSelection.bay.locked ? 'Unlock (L)' : 'Lock (L)'}
+              </button>
+              {docRun !== undefined && (
+                <>
+                  <button
+                    id="sel-toggle-b2b-btn"
+                    type="button"
+                    className="btn sel-btn"
+                    onClick={() =>
+                      onCommand?.({
+                        type: 'setField',
+                        label: `Toggle ${docRun.name} row depth`,
+                        change: {
+                          section: 'run',
+                          runId: docRun.id,
+                          patch: { backToBack: !docRun.backToBack },
+                        },
+                      })
+                    }
+                  >
+                    {docRun.backToBack ? 'Set Single' : 'Set B2B'}
+                  </button>
+                  {docRun.backToBack && (
+                    <span className="sel-flue-group">
+                      <span className="what">Flue:</span>
+                      <button
+                        id="sel-flue-sub-6"
+                        type="button"
+                        className="btn sel-btn"
+                        onClick={() =>
+                          onCommand?.({
+                            type: 'setField',
+                            label: `Decrease ${docRun.name} flue by 6 in`,
+                            change: {
+                              section: 'run',
+                              runId: docRun.id,
+                              patch: { rowSpacer: Math.max(6, flueIn - 6) * 25_400 },
+                            },
+                          })
+                        }
+                      >
+                        −6&quot;
+                      </button>
+                      <span id="sel-flue-val" className="what">
+                        {flueIn}&quot;
+                      </span>
+                      <button
+                        id="sel-flue-add-6"
+                        type="button"
+                        className="btn sel-btn"
+                        onClick={() =>
+                          onCommand?.({
+                            type: 'setField',
+                            label: `Increase ${docRun.name} flue by 6 in`,
+                            change: {
+                              section: 'run',
+                              runId: docRun.id,
+                              patch: { rowSpacer: (flueIn + 6) * 25_400 },
+                            },
+                          })
+                        }
+                      >
+                        +6&quot;
+                      </button>
+                    </span>
+                  )}
+                </>
+              )}
+              <button
+                type="button"
+                className="btn sel-btn sel-btn-danger"
+                data-act="delete"
+                onClick={() => actOnSelection('delete')}
+              >
+                Delete bay <b>⌫</b>
+              </button>
+              <button
+                type="button"
+                className="btn sel-btn"
+                data-act="deselect"
+                aria-label="Clear selection"
+                onClick={() => actOnSelection('deselect')}
+              >
+                ×
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
       {/* S3.5 Legend footer strip */}

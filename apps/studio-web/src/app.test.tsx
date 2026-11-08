@@ -656,6 +656,52 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
     await screen.findByRole('heading', { level: 1, name: 'Plan' });
     expect(document.getElementById('user-badge')?.textContent).toMatch(/Applications Engineer/i);
   });
+
+  it('wires 1.25x load multiplier tooltip, overturning ratio warning, warehouse toggles, zip intelligence, and Takeoff interactive HTML5 canvas + DXF export', async () => {
+    const user = userEvent.setup();
+    renderApp('/plan');
+
+    await screen.findByRole('heading', { level: 1, name: 'Plan' });
+
+    // 1. 1.25x Load Multiplier callout and Overturning H:D Ratio banner
+    expect(document.getElementById('load-multiplier-tooltip')?.textContent).toMatch(
+      /1\.25× Load Multiplier Info/i,
+    );
+    expect(document.getElementById('overturning-warning-banner')?.textContent).toMatch(
+      /Exceeds 6:1 — reinforced anchoring required\. Overhead ties highly recommended for SDC D stability\./i,
+    );
+
+    // 2. High-Contrast Visual Toggle Switches (Slab Storage & Heavy Wire Decking)
+    const slabToggle = document.getElementById('toggle-slab-storage') as HTMLButtonElement;
+    const deckToggle = document.getElementById('toggle-heavy-decking') as HTMLButtonElement;
+    expect(slabToggle.getAttribute('role')).toBe('switch');
+    expect(deckToggle.getAttribute('role')).toBe('switch');
+    await user.click(deckToggle);
+    expect(deckToggle.getAttribute('aria-checked')).toBe('true');
+
+    // 3. Site Zip Code USGS & LTL Location Intelligence
+    const zipInput = document.getElementById('site-zip-input') as HTMLInputElement;
+    await user.type(zipInput, '90210');
+    expect(document.getElementById('zip-location-badge')?.textContent).toMatch(/California Region/i);
+    expect(document.getElementById('zip-location-badge')?.textContent).toMatch(/10\.25%/i);
+
+    // 4. Navigate to Takeoff (/bom) -> verify Interactive HTML5 Canvas, Contextual Toolbar, DXF Export, and Logistics Module
+    await user.click(screen.getByRole('link', { name: 'Takeoff' }));
+    await screen.findByRole('heading', { level: 1, name: 'Takeoff' });
+
+    expect(document.getElementById('bom-visual-grid-canvas')).not.toBeNull();
+    expect(document.getElementById('logistics-automation-card')).not.toBeNull();
+
+    // Select Run 1 · Bay 1 on the Takeoff Interactive Canvas and insert a bay
+    const selectBayBtn = document.getElementById('bom-select-first-bay-btn') as HTMLButtonElement;
+    await user.click(selectBayBtn);
+    expect(document.getElementById('bom-canvas-toolbar')?.textContent).toMatch(/Run 1 · Bay 1/i);
+
+    // Download .DXF from the Takeoff Interactive Canvas
+    const dxfBtn = document.getElementById('bom-download-dxf-btn') as HTMLButtonElement;
+    await user.click(dxfBtn);
+    expect(document.getElementById('bom-export-notice')?.textContent).toMatch(/Downloaded AutoCAD \.DXF/i);
+  });
 });
 
 describe('the theme toggle', () => {

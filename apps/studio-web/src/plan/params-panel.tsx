@@ -15,12 +15,18 @@ import {
   type StudioDocument,
   type Witnessed,
 } from '@rms/studio-model';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import {
   ProvenancePopover,
   type ProvenanceInfo,
 } from '../components/provenance-popover.js';
+import {
+  analyzeZipCode,
+  uploadSitePhoto,
+  useOptionalStudioSession,
+  type LocationData,
+} from '../session-context.js';
 
 /**
  * The parameter rail — build-plan **S3.1** + **S4.4** + **S4.5**.
@@ -87,9 +93,20 @@ export function ParamsPanel({
     | ((preset: 'benchmark-36' | 'starter-2' | 'shell-columns') => void)
     | undefined;
 }): React.JSX.Element {
+  const studioSession = useOptionalStudioSession();
   const [prov, setProv] = useState<ProvenanceInfo | null>(null);
   const [addBayQty, setAddBayQty] = useState<number>(2);
   const [targetRunIndex, setTargetRunIndex] = useState<number>(0);
+  const [zipCode, setZipCode] = useState<string>(studioSession?.locationData?.zipCode ?? '');
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+  const [localLocation, setLocalLocation] = useState<LocationData | null>(null);
+  const [localPhotos, setLocalPhotos] = useState<readonly string[]>([]);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState<boolean>(false);
+  const [localHeavyDecking, setLocalHeavyDecking] = useState<boolean>(false);
+
+  const activeLocation = studioSession?.locationData ?? localLocation;
+  const activePhotos = studioSession?.sitePhotos ?? localPhotos;
+  const isHeavyDecking = studioSession?.heavyDecking ?? localHeavyDecking;
   const bt = doc.bayTypes[0];
   const plan = providedPlan ?? planGeometry(doc);
   const firstAisleIn =
@@ -97,10 +114,60 @@ export function ParamsPanel({
   const firstClearAisleIn =
     plan.aisles[0] !== undefined ? inches(plan.aisles[0].clearBetweenLoads.value) : '114';
   const activeRun = doc.runs[targetRunIndex] ?? doc.runs[0];
+  const isSlabStorageEnabled = activeRun?.floorStorage ?? doc.runs[0]?.floorStorage ?? true;
 
   const send = (cmd: Command): void => {
     onCommand?.(cmd);
   };
+
+  const handleZipChange = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const zip = e.target.value.replace(/\D/g, '').slice(0, 5);
+    setZipCode(zip);
+    if (zip.length === 5) {
+      setIsLocating(true);
+      const data = studioSession
+        ? await studioSession.applyZipCodeIntelligence(zip)
+        : await analyzeZipCode(zip);
+      setIsLocating(false);
+      if (data !== null) {
+        setLocalLocation(data);
+        if (!studioSession) {
+          send({
+            type: 'setField',
+            label: `Set SDC from Zip Code ${data.zipCode}`,
+            change: {
+              section: 'building',
+              patch: {
+                sdc: {
+                  value: data.sdcCode,
+                  established: 'INPUT',
+                  source: `USGS / Zip Code Intelligence (${data.zipCode} · ${data.seismicCategory})`,
+                },
+              },
+            },
+          });
+        }
+      }
+    }
+  };
+
+  const handlePhotoFiles = useCallback(
+    async (files: File[]): Promise<void> => {
+      const imageFiles = files.filter((f) => f.type.startsWith('image/'));
+      if (imageFiles.length === 0) return;
+      setIsUploadingPhoto(true);
+      for (const file of imageFiles) {
+        const url = await uploadSitePhoto(file, doc.id);
+        if (studioSession) {
+          studioSession.addSitePhoto(url);
+        } else {
+          setLocalPhotos((prev) => [...prev, url]);
+        }
+      }
+      setIsUploadingPhoto(false);
+    },
+    [doc.id, studioSession],
+  );
 
   const openWitnessedProv = (
     id: string,
@@ -215,12 +282,91 @@ export function ParamsPanel({
             />
           </span>
         </div>
+
+        <div className="pf-row">
+          <label htmlFor="site-zip-input" className="pf-label">
+            Site Zip Code
+          </label>
+          <span className="pf-value pf-controls">
+            <input
+              id="site-zip-input"
+              type="text"
+              maxLength={5}
+              placeholder="e.g. 90210"
+              className="pf-input pf-input-num"
+              value={zipCode}
+              onChange={(e) => {
+                void handleZipChange(e);
+              }}
+            />
+            {isLocating && (
+              <span id="zip-locating-status" className="pf-badge">
+                Locating...
+              </span>
+            )}
+          </span>
+        </div>
+
+        {activeLocation !== null && (
+          <div id="zip-location-badge" className="pf-helper-callout" role="status">
+            <strong>
+              {activeLocation.city} ({activeLocation.state})
+            </strong>{' '}
+            · {activeLocation.seismicCategory} (SDC {activeLocation.sdcCode}) · Tax{' '}
+            {activeLocation.taxRate}% · LTL Freight {Math.round(activeLocation.freightMultiplier * 100)}%
+          </div>
+        )}
+
+        <div className="pf-photo-dropzone-wrap">
+          <label htmlFor="site-photo-file-input" className="pf-label">
+            Site Survey Photos
+          </label>
+          <div
+            id="site-photo-dropzone"
+            className="pf-photo-dropzone"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              void handlePhotoFiles(Array.from(e.dataTransfer.files));
+            }}
+          >
+            <input
+              id="site-photo-file-input"
+              type="file"
+              accept="image/*"
+              multiple
+              className="pf-photo-input"
+              aria-label="Upload site survey photos"
+              onChange={(e) => {
+                const files = e.target.files ? Array.from(e.target.files) : [];
+                void handlePhotoFiles(files);
+              }}
+            />
+            {isUploadingPhoto ? (
+              <span className="pf-photo-status">Uploading to cloud...</span>
+            ) : (
+              <span className="pf-photo-prompt">Drag &amp; Drop slab/column photos here</span>
+            )}
+          </div>
+          {activePhotos.length > 0 && (
+            <div id="site-photo-thumbnails" className="pf-photo-thumbs">
+              {activePhotos.map((img, idx) => (
+                <img
+                  key={idx}
+                  src={img}
+                  alt={`Site survey attachment ${idx + 1}`}
+                  className="pf-photo-thumb"
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </details>
 
       <details className="pf-group">
         <summary className="pf-summary">
         <h2 id="pf-building" className="pf-heading">
-          Building <span className="pf-sub">{inches(doc.building.clearHeight.value)}&quot; clear · {doc.building.insurer}</span>
+          Facility Conditions · Building <span className="pf-sub">{inches(doc.building.clearHeight.value)}&quot; clear · {doc.building.insurer}</span>
         </h2>
         </summary>
 
@@ -850,7 +996,7 @@ export function ParamsPanel({
       <details className="pf-group">
         <summary className="pf-summary">
         <h2 id="pf-unit-load" className="pf-heading">
-          Unit load <span className="pf-sub">{inches(doc.unitLoad.palletW)}×{inches(doc.unitLoad.palletD)}&quot; · {doc.unitLoad.weight.toLocaleString()} lb</span>
+          Load Profile · Unit load <span className="pf-sub">{inches(doc.unitLoad.palletW)}×{inches(doc.unitLoad.palletD)}&quot; · {doc.unitLoad.weight.toLocaleString()} lb</span>
         </h2>
         </summary>
 
@@ -1030,13 +1176,30 @@ export function ParamsPanel({
             />
           </span>
         </div>
+
+        <div
+          id="load-multiplier-tooltip"
+          className="pf-helper-callout"
+          title="A 25% safety/impact factor (1.25× Load Distribution Factor) is automatically applied to the base pallet weight (e.g., 3,700 lb base × 1.25 = 4,625 lb) to prevent under-sizing for uneven pallet loads."
+        >
+          <strong>1.25× Load Multiplier Info:</strong> A 25% safety/impact factor is applied when
+          LDF is set to <code>1.25</code> (e.g., 3,700 lb base pair weight × 1.25 ={' '}
+          <strong>4,625 lb</strong> capacity check; current factored demand:{' '}
+          <strong>
+            {Math.round(
+              doc.unitLoad.weight * (bt?.palletsPerBay ?? 2) * doc.loadDistributionFactor,
+            ).toLocaleString()}{' '}
+            lb
+          </strong>
+          ).
+        </div>
       </details>
 
       {bt !== undefined && (
         <details open className="pf-group">
         <summary className="pf-summary">
           <h2 id="pf-bay-type" className="pf-heading">
-            Bay type — {bt.name} <span className="pf-sub">from catalog ({doc.packs.rack || 'interlake-2026-09'})</span>
+            Rack Geometry · Bay type — {bt.name} <span className="pf-sub">from catalog ({doc.packs.rack || 'interlake-2026-09'})</span>
           </h2>
         </summary>
 
@@ -1225,6 +1388,96 @@ export function ParamsPanel({
                 }
               />
             </span>
+          </div>
+
+          <div
+            id="overturning-warning-banner"
+            className={
+              bt.frameDepth > 0 && bt.frameHeight.value / bt.frameDepth > 6
+                ? 'pf-helper-callout pf-helper-warn'
+                : 'pf-helper-callout'
+            }
+            role="status"
+          >
+            <div>
+              <strong>
+                Overturning H:D Ratio:{' '}
+                {bt.frameDepth > 0 ? (bt.frameHeight.value / bt.frameDepth).toFixed(1) : '—'}:1
+              </strong>{' '}
+              (ANSI MH16.1 §1.4.7)
+            </div>
+            <div>
+              {bt.frameDepth > 0 && bt.frameHeight.value / bt.frameDepth > 6
+                ? 'Exceeds 6:1 — reinforced anchoring required. Overhead ties highly recommended for SDC D stability.'
+                : 'Within 6:1 standard ratio (ANSI MH16.1 rule: Exceeds 6:1 — reinforced anchoring required. Overhead ties highly recommended for SDC D stability.)'}
+            </div>
+          </div>
+
+          <div className="pf-row pf-toggle-row">
+            <label htmlFor="toggle-slab-storage" className="pf-label">
+              Pallets Stored Directly on Slab Floor
+            </label>
+            <button
+              id="toggle-slab-storage"
+              type="button"
+              role="switch"
+              aria-checked={isSlabStorageEnabled}
+              className={
+                isSlabStorageEnabled
+                  ? 'pf-toggle-switch pf-toggle-switch-on'
+                  : 'pf-toggle-switch'
+              }
+              onClick={() => {
+                const nextFloor = !isSlabStorageEnabled;
+                const cmds: Command[] = doc.runs.map((r) => ({
+                  type: 'setField',
+                  label: `Set slab floor storage on ${r.name}`,
+                  change: {
+                    section: 'run',
+                    runId: r.id,
+                    patch: { floorStorage: nextFloor },
+                  },
+                }));
+                if (cmds.length > 0) {
+                  send({
+                    type: 'batch',
+                    label: `Toggle pallets stored directly on slab floor (${nextFloor ? 'ON' : 'OFF'})`,
+                    commands: cmds,
+                  });
+                }
+              }}
+            >
+              <span className="pf-toggle-thumb" aria-hidden="true" />
+              <span className="pf-toggle-text">{isSlabStorageEnabled ? 'ON' : 'OFF'}</span>
+            </button>
+          </div>
+
+          <div className="pf-row pf-toggle-row">
+            <label htmlFor="toggle-heavy-decking" className="pf-label">
+              Heavy Wire Decking
+            </label>
+            <button
+              id="toggle-heavy-decking"
+              type="button"
+              role="switch"
+              aria-checked={isHeavyDecking}
+              className={
+                isHeavyDecking
+                  ? 'pf-toggle-switch pf-toggle-switch-on'
+                  : 'pf-toggle-switch'
+              }
+              onClick={() => {
+                const next = !isHeavyDecking;
+                if (studioSession) {
+                  studioSession.setHeavyDecking(next);
+                } else {
+                  setLocalHeavyDecking(next);
+                }
+              }}
+            >
+              <span className="pf-toggle-thumb" aria-hidden="true" />
+              <span className="pf-toggle-text">{isHeavyDecking ? 'ON' : 'OFF'}</span>
+            </button>
           </div>
 
           <div className="pf-row">

@@ -161,4 +161,26 @@ describe('every branch, each from one change to the fixture', () => {
     expect(found).not.toContain('COMMODITY_CLASS_MISSING:MISSING_SOURCE');
     expect(found).not.toContain('SEISMIC_SDC_MISSING:MISSING_SOURCE');
   });
+
+  it('a height-to-depth overturning ratio above 6:1 emits OVERTURNING_RATIO_EXCEEDED with ANSI MH16.1 warning text', () => {
+    const d = doc();
+    const bt = d.bayTypes[0]!;
+    const tall = {
+      ...d,
+      bayTypes: [
+        {
+          ...bt,
+          frameHeight: { ...bt.frameHeight, value: IN(288) },
+        },
+        ...d.bayTypes.slice(1),
+      ],
+    };
+    const row = screeningFindingsForDocument(tall).find(
+      (r) => r.code === 'OVERTURNING_RATIO_EXCEEDED',
+    );
+    expect(row?.severity).toBe('REVIEW');
+    expect(row?.summary).toBe(
+      'Exceeds 6:1 — reinforced anchoring required. Overhead ties highly recommended for SDC D stability.',
+    );
+  });
 });
