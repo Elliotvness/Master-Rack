@@ -442,12 +442,12 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
           y: (runTopWorld + runBottomWorld) / 2,
         });
 
-        const bayScreenPitch = run.bayPitch.value * camera.scale;
-        const fpSize = Math.max(6, Math.min(16, Math.max(7, bayScreenPitch * 0.14)));
-        const fpHalf = fpSize / 2;
-        const webHalf = Math.max(1.2, fpHalf * 0.34);
-        const boltOffset = Math.max(1.4, fpHalf * 0.56);
-        const boltRadius = Math.max(0.65, fpSize * 0.075);
+        // Constant screen-space CAD upright symbol size so uprights remain the same size when zooming in
+        const fpSize = 9;
+        const fpHalf = 4.5;
+        const webHalf = 1.5;
+        const boltOffset = 2.5;
+        const boltRadius = 0.7;
 
         return (
           <g key={`run-graphic:${run.runId}`} className="cad-run-group">
@@ -1023,7 +1023,12 @@ export function PlanCanvas({
     });
     return {
       ...raw,
-      items: raw.items.filter((item) => !item.id.includes(':row:')),
+      items: raw.items.filter(
+        (item) =>
+          !item.id.includes(':row:') &&
+          !item.id.includes(':upright:') &&
+          !item.id.includes(':beam:'),
+      ),
     };
   }, [doc.id, doc.revision, effectiveExtent, plan]);
 
