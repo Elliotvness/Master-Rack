@@ -430,8 +430,8 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
         );
       })}
 
-      {/* 3. CAD Plan Geometry: Starter/Adder Bays, Front & Back Beam Lines, Upright Footplates (4-Bolt) + Double-Web Channels, and Flue Ties */}
-      {plan.runs.map((run, runIdx) => {
+      {/* 3. CAD Plan Geometry: Front & Back Beam Lines, Upright Footplates (4-Bolt) + Double-Web Channels, and Flue Ties */}
+      {plan.runs.map((run) => {
         const firstRow = run.rows[0];
         const lastRow = run.rows[run.rows.length - 1];
         const runTopWorld = firstRow?.y ?? run.y;
@@ -464,23 +464,6 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
               {run.label}
             </text>
 
-            {/* Unit load footprint (subtle dashed outline so CAD upright footplates & beam lines stay primary) */}
-            {run.pallets.map((p) => {
-              const tl = worldToScreen(camera, viewport, { x: p.x, y: p.y });
-              const w = Math.max(1, p.width * camera.scale);
-              const h = Math.max(1, p.depth * camera.scale);
-              return (
-                <rect
-                  key={`pallet:${p.id}`}
-                  x={tl.x}
-                  y={tl.y}
-                  width={w}
-                  height={h}
-                  className="plan-pallet-wash"
-                />
-              );
-            })}
-
             {/* Back-to-back Row Spacer / Flue Ties (CAD Magenta --pen-flue connecting Row 0 bottom footplates to Row 1 top footplates) */}
             {run.rows.length > 1 &&
               firstRow !== undefined &&
@@ -494,15 +477,6 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
                   x: run.x,
                   y: lastRow.y,
                 }).y;
-                const flueMidScreenY = (topRowBottomY + botRowTopY) / 2;
-                const flueInches =
-                  run.longitudinalFlue !== null
-                    ? Math.round(run.longitudinalFlue.width.value / 25_400)
-                    : Math.round((lastRow.y - (firstRow.y + firstRow.depth)) / 25_400);
-                const lastUprightX = worldToScreen(camera, viewport, {
-                  x: run.x + run.bays.length * run.bayPitch.value,
-                  y: firstRow.y,
-                }).x;
 
                 return (
                   <g key={`flue-ties:${run.runId}`} className="cad-flue-ties">
@@ -523,34 +497,6 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
                         />
                       );
                     })}
-                    {/* CAD "FLUE" callout arrow on the right end of the first back-to-back run */}
-                    {runIdx === 0 && bayScreenPitch >= 38 && (
-                      <g className="cad-flue-callout">
-                        <line
-                          x1={lastUprightX + 3}
-                          y1={flueMidScreenY}
-                          x2={lastUprightX + 28}
-                          y2={flueMidScreenY}
-                          stroke="var(--pen-beam)"
-                          strokeWidth="1.2"
-                        />
-                        <polygon
-                          points={`${lastUprightX + 2},${flueMidScreenY} ${lastUprightX + 7},${flueMidScreenY - 2.2} ${lastUprightX + 7},${flueMidScreenY + 2.2}`}
-                          fill="var(--pen-beam)"
-                        />
-                        <text
-                          x={lastUprightX + 32}
-                          y={flueMidScreenY}
-                          dominantBaseline="central"
-                          fontFamily="var(--font-mono)"
-                          fontSize="9"
-                          fontWeight="600"
-                          fill="var(--pen-upright)"
-                        >
-                          {flueInches}&quot; FLUE
-                        </text>
-                      </g>
-                    )}
                   </g>
                 );
               })()}
@@ -564,7 +510,7 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
 
               return (
                 <g key={`row-frame:${run.runId}:${rowIdx}`} className="cad-row-frame">
-                  {/* Front & Back Beam Lines per Bay + STARTER BAY / ADDER BAY labels */}
+                  {/* Front & Back Beam Lines per Bay */}
                   {run.bays.map((bay, bayIdx) => {
                     const leftUprightX = worldToScreen(camera, viewport, {
                       x: run.x + bayIdx * run.bayPitch.value,
@@ -576,10 +522,6 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
                     }).x;
                     const beamStartX = leftUprightX + webHalf;
                     const beamEndX = Math.max(beamStartX + 1, rightUprightX - webHalf);
-                    const bayMidX = (leftUprightX + rightUprightX) / 2;
-                    const bayMidY = rowTl.y + rowH / 2;
-                    const showCalloutsOnBay =
-                      runIdx === 0 && bayIdx === 0 && rowIdx === 0 && bayScreenPitch >= 32;
 
                     return (
                       <g key={`bay-beams:${run.runId}:${rowIdx}:${bay.bayId}`}>
@@ -601,102 +543,6 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
                           stroke="var(--pen-beam)"
                           strokeWidth="1.85"
                         />
-
-                        {/* STARTER BAY / ADDER BAY label */}
-                        {rowIdx === run.rows.length - 1 &&
-                          bayScreenPitch >= 48 &&
-                          bayIdx <= 1 && (
-                            <text
-                              x={bayMidX}
-                              y={bayMidY}
-                              textAnchor="middle"
-                              dominantBaseline="central"
-                              fontFamily="var(--font-mono)"
-                              fontSize={bayScreenPitch >= 85 ? '9.5' : '8'}
-                              fontWeight="600"
-                              letterSpacing="0.08em"
-                              fill="var(--pen-upright)"
-                            >
-                              {bayIdx === 0 ? 'STARTER BAY' : 'ADDER BAY'}
-                            </text>
-                          )}
-
-                        {/* CAD Leader Callouts (BACK BEAM LINE, FRONT BEAM LINE, UPRIGHT) */}
-                        {showCalloutsOnBay && (
-                          <g className="cad-bay-callouts">
-                            {/* BACK BEAM LINE leader */}
-                            <polyline
-                              points={`${bayMidX},${backBeamY - 1} ${bayMidX},${backBeamY - 14} ${bayMidX + 18},${backBeamY - 14}`}
-                              fill="none"
-                              stroke="var(--pen-beam)"
-                              strokeWidth="1.15"
-                            />
-                            <polygon
-                              points={`${bayMidX},${backBeamY} ${bayMidX - 2.2},${backBeamY - 6} ${bayMidX + 2.2},${backBeamY - 6}`}
-                              fill="var(--pen-beam)"
-                            />
-                            <text
-                              x={bayMidX + 21}
-                              y={backBeamY - 14}
-                              dominantBaseline="central"
-                              fontFamily="var(--font-mono)"
-                              fontSize="8.5"
-                              fontWeight="600"
-                              fill="var(--pen-upright)"
-                            >
-                              BACK BEAM LINE
-                            </text>
-
-                            {/* FRONT BEAM LINE leader */}
-                            <polyline
-                              points={`${bayMidX},${frontBeamY + 1} ${bayMidX},${frontBeamY + 14} ${bayMidX + 18},${frontBeamY + 14}`}
-                              fill="none"
-                              stroke="var(--pen-beam)"
-                              strokeWidth="1.15"
-                            />
-                            <polygon
-                              points={`${bayMidX},${frontBeamY} ${bayMidX - 2.2},${frontBeamY + 6} ${bayMidX + 2.2},${frontBeamY + 6}`}
-                              fill="var(--pen-beam)"
-                            />
-                            <text
-                              x={bayMidX + 21}
-                              y={frontBeamY + 14}
-                              dominantBaseline="central"
-                              fontFamily="var(--font-mono)"
-                              fontSize="8.5"
-                              fontWeight="600"
-                              fill="var(--pen-upright)"
-                            >
-                              FRONT BEAM LINE
-                            </text>
-
-                            {/* UPRIGHT leader */}
-                            <line
-                              x1={leftUprightX - webHalf - 1}
-                              y1={bayMidY}
-                              x2={leftUprightX - webHalf - 20}
-                              y2={bayMidY}
-                              stroke="var(--pen-beam)"
-                              strokeWidth="1.15"
-                            />
-                            <polygon
-                              points={`${leftUprightX - webHalf},${bayMidY} ${leftUprightX - webHalf - 6},${bayMidY - 2.2} ${leftUprightX - webHalf - 6},${bayMidY + 2.2}`}
-                              fill="var(--pen-beam)"
-                            />
-                            <text
-                              x={leftUprightX - webHalf - 23}
-                              y={bayMidY}
-                              textAnchor="end"
-                              dominantBaseline="central"
-                              fontFamily="var(--font-mono)"
-                              fontSize="8.5"
-                              fontWeight="600"
-                              fill="var(--pen-upright)"
-                            >
-                              UPRIGHT
-                            </text>
-                          </g>
-                        )}
                       </g>
                     );
                   })}
@@ -1148,36 +994,38 @@ export function PlanCanvas({
     };
   }, [plan.extent, shellOverlay?.shellDepthFt, shellOverlay?.shellWidthFt]);
 
-  const list = useMemo(
-    () =>
-      buildDetailedPlan({
-        revisionHash: `doc:${doc.id}:${doc.revision}`,
-        runs: plan.runs.map((r) => ({
-          runId: r.runId,
-          label: r.label,
-          x: r.x,
-          y: r.y,
-          runLength: r.runLength,
-          bayPitch: r.bayPitch,
-          uprightFace: r.uprightFace,
-          rows: r.rows,
-          bays: r.bays,
-          pallets: r.pallets,
-          longitudinalFlue: r.longitudinalFlue,
-        })),
-        aisles: plan.aisles.map((a) => ({
-          aisleId: a.aisleId,
-          x: a.x,
-          y: a.y,
-          length: a.length,
-          frameToFrame: a.frameToFrame,
-          clearBetweenLoads: a.clearBetweenLoads,
-        })),
-        extent: effectiveExtent,
-        overallLength: plan.overallLength,
-      }),
-    [doc.id, doc.revision, effectiveExtent, plan],
-  );
+  const list = useMemo(() => {
+    const raw = buildDetailedPlan({
+      revisionHash: `doc:${doc.id}:${doc.revision}`,
+      runs: plan.runs.map((r) => ({
+        runId: r.runId,
+        label: r.label,
+        x: r.x,
+        y: r.y,
+        runLength: r.runLength,
+        bayPitch: r.bayPitch,
+        uprightFace: r.uprightFace,
+        rows: r.rows,
+        bays: r.bays,
+        pallets: [],
+        longitudinalFlue: null,
+      })),
+      aisles: plan.aisles.map((a) => ({
+        aisleId: a.aisleId,
+        x: a.x,
+        y: a.y,
+        length: a.length,
+        frameToFrame: a.frameToFrame,
+        clearBetweenLoads: a.clearBetweenLoads,
+      })),
+      extent: effectiveExtent,
+      overallLength: plan.overallLength,
+    });
+    return {
+      ...raw,
+      items: raw.items.filter((item) => !item.id.includes(':row:')),
+    };
+  }, [doc.id, doc.revision, effectiveExtent, plan]);
 
   // Resolve current selection against the live plan so an undone or deleted bay
   // never leaves a stale selection pointing at a bay that no longer exists.
