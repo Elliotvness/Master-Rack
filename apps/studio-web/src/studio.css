@@ -3503,5 +3503,75 @@ kbd {
   gap: var(--space-2);
 }
 
+/* ── Dedicated Collapsible Configuration Sidebar & Safety Orange Alerting ── */
+
+.plan-sidebar {
+  width: 420px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.plan-sidebar-collapsed {
+  display: none;
+}
+
+.plan-sidebar .params {
+  width: 100%;
+  flex: 1;
+  border-right: none;
+  padding: var(--space-2) var(--space-3);
+}
+
+@media (max-width: 1100px) {
+  .plan-sidebar {
+    width: 100%;
+    max-height: 300px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+.pf-input-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.pf-row-blocking-alert {
+  background: var(--safety-orange-bg);
+  border-left: 3px solid var(--safety-orange);
+  padding-left: var(--space-2);
+  padding-right: var(--space-1);
+}
+
+.pf-row-blocking-alert .pf-label {
+  color: var(--safety-orange);
+  font-weight: 700;
+}
+
+.pf-input-blocking-alert {
+  border-color: var(--safety-orange);
+  color: var(--safety-orange);
+  box-shadow: 0 0 0 1px var(--safety-orange);
+  font-weight: 700;
+}
+
+.pf-blocking-inline-alert {
+  margin: var(--space-1) 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: var(--safety-orange-bg);
+  border-left: 3px solid var(--safety-orange);
+  color: var(--safety-orange);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+
 
 

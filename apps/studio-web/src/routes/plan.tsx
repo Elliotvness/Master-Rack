@@ -249,6 +249,7 @@ export default function PlanView(): React.JSX.Element {
     importProjectJson,
   } = useStudioSession();
   const [toolMode, setToolMode] = useState<PlanToolMode>('select');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [handoffText, setHandoffText] = useState('');
   const [handoffStatus, setHandoffStatus] = useState<string | null>(null);
@@ -665,6 +666,16 @@ export default function PlanView(): React.JSX.Element {
         Plan
       </h1>
       <p className="scaffold-note">
+        <button
+          id="toggle-config-sidebar-btn"
+          type="button"
+          className="pf-btn pf-btn-small"
+          aria-expanded={!sidebarCollapsed}
+          aria-controls="config-sidebar"
+          onClick={() => setSidebarCollapsed((prev) => !prev)}
+        >
+          {sidebarCollapsed ? 'Expand Sidebar ▶' : 'Collapse Sidebar ◀'}
+        </button>{' '}
         <b>Sample layout.</b> This is the rack-studio-v1 sample job, loaded for this session. Every
         change can be undone, but nothing here is saved yet.{' '}
         <Link id="plan-open-portal-link" to="/welcome">
@@ -673,12 +684,18 @@ export default function PlanView(): React.JSX.Element {
       </p>
 
       <div className="plan-layout">
-        <ParamsPanel
-          document={session.document}
-          plan={plan}
-          onCommand={runCommand}
-          onLoadPreset={loadPreset}
-        />
+        <aside
+          id="config-sidebar"
+          className={sidebarCollapsed ? 'plan-sidebar plan-sidebar-collapsed' : 'plan-sidebar'}
+          aria-label="Configuration Sidebar"
+        >
+          <ParamsPanel
+            document={session.document}
+            plan={plan}
+            onCommand={runCommand}
+            onLoadPreset={loadPreset}
+          />
+        </aside>
         <div className="plan-canvas-column">
           <PlanCanvas
             document={session.document}

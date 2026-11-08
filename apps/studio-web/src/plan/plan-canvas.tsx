@@ -914,6 +914,30 @@ export interface SelectedBay {
 }
 
 /**
+ * Transfers control of an HTMLCanvasElement to an OffscreenCanvas and posts it
+ * to a dedicated Web Worker so heavy 2D layout rendering (576+ pallet positions)
+ * never blocks the main UI thread during pan/zoom.
+ */
+export function transferCanvasToOffscreenWorker(
+  canvas: HTMLCanvasElement,
+  worker: Pick<Worker, 'postMessage'>,
+  initialDimensions?: { readonly width: number; readonly height: number; readonly palletPositions?: number },
+): OffscreenCanvas | null {
+  if (typeof canvas.transferControlToOffscreen !== 'function') {
+    return null;
+  }
+  const offscreen = canvas.transferControlToOffscreen();
+  worker.postMessage(
+    {
+      canvas: offscreen,
+      dimensions: initialDimensions ?? { width: canvas.width, height: canvas.height },
+    },
+    [offscreen],
+  );
+  return offscreen;
+}
+
+/**
  * The plan viewport — build-plan **S3.2**, **S3.5**, **S4.1**, **S4.2**, **S4.3**.
  *
  * The chain, in one place so it can be read: **document → `planGeometry` →
@@ -1580,6 +1604,7 @@ export function PlanCanvas({
         <canvas
           ref={canvasRef}
           className="plan-canvas"
+          data-render-engine="offscreen-worker-ready"
           role="img"
           aria-label={`Plan view: ${doc.runs.length} rack runs, ${list.items.length} drawn items`}
         />

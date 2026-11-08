@@ -702,6 +702,32 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
     await user.click(dxfBtn);
     expect(document.getElementById('bom-export-notice')?.textContent).toMatch(/Downloaded AutoCAD \.DXF/i);
   });
+
+  it('highlights blocking aisle clearance on #f-aisle in safety orange and supports collapsible sidebar + OffscreenCanvas', async () => {
+    const user = userEvent.setup();
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1, name: 'Plan' });
+
+    // Default sample layout has 126" clear aisle vs 126.3" required -> contextual alert on #f-aisle
+    const aisleAlert = document.getElementById('f-aisle-blocking-alert');
+    expect(aisleAlert).not.toBeNull();
+    expect(aisleAlert?.textContent).toMatch(/truck needs 126\.3"/i);
+    const aisleInput = document.getElementById('f-aisle') as HTMLInputElement;
+    expect(aisleInput.getAttribute('aria-invalid')).toBe('true');
+
+    // Collapsible 420px configuration sidebar
+    const sidebar = document.getElementById('config-sidebar') as HTMLElement;
+    const toggleSidebarBtn = document.getElementById('toggle-config-sidebar-btn') as HTMLButtonElement;
+    expect(sidebar.className).not.toContain('plan-sidebar-collapsed');
+    await user.click(toggleSidebarBtn);
+    expect(sidebar.className).toContain('plan-sidebar-collapsed');
+    await user.click(toggleSidebarBtn);
+    expect(sidebar.className).not.toContain('plan-sidebar-collapsed');
+
+    // OffscreenCanvas worker-ready canvas attribute
+    const canvas = document.querySelector('canvas.plan-canvas');
+    expect(canvas?.getAttribute('data-render-engine')).toBe('offscreen-worker-ready');
+  });
 });
 
 describe('the theme toggle', () => {

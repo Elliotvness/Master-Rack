@@ -25,6 +25,7 @@ import {
   analyzeZipCode,
   uploadSitePhoto,
   useOptionalStudioSession,
+  useRackStore,
   type LocationData,
 } from '../session-context.js';
 
@@ -80,6 +81,26 @@ function ProvBtn({
   );
 }
 
+export function AisleInput(): React.JSX.Element {
+  const frameToFrameAisle = useRackStore((state) => state.frameToFrameAisle);
+  const setFrameToFrameAisle = useRackStore((state) => state.setFrameToFrameAisle);
+
+  return (
+    <div className="pf-row">
+      <label className="pf-label">Frame-to-frame aisle</label>
+      <span className="pf-value pf-controls">
+        <input
+          type="number"
+          className="pf-input pf-input-num"
+          value={frameToFrameAisle}
+          onChange={(e) => setFrameToFrameAisle(Number(e.target.value))}
+        />
+        <span className="pf-suffix">in</span>
+      </span>
+    </div>
+  );
+}
+
 export function ParamsPanel({
   document: doc,
   plan: providedPlan,
@@ -94,6 +115,9 @@ export function ParamsPanel({
     | undefined;
 }): React.JSX.Element {
   const studioSession = useOptionalStudioSession();
+  const setStoreFrameToFrameAisle = useRackStore((state) => state.setFrameToFrameAisle);
+  const setStoreBeamClearSpan = useRackStore((state) => state.setBeamClearSpan);
+  const setStoreTruckMinAisle = useRackStore((state) => state.setTruckMinAisle);
   const [prov, setProv] = useState<ProvenanceInfo | null>(null);
   const [addBayQty, setAddBayQty] = useState<number>(2);
   const [targetRunIndex, setTargetRunIndex] = useState<number>(0);
@@ -113,6 +137,17 @@ export function ParamsPanel({
     plan.aisles[0] !== undefined ? inches(plan.aisles[0].frameToFrame.value) : '120';
   const firstClearAisleIn =
     plan.aisles[0] !== undefined ? inches(plan.aisles[0].clearBetweenLoads.value) : '114';
+  const truckRequiredClearUm = doc.equipment.truckRAS.value + 60 * MICROMETRES_PER_INCH;
+  const truckRequiredClearIn = String(
+    Number((truckRequiredClearUm / MICROMETRES_PER_INCH).toFixed(2)),
+  );
+  const isAisleClearanceBlocking =
+    plan.aisles[0] !== undefined && plan.aisles[0].clearBetweenLoads.value < truckRequiredClearUm;
+  const factoredBeamDemandLb = Math.round(
+    doc.unitLoad.weight * (bt?.palletsPerBay ?? 2) * doc.loadDistributionFactor,
+  );
+  const isBeamCapacityBlocking =
+    bt !== undefined && factoredBeamDemandLb > bt.beamPairCapacity.value;
   const activeRun = doc.runs[targetRunIndex] ?? doc.runs[0];
   const isSlabStorageEnabled = activeRun?.floorStorage ?? doc.runs[0]?.floorStorage ?? true;
 
@@ -745,6 +780,7 @@ export function ParamsPanel({
               onChange={(e) => {
                 const um = parseInchesToUm(e.target.value);
                 if (um !== null && um > 0) {
+                  setStoreTruckMinAisle(Number(e.target.value));
                   send({
                     type: 'setField',
                     label: 'Set truck min right-angle stacking aisle',
@@ -800,7 +836,10 @@ export function ParamsPanel({
           </span>
         </div>
 
-        <div className="pf-row">
+        <div
+          id="f-aisle-row"
+          className={isAisleClearanceBlocking ? 'pf-row pf-row-blocking-alert' : 'pf-row'}
+        >
           <label htmlFor="f-aisle" className="pf-label">
             Frame-to-frame aisle
           </label>
@@ -815,6 +854,7 @@ export function ParamsPanel({
                 const um = parseInchesToUm(String(nextIn));
                 const firstRun = doc.runs[0];
                 if (um !== null && firstRun !== undefined) {
+                  setStoreFrameToFrameAisle(nextIn);
                   send({
                     type: 'setAisleAfter',
                     runId: firstRun.id,
@@ -828,12 +868,18 @@ export function ParamsPanel({
             <input
               id="f-aisle"
               type="number"
-              className="pf-input pf-input-num"
+              aria-invalid={isAisleClearanceBlocking}
+              className={
+                isAisleClearanceBlocking
+                  ? 'pf-input pf-input-num pf-input-blocking-alert'
+                  : 'pf-input pf-input-num'
+              }
               value={firstAisleIn}
               onChange={(e) => {
                 const um = parseInchesToUm(e.target.value);
                 const firstRun = doc.runs[0];
                 if (um !== null && um > 0 && firstRun !== undefined) {
+                  setStoreFrameToFrameAisle(Number(e.target.value));
                   send({
                     type: 'setAisleAfter',
                     runId: firstRun.id,
@@ -853,6 +899,7 @@ export function ParamsPanel({
                 const um = parseInchesToUm(String(nextIn));
                 const firstRun = doc.runs[0];
                 if (um !== null && firstRun !== undefined) {
+                  setStoreFrameToFrameAisle(nextIn);
                   send({
                     type: 'setAisleAfter',
                     runId: firstRun.id,
@@ -865,6 +912,12 @@ export function ParamsPanel({
             </button>
           </span>
         </div>
+        {isAisleClearanceBlocking && (
+          <div id="f-aisle-blocking-alert" className="pf-blocking-inline-alert" role="alert">
+            BLOCKING: Clear is {firstClearAisleIn}&quot; — truck needs {truckRequiredClearIn}&quot;
+            (RAS + 60&quot;)
+          </div>
+        )}
 
         <div className="pf-row">
           <span className="pf-label">Clear between loads</span>
@@ -1550,6 +1603,7 @@ export function ParamsPanel({
                   const curFamily = beamFamilyFromPartLabel(bt.beamPart);
                   const looked = lookupPublishedBeamSpan(curFamily, nextSpanIn);
                   if (looked.status === 'ON_GRID') {
+                    setStoreBeamClearSpan(nextSpanIn);
                     send({
                       type: 'setField',
                       label: 'Set beam span from catalog',
@@ -1647,7 +1701,10 @@ export function ParamsPanel({
             </span>
           </div>
 
-          <div className="pf-row">
+          <div
+            id="f-bmcap-row"
+            className={isBeamCapacityBlocking ? 'pf-row pf-row-blocking-alert' : 'pf-row'}
+          >
             <label htmlFor="f-bmcap" className="pf-label">
               Beam pair capacity
             </label>
@@ -1658,7 +1715,12 @@ export function ParamsPanel({
               <input
                 id="f-bmcap"
                 type="number"
-                className="pf-input pf-input-num"
+                aria-invalid={isBeamCapacityBlocking}
+                className={
+                  isBeamCapacityBlocking
+                    ? 'pf-input pf-input-num pf-input-blocking-alert'
+                    : 'pf-input pf-input-num'
+                }
                 value={String(bt.beamPairCapacity.value)}
                 onChange={(e) => {
                   const lb = Number(e.target.value);
@@ -1721,6 +1783,12 @@ export function ParamsPanel({
               />
             </span>
           </div>
+          {isBeamCapacityBlocking && (
+            <div id="f-bmcap-blocking-alert" className="pf-blocking-inline-alert" role="alert">
+              BLOCKING: Demand {factoredBeamDemandLb.toLocaleString()} lb exceeds capacity{' '}
+              {bt.beamPairCapacity.value.toLocaleString()} lb
+            </div>
+          )}
 
           <div id="levels" className="pf-levels" aria-label="Beam levels">
             <div className="pf-levels-head">

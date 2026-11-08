@@ -21,9 +21,138 @@ import {
   type SessionResult,
   type StudioDocument,
 } from '@rms/studio-model';
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 
 import fixture from '../../../fixtures/continuity/rack-studio-v1.json';
+
+export interface RackState {
+  readonly beamClearSpan: number;
+  readonly frameToFrameAisle: number;
+  readonly truckMinAisle: number;
+  readonly palletPositions: number;
+  readonly setBeamClearSpan: (span: number) => void;
+  readonly setFrameToFrameAisle: (aisle: number) => void;
+  readonly setTruckMinAisle: (minAisle: number) => void;
+  readonly updateCalculations: (positions: number) => void;
+}
+
+type RackStoreListener = () => void;
+
+const rackStoreListeners = new Set<RackStoreListener>();
+let activeRackCommandSink: ((cmd: Command) => void) | null = null;
+let activeRackFirstRunId: string | null = 'run-1';
+let activeRackBayTypeId: string | null = 'bt-1';
+
+let rackStoreState: RackState = {
+  beamClearSpan: 96,
+  frameToFrameAisle: 132,
+  truckMinAisle: 66.3,
+  palletPositions: 576,
+  setBeamClearSpan: (span: number): void => {
+    if (!Number.isFinite(span) || span <= 0) return;
+    updateRackStoreSlice({ beamClearSpan: span });
+    if (activeRackCommandSink !== null && activeRackBayTypeId !== null) {
+      activeRackCommandSink({
+        type: 'setField',
+        label: `Set beam clear span to ${span}"`,
+        change: {
+          section: 'bayType',
+          bayTypeId: activeRackBayTypeId,
+          patch: { beamLength: Math.round(span * 25_400) },
+        },
+      });
+    }
+  },
+  setFrameToFrameAisle: (aisle: number): void => {
+    if (!Number.isFinite(aisle) || aisle <= 0) return;
+    updateRackStoreSlice({ frameToFrameAisle: aisle });
+    if (activeRackCommandSink !== null && activeRackFirstRunId !== null) {
+      activeRackCommandSink({
+        type: 'setAisleAfter',
+        runId: activeRackFirstRunId,
+        frameToFrame: Math.round(aisle * 25_400),
+      });
+    }
+  },
+  setTruckMinAisle: (minAisle: number): void => {
+    if (!Number.isFinite(minAisle) || minAisle <= 0) return;
+    updateRackStoreSlice({ truckMinAisle: minAisle });
+    if (activeRackCommandSink !== null) {
+      activeRackCommandSink({
+        type: 'setField',
+        label: `Set truck min aisle to ${minAisle}"`,
+        change: {
+          section: 'equipment',
+          patch: {
+            truckRAS: {
+              value: Math.round(minAisle * 25_400),
+              established: 'INPUT',
+              source: 'Granular rack store update',
+            },
+          },
+        },
+      });
+    }
+  },
+  updateCalculations: (positions: number): void => {
+    if (!Number.isFinite(positions) || positions < 0) return;
+    updateRackStoreSlice({ palletPositions: positions });
+  },
+};
+
+function updateRackStoreSlice(
+  patch: Partial<
+    Pick<RackState, 'beamClearSpan' | 'frameToFrameAisle' | 'truckMinAisle' | 'palletPositions'>
+  >,
+): void {
+  const nextBeam = patch.beamClearSpan ?? rackStoreState.beamClearSpan;
+  const nextAisle = patch.frameToFrameAisle ?? rackStoreState.frameToFrameAisle;
+  const nextTruck = patch.truckMinAisle ?? rackStoreState.truckMinAisle;
+  const nextPos = patch.palletPositions ?? rackStoreState.palletPositions;
+  if (
+    nextBeam === rackStoreState.beamClearSpan &&
+    nextAisle === rackStoreState.frameToFrameAisle &&
+    nextTruck === rackStoreState.truckMinAisle &&
+    nextPos === rackStoreState.palletPositions
+  ) {
+    return;
+  }
+  rackStoreState = {
+    ...rackStoreState,
+    beamClearSpan: nextBeam,
+    frameToFrameAisle: nextAisle,
+    truckMinAisle: nextTruck,
+    palletPositions: nextPos,
+  };
+  rackStoreListeners.forEach((listener) => listener());
+}
+
+function subscribeRackStore(listener: RackStoreListener): () => void {
+  rackStoreListeners.add(listener);
+  return () => {
+    rackStoreListeners.delete(listener);
+  };
+}
+
+function getRackStoreSnapshot(): RackState {
+  return rackStoreState;
+}
+
+export function useRackStore<T>(selector: (state: RackState) => T): T {
+  const state = useSyncExternalStore(subscribeRackStore, getRackStoreSnapshot, getRackStoreSnapshot);
+  return selector(state);
+}
+
+useRackStore.getState = (): RackState => rackStoreState;
+useRackStore.setState = updateRackStoreSlice;
 
 export interface PlanWallOverlay {
   readonly id: string;
@@ -618,6 +747,39 @@ export function StudioSessionProvider({
     [session.document],
   );
   const findingCounts = useMemo(() => countFindings(findings), [findings]);
+
+  // Synchronize granular useRackStore slices with geometric state changes
+  useEffect(() => {
+    activeRackCommandSink = (cmd: Command) => {
+      runCommand(cmd);
+    };
+    activeRackFirstRunId = session.document.runs[0]?.id ?? null;
+    activeRackBayTypeId = session.document.bayTypes[0]?.id ?? null;
+    const bt = session.document.bayTypes[0];
+    const spanIn = bt !== undefined ? Math.round((bt.beamLength / 25_400) * 100) / 100 : 96;
+    const aisleIn =
+      plan.aisles[0] !== undefined
+        ? Math.round((plan.aisles[0].frameToFrame.value / 25_400) * 100) / 100
+        : 132;
+    const truckIn =
+      Math.round((session.document.equipment.truckRAS.value / 25_400) * 100) / 100;
+    updateRackStoreSlice({
+      beamClearSpan: spanIn,
+      frameToFrameAisle: aisleIn,
+      truckMinAisle: truckIn,
+      palletPositions: plan.totalPositions,
+    });
+    return () => {
+      activeRackCommandSink = null;
+    };
+  }, [
+    plan.aisles,
+    plan.totalPositions,
+    runCommand,
+    session.document.bayTypes,
+    session.document.equipment.truckRAS.value,
+    session.document.runs,
+  ]);
 
   const saveCurrentSnapshot = useCallback(
     (label?: string): SavedPlanSnapshot => {
