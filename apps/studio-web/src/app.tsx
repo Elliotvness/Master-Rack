@@ -54,6 +54,7 @@ function StudioShell({
           <Suspense fallback={<Loading />}>
             <Routes>
               <Route path="/" element={<Navigate to={`/${DEFAULT_VIEW}`} replace />} />
+              <Route path="/welcome" element={<LAZY_VIEWS.login />} />
               <Route path="/invite" element={<LAZY_VIEWS.invite />} />
               <Route path="/login" element={<LAZY_VIEWS.login />} />
               {VIEWS.map((view) => {
