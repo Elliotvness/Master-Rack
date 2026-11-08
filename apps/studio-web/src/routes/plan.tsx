@@ -24,6 +24,7 @@ import { PlanCanvas, type PlanToolMode } from '../plan/plan-canvas.js';
 import {
   exportDocumentToDXF,
   persistWorkspaceToIndexedDb,
+  useGridStore,
   useRackStore,
   useStudioSession,
 } from '../session-context.js';
@@ -1114,6 +1115,18 @@ export default function PlanView(): React.JSX.Element {
                           setHandoffOpen(true);
                         },
                       },
+                      {
+                        id: 'cmdk-item-import-columns-csv',
+                        group: 'Utilities',
+                        label: 'Import Column Coordinates from CSV (A1, B1, C1...)',
+                        alias: 'CSV COLS',
+                        run: () => {
+                          useGridStore
+                            .getState()
+                            .importColumns('C-A1,0,0\nC-B1,600,0\nC-C1,1200,0\nC-A2,0,600\nC-B2,600,600\nC-C2,1200,600');
+                          setCmdStatus('Imported 6 structural column coordinates from CSV into grid.');
+                        },
+                      },
                     ]
                       .filter((item) => {
                         const q = cmdkQuery.trim().toLowerCase();
@@ -1701,6 +1714,47 @@ export default function PlanView(): React.JSX.Element {
                   <span className="dock-badge">{savedSnapshots.length}</span>
                   <span className="dock-tooltip">Snapshot Option ({savedSnapshots.length})</span>
                 </button>
+                <label
+                  id="import-columns-csv-label"
+                  htmlFor="import-columns-csv-input"
+                  className="pf-btn dock-icon-btn"
+                  aria-label="Import Columns CSV"
+                  title="Import Column Coordinates from CSV (id,x,y in inches)"
+                >
+                  <svg
+                    className="dock-svg-icon"
+                    viewBox="0 0 16 16"
+                    width="15"
+                    height="15"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 2.5h6.5L13 6v7.5H3V2.5z" />
+                    <path d="M9.5 2.5V6H13" />
+                    <line x1="8" y1="11.5" x2="8" y2="7.5" />
+                    <path d="M6.2 9.2L8 7.5l1.8 1.7" />
+                  </svg>
+                  <span className="dock-tooltip">Import Columns CSV</span>
+                </label>
+                <input
+                  id="import-columns-csv-input"
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="visually-hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file === undefined) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      if (typeof reader.result === 'string') {
+                        useGridStore.getState().importColumns(reader.result);
+                      }
+                    };
+                    reader.readAsText(file);
+                  }}
+                />
               </div>
 
               <span className="dock-divider" aria-hidden="true" />

@@ -129,6 +129,172 @@ export interface RackLayoutNode {
   readonly depthIn: number;
 }
 
+export type BaySide = 'top' | 'bottom';
+export type BayTargetScope = 'top' | 'bottom' | 'both';
+
+export interface BaySideConfig {
+  readonly beamLevels: readonly number[]; // in inches, e.g. [60, 120, 180]
+  readonly loadWeightLb: number;
+  readonly isSingle: boolean;
+}
+
+export interface DoubleBay {
+  readonly id: string; // `${runId}:${bayId}`
+  readonly runId: string;
+  readonly bayId: string;
+  readonly x: number;
+  readonly width: number;
+  readonly topSide: BaySideConfig;
+  readonly bottomSide: BaySideConfig;
+}
+
+export interface GridLine {
+  readonly id: string; // 'A', 'B', 'C' or '1', '2', '3'
+  readonly offset: number; // absolute inches from origin (0,0)
+}
+
+export interface GridColumnItem {
+  readonly id: string;
+  readonly x: number; // inches
+  readonly y: number; // inches
+}
+
+export interface ColumnGridState {
+  readonly gridX: readonly GridLine[];
+  readonly gridY: readonly GridLine[];
+  readonly columns: readonly GridColumnItem[];
+  readonly setGrid: (x: readonly GridLine[], y: readonly GridLine[]) => void;
+  readonly addGridLineX: (id: string, offsetIn: number) => void;
+  readonly addGridLineY: (id: string, offsetIn: number) => void;
+  readonly placeColumn: (x: number, y: number, id?: string) => GridColumnItem;
+  readonly importColumns: (csvString: string) => readonly GridColumnItem[];
+}
+
+const gridStoreListeners = new Set<() => void>();
+let activeGridColumnSyncSink: ((cols: readonly GridColumnItem[]) => void) | null = null;
+
+export function registerGridColumnSyncSink(
+  sink: ((cols: readonly GridColumnItem[]) => void) | null,
+): void {
+  activeGridColumnSyncSink = sink;
+}
+
+let gridStoreState: ColumnGridState = {
+  gridX: [
+    { id: 'A', offset: 0 },
+    { id: 'B', offset: 600 },
+    { id: 'C', offset: 1200 },
+  ],
+  gridY: [
+    { id: '1', offset: 0 },
+    { id: '2', offset: 600 },
+  ],
+  columns: [],
+  setGrid: (gridX, gridY): void => {
+    gridStoreState = {
+      ...gridStoreState,
+      gridX: [...gridX],
+      gridY: [...gridY],
+    };
+    gridStoreListeners.forEach((l) => l());
+  },
+  addGridLineX: (id, offsetIn): void => {
+    if (!Number.isFinite(offsetIn) || offsetIn < 0) return;
+    const filtered = gridStoreState.gridX.filter((g) => g.id !== id);
+    const nextX = [...filtered, { id, offset: Math.round(offsetIn) }].sort(
+      (a, b) => a.offset - b.offset,
+    );
+    gridStoreState = { ...gridStoreState, gridX: nextX };
+    gridStoreListeners.forEach((l) => l());
+  },
+  addGridLineY: (id, offsetIn): void => {
+    if (!Number.isFinite(offsetIn) || offsetIn < 0) return;
+    const filtered = gridStoreState.gridY.filter((g) => g.id !== id);
+    const nextY = [...filtered, { id, offset: Math.round(offsetIn) }].sort(
+      (a, b) => a.offset - b.offset,
+    );
+    gridStoreState = { ...gridStoreState, gridY: nextY };
+    gridStoreListeners.forEach((l) => l());
+  },
+  placeColumn: (x, y, id): GridColumnItem => {
+    const colId = id ?? `COL-${gridStoreState.columns.length + 1}`;
+    const item: GridColumnItem = {
+      id: colId,
+      x: Math.round(x),
+      y: Math.round(y),
+    };
+    const nextCols = [...gridStoreState.columns, item];
+    gridStoreState = {
+      ...gridStoreState,
+      columns: nextCols,
+    };
+    activeGridColumnSyncSink?.(nextCols);
+    gridStoreListeners.forEach((l) => l());
+    return item;
+  },
+  importColumns: (csvString): readonly GridColumnItem[] => {
+    const rows = csvString
+      .trim()
+      .split(/\r?\n/)
+      .map((r) => r.trim())
+      .filter((r) => r.length > 0);
+    const parsed: GridColumnItem[] = [];
+    rows.forEach((row, idx) => {
+      const parts = row.split(',').map((p) => p.trim());
+      if (parts.length >= 3) {
+        const xVal = Number(parts[1]);
+        const yVal = Number(parts[2]);
+        if (Number.isFinite(xVal) && Number.isFinite(yVal)) {
+          parsed.push({
+            id: parts[0] && parts[0].length > 0 ? parts[0] : `COL-${idx + 1}`,
+            x: xVal,
+            y: yVal,
+          });
+        }
+      } else if (parts.length === 2) {
+        const xVal = Number(parts[0]);
+        const yVal = Number(parts[1]);
+        if (Number.isFinite(xVal) && Number.isFinite(yVal)) {
+          parsed.push({
+            id: `COL-${idx + 1}`,
+            x: xVal,
+            y: yVal,
+          });
+        }
+      }
+    });
+    gridStoreState = {
+      ...gridStoreState,
+      columns: parsed,
+    };
+    activeGridColumnSyncSink?.(parsed);
+    gridStoreListeners.forEach((l) => l());
+    return parsed;
+  },
+};
+
+function subscribeGridStore(listener: () => void): () => void {
+  gridStoreListeners.add(listener);
+  return () => {
+    gridStoreListeners.delete(listener);
+  };
+}
+
+function getGridStoreSnapshot(): ColumnGridState {
+  return gridStoreState;
+}
+
+export function useGridStore<T>(selector: (state: ColumnGridState) => T): T {
+  const state = useSyncExternalStore(
+    subscribeGridStore,
+    getGridStoreSnapshot,
+    getGridStoreSnapshot,
+  );
+  return selector(state);
+}
+
+useGridStore.getState = (): ColumnGridState => gridStoreState;
+
 export interface RackState {
   readonly beamClearSpan: number;
   readonly frameToFrameAisle: number;
@@ -140,11 +306,18 @@ export interface RackState {
   readonly warehouseWidth: number;
   readonly warehouseLength: number;
   readonly layoutNodes: readonly RackLayoutNode[];
+  readonly doubleBays: Readonly<Record<string, DoubleBay>>;
   readonly lastAutoSavedAt: string | null;
   readonly setBeamClearSpan: (span: number) => void;
   readonly setFrameToFrameAisle: (aisle: number) => void;
   readonly setTruckMinAisle: (minAisle: number) => void;
   readonly updateCalculations: (positions: number) => void;
+  readonly setBaySideConfig: (
+    runId: string,
+    bayId: string,
+    scope: BayTargetScope,
+    patch: Partial<BaySideConfig>,
+  ) => void;
   readonly setViewportCamera: (cam: {
     readonly cameraX: number;
     readonly cameraY: number;
@@ -162,6 +335,12 @@ let activeRackFirstRunId: string | null = 'run-1';
 let activeRackAllRunIds: readonly string[] = ['run-1', 'run-2', 'run-3'];
 let activeRackBayTypeId: string | null = 'bt-1';
 
+const DEFAULT_SIDE_CONFIG: BaySideConfig = {
+  beamLevels: [60, 120, 180],
+  loadWeightLb: 2000,
+  isSingle: false,
+};
+
 let rackStoreState: RackState = {
   beamClearSpan: 96,
   frameToFrameAisle: 132,
@@ -173,6 +352,7 @@ let rackStoreState: RackState = {
   warehouseWidth: 1320,
   warehouseLength: 720,
   layoutNodes: [],
+  doubleBays: {},
   lastAutoSavedAt: null,
   setBeamClearSpan: (span: number): void => {
     if (!Number.isFinite(span) || span <= 0) return;
@@ -239,6 +419,38 @@ let rackStoreState: RackState = {
     if (!Number.isFinite(positions) || positions < 0) return;
     updateRackStoreSlice({ palletPositions: positions });
   },
+  setBaySideConfig: (runId, bayId, scope, patch): void => {
+    const key = `${runId}:${bayId}`;
+    const existing: DoubleBay = rackStoreState.doubleBays[key] ?? {
+      id: key,
+      runId,
+      bayId,
+      x: 0,
+      width: rackStoreState.beamClearSpan,
+      topSide: { ...DEFAULT_SIDE_CONFIG },
+      bottomSide: { ...DEFAULT_SIDE_CONFIG },
+    };
+    const nextTop =
+      scope === 'top' || scope === 'both'
+        ? { ...existing.topSide, ...patch }
+        : existing.topSide;
+    const nextBottom =
+      scope === 'bottom' || scope === 'both'
+        ? { ...existing.bottomSide, ...patch }
+        : existing.bottomSide;
+
+    const updated: DoubleBay = {
+      ...existing,
+      topSide: nextTop,
+      bottomSide: nextBottom,
+    };
+    updateRackStoreSlice({
+      doubleBays: {
+        ...rackStoreState.doubleBays,
+        [key]: updated,
+      },
+    });
+  },
   setViewportCamera: (cam): void => {
     updateRackStoreSlice(cam);
   },
@@ -258,6 +470,7 @@ function updateRackStoreSlice(
       | 'warehouseWidth'
       | 'warehouseLength'
       | 'layoutNodes'
+      | 'doubleBays'
       | 'lastAutoSavedAt'
     >
   >,
@@ -272,6 +485,7 @@ function updateRackStoreSlice(
   const nextW = patch.warehouseWidth ?? rackStoreState.warehouseWidth;
   const nextL = patch.warehouseLength ?? rackStoreState.warehouseLength;
   const nextNodes = patch.layoutNodes ?? rackStoreState.layoutNodes;
+  const nextDoubleBays = patch.doubleBays ?? rackStoreState.doubleBays;
   const nextSaved =
     patch.lastAutoSavedAt !== undefined ? patch.lastAutoSavedAt : rackStoreState.lastAutoSavedAt;
   if (
@@ -285,6 +499,7 @@ function updateRackStoreSlice(
     nextW === rackStoreState.warehouseWidth &&
     nextL === rackStoreState.warehouseLength &&
     nextNodes === rackStoreState.layoutNodes &&
+    nextDoubleBays === rackStoreState.doubleBays &&
     nextSaved === rackStoreState.lastAutoSavedAt
   ) {
     return;
@@ -301,6 +516,7 @@ function updateRackStoreSlice(
     warehouseWidth: nextW,
     warehouseLength: nextL,
     layoutNodes: nextNodes,
+    doubleBays: nextDoubleBays,
     lastAutoSavedAt: nextSaved,
   };
   rackStoreListeners.forEach((listener) => listener());
@@ -637,6 +853,25 @@ export function StudioSessionProvider({
   const [locationData, setLocationData] = useState<LocationData | null>(null);
   const [sitePhotos, setSitePhotos] = useState<readonly string[]>([]);
   const [heavyDecking, setHeavyDecking] = useState<boolean>(false);
+
+  useEffect(() => {
+    registerGridColumnSyncSink((cols) => {
+      setShellOverlay((prev) => ({
+        ...prev,
+        showColumns: true,
+        customColumns: cols.map((c) => ({
+          id: c.id,
+          xUm: Math.round(c.x * 25_400),
+          yUm: Math.round(c.y * 25_400),
+          sizeIn: prev.columnSizeIn,
+          label: c.id,
+        })),
+      }));
+    });
+    return () => {
+      registerGridColumnSyncSink(null);
+    };
+  }, []);
 
   const addSitePhoto = useCallback((dataUrl: string): void => {
     setSitePhotos((prev) => [...prev, dataUrl]);

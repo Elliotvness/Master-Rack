@@ -16,6 +16,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from './app.js';
 import { HEADER_CONTROL_ORDER, VIEWS } from './nav.js';
+import { computeColumnOsnap, SNAP_RADIUS_INCHES } from './plan/plan-canvas.js';
+import { useGridStore, useRackStore } from './session-context.js';
 
 /**
  * jsdom implements neither `ResizeObserver` nor a canvas 2D context.
@@ -833,6 +835,84 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
     expect(readSpecItem).not.toBeNull();
     await user.click(readSpecItem);
     expect(document.getElementById('intake-panel')).not.toBeNull();
+  });
+
+  it('decouples back-to-back bay selection into Front Only / Back Only / Both and supports 24" OSNAP column grid + CSV import', async () => {
+    const user = userEvent.setup();
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1, name: 'Plan' });
+
+    // 1. Back-to-back bay hitboxes are split into separate top (front) and bottom (back) SVG rects
+    const topRect = document.querySelector('rect[data-bay-side="top"]') as SVGRectElement;
+    expect(topRect).not.toBeNull();
+    const bayId = topRect.getAttribute('data-bay-id')!;
+    const runId = topRect.getAttribute('data-run-id')!;
+    const bottomRect = document.querySelector(
+      `rect[data-bay-id="${bayId}"][data-bay-side="bottom"]`,
+    ) as SVGRectElement;
+    expect(bottomRect).not.toBeNull();
+
+    // Hovering over the top row highlights only the top row, never the bottom row
+    await user.hover(topRect);
+    expect(topRect.getAttribute('data-hovered')).toBe('true');
+    expect(bottomRect.getAttribute('data-hovered')).toBe('false');
+
+    // Clicking the top row selects only the top row and defaults the HUD scope toggle to "Front Only"
+    await user.click(topRect);
+    expect(topRect.getAttribute('data-selected')).toBe('true');
+    expect(bottomRect.getAttribute('data-selected')).toBe('false');
+
+    const scopeTopBtn = document.getElementById('sel-scope-top-btn') as HTMLButtonElement;
+    const scopeBottomBtn = document.getElementById('sel-scope-bottom-btn') as HTMLButtonElement;
+    const scopeBothBtn = document.getElementById('sel-scope-both-btn') as HTMLButtonElement;
+    expect(scopeTopBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(scopeBottomBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(scopeBothBtn.getAttribute('aria-pressed')).toBe('false');
+
+    // Apply beam levels to Front Only (top), then switch to Back Only (bottom) with different beam levels
+    const beamElevInput = document.getElementById('sel-beam-elev-input') as HTMLInputElement;
+    const beamApplyBtn = document.getElementById('sel-beam-elev-apply-btn') as HTMLButtonElement;
+    await user.clear(beamElevInput);
+    await user.type(beamElevInput, '54');
+    await user.click(beamApplyBtn);
+
+    await user.click(scopeBottomBtn);
+    expect(scopeBottomBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(topRect.getAttribute('data-selected')).toBe('false');
+    expect(bottomRect.getAttribute('data-selected')).toBe('true');
+    await user.clear(beamElevInput);
+    await user.type(beamElevInput, '72');
+    await user.click(beamApplyBtn);
+
+    const bay1State = useRackStore.getState().doubleBays[`${runId}:${bayId}`];
+    expect(bay1State?.topSide.beamLevels).toEqual([54, 114, 174]);
+    expect(bay1State?.bottomSide.beamLevels).toEqual([72, 132, 192]);
+
+    // Switching scope to Both highlights both rows simultaneously
+    await user.click(scopeBothBtn);
+    expect(topRect.getAttribute('data-selected')).toBe('true');
+    expect(bottomRect.getAttribute('data-selected')).toBe('true');
+
+    // 2. Automated CAD Structural Grid System: Architectural Grid Lines & Bubbles, 24" OSNAP, and CSV Import
+    expect(document.getElementById('architectural-structural-grid')).not.toBeNull();
+    expect(document.getElementById('import-columns-csv-label')).not.toBeNull();
+    expect(SNAP_RADIUS_INCHES).toBe(24);
+
+    const { gridX, gridY } = useGridStore.getState();
+    const snapped = computeColumnOsnap(612, 588, gridX, gridY);
+    expect(snapped.isSnapped).toBe(true);
+    expect(snapped.x).toBe(600);
+    expect(snapped.y).toBe(600);
+    expect(snapped.snapLabel).toBe('B-2');
+
+    const unsnapped = computeColumnOsnap(640, 640, gridX, gridY);
+    expect(unsnapped.isSnapped).toBe(false);
+
+    useGridStore.getState().importColumns('id,x,y\nC-A1,0,0\nC-B2,600,600');
+    expect(useGridStore.getState().columns).toEqual([
+      { id: 'C-A1', x: 0, y: 0 },
+      { id: 'C-B2', x: 600, y: 600 },
+    ]);
   });
 });
 

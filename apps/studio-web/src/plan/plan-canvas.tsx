@@ -22,7 +22,12 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   exportDocumentToDXF,
+  useGridStore,
   useRackStore,
+  type BaySide,
+  type BayTargetScope,
+  type ColumnGridState,
+  type GridLine,
   type PlanColumnOverlay,
   type ShellOverlayState,
 } from '../session-context.js';
@@ -31,11 +36,93 @@ import { readPens } from './use-pens.js';
 
 export type PlanToolMode = 'select' | 'wall' | 'column' | 'calibrate';
 
+export const SNAP_RADIUS_INCHES = 24;
+
+export interface ColumnOsnapPreview {
+  readonly x: number; // inches
+  readonly y: number; // inches
+  readonly isSnapped: boolean;
+  readonly snapLabel: string | null;
+}
+
+export function computeColumnOsnap(
+  rawXIn: number,
+  rawYIn: number,
+  gridX: readonly GridLine[],
+  gridY: readonly GridLine[],
+  snapRadiusIn = SNAP_RADIUS_INCHES,
+): ColumnOsnapPreview {
+  const nearestX = gridX.find((g) => Math.abs(g.offset - rawXIn) <= snapRadiusIn);
+  const nearestY = gridY.find((g) => Math.abs(g.offset - rawYIn) <= snapRadiusIn);
+  if (nearestX !== undefined && nearestY !== undefined) {
+    return {
+      x: nearestX.offset,
+      y: nearestY.offset,
+      isSnapped: true,
+      snapLabel: `${nearestX.id}-${nearestY.id}`,
+    };
+  }
+  return {
+    x: Math.round(rawXIn),
+    y: Math.round(rawYIn),
+    isSnapped: false,
+    snapLabel: null,
+  };
+}
+
+export function drawArchitecturalGrid(
+  ctx: CanvasRenderingContext2D,
+  state: Pick<ColumnGridState, 'gridX' | 'gridY'>,
+): void {
+  const { gridX, gridY } = state;
+  const bubbleRadius = 16;
+  const extension = 40;
+  const maxX = gridX.length > 0 ? Math.max(...gridX.map((g) => g.offset)) : 1200;
+  const maxY = gridY.length > 0 ? Math.max(...gridY.map((g) => g.offset)) : 600;
+
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#52525b';
+  ctx.fillStyle = '#e4e4e7';
+  ctx.font = '12px "Inter", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  gridX.forEach((line) => {
+    ctx.setLineDash([15, 10]);
+    ctx.beginPath();
+    ctx.moveTo(line.offset, -extension);
+    ctx.lineTo(line.offset, maxY + extension);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(line.offset, -extension - bubbleRadius, bubbleRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillText(line.id, line.offset, -extension - bubbleRadius);
+  });
+
+  gridY.forEach((line) => {
+    ctx.setLineDash([15, 10]);
+    ctx.beginPath();
+    ctx.moveTo(-extension, line.offset);
+    ctx.lineTo(maxX + extension, line.offset);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(-extension - bubbleRadius, line.offset, bubbleRadius, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillText(line.id, -extension - bubbleRadius, line.offset);
+  });
+  ctx.restore();
+}
+
 function sameHit(a: PlanHit | null, b: PlanHit | null): boolean {
   if (a === b) return true;
   if (a === null || b === null || a.kind !== b.kind) return false;
   if (a.kind === 'bay' && b.kind === 'bay') {
-    return a.runId === b.runId && a.bayId === b.bayId;
+    return a.runId === b.runId && a.bayId === b.bayId && a.side === b.side;
   }
   if (a.kind === 'run' && b.kind === 'run') {
     return a.runId === b.runId;
@@ -306,7 +393,7 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
           );
         })()
       )}
-      {/* 1. Vertical dashed column grid lines + circular grid bubbles (A..M) */}
+      {/* 1. Vertical dashed column grid lines + circular grid bubbles (A..M) & Horizontal Y-Axis Architectural Grid Bubbles (1, 2, 3...) */}
       {longestRun !== undefined &&
         Array.from({ length: longestRun.bays.length + 1 }, (_, i) => {
           const worldX = longestRun.x + i * longestRun.bayPitch.value;
@@ -345,6 +432,56 @@ const PalletWashOverlay = memo(function PalletWashOverlay({
             </g>
           );
         })}
+
+      {/* 1B. Automated CAD Architectural Structural Grid (X-Axis A, B, C & Y-Axis 1, 2, 3 with Bubbles) */}
+      {(() => {
+        const gridState = useGridStore.getState();
+        const leftEdgeScreen = worldToScreen(camera, viewport, { x: shellBounds.minX, y: 0 });
+        const rightEdgeScreen = worldToScreen(camera, viewport, { x: shellBounds.maxX, y: 0 });
+        const bubbleLeftCx = leftEdgeScreen.x - 34;
+
+        return (
+          <g id="architectural-structural-grid" data-cad-grid="true">
+            {gridState.gridY.map((line) => {
+              const worldY = line.offset * 25_400;
+              const pt = worldToScreen(camera, viewport, { x: shellBounds.minX, y: worldY });
+              return (
+                <g key={`arch-grid-y:${line.id}`} data-grid-axis="y" data-grid-id={line.id}>
+                  <line
+                    x1={bubbleLeftCx + 9.5}
+                    y1={pt.y}
+                    x2={rightEdgeScreen.x + 14}
+                    y2={pt.y}
+                    stroke="var(--rule)"
+                    strokeWidth="1"
+                    strokeDasharray="6 4"
+                  />
+                  <circle
+                    cx={bubbleLeftCx}
+                    cy={pt.y}
+                    r={9.5}
+                    fill="var(--paper)"
+                    stroke="var(--ink-2)"
+                    strokeWidth="1"
+                  />
+                  <text
+                    x={bubbleLeftCx}
+                    y={pt.y + 0.5}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontFamily="var(--font-mono)"
+                    fontSize="9.5"
+                    fontWeight="600"
+                    fill="var(--ink-2)"
+                  >
+                    {line.id}
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+        );
+      })()}
 
       {/* 2. Aisle callout bands (with amber highlight + dashed end-caps on the primary failing aisle) */}
       {plan.aisles.map((aisle, idx) => {
@@ -912,6 +1049,7 @@ export interface SelectedBay {
   readonly runId: string;
   readonly bayId: string;
   readonly bayIndex: number;
+  readonly side?: BaySide;
 }
 
 /**
@@ -1085,10 +1223,15 @@ export function PlanCanvas({
   const [camera, setCamera] = useState<Camera | null>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [selected, setSelected] = useState<SelectedBay | null>(null);
+  const [targetScope, setTargetScope] = useState<BayTargetScope>('top');
+  const [beamElevEditIn, setBeamElevEditIn] = useState<string>('64');
+  const [previewColumn, setPreviewColumn] = useState<ColumnOsnapPreview | null>(null);
   const [contextMenu, setContextMenu] = useState<CanvasBayContextMenuState | null>(null);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [selectedAisleId, setSelectedAisleId] = useState<string | null>(null);
   const [hovered, setHovered] = useState<PlanHit | null>(null);
+  const doubleBays = useRackStore((state) => state.doubleBays);
+  const setBaySideConfig = useRackStore((state) => state.setBaySideConfig);
   const [wallDraftStart, setWallDraftStart] = useState<{ x: number; y: number } | null>(null);
   const [wallDraftCurrent, setWallDraftCurrent] = useState<{ x: number; y: number } | null>(null);
   const [calP1, setCalP1] = useState<{ x: number; y: number } | null>(null);
@@ -1374,6 +1517,15 @@ export function PlanCanvas({
         y: e.clientY - rect.top,
       });
 
+      if (toolMode === 'column') {
+        const rawXIn = world.x / 25_400;
+        const rawYIn = world.y / 25_400;
+        const gridState = useGridStore.getState();
+        const osnap = computeColumnOsnap(rawXIn, rawYIn, gridState.gridX, gridState.gridY);
+        setPreviewColumn(osnap);
+        return;
+      }
+
       if (toolMode === 'wall' && wallDraftStart !== null) {
         const dx = Math.abs(world.x - wallDraftStart.x);
         const dy = Math.abs(world.y - wallDraftStart.y);
@@ -1382,6 +1534,11 @@ export function PlanCanvas({
             ? { x: Math.round(world.x), y: wallDraftStart.y }
             : { x: wallDraftStart.x, y: Math.round(world.y) };
         setWallDraftCurrent(orthoPoint);
+        return;
+      }
+
+      const target = e.target as Element | null;
+      if (target?.closest('[data-bay-id]')) {
         return;
       }
 
@@ -1452,22 +1609,24 @@ export function PlanCanvas({
         }
 
         if (toolMode === 'column') {
-          onShellOverlayChange?.((prev) => {
-            const idx = prev.customColumns.length + 1;
-            return {
-              ...prev,
-              customColumns: [
-                ...prev.customColumns,
-                {
-                  id: `custom-col-${idx}`,
-                  xUm: Math.round(world.x),
-                  yUm: Math.round(world.y),
-                  sizeIn: prev.columnSizeIn,
-                  label: `COL-${idx}`,
-                },
-              ],
-            };
-          });
+          const gridState = useGridStore.getState();
+          const osnap =
+            previewColumn ??
+            computeColumnOsnap(world.x / 25_400, world.y / 25_400, gridState.gridX, gridState.gridY);
+          const placed = gridState.placeColumn(osnap.x, osnap.y);
+          onShellOverlayChange?.((prev) => ({
+            ...prev,
+            customColumns: [
+              ...prev.customColumns.filter((c) => c.id !== placed.id),
+              {
+                id: placed.id,
+                xUm: Math.round(placed.x * 25_400),
+                yUm: Math.round(placed.y * 25_400),
+                sizeIn: prev.columnSizeIn,
+                label: osnap.snapLabel !== null ? `${placed.id} (${osnap.snapLabel})` : placed.id,
+              },
+            ],
+          }));
           return;
         }
 
@@ -1488,7 +1647,13 @@ export function PlanCanvas({
 
         const hit = hitTestPlan(plan, world.x, world.y, effectiveCamera.scale);
         if (hit?.kind === 'bay') {
-          setSelected({ runId: hit.runId, bayId: hit.bayId, bayIndex: hit.bayIndex });
+          setSelected({
+            runId: hit.runId,
+            bayId: hit.bayId,
+            bayIndex: hit.bayIndex,
+            side: hit.side,
+          });
+          setTargetScope(hit.side);
           setSelectedColumnId(null);
           setSelectedAisleId(null);
         } else if (hit?.kind === 'aisle') {
@@ -1509,6 +1674,7 @@ export function PlanCanvas({
       effectiveViewport,
       onShellOverlayChange,
       plan,
+      previewColumn,
       toolMode,
       wallDraftStart,
     ],
@@ -1774,87 +1940,180 @@ export function PlanCanvas({
             calP2={calP2}
           />
 
-          {/* Bay interactive selection targets */}
+          {/* Bay interactive selection targets — split into Front (top) & Back (bottom) rows across the flue */}
           {plan.runs.map((run) => {
-            const overhangUm = Math.max(0, run.overhang.value);
-            const runTop = run.y - overhangUm;
-            const runBottom = runTop + run.rowBlockPallets.value;
             return run.bays.map((bay) => {
-              const topLeft = worldToScreen(effectiveCamera, effectiveViewport, {
-                x: bay.x,
-                y: runTop,
-              });
-              const bottomRight = worldToScreen(effectiveCamera, effectiveViewport, {
-                x: bay.x + bay.width,
-                y: runBottom,
-              });
-              const isSelected =
-                activeSelection?.run.runId === run.runId && activeSelection.bay.bayId === bay.bayId;
-              const isHovered =
-                !isPanning &&
-                hovered?.kind === 'bay' &&
-                hovered.runId === run.runId &&
-                hovered.bayId === bay.bayId;
+              const bayKey = `${run.runId}:${bay.bayId}`;
+              const doubleBayCfg = doubleBays[bayKey];
+              return run.rows.map((row, rowIdx) => {
+                const side: BaySide = rowIdx === 0 ? 'top' : 'bottom';
+                if (side === 'top' && doubleBayCfg?.bottomSide.isSingle) {
+                  return null;
+                }
+                if (side === 'bottom' && doubleBayCfg?.topSide.isSingle) {
+                  return null;
+                }
+                const topLeft = worldToScreen(effectiveCamera, effectiveViewport, {
+                  x: bay.x,
+                  y: row.y,
+                });
+                const bottomRight = worldToScreen(effectiveCamera, effectiveViewport, {
+                  x: bay.x + bay.width,
+                  y: row.y + row.depth,
+                });
+                const isSameBay =
+                  activeSelection?.run.runId === run.runId &&
+                  activeSelection.bay.bayId === bay.bayId;
+                const isSelected =
+                  isSameBay &&
+                  (targetScope === 'both' || targetScope === side || run.rows.length === 1);
+                const isHovered =
+                  !isPanning &&
+                  hovered?.kind === 'bay' &&
+                  hovered.runId === run.runId &&
+                  hovered.bayId === bay.bayId &&
+                  (hovered.side === side || run.rows.length === 1);
 
-              return (
-                <rect
-                  key={bay.bayId}
-                  data-bay-id={bay.bayId}
-                  data-run-id={run.runId}
-                  data-selected={isSelected ? 'true' : 'false'}
-                  data-locked={bay.locked ? 'true' : 'false'}
-                  className={
-                    isSelected
-                      ? 'plan-bay-overlay plan-bay-selected'
-                      : isHovered
-                        ? 'plan-bay-overlay plan-bay-hovered'
-                        : 'plan-bay-overlay'
-                  }
-                  x={topLeft.x}
-                  y={topLeft.y}
-                  width={Math.max(2, bottomRight.x - topLeft.x)}
-                  height={Math.max(2, bottomRight.y - topLeft.y)}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`${run.label} Bay ${bay.index + 1}${bay.locked ? ' (locked)' : ''}`}
-                  aria-pressed={isSelected}
-                  onClick={() => {
-                    if (suppressNextBayClickRef.current) {
-                      suppressNextBayClickRef.current = false;
-                      return;
+                return (
+                  <rect
+                    key={`${bay.bayId}:${side}`}
+                    data-bay-id={bay.bayId}
+                    data-bay-side={side}
+                    data-run-id={run.runId}
+                    data-selected={isSelected ? 'true' : 'false'}
+                    data-hovered={isHovered ? 'true' : 'false'}
+                    data-locked={bay.locked ? 'true' : 'false'}
+                    className={
+                      isSelected
+                        ? 'plan-bay-overlay plan-bay-selected'
+                        : isHovered
+                          ? 'plan-bay-overlay plan-bay-hovered'
+                          : 'plan-bay-overlay'
                     }
-                    setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index });
-                    setSelectedColumnId(null);
-                    setSelectedAisleId(null);
-                  }}
-                  onDoubleClick={(e) => {
-                    e.stopPropagation();
-                    const wrapRect = wrapRef.current?.getBoundingClientRect();
-                    const relX = wrapRect ? e.clientX - wrapRect.left : Math.round(topLeft.x + 16);
-                    const relY = wrapRect ? e.clientY - wrapRect.top : Math.round(topLeft.y + 16);
-                    setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index });
-                    setContextMenu({
-                      x: Math.max(12, relX),
-                      y: Math.max(12, relY),
-                      runId: run.runId,
-                      runLabel: run.label,
-                      bayId: bay.bayId,
-                      bayIndex: bay.index,
-                      locked: bay.locked,
-                    });
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index });
+                    x={topLeft.x}
+                    y={topLeft.y}
+                    width={Math.max(2, bottomRight.x - topLeft.x)}
+                    height={Math.max(2, bottomRight.y - topLeft.y)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${run.label} Bay ${bay.index + 1} (${side === 'top' ? 'Front Row' : 'Back Row'})${bay.locked ? ' (locked)' : ''}`}
+                    aria-pressed={isSelected}
+                    onMouseEnter={() => {
+                      if (!isPanning) {
+                        setHovered({
+                          kind: 'bay',
+                          runId: run.runId,
+                          bayId: bay.bayId,
+                          bayIndex: bay.index,
+                          side,
+                          locked: bay.locked,
+                          run,
+                          bay,
+                        });
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      setHovered((prev) =>
+                        prev?.kind === 'bay' && prev.bayId === bay.bayId && prev.side === side
+                          ? null
+                          : prev,
+                      );
+                    }}
+                    onClick={() => {
+                      if (suppressNextBayClickRef.current) {
+                        suppressNextBayClickRef.current = false;
+                        return;
+                      }
+                      setSelected({
+                        runId: run.runId,
+                        bayId: bay.bayId,
+                        bayIndex: bay.index,
+                        side,
+                      });
+                      setTargetScope(side);
                       setSelectedColumnId(null);
                       setSelectedAisleId(null);
-                    }
-                  }}
-                />
-              );
+                    }}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      const wrapRect = wrapRef.current?.getBoundingClientRect();
+                      const relX = wrapRect ? e.clientX - wrapRect.left : Math.round(topLeft.x + 16);
+                      const relY = wrapRect ? e.clientY - wrapRect.top : Math.round(topLeft.y + 16);
+                      setSelected({
+                        runId: run.runId,
+                        bayId: bay.bayId,
+                        bayIndex: bay.index,
+                        side,
+                      });
+                      setTargetScope(side);
+                      setContextMenu({
+                        x: Math.max(12, relX),
+                        y: Math.max(12, relY),
+                        runId: run.runId,
+                        runLabel: run.label,
+                        bayId: bay.bayId,
+                        bayIndex: bay.index,
+                        locked: bay.locked,
+                      });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelected({
+                          runId: run.runId,
+                          bayId: bay.bayId,
+                          bayIndex: bay.index,
+                          side,
+                        });
+                        setTargetScope(side);
+                        setSelectedColumnId(null);
+                        setSelectedAisleId(null);
+                      }
+                    }}
+                  />
+                );
+              });
             });
           })}
+
+          {/* OSNAP Column Preview Marker when ACTIVE TOOL: COLUMN */}
+          {toolMode === 'column' && previewColumn !== null && (() => {
+            const pt = worldToScreen(effectiveCamera, effectiveViewport, {
+              x: previewColumn.x * 25_400,
+              y: previewColumn.y * 25_400,
+            });
+            return (
+              <g
+                id="column-osnap-preview"
+                data-osnap-snapped={previewColumn.isSnapped ? 'true' : 'false'}
+                style={{ pointerEvents: 'none' }}
+              >
+                <rect
+                  x={pt.x - 10}
+                  y={pt.y - 10}
+                  width={20}
+                  height={20}
+                  fill="var(--safety-orange-bg)"
+                  stroke={previewColumn.isSnapped ? 'var(--safety-orange)' : 'var(--ink-2)'}
+                  strokeWidth={previewColumn.isSnapped ? '2.2' : '1.4'}
+                  strokeDasharray={previewColumn.isSnapped ? undefined : '3 2'}
+                />
+                {previewColumn.isSnapped && (
+                  <text
+                    x={pt.x}
+                    y={pt.y - 14}
+                    textAnchor="middle"
+                    fontFamily="var(--font-mono)"
+                    fontSize="10"
+                    fontWeight="700"
+                    fill="var(--safety-orange)"
+                  >
+                    OSNAP LOCK {previewColumn.snapLabel ?? ''} ({previewColumn.x}&quot;, {previewColumn.y}&quot;)
+                  </text>
+                )}
+              </g>
+            );
+          })()}
 
           {/* Lock glyphs on locked bays */}
           {plan.runs.map((run) =>
@@ -2296,10 +2555,22 @@ export function PlanCanvas({
           </div>
         )}
 
-        {/* S4.2 Floating selection toolbar */}
+        {/* S4.2 Floating selection toolbar with Contextual Side Scoping (Front Only | Back Only | Both) */}
         {activeSelection !== null && (() => {
           const docRun = doc.runs.find((r) => r.id === activeSelection.run.runId);
           const flueIn = docRun !== undefined ? Math.max(6, Math.round(docRun.rowSpacer / 25_400)) : 6;
+          const bayKey = `${activeSelection.run.runId}:${activeSelection.bay.bayId}`;
+          const bayCfg = doubleBays[bayKey];
+          const activeSideCfg =
+            targetScope === 'bottom'
+              ? bayCfg?.bottomSide
+              : bayCfg?.topSide;
+          const scopeLabel =
+            targetScope === 'top'
+              ? 'Front Row'
+              : targetScope === 'bottom'
+                ? 'Back Row'
+                : 'Both Rows';
           return (
             <div
               id="seltoolbar"
@@ -2308,9 +2579,103 @@ export function PlanCanvas({
               aria-label="Selected bay actions"
             >
               <span id="seltitle" className="what sel-title">
-                {activeSelection.run.label} · Bay {activeSelection.bay.index + 1}
+                {activeSelection.run.label} · Bay {activeSelection.bay.index + 1} ({scopeLabel})
                 {activeSelection.bay.locked ? ' (LOCKED)' : ''}
+                {activeSideCfg !== undefined ? ` · L1 ${activeSideCfg.beamLevels[0] ?? 60}"` : ''}
               </span>
+
+              {/* Segmented Target Scope Toggle: [ Target: Front Only | Back Only | Both ] */}
+              {activeSelection.run.rows.length > 1 && (
+                <div
+                  id="sel-scope-group"
+                  className="sel-scope-group"
+                  role="group"
+                  aria-label="Target row scope"
+                >
+                  <span className="what">Target:</span>
+                  <button
+                    id="sel-scope-top-btn"
+                    type="button"
+                    className={
+                      targetScope === 'top' ? 'btn sel-btn sel-scope-active' : 'btn sel-btn'
+                    }
+                    aria-pressed={targetScope === 'top'}
+                    onClick={() => setTargetScope('top')}
+                  >
+                    Front Only
+                  </button>
+                  <button
+                    id="sel-scope-bottom-btn"
+                    type="button"
+                    className={
+                      targetScope === 'bottom' ? 'btn sel-btn sel-scope-active' : 'btn sel-btn'
+                    }
+                    aria-pressed={targetScope === 'bottom'}
+                    onClick={() => setTargetScope('bottom')}
+                  >
+                    Back Only
+                  </button>
+                  <button
+                    id="sel-scope-both-btn"
+                    type="button"
+                    className={
+                      targetScope === 'both' ? 'btn sel-btn sel-scope-active' : 'btn sel-btn'
+                    }
+                    aria-pressed={targetScope === 'both'}
+                    onClick={() => setTargetScope('both')}
+                  >
+                    Both
+                  </button>
+                </div>
+              )}
+
+              {/* Scoped Beam Elevation Quick-Set */}
+              <div className="sel-beam-quickset">
+                <label htmlFor="sel-beam-elev-input" className="what">
+                  L1 T.O.B.:
+                </label>
+                <input
+                  id="sel-beam-elev-input"
+                  type="number"
+                  step={2}
+                  min={12}
+                  max={360}
+                  className="pf-input dock-dim-input"
+                  value={beamElevEditIn}
+                  onChange={(e) => setBeamElevEditIn(e.target.value)}
+                />
+                <button
+                  id="sel-beam-elev-apply-btn"
+                  type="button"
+                  className="btn sel-btn"
+                  onClick={() => {
+                    const valIn = Math.round(Number(beamElevEditIn) / 2) * 2;
+                    if (!Number.isFinite(valIn) || valIn <= 0) return;
+                    setBaySideConfig(
+                      activeSelection.run.runId,
+                      activeSelection.bay.bayId,
+                      targetScope,
+                      {
+                        beamLevels: [valIn, valIn + 60, valIn + 120],
+                      },
+                    );
+                    if (targetScope === 'both') {
+                      const bt = doc.bayTypes[0];
+                      if (bt !== undefined) {
+                        onCommand?.({
+                          type: 'setBeamLevel',
+                          bayTypeId: bt.id,
+                          index: 0,
+                          top: Math.round(valIn * 25_400),
+                        });
+                      }
+                    }
+                  }}
+                >
+                  Apply {beamElevEditIn}&quot;
+                </button>
+              </div>
+
               <button
                 type="button"
                 className="btn sel-btn"
@@ -2341,7 +2706,13 @@ export function PlanCanvas({
                     id="sel-toggle-b2b-btn"
                     type="button"
                     className="btn sel-btn"
-                    onClick={() =>
+                    onClick={() => {
+                      setBaySideConfig(
+                        activeSelection.run.runId,
+                        activeSelection.bay.bayId,
+                        targetScope,
+                        { isSingle: docRun.backToBack },
+                      );
                       onCommand?.({
                         type: 'setField',
                         label: `Toggle ${docRun.name} row depth`,
@@ -2350,8 +2721,8 @@ export function PlanCanvas({
                           runId: docRun.id,
                           patch: { backToBack: !docRun.backToBack },
                         },
-                      })
-                    }
+                      });
+                    }}
                   >
                     {docRun.backToBack ? 'Set Single' : 'Set B2B'}
                   </button>

@@ -736,14 +736,61 @@ body {
 }
 
 .plan-bay-hovered {
-  stroke: var(--sel);
-  stroke-dasharray: 4 2;
+  fill: var(--safety-orange-bg);
+  stroke: var(--safety-orange);
+  stroke-width: 2;
+  stroke-dasharray: none;
 }
 
 .plan-bay-selected {
   fill: var(--sel-bg);
   stroke: var(--sel);
   stroke-width: 2;
+}
+
+.sel-scope-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+}
+
+.sel-scope-label {
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 0 3px;
+}
+
+.sel-scope-active {
+  background: var(--safety-orange-bg);
+  border-color: var(--safety-orange);
+  color: var(--safety-orange);
+  font-weight: 700;
+}
+
+.sel-beam-quickset {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 3px;
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+}
+
+.sel-beam-input {
+  width: 58px;
+  height: 20px;
+  padding: 1px 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
 }
 
 .plan-canvas-column {

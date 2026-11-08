@@ -15,12 +15,25 @@
 
 import type { AislePlan, BayRect, PlanGeometry, RunPlan } from '@rms/studio-model';
 
+export type BayHitSide = 'top' | 'bottom';
+
+export interface BaySideHit {
+  readonly runId: string;
+  readonly bayId: string;
+  readonly bayIndex: number;
+  readonly side: BayHitSide;
+  readonly locked: boolean;
+  readonly run: RunPlan;
+  readonly bay: BayRect;
+}
+
 export type PlanHit =
   | {
       readonly kind: 'bay';
       readonly runId: string;
       readonly bayId: string;
       readonly bayIndex: number;
+      readonly side: BayHitSide;
       readonly locked: boolean;
       readonly run: RunPlan;
       readonly bay: BayRect;
@@ -51,6 +64,60 @@ function inRect(
 }
 
 /**
+ * Split hit-detection bounding boxes for back-to-back runs into two distinct
+ * hitboxes (`top` = Front row, `bottom` = Back row) separated by the flue space.
+ * Clicking or hovering inside the flue space between the two rows returns `null`.
+ */
+export function checkBayIntersection(
+  plan: PlanGeometry,
+  mouseWorldX: number,
+  mouseWorldY: number,
+): BaySideHit | null {
+  for (const run of plan.runs) {
+    const firstRow = run.rows[0];
+    const secondRow = run.rows[1];
+    if (firstRow === undefined) continue;
+
+    for (const bay of run.bays) {
+      const bayLeft = bay.x;
+      const bayRight = bay.x + bay.width;
+      if (mouseWorldX < bayLeft || mouseWorldX > bayRight) continue;
+
+      const topRackTop = firstRow.y;
+      const topRackBottom = firstRow.y + firstRow.depth;
+      if (mouseWorldY >= topRackTop && mouseWorldY <= topRackBottom) {
+        return {
+          runId: run.runId,
+          bayId: bay.bayId,
+          bayIndex: bay.index,
+          side: 'top',
+          locked: bay.locked,
+          run,
+          bay,
+        };
+      }
+
+      if (secondRow !== undefined) {
+        const bottomRackTop = secondRow.y;
+        const bottomRackBottom = secondRow.y + secondRow.depth;
+        if (mouseWorldY >= bottomRackTop && mouseWorldY <= bottomRackBottom) {
+          return {
+            runId: run.runId,
+            bayId: bay.bayId,
+            bayIndex: bay.index,
+            side: 'bottom',
+            locked: bay.locked,
+            run,
+            bay,
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Test a world-space point `(worldX, worldY)` in micrometres against `plan`.
  *
  * `scale` is CSS pixels per micrometre (`camera.scale`), used only to translate
@@ -64,6 +131,15 @@ export function hitTestPlan(
 ): PlanHit | null {
   const tolUm = scale > 0 ? Math.round(SCREEN_HIT_TOLERANCE_PX / scale) : 0;
 
+  // 1. Check strict front/back row bounding boxes first
+  const strictSideHit = checkBayIntersection(plan, worldX, worldY);
+  if (strictSideHit !== null) {
+    return {
+      kind: 'bay',
+      ...strictSideHit,
+    };
+  }
+
   for (const run of plan.runs) {
     const overhangUm = Math.max(0, run.overhang.value);
     const runTop = run.y - overhangUm;
@@ -74,6 +150,7 @@ export function hitTestPlan(
       continue;
     }
 
+    const midY = run.y + run.rowBlockFrames.value / 2;
     for (const bay of run.bays) {
       if (inRect(worldX, worldY, bay.x, runTop, bay.width, runHeight, 0)) {
         return {
@@ -81,6 +158,7 @@ export function hitTestPlan(
           runId: run.runId,
           bayId: bay.bayId,
           bayIndex: bay.index,
+          side: worldY <= midY ? 'top' : 'bottom',
           locked: bay.locked,
           run,
           bay,
