@@ -45,7 +45,7 @@ function StudioShell({
   const { canUndo, onUndo } = useStudioSession();
 
   return (
-    <div className="studio">
+    <div className="studio bg-zinc-950 text-gray-200" data-industrial-theme="dark">
       <Header canUndo={canUndo} onUndo={onUndo} fetchImpl={fetchImpl} />
       <Banner />
 

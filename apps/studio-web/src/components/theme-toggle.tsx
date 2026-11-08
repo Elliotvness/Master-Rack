@@ -43,9 +43,10 @@ const ICON: Record<Theme, React.JSX.Element> = {
  * everywhere in this application: never state anything by appearance alone.
  */
 export function ThemeToggle(): React.JSX.Element {
-  const [theme, setTheme] = useState<Theme>(() =>
-    readStoredTheme(typeof localStorage === 'undefined' ? undefined : localStorage),
-  );
+  const [theme, setTheme] = useState<Theme>(() => {
+    const stored = readStoredTheme(typeof localStorage === 'undefined' ? undefined : localStorage);
+    return stored === 'system' ? 'dark' : stored;
+  });
 
   useEffect(() => {
     applyTheme(document.documentElement, theme);

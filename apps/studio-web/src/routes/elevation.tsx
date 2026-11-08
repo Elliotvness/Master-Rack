@@ -2,8 +2,11 @@ import { bayTypeForRun, type Command } from '@rms/studio-model';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  ELEV_VB_PAD_BOTTOM_UM,
+  ELEV_VB_PAD_TOP_UM,
   ElevationSvg,
   beamFaceHeightInFromPart,
+  buildDocumentElevation,
   computeElevationClearances,
   renderElevationCanvas,
   snapToPitchInches,
@@ -75,10 +78,21 @@ export default function ElevationView(): React.JSX.Element {
   const frameHeightIn = bt !== undefined ? Math.round(bt.frameHeight.value / UM_PER_INCH) : 240;
   const maxVertIn = Math.max(clearHeightIn + 24, frameHeightIn + 48, 300);
 
+  const elevationDisplayList = useMemo(() => buildDocumentElevation(doc), [doc]);
+  const extentHeightUm = elevationDisplayList.extent.height;
+  const totalVbHeightUm = extentHeightUm + ELEV_VB_PAD_TOP_UM + ELEV_VB_PAD_BOTTOM_UM;
+
   const yPercentForInches = (elevIn: number): number => {
-    const clamped = Math.max(0, Math.min(maxVertIn, elevIn));
-    return Math.round((1 - clamped / maxVertIn) * 84 + 8);
+    const elevUm = elevIn * UM_PER_INCH;
+    const svgY = extentHeightUm - elevUm + ELEV_VB_PAD_TOP_UM;
+    return Math.max(4, Math.min(96, Math.round((svgY / totalVbHeightUm) * 10000) / 100));
   };
+
+  const clearHeightTopPct = yPercentForInches(clearHeightIn);
+  const deflectorTopPct = Math.max(
+    yPercentForInches(deflectorIn),
+    Math.min(92, clearHeightTopPct + 6.5),
+  );
 
   // Keep the HTML5 canvas layer synchronized with state
   useEffect(() => {
@@ -433,7 +447,7 @@ export default function ElevationView(): React.JSX.Element {
           <div
             id="elev-clear-height-overlay"
             className="elev-coord-pill elev-coord-pill-ceiling"
-            style={{ top: `${yPercentForInches(clearHeightIn)}%` }}
+            style={{ top: `${clearHeightTopPct}%` }}
           >
             <span className="elev-coord-tick elev-coord-tick-ceiling" aria-hidden="true" />
             <button
@@ -445,7 +459,7 @@ export default function ElevationView(): React.JSX.Element {
                 setEditingTarget({
                   kind: 'clear-height',
                   valueIn: clearHeightIn,
-                  topPct: yPercentForInches(clearHeightIn),
+                  topPct: clearHeightTopPct,
                 });
                 setEditingInputVal(String(clearHeightIn));
               }}
@@ -461,7 +475,7 @@ export default function ElevationView(): React.JSX.Element {
           <div
             id="elev-deflector-overlay"
             className="elev-coord-pill elev-coord-pill-deflector"
-            style={{ top: `${yPercentForInches(deflectorIn)}%` }}
+            style={{ top: `${deflectorTopPct}%` }}
           >
             <span className="elev-coord-tick elev-coord-tick-deflector" aria-hidden="true" />
             <button
@@ -473,7 +487,7 @@ export default function ElevationView(): React.JSX.Element {
                 setEditingTarget({
                   kind: 'deflector',
                   valueIn: deflectorIn,
-                  topPct: yPercentForInches(deflectorIn),
+                  topPct: deflectorTopPct,
                 });
                 setEditingInputVal(String(deflectorIn));
               }}

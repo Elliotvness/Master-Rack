@@ -15,8 +15,8 @@
 }
 
 body {
-  background-color: var(--color-bg) !important;
-  color: var(--color-text) !important;
+  background-color: var(--zinc-950) !important;
+  color: var(--zinc-200) !important;
   font-family: var(--font-body) !important;
   font-size: 15px;
   line-height: 1.55;
@@ -27,18 +27,17 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   font-family: var(--font-heading) !important;
   font-weight: var(--font-heading-weight) !important;
   letter-spacing: -0.01em;
-  color: var(--color-text);
+  color: var(--zinc-200);
 }
 
 .font-mono, code, pre {
   font-family: var(--font-mono) !important;
 }
 
-/* Brand Logo Dual-Theme Switching */
+/* Brand Logo Dual-Theme Switching — Industrial Dark Shell always uses white wordmark */
 .brand-logo { display: block; height: 38px; width: auto; }
-.brand-logo-dark { display: none; }
-:root[data-theme='dark'] .brand-logo-dark { display: block; }
-:root[data-theme='dark'] .brand-logo-light { display: none; }
+.brand-logo-light { display: none; }
+.brand-logo-dark { display: block; }
 
 /* Blueprint Wireframe Frame & + Corner Registration Marks */
 .blueprint {
@@ -187,10 +186,10 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   padding: 6px 10px;
   font-family: inherit;
   font-size: 13px;
-  color: var(--color-text) !important;
-  caret-color: var(--color-accent);
-  background-color: var(--color-surface) !important;
-  border: 1px solid var(--color-divider) !important;
+  color: var(--zinc-200) !important;
+  caret-color: var(--safety-orange);
+  background-color: var(--zinc-900) !important;
+  border: 1px solid var(--zinc-700) !important;
   border-radius: 0 !important;
 }
 .input:hover, input:hover, select:hover, textarea:hover {

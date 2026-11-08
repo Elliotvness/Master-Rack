@@ -22,6 +22,8 @@ import {
 import { useMemo } from 'react';
 
 const UM_PER_INCH = 25_400;
+export const ELEV_VB_PAD_TOP_UM = 1_500_000;
+export const ELEV_VB_PAD_BOTTOM_UM = 750_000;
 
 /**
  * Snap a raw elevation in inches to a valid roll-formed teardrop or structural
@@ -312,12 +314,19 @@ export function renderElevationCanvas(
     ctx.lineTo(dimX + 4, beamTopY - 4);
     ctx.stroke();
 
+    // Left-side & Right-side T.O.B. Dimension Text in high-contrast zinc-200 (#e4e4e7)
+    ctx.fillStyle = '#e4e4e7';
+    ctx.font = '11px "JetBrains Mono", monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${elevIn.toFixed(2)}" T.O.B.`, frameLeftX - 10, beamTopY);
+
     ctx.fillStyle = '#e4e4e7';
     ctx.font = '11px "JetBrains Mono", monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';
     ctx.fillText(`${elevIn.toFixed(2)}"`, dimX + 18, beamTopY - 2);
-    ctx.fillStyle = '#a1a1aa';
+    ctx.fillStyle = '#e4e4e7';
     ctx.font = '10px "Inter", sans-serif';
     ctx.fillText('T.O.B.', dimX + 68, beamTopY - 2);
   });
@@ -416,10 +425,10 @@ export function ElevationSvg({
 
   // Model coordinates are integer micrometres with y=0 at the slab.
   // SVG viewBox uses micrometres directly so X and Y share the exact same scale.
-  const padLeft = 1_200_000;
+  const padLeft = 1_450_000;
   const padRight = 3_400_000;
-  const padTop = 1_500_000;
-  const padBottom = 750_000;
+  const padTop = ELEV_VB_PAD_TOP_UM;
+  const padBottom = ELEV_VB_PAD_BOTTOM_UM;
 
   const vbX = -padLeft;
   const vbY = -padTop;
@@ -717,14 +726,25 @@ export function ElevationSvg({
                     : undefined
                 }
               >
-                {/* Extension line from upright to CAD dimension chain */}
+                {/* Left-side high-contrast T.O.B. callout */}
+                <text
+                  className="elev-text elev-cad-tob-text"
+                  x={-160_000}
+                  y={ySvg - 25_000}
+                  fontSize={fontSize * 0.86}
+                  textAnchor="end"
+                >
+                  {elevIn.toFixed(2)}&quot; T.O.B.
+                </text>
+                {/* Dashed extension line from upright to CAD dimension chain & right coordinate pill */}
                 <line
                   className="elev-cad-ext-line"
                   x1={list.extent.width + 45_000}
                   y1={ySvg}
-                  x2={cadDimX + 140_000}
+                  x2={list.extent.width + padRight}
                   y2={ySvg}
-                  strokeWidth={strokeW * 0.8}
+                  strokeWidth={strokeW * 0.85}
+                  strokeDasharray={`${strokeW * 3} ${strokeW * 2}`}
                 />
                 {/* 45-degree architectural tick at intersection */}
                 <line

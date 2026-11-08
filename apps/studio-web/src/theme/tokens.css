@@ -70,8 +70,19 @@
   --zinc-950: #09090b;
   --zinc-900: #18181b;
   --zinc-800: #27272a;
+  --zinc-700: #3f3f46;
+  --zinc-400: #a1a1aa;
+  --zinc-300: #d4d4d8;
+  --zinc-200: #e4e4e7;
+  --zinc-100: #f4f4f5;
   --safety-orange: #ea580c;
-  --safety-orange-bg: rgba(234, 88, 12, 0.12);
+  --safety-orange-bg: rgba(234, 88, 12, 0.18);
+  --elev-pass: #4ade80;
+  --elev-pass-bg: rgba(34, 197, 94, 0.14);
+  --elev-warn: #fbbf24;
+  --elev-warn-bg: rgba(245, 158, 11, 0.16);
+  --elev-danger: #f87171;
+  --elev-danger-bg: rgba(239, 68, 68, 0.16);
 }
 
 :root[data-theme='dark'] {
@@ -123,8 +134,19 @@
   --zinc-950: #09090b;
   --zinc-900: #18181b;
   --zinc-800: #27272a;
+  --zinc-700: #3f3f46;
+  --zinc-400: #a1a1aa;
+  --zinc-300: #d4d4d8;
+  --zinc-200: #e4e4e7;
+  --zinc-100: #f4f4f5;
   --safety-orange: #ea580c;
   --safety-orange-bg: rgba(234, 88, 12, 0.18);
+  --elev-pass: #4ade80;
+  --elev-pass-bg: rgba(34, 197, 94, 0.14);
+  --elev-warn: #fbbf24;
+  --elev-warn-bg: rgba(245, 158, 11, 0.16);
+  --elev-danger: #f87171;
+  --elev-danger-bg: rgba(239, 68, 68, 0.16);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -177,8 +199,19 @@
     --zinc-950: #09090b;
     --zinc-900: #18181b;
     --zinc-800: #27272a;
+    --zinc-700: #3f3f46;
+    --zinc-400: #a1a1aa;
+    --zinc-300: #d4d4d8;
+    --zinc-200: #e4e4e7;
+    --zinc-100: #f4f4f5;
     --safety-orange: #ea580c;
     --safety-orange-bg: rgba(234, 88, 12, 0.18);
+    --elev-pass: #4ade80;
+    --elev-pass-bg: rgba(34, 197, 94, 0.14);
+    --elev-warn: #fbbf24;
+    --elev-warn-bg: rgba(245, 158, 11, 0.16);
+    --elev-danger: #f87171;
+    --elev-danger-bg: rgba(239, 68, 68, 0.16);
   }
 }
 
@@ -211,42 +244,42 @@ html {
   --shadow-sm: var(--shadow);
   --shadow-lg: var(--shadow);
 
-  /* The blueprint system's names, kept so its component rules read naturally. */
-  --color-bg: var(--paper);
-  --color-surface: var(--sunk);
-  --color-text: var(--ink);
-  --color-divider: var(--rule);
-  --color-accent: var(--navy-2);
-  --color-action: var(--navy);
-  --color-neutral-100: var(--panel);
-  --color-neutral-200: var(--rule-2);
-  --color-neutral-300: var(--rule);
-  --color-neutral-400: var(--ink-3);
-  --color-neutral-700: var(--ink-2);
-  --color-accent-100: var(--navy-soft);
+  /* Industrial Dark Zinc aliases so every component surface shares the unified dark theme. */
+  --color-bg: var(--zinc-950);
+  --color-surface: var(--zinc-900);
+  --color-text: var(--zinc-200);
+  --color-divider: var(--zinc-800);
+  --color-accent: var(--safety-orange);
+  --color-action: var(--safety-orange);
+  --color-neutral-100: var(--zinc-900);
+  --color-neutral-200: var(--zinc-800);
+  --color-neutral-300: var(--zinc-700);
+  --color-neutral-400: var(--zinc-400);
+  --color-neutral-700: var(--zinc-300);
+  --color-accent-100: var(--safety-orange-bg);
   --color-accent-200: var(--sel-bg);
   --color-accent-300: var(--navy-2);
-  --color-accent-600: var(--navy-2);
-  --color-accent-700: var(--navy);
-  --color-accent-800: var(--navy);
+  --color-accent-600: var(--safety-orange);
+  --color-accent-700: var(--safety-orange);
+  --color-accent-800: var(--safety-orange);
 
-  /* Names components used that NOTHING defined before F-67 (19, found by the gate), now pointed at the palette. */
-  --ink-muted: var(--ink-2);
-  --surface: var(--panel);
-  --surface-raised: var(--raise);
-  --surface-alt: var(--sunk);
-  --border: var(--rule);
-  --border-control: var(--ink-3);
-  --accent: var(--navy);
-  --focus: var(--sel);
-  --pass-ink: var(--pass);
-  --warn-ink: var(--warn);
-  --status-ok: var(--pass);
-  --status-warning: var(--warn);
-  --status-danger: var(--block);
-  --refusal: var(--block);
-  --block-ink: var(--block);
-  --chrome-ink: var(--ink);
-  --chrome-ink-muted: var(--ink-2);
-  --color-neutral-800: var(--ink);
+  /* Names components used that NOTHING defined before F-67 (19, found by the gate), now pointed at the industrial dark palette. */
+  --ink-muted: var(--zinc-400);
+  --surface: var(--zinc-900);
+  --surface-raised: var(--zinc-800);
+  --surface-alt: var(--zinc-950);
+  --border: var(--zinc-800);
+  --border-control: var(--zinc-700);
+  --accent: var(--safety-orange);
+  --focus: var(--safety-orange);
+  --pass-ink: var(--elev-pass);
+  --warn-ink: var(--elev-warn);
+  --status-ok: var(--elev-pass);
+  --status-warning: var(--elev-warn);
+  --status-danger: var(--elev-danger);
+  --refusal: var(--elev-danger);
+  --block-ink: var(--elev-danger);
+  --chrome-ink: var(--zinc-200);
+  --chrome-ink-muted: var(--zinc-400);
+  --color-neutral-800: var(--zinc-200);
 }
