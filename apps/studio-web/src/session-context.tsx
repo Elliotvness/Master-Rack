@@ -33,15 +33,125 @@ import {
 
 import fixture from '../../../fixtures/continuity/rack-studio-v1.json';
 
+export interface StateStorage {
+  readonly getItem: (name: string) => Promise<string | null>;
+  readonly setItem: (name: string, value: string) => Promise<void>;
+  readonly removeItem: (name: string) => Promise<void>;
+}
+
+const IDB_DB_NAME = 'rack-master-studio-db';
+const IDB_STORE_NAME = 'keyval';
+export const IDB_WORKSPACE_KEY = 'rack-master-studio-storage';
+const idbFallbackMap = new Map<string, string>();
+
+function openStudioIdb(): Promise<IDBDatabase | null> {
+  if (typeof window === 'undefined' || typeof window.indexedDB === 'undefined') {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    try {
+      const req = window.indexedDB.open(IDB_DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(IDB_STORE_NAME)) {
+          db.createObjectStore(IDB_STORE_NAME);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+export const idbStorage: StateStorage = {
+  getItem: async (name: string): Promise<string | null> => {
+    const db = await openStudioIdb();
+    if (db === null) {
+      return idbFallbackMap.get(name) ?? null;
+    }
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(IDB_STORE_NAME, 'readonly');
+        const store = tx.objectStore(IDB_STORE_NAME);
+        const req = store.get(name);
+        req.onsuccess = () => {
+          const res = typeof req.result === 'string' ? req.result : null;
+          resolve(res ?? idbFallbackMap.get(name) ?? null);
+        };
+        req.onerror = () => resolve(idbFallbackMap.get(name) ?? null);
+      } catch {
+        resolve(idbFallbackMap.get(name) ?? null);
+      }
+    });
+  },
+  setItem: async (name: string, value: string): Promise<void> => {
+    idbFallbackMap.set(name, value);
+    const db = await openStudioIdb();
+    if (db === null) return;
+    await new Promise<void>((resolve) => {
+      try {
+        const tx = db.transaction(IDB_STORE_NAME, 'readwrite');
+        const store = tx.objectStore(IDB_STORE_NAME);
+        store.put(value, name);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      } catch {
+        resolve();
+      }
+    });
+  },
+  removeItem: async (name: string): Promise<void> => {
+    idbFallbackMap.delete(name);
+    const db = await openStudioIdb();
+    if (db === null) return;
+    await new Promise<void>((resolve) => {
+      try {
+        const tx = db.transaction(IDB_STORE_NAME, 'readwrite');
+        const store = tx.objectStore(IDB_STORE_NAME);
+        store.delete(name);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      } catch {
+        resolve();
+      }
+    });
+  },
+};
+
+export interface RackLayoutNode {
+  readonly id: string;
+  readonly label: string;
+  readonly xIn: number;
+  readonly yIn: number;
+  readonly widthIn: number;
+  readonly depthIn: number;
+}
+
 export interface RackState {
   readonly beamClearSpan: number;
   readonly frameToFrameAisle: number;
   readonly truckMinAisle: number;
   readonly palletPositions: number;
+  readonly cameraX: number;
+  readonly cameraY: number;
+  readonly zoom: number;
+  readonly warehouseWidth: number;
+  readonly warehouseLength: number;
+  readonly layoutNodes: readonly RackLayoutNode[];
+  readonly lastAutoSavedAt: string | null;
   readonly setBeamClearSpan: (span: number) => void;
   readonly setFrameToFrameAisle: (aisle: number) => void;
   readonly setTruckMinAisle: (minAisle: number) => void;
   readonly updateCalculations: (positions: number) => void;
+  readonly setViewportCamera: (cam: {
+    readonly cameraX: number;
+    readonly cameraY: number;
+    readonly zoom: number;
+    readonly warehouseWidth: number;
+    readonly warehouseLength: number;
+  }) => void;
 }
 
 type RackStoreListener = () => void;
@@ -49,6 +159,7 @@ type RackStoreListener = () => void;
 const rackStoreListeners = new Set<RackStoreListener>();
 let activeRackCommandSink: ((cmd: Command) => void) | null = null;
 let activeRackFirstRunId: string | null = 'run-1';
+let activeRackAllRunIds: readonly string[] = ['run-1', 'run-2', 'run-3'];
 let activeRackBayTypeId: string | null = 'bt-1';
 
 let rackStoreState: RackState = {
@@ -56,6 +167,13 @@ let rackStoreState: RackState = {
   frameToFrameAisle: 132,
   truckMinAisle: 66.3,
   palletPositions: 576,
+  cameraX: 0,
+  cameraY: 0,
+  zoom: 1,
+  warehouseWidth: 1320,
+  warehouseLength: 720,
+  layoutNodes: [],
+  lastAutoSavedAt: null,
   setBeamClearSpan: (span: number): void => {
     if (!Number.isFinite(span) || span <= 0) return;
     updateRackStoreSlice({ beamClearSpan: span });
@@ -74,12 +192,27 @@ let rackStoreState: RackState = {
   setFrameToFrameAisle: (aisle: number): void => {
     if (!Number.isFinite(aisle) || aisle <= 0) return;
     updateRackStoreSlice({ frameToFrameAisle: aisle });
-    if (activeRackCommandSink !== null && activeRackFirstRunId !== null) {
-      activeRackCommandSink({
+    if (activeRackCommandSink !== null) {
+      const targetRuns =
+        activeRackAllRunIds.length > 0
+          ? activeRackAllRunIds
+          : activeRackFirstRunId !== null
+            ? [activeRackFirstRunId]
+            : [];
+      const cmds: Command[] = targetRuns.map((runId) => ({
         type: 'setAisleAfter',
-        runId: activeRackFirstRunId,
+        runId,
         frameToFrame: Math.round(aisle * 25_400),
-      });
+      }));
+      if (cmds.length === 1 && cmds[0] !== undefined) {
+        activeRackCommandSink(cmds[0]);
+      } else if (cmds.length > 1) {
+        activeRackCommandSink({
+          type: 'batch',
+          label: `Set frame-to-frame aisles to ${aisle}"`,
+          commands: cmds,
+        });
+      }
     }
   },
   setTruckMinAisle: (minAisle: number): void => {
@@ -106,22 +239,53 @@ let rackStoreState: RackState = {
     if (!Number.isFinite(positions) || positions < 0) return;
     updateRackStoreSlice({ palletPositions: positions });
   },
+  setViewportCamera: (cam): void => {
+    updateRackStoreSlice(cam);
+  },
 };
 
 function updateRackStoreSlice(
   patch: Partial<
-    Pick<RackState, 'beamClearSpan' | 'frameToFrameAisle' | 'truckMinAisle' | 'palletPositions'>
+    Pick<
+      RackState,
+      | 'beamClearSpan'
+      | 'frameToFrameAisle'
+      | 'truckMinAisle'
+      | 'palletPositions'
+      | 'cameraX'
+      | 'cameraY'
+      | 'zoom'
+      | 'warehouseWidth'
+      | 'warehouseLength'
+      | 'layoutNodes'
+      | 'lastAutoSavedAt'
+    >
   >,
 ): void {
   const nextBeam = patch.beamClearSpan ?? rackStoreState.beamClearSpan;
   const nextAisle = patch.frameToFrameAisle ?? rackStoreState.frameToFrameAisle;
   const nextTruck = patch.truckMinAisle ?? rackStoreState.truckMinAisle;
   const nextPos = patch.palletPositions ?? rackStoreState.palletPositions;
+  const nextCamX = patch.cameraX ?? rackStoreState.cameraX;
+  const nextCamY = patch.cameraY ?? rackStoreState.cameraY;
+  const nextZoom = patch.zoom ?? rackStoreState.zoom;
+  const nextW = patch.warehouseWidth ?? rackStoreState.warehouseWidth;
+  const nextL = patch.warehouseLength ?? rackStoreState.warehouseLength;
+  const nextNodes = patch.layoutNodes ?? rackStoreState.layoutNodes;
+  const nextSaved =
+    patch.lastAutoSavedAt !== undefined ? patch.lastAutoSavedAt : rackStoreState.lastAutoSavedAt;
   if (
     nextBeam === rackStoreState.beamClearSpan &&
     nextAisle === rackStoreState.frameToFrameAisle &&
     nextTruck === rackStoreState.truckMinAisle &&
-    nextPos === rackStoreState.palletPositions
+    nextPos === rackStoreState.palletPositions &&
+    nextCamX === rackStoreState.cameraX &&
+    nextCamY === rackStoreState.cameraY &&
+    nextZoom === rackStoreState.zoom &&
+    nextW === rackStoreState.warehouseWidth &&
+    nextL === rackStoreState.warehouseLength &&
+    nextNodes === rackStoreState.layoutNodes &&
+    nextSaved === rackStoreState.lastAutoSavedAt
   ) {
     return;
   }
@@ -131,8 +295,33 @@ function updateRackStoreSlice(
     frameToFrameAisle: nextAisle,
     truckMinAisle: nextTruck,
     palletPositions: nextPos,
+    cameraX: nextCamX,
+    cameraY: nextCamY,
+    zoom: nextZoom,
+    warehouseWidth: nextW,
+    warehouseLength: nextL,
+    layoutNodes: nextNodes,
+    lastAutoSavedAt: nextSaved,
   };
   rackStoreListeners.forEach((listener) => listener());
+}
+
+export async function persistWorkspaceToIndexedDb(doc?: StudioDocument): Promise<string> {
+  const savedAt = new Date().toISOString();
+  const payload = JSON.stringify({
+    savedAt,
+    state: {
+      beamClearSpan: rackStoreState.beamClearSpan,
+      frameToFrameAisle: rackStoreState.frameToFrameAisle,
+      truckMinAisle: rackStoreState.truckMinAisle,
+      palletPositions: rackStoreState.palletPositions,
+      layoutNodes: rackStoreState.layoutNodes,
+      ...(doc !== undefined ? { document: doc } : {}),
+    },
+  });
+  await idbStorage.setItem(IDB_WORKSPACE_KEY, payload);
+  updateRackStoreSlice({ lastAutoSavedAt: savedAt });
+  return savedAt;
 }
 
 function subscribeRackStore(listener: RackStoreListener): () => void {
@@ -754,6 +943,7 @@ export function StudioSessionProvider({
       runCommand(cmd);
     };
     activeRackFirstRunId = session.document.runs[0]?.id ?? null;
+    activeRackAllRunIds = session.document.runs.slice(0, -1).map((r) => r.id);
     activeRackBayTypeId = session.document.bayTypes[0]?.id ?? null;
     const bt = session.document.bayTypes[0];
     const spanIn = bt !== undefined ? Math.round((bt.beamLength / 25_400) * 100) / 100 : 96;
@@ -763,23 +953,47 @@ export function StudioSessionProvider({
         : 132;
     const truckIn =
       Math.round((session.document.equipment.truckRAS.value / 25_400) * 100) / 100;
+    const layoutNodes: RackLayoutNode[] = plan.runs.map((r) => {
+      const firstRow = r.rows[0];
+      const lastRow = r.rows[r.rows.length - 1];
+      const topY = firstRow?.y ?? r.y;
+      const botY = lastRow !== undefined ? lastRow.y + lastRow.depth : r.y;
+      return {
+        id: r.runId,
+        label: r.label,
+        xIn: Math.round(r.x / 25_400),
+        yIn: Math.round(topY / 25_400),
+        widthIn: Math.max(12, Math.round(r.runLength.value / 25_400)),
+        depthIn: Math.max(12, Math.round((botY - topY) / 25_400)),
+      };
+    });
     updateRackStoreSlice({
       beamClearSpan: spanIn,
       frameToFrameAisle: aisleIn,
       truckMinAisle: truckIn,
       palletPositions: plan.totalPositions,
+      layoutNodes,
     });
     return () => {
       activeRackCommandSink = null;
     };
   }, [
     plan.aisles,
+    plan.runs,
     plan.totalPositions,
     runCommand,
     session.document.bayTypes,
     session.document.equipment.truckRAS.value,
     session.document.runs,
   ]);
+
+  // Local-first 3-second debounced IndexedDB auto-save
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void persistWorkspaceToIndexedDb(session.document);
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [session.document]);
 
   const saveCurrentSnapshot = useCallback(
     (label?: string): SavedPlanSnapshot => {

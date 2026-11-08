@@ -3572,6 +3572,190 @@ kbd {
   line-height: 1.4;
 }
 
+/* ── 1-Click Auto-Fix Button in Checks Drawer ───────────────────────────── */
+
+.checks-blocking-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.checks-autofix-btn {
+  margin-left: auto;
+  padding: 4px 10px;
+  background: var(--safety-orange);
+  color: var(--zinc-950);
+  border: 1px solid var(--safety-orange);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.checks-autofix-btn:hover {
+  opacity: 0.92;
+}
+
+/* ── Direct Canvas Manipulation (Double-Click Bay Context Menu HUD) ─────── */
+
+.plan-bay-context-menu {
+  position: absolute;
+  z-index: 40;
+  min-width: 220px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  pointer-events: auto;
+}
+
+.plan-bay-context-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.plan-bay-context-close {
+  background: transparent;
+  border: none;
+  color: var(--ink-2);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.plan-bay-context-item {
+  text-align: left;
+  padding: 5px 8px;
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.plan-bay-context-item:hover {
+  border-color: var(--navy);
+  color: var(--navy);
+}
+
+/* ── Interactive 200x200px Viewport Minimap ────────────────────────────── */
+
+.plan-minimap {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  width: 180px;
+  height: 150px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid var(--rule);
+  box-shadow: var(--shadow-sm);
+  z-index: 15;
+  opacity: 0.88;
+  transition: opacity 0.15s ease;
+  cursor: crosshair;
+  pointer-events: auto;
+}
+
+.plan-minimap:hover {
+  opacity: 1;
+}
+
+.plan-minimap-label {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+
+.plan-minimap-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.plan-minimap-camera-rect {
+  cursor: move;
+}
+
+/* ── CAD Command Palette (Ctrl+K Fuzzy Search) ─────────────────────────── */
+
+.cad-cmdk-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-2);
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+}
+
+.cad-cmdk-input {
+  width: 100%;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.cad-cmdk-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.cad-cmdk-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 5px 8px;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cad-cmdk-item:hover {
+  border-color: var(--navy);
+  background: var(--navy-soft);
+}
+
+.cad-cmdk-item-kbd {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 1px 5px;
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+  color: var(--ink-2);
+}
+
+
 
 
 

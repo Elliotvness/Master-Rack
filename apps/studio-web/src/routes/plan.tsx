@@ -21,7 +21,12 @@ import { Link } from 'react-router';
 import { ChecksDrawer } from '../checks/checks-drawer.js';
 import { ParamsPanel } from '../plan/params-panel.js';
 import { PlanCanvas, type PlanToolMode } from '../plan/plan-canvas.js';
-import { useStudioSession } from '../session-context.js';
+import {
+  exportDocumentToDXF,
+  persistWorkspaceToIndexedDb,
+  useRackStore,
+  useStudioSession,
+} from '../session-context.js';
 
 const SAMPLE_FORKLIFT_EXTRACTION: IntakeExtractionPayload = {
   documentKind: 'FORKLIFT_SPEC_SHEET',
@@ -263,10 +268,13 @@ export default function PlanView(): React.JSX.Element {
   const [intakeBase64, setIntakeBase64] = useState('JVBERi0=');
 
   const [cmdBarOpen, setCmdBarOpen] = useState(false);
+  const [cmdkQuery, setCmdkQuery] = useState('');
   const [cmdBarInput, setCmdBarInput] = useState(
     'Split Run 1 at Bay 4 and widen aisle after Run 1 to 138 inches',
   );
   const [cmdPreview, setCmdPreview] = useState<CommandPreviewCard | null>(null);
+  const lastAutoSavedAt = useRackStore((state) => state.lastAutoSavedAt);
+  const setFrameToFrameAisle = useRackStore((state) => state.setFrameToFrameAisle);
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
@@ -678,6 +686,21 @@ export default function PlanView(): React.JSX.Element {
         </button>{' '}
         <b>Sample layout.</b> This is the rack-studio-v1 sample job, loaded for this session. Every
         change can be undone, but nothing here is saved yet.{' '}
+        <span id="autosave-idb-badge" className="pf-badge" style={{ marginLeft: '4px', marginRight: '4px' }}>
+          {lastAutoSavedAt !== null
+            ? `IndexedDB Auto-Saved (${lastAutoSavedAt.slice(11, 19)})`
+            : 'IndexedDB 3s Auto-Save Active'}
+        </span>
+        <button
+          id="autosave-idb-now-btn"
+          type="button"
+          className="pf-btn pf-btn-small"
+          onClick={() => {
+            void persistWorkspaceToIndexedDb(session.document);
+          }}
+        >
+          Save IDB Now
+        </button>{' '}
         <Link id="plan-open-portal-link" to="/welcome">
           Open Main Page, User Access &amp; System Guide →
         </Link>
@@ -944,7 +967,7 @@ export default function PlanView(): React.JSX.Element {
                 aria-label="Deterministic Command Bar"
               >
                 <div className="plan-dock-popover-head">
-                  <h2>Commands</h2>
+                  <h2>Commands · CAD Command Palette (Ctrl+K)</h2>
                   <button
                     type="button"
                     className="pf-btn pf-btn-small"
@@ -954,6 +977,128 @@ export default function PlanView(): React.JSX.Element {
                     ×
                   </button>
                 </div>
+
+                {/* CAD Fuzzy-Search Command Palette (cmdk-style) */}
+                <div id="cad-command-palette" className="cad-cmdk-box" role="region" aria-label="CAD Command Palette">
+                  <input
+                    id="cad-cmdk-input"
+                    type="text"
+                    className="pf-input cad-cmdk-input"
+                    placeholder="Type a command or search (e.g. 'aisles 132', 'export DXF', 'auto-adjust')..."
+                    value={cmdkQuery}
+                    onChange={(e) => setCmdkQuery(e.target.value)}
+                  />
+                  <div id="cad-cmdk-list" className="cad-cmdk-list" role="listbox" aria-label="Drafting commands">
+                    {[
+                      {
+                        id: 'cmdk-item-aisles-132',
+                        group: 'Drafting',
+                        label: 'Set all aisles to 132"',
+                        alias: 'AISLE 132',
+                        run: () => {
+                          setFrameToFrameAisle(132);
+                          setCmdStatus('Set all frame-to-frame aisles to 132".');
+                        },
+                      },
+                      {
+                        id: 'cmdk-item-autofix-aisle',
+                        group: 'Drafting',
+                        label: 'Auto-adjust all aisles to 133" (127" clear)',
+                        alias: 'AUTOFIX',
+                        run: () => {
+                          setFrameToFrameAisle(133);
+                          setCmdStatus('Auto-adjusted all frame-to-frame aisles to 133" (127" clear).');
+                        },
+                      },
+                      {
+                        id: 'cmdk-item-export-dxf',
+                        group: 'Drafting',
+                        label: 'Export to DXF',
+                        alias: 'DXF',
+                        run: () => {
+                          exportDocumentToDXF(session.document);
+                          setCmdStatus(`Exported AutoCAD .DXF for ${session.document.name}.`);
+                        },
+                      },
+                      {
+                        id: 'cmdk-item-add-run',
+                        group: 'Drafting',
+                        label: 'Add rack run',
+                        alias: 'ADDRUN',
+                        run: () => {
+                          runCommand({ type: 'addRun' });
+                          setCmdStatus('Appended a new rack run.');
+                        },
+                      },
+                      {
+                        id: 'cmdk-item-tool-move',
+                        group: 'CAD Aliases',
+                        label: 'Move / Pan Mode',
+                        alias: 'Key: M',
+                        run: () => {
+                          setToolMode('select');
+                          setCmdStatus('Activated Move / Pan mode (M).');
+                        },
+                      },
+                      {
+                        id: 'cmdk-item-tool-column',
+                        group: 'CAD Aliases',
+                        label: 'Stamp Structural Column Mode',
+                        alias: 'Key: C',
+                        run: () => {
+                          setToolMode('column');
+                          setCmdStatus('Activated Stamp Column mode (C).');
+                        },
+                      },
+                      {
+                        id: 'cmdk-item-tool-wall',
+                        group: 'CAD Aliases',
+                        label: 'Draw Wall (Ortho) Mode',
+                        alias: 'Key: W',
+                        run: () => {
+                          setToolMode('wall');
+                          setCmdStatus('Activated Draw Wall mode (W).');
+                        },
+                      },
+                      {
+                        id: 'cmdk-item-autosave-idb',
+                        group: 'Storage',
+                        label: 'Save Workspace to IndexedDB Now',
+                        alias: 'IDB SAVE',
+                        run: () => {
+                          void persistWorkspaceToIndexedDb(session.document);
+                          setCmdStatus('Saved workspace snapshot to IndexedDB.');
+                        },
+                      },
+                    ]
+                      .filter((item) => {
+                        const q = cmdkQuery.trim().toLowerCase();
+                        if (q.length === 0) return true;
+                        return (
+                          item.label.toLowerCase().includes(q) ||
+                          item.group.toLowerCase().includes(q) ||
+                          item.alias.toLowerCase().includes(q)
+                        );
+                      })
+                      .map((item) => (
+                        <button
+                          key={item.id}
+                          id={item.id}
+                          type="button"
+                          role="option"
+                          aria-selected={false}
+                          className="cad-cmdk-item"
+                          onClick={item.run}
+                        >
+                          <span className="cad-cmdk-item-label">
+                            <strong>[{item.group}]</strong> {item.label}
+                          </span>
+                          <kbd className="cad-cmdk-item-kbd">{item.alias}</kbd>
+                        </button>
+                      ))}
+                  </div>
+                </div>
+
                 <div className="pf-row">
                   <label htmlFor="cmdbar-input" className="pf-label">
                     Instruction

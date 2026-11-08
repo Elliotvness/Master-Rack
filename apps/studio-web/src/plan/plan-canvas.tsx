@@ -22,6 +22,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   exportDocumentToDXF,
+  useRackStore,
   type PlanColumnOverlay,
   type ShellOverlayState,
 } from '../session-context.js';
@@ -937,6 +938,113 @@ export function transferCanvasToOffscreenWorker(
   return offscreen;
 }
 
+export interface CanvasBayContextMenuState {
+  readonly x: number;
+  readonly y: number;
+  readonly runId: string;
+  readonly runLabel: string;
+  readonly bayId: string;
+  readonly bayIndex: number;
+  readonly locked: boolean;
+}
+
+export function Minimap({
+  onJumpToWorldIn,
+}: {
+  readonly onJumpToWorldIn?: ((xIn: number, yIn: number) => void) | undefined;
+}): React.JSX.Element {
+  const cameraX = useRackStore((state) => state.cameraX);
+  const cameraY = useRackStore((state) => state.cameraY);
+  const zoom = useRackStore((state) => state.zoom);
+  const warehouseWidth = useRackStore((state) => state.warehouseWidth);
+  const warehouseLength = useRackStore((state) => state.warehouseLength);
+  const layoutNodes = useRackStore((state) => state.layoutNodes);
+
+  const maxDim = Math.max(120, warehouseWidth, warehouseLength);
+  const mapScale = 180 / maxDim;
+  const pad = 10;
+
+  const viewWidth = Math.max(
+    18,
+    Math.min(
+      180,
+      (((typeof window !== 'undefined' ? window.innerWidth : 1200) / Math.max(0.15, zoom)) *
+        mapScale) /
+        8,
+    ),
+  );
+  const viewHeight = Math.max(
+    14,
+    Math.min(
+      180,
+      (((typeof window !== 'undefined' ? window.innerHeight : 800) / Math.max(0.15, zoom)) *
+        mapScale) /
+        8,
+    ),
+  );
+  const viewX = Math.max(
+    pad,
+    Math.min(190 - viewWidth, pad + cameraX * mapScale),
+  );
+  const viewY = Math.max(
+    pad,
+    Math.min(190 - viewHeight, pad + cameraY * mapScale),
+  );
+
+  return (
+    <div
+      id="plan-viewport-minimap"
+      className="plan-minimap"
+      role="region"
+      aria-label="Viewport Minimap"
+      title="Click on the minimap to jump the viewport camera"
+      onClick={(e) => {
+        if (!onJumpToWorldIn) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const clickX = Math.max(0, e.clientX - rect.left - pad);
+        const clickY = Math.max(0, e.clientY - rect.top - pad);
+        onJumpToWorldIn(clickX / mapScale, clickY / mapScale);
+      }}
+    >
+      <div className="plan-minimap-label">MINIMAP</div>
+      <svg width="100%" height="100%" viewBox="0 0 200 200" className="plan-minimap-svg">
+        <rect
+          x={pad}
+          y={pad}
+          width={Math.max(20, warehouseWidth * mapScale)}
+          height={Math.max(20, warehouseLength * mapScale)}
+          fill="transparent"
+          stroke="var(--rule)"
+          strokeWidth="1.5"
+        />
+        {layoutNodes.map((node) => (
+          <rect
+            key={node.id}
+            x={pad + Math.max(0, node.xIn * mapScale)}
+            y={pad + Math.max(0, node.yIn * mapScale)}
+            width={Math.max(6, node.widthIn * mapScale)}
+            height={Math.max(4, node.depthIn * mapScale)}
+            fill="var(--sel-bg)"
+            stroke="var(--pen-upright)"
+            strokeWidth="1"
+          />
+        ))}
+        <rect
+          id="plan-minimap-viewport-rect"
+          x={viewX}
+          y={viewY}
+          width={viewWidth}
+          height={viewHeight}
+          fill="var(--safety-orange-bg)"
+          stroke="var(--safety-orange)"
+          strokeWidth="2"
+          className="plan-minimap-camera-rect"
+        />
+      </svg>
+    </div>
+  );
+}
+
 /**
  * The plan viewport — build-plan **S3.2**, **S3.5**, **S4.1**, **S4.2**, **S4.3**.
  *
@@ -977,6 +1085,7 @@ export function PlanCanvas({
   const [camera, setCamera] = useState<Camera | null>(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [selected, setSelected] = useState<SelectedBay | null>(null);
+  const [contextMenu, setContextMenu] = useState<CanvasBayContextMenuState | null>(null);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
   const [selectedAisleId, setSelectedAisleId] = useState<string | null>(null);
   const [hovered, setHovered] = useState<PlanHit | null>(null);
@@ -1496,9 +1605,28 @@ export function PlanCanvas({
     [activeSelection, onCommand],
   );
 
-  // Keyboard shortcuts (S4.2): I = insert bay, S = split run, L = lock/unlock,
-  // Backspace/Delete = delete bay, Escape = exit active tool & deselect,
-  // Ctrl/Cmd+Z = undo, F = fit to view, +/= = zoom in, - = zoom out.
+  // Sync live viewport camera and facility dimensions to useRackStore for Minimap
+  useEffect(() => {
+    const wIn = Math.max(240, Math.round(effectiveExtent.width.value / 25_400));
+    const hIn = Math.max(180, Math.round(effectiveExtent.height.value / 25_400));
+    const cxUm = effectiveCamera.centreX;
+    const cyUm = effectiveCamera.centreY;
+    const camXIn = Math.max(0, Math.round((cxUm - wIn * 12_700) / 25_400));
+    const camYIn = Math.max(0, Math.round((cyUm - hIn * 12_700) / 25_400));
+    const relZoom = Number((effectiveCamera.scale / Math.max(fittedCamera.scale, 1e-9)).toFixed(2));
+    useRackStore.getState().setViewportCamera({
+      cameraX: Number.isFinite(camXIn) ? camXIn : 0,
+      cameraY: Number.isFinite(camYIn) ? camYIn : 0,
+      zoom: Number.isFinite(relZoom) && relZoom > 0 ? relZoom : 1,
+      warehouseWidth: wIn,
+      warehouseLength: hIn,
+    });
+  }, [effectiveCamera, effectiveExtent.height.value, effectiveExtent.width.value, fittedCamera.scale]);
+
+  // Keyboard shortcuts (S4.2 + CAD single-key aliases):
+  // M = Move/Pan, C = Stamp Column, W = Draw Wall,
+  // I = insert bay, S = split run, L = lock/unlock, D / Backspace / Delete = delete bay,
+  // Escape = exit active tool & deselect, Ctrl/Cmd+Z = undo, F = fit to view, +/= = zoom in, - = zoom out.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') {
@@ -1509,6 +1637,7 @@ export function PlanCanvas({
         setCalP2(null);
         setSelectedColumnId(null);
         setSelectedAisleId(null);
+        setContextMenu(null);
         actOnSelection('deselect');
         onToolModeChange?.('select');
         return;
@@ -1530,6 +1659,21 @@ export function PlanCanvas({
         if (e.key === 'f' || e.key === 'F') {
           e.preventDefault();
           fit();
+          return;
+        }
+        if (e.key === 'm' || e.key === 'M') {
+          e.preventDefault();
+          onToolModeChange?.('select');
+          return;
+        }
+        if (e.key === 'c' || e.key === 'C') {
+          e.preventDefault();
+          onToolModeChange?.('column');
+          return;
+        }
+        if (e.key === 'w' || e.key === 'W') {
+          e.preventDefault();
+          onToolModeChange?.('wall');
           return;
         }
         if (e.key === '+' || e.key === '=') {
@@ -1565,7 +1709,7 @@ export function PlanCanvas({
       } else if (e.key === 'l' || e.key === 'L') {
         e.preventDefault();
         actOnSelection('lock');
-      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+      } else if (e.key === 'd' || e.key === 'D' || e.key === 'Backspace' || e.key === 'Delete') {
         e.preventDefault();
         actOnSelection('delete');
       }
@@ -1682,6 +1826,22 @@ export function PlanCanvas({
                     setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index });
                     setSelectedColumnId(null);
                     setSelectedAisleId(null);
+                  }}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    const wrapRect = wrapRef.current?.getBoundingClientRect();
+                    const relX = wrapRect ? e.clientX - wrapRect.left : Math.round(topLeft.x + 16);
+                    const relY = wrapRect ? e.clientY - wrapRect.top : Math.round(topLeft.y + 16);
+                    setSelected({ runId: run.runId, bayId: bay.bayId, bayIndex: bay.index });
+                    setContextMenu({
+                      x: Math.max(12, relX),
+                      y: Math.max(12, relY),
+                      runId: run.runId,
+                      runLabel: run.label,
+                      bayId: bay.bayId,
+                      bayIndex: bay.index,
+                      locked: bay.locked,
+                    });
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -2261,6 +2421,107 @@ export function PlanCanvas({
             </div>
           );
         })()}
+
+        {/* Floating Double-Click Bay Context Menu (Direct Canvas Manipulation HUD) */}
+        {contextMenu !== null && (
+          <div
+            id="canvas-bay-context-menu"
+            className="plan-bay-context-menu"
+            role="menu"
+            aria-label={`Quick actions for ${contextMenu.runLabel} Bay ${contextMenu.bayIndex + 1}`}
+            style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="plan-bay-context-head">
+              <span>
+                {contextMenu.runLabel} · Bay {contextMenu.bayIndex + 1} ({contextMenu.bayId})
+              </span>
+              <button
+                id="ctx-close-menu-btn"
+                type="button"
+                className="plan-bay-context-close"
+                aria-label="Close bay context menu"
+                onClick={() => setContextMenu(null)}
+              >
+                ×
+              </button>
+            </div>
+            <button
+              id="ctx-add-beam-level-btn"
+              type="button"
+              role="menuitem"
+              className="plan-bay-context-item"
+              onClick={() => {
+                const bt = doc.bayTypes[0];
+                if (bt !== undefined) {
+                  const topMost = bt.beamLevels[bt.beamLevels.length - 1] ?? 0;
+                  onCommand?.({
+                    type: 'addBeamLevel',
+                    bayTypeId: bt.id,
+                    top: topMost + 60 * 25_400,
+                  });
+                }
+                setContextMenu(null);
+              }}
+            >
+              Add Beam Level (+60&quot;)
+            </button>
+            <button
+              id="ctx-bump-pallet-load-btn"
+              type="button"
+              role="menuitem"
+              className="plan-bay-context-item"
+              onClick={() => {
+                onCommand?.({
+                  type: 'setField',
+                  label: 'Increase pallet rated load by 250 lb',
+                  change: {
+                    section: 'unitLoad',
+                    patch: { weight: doc.unitLoad.weight + 250 },
+                  },
+                });
+                setContextMenu(null);
+              }}
+            >
+              Change Pallet Load (+250 lb)
+            </button>
+            <button
+              id="ctx-toggle-lock-bay-btn"
+              type="button"
+              role="menuitem"
+              className="plan-bay-context-item"
+              onClick={() => {
+                onCommand?.({ type: 'toggleLock', bayId: contextMenu.bayId });
+                setContextMenu(null);
+              }}
+            >
+              {contextMenu.locked ? 'Unlock Bay' : 'Lock Bay'}
+            </button>
+            <button
+              id="ctx-split-run-btn"
+              type="button"
+              role="menuitem"
+              className="plan-bay-context-item"
+              onClick={() => {
+                onCommand?.({ type: 'splitRun', bayId: contextMenu.bayId });
+                setContextMenu(null);
+              }}
+            >
+              Split Run Here
+            </button>
+          </div>
+        )}
+
+        {/* Interactive 200x200px Viewport Minimap */}
+        <Minimap
+          onJumpToWorldIn={(xIn, yIn) => {
+            setCamera((prev) => ({
+              ...(prev ?? effectiveCamera),
+              centreX: Math.round(xIn * 25_400),
+              centreY: Math.round(yIn * 25_400),
+            }));
+          }}
+        />
       </div>
 
       {/* S3.5 Legend footer strip */}

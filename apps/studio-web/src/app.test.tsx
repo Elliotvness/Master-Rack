@@ -728,6 +728,54 @@ describe('S4 interactive canvas, provenance popover, and undo ledger', () => {
     const canvas = document.querySelector('canvas.plan-canvas');
     expect(canvas?.getAttribute('data-render-engine')).toBe('offscreen-worker-ready');
   });
+
+  it('supports 1-click Checks Auto-Fix, double-click Bay Context Menu HUD, CAD Command Palette, IndexedDB Auto-Save, and Viewport Minimap', async () => {
+    const user = userEvent.setup();
+    renderApp('/plan');
+    await screen.findByRole('heading', { level: 1, name: 'Plan' });
+
+    // 1. Viewport Minimap is rendered with safety-orange camera rect
+    expect(document.getElementById('plan-viewport-minimap')).not.toBeNull();
+    expect(document.getElementById('plan-minimap-viewport-rect')).not.toBeNull();
+
+    // 2. 1-Click "Auto-Fix" Resolution in Checks Drawer
+    const autoFixBtn = document.getElementById('checks-autofix-aisle-btn') as HTMLButtonElement;
+    expect(autoFixBtn).not.toBeNull();
+    expect(autoFixBtn.textContent).toMatch(/Auto-adjust to 133"/i);
+    await user.click(autoFixBtn);
+    // After 1-click auto-adjust, the blocking aisle alert is resolved
+    expect(document.getElementById('f-aisle-blocking-alert')).toBeNull();
+    expect(document.getElementById('checks-drawer')?.textContent).toMatch(/0 blocking/i);
+
+    // 3. Double-Click Bay on Canvas opens Floating Context Menu HUD
+    const firstBayRect = document.querySelector('rect[data-bay-id]') as SVGRectElement;
+    expect(firstBayRect).not.toBeNull();
+    await user.dblClick(firstBayRect);
+    const ctxMenu = document.getElementById('canvas-bay-context-menu');
+    expect(ctxMenu).not.toBeNull();
+    const lockBtn = document.getElementById('ctx-toggle-lock-bay-btn') as HTMLButtonElement;
+    await user.click(lockBtn);
+    expect(document.getElementById('canvas-bay-context-menu')).toBeNull();
+    expect(firstBayRect.getAttribute('data-locked')).toBe('true');
+
+    // 4. CAD Command Palette (Ctrl+K / #open-cmdbar-btn) with fuzzy search
+    const openCmdBtn = document.getElementById('open-cmdbar-btn') as HTMLButtonElement;
+    await user.click(openCmdBtn);
+    const cmdkInput = document.getElementById('cad-cmdk-input') as HTMLInputElement;
+    expect(cmdkInput).not.toBeNull();
+    await user.type(cmdkInput, '132');
+    const set132Item = document.getElementById('cmdk-item-aisles-132') as HTMLButtonElement;
+    expect(set132Item).not.toBeNull();
+    await user.click(set132Item);
+    expect((document.getElementById('f-aisle') as HTMLInputElement).value).toBe('132');
+
+    // 5. Local-First IndexedDB Save
+    const idbSaveBtn = document.getElementById('autosave-idb-now-btn') as HTMLButtonElement;
+    await user.click(idbSaveBtn);
+    expect(document.getElementById('autosave-idb-badge')?.textContent).toMatch(
+      /IndexedDB Auto-Saved/i,
+    );
+  });
 });
 
 describe('the theme toggle', () => {
