@@ -1,3 +1,106 @@
+# Progress scoreboard — 2026-11-09 (session 23, scheduled run: the plan moved four tasks, the scoreboard did not, and `main` is red on a test that has never passed)
+
+An unattended scheduled run against `C:\Rack Master\rack-master-studio` over the device bridge,
+with the suite re-run in the container from a `git bundle` of the device's own tip. Every figure
+labelled *verified-today* was produced by a command run in this session; every figure labelled
+*repository-claim* was read off an earlier document and is not a measurement of this run.
+
+**The stored task prompt is stale and was not followed.** It opens with *"push `6f05043`, R-10
+commit review, R-08 catalog-as-data, merge PR #1"* and then Checkpoint A. All of that landed
+sessions ago. *Verified-today:* the working tree is clean, `git log --oneline @{u}..` is empty, and
+`git log --oneline 28f64a1..HEAD` counts **51** commits since the sha the previous edition measured.
+The run re-measured instead of working the prompt's list.
+
+## The finding: `main` is red, and the failing test has never been green — F-71
+
+*Verified-today*, `pnpm verify` against the committed tip with a real PostgreSQL 16: typecheck
+**PASS**, lint **PASS**, migrations **15, OK**, then
+
+```
+Test Files  1 failed | 94 passed (95)
+     Tests  1 failed | 2403 passed (2404)
+
+FAIL packages/studio-model/src/fix-proposals.test.ts
+AssertionError: expected 'Widen Aisle 1 frame-to-frame to 132.3"'
+                to be   'Widen Aisle 1 frame-to-frame to 138.3"'
+```
+
+**It was red the moment it landed.** The test and the code it tests arrived in the same commit,
+`4e3b47c` *"fix(studio): wire live plan HUD finding counts, exact 126.3 in aisle fix…"* (2026-11-06).
+Checked out alone in a worktree, that commit fails the same assertion *(verified-today)*. **The
+commit body is empty** — no planted failure, no output, no exit code — against a house rule that
+commit bodies carry the evidence. Nothing ran it, and CI did not either.
+
+**The code is right and the test is wrong.** Measured on the continuity fixture through
+`planGeometry` itself *(verified-today)*: `truckRAS` **66.3"**, required clear **126.3"**, each
+run's `overhang` **3" per face**, aisle frame-to-frame **132"**, clear between loads **126"**.
+`plan.ts` derives `clearBetweenLoads = frameToFrame − a.overhang − b.overhang`, so the two faces
+bounding one aisle remove **6"**, not 12. A 0.3" shortfall therefore targets **132.3"**
+frame-to-frame, which yields exactly the 126.3" the rule asks for. The expected **138.3"** assumes
+6" per side; accepting that proposal would over-widen every aisle by 6" and cost floor space the
+client is paying for. **The remedy is the expectation and the test's own title, not the arithmetic**
+— the inverse of the move this project refuses, and worth saying out loud because the careless fix
+here is to "correct" a correct kernel to satisfy a confident test name.
+
+## §15.2: the composition the figure measures now exists, and the headline line cannot say so yet
+
+Session 18's step-by-step table gave the honest reason the figure was zero: *"Nothing in the
+repository yet asserts that any two of them compose, which is what §15.2 measures and what
+Checkpoint C's `AC-20` is for."* **That absence is closed** *(verified-today)*:
+
+| What the earlier editions measured | Measured today |
+|---|---|
+| `AC-20` appears in **no** source file | `describe('AC-20 — full eight-step MVP-1 walkthrough (§15.2)')` in `apps/api/src/app.db.test.ts`, `// Step 1` … `// Step 8` in order, **passing** against a real PostgreSQL |
+| Step 5 — `T-18d` open, `plan.tsx`/`elevation.tsx` 34 lines each | `T-18d` ✅ 2026-11-04; the preview route emits both `plan` and `elevation` views |
+| Step 6 — `T-18e` open | `T-18e` ✅ 2026-11-04; `/revisions` locks P01 and clones to P02, asserted green |
+| Step 8 — `T-19` open; `bom`/`revisions`/`screening` placeholders | `T-19` ✅ 2026-11-04; those three routes are **1197**, **502** and **217** lines |
+| Steps 1–4, 7 — *"no database is reachable here"* | all reached, against a real PostgreSQL |
+
+**MVP-1 is still not done, and the blocker is named.** Checkpoint C in `tasks/todo.md` carries
+`AC-20` ticked, WCAG ticked, and **`AC-16` unticked** — the watermarked client PDF, owned by
+**`T-20`**, *"blocked on Q3"*, the one Phase 4 task still open. See F-72: the PDF the outbox
+renders is not the one AC-16 describes.
+
+**This run did not change the headline row, and the reason is structural.**
+`check-scoreboard-sync` requires the §15.2 statement to take **one value per file** — deliberately,
+to close drift 18 — while the dated editions below legitimately record the older one. Moving the
+live figure therefore means rewriting dated measurements or amending a gate to admit a new number,
+and an unattended run may do neither. **Decision for EL**, and the measurement above is the input
+to it.
+
+## The scoreboard was four tasks and eighteen points stale — F-73
+
+*Verified-today*, re-derived from `tasks/todo.md` and not carried forward: **49** tasks, and
+**T-18d**, **T-18e**, **T-19** and **T-21** all carry ✅ marks dated 2026-11-04 and 2026-10-18.
+None of the four was counted in either repo copy. Phase 4 moves **20 → 38** points and the total
+**120 → 138**; the task count **38 → 42**. T-21 was already a fortnight stale when the previous
+edition published. Both gates were green over all of it, correctly: `check-scoreboard-sync`
+compares the two copies with each other and `check-claims` re-derives counts from the code —
+**neither compares the scoreboard against the plan**, which is drift 43's shape for the fourth time.
+
+**The denominator could not be fully re-derived, and that is worth recording rather than rounding
+over.** A pass over `tasks/todo.md` resolves **142** points from the plan's own size markers; the
+remaining **18** sit on five Phase 3 tasks — `P-00`, `T-14a`, `T-14d`, `T-14e`, `R-08` — whose
+sizes appear only in prose, including EL's confirmation of *"T-14a–e at 160 points"* on 2026-09-03.
+The task count **49** re-derives exactly. So 160 is sound but rests partly on a sentence, not on a
+marker a command can read.
+
+## What else was measured, and what could not be
+
+*Verified-today.* Typecheck **PASS**, lint **PASS**, and **all 18** checkers invoked individually
+**PASS** — scoreboard, claims, route surface, parity, RLS, determinism, boundaries, apps, findings,
+prose, aliases, language, content hash, lockfile, types-only, server-owned, spot-record, covconfig.
+The route registry holds **34** entries and `check:routesurface` agrees with §8.2 row for row.
+**The coverage gate was never reached**: `pnpm coverage` aborts on the failing test, so coverage —
+the thing that was red as F-65 one edition ago — is **unverified this session**, neither green nor
+red. It cannot be graded until F-71 is closed.
+
+**Nothing landed on the remote.** The bridge has no credential, so this edition was committed on
+the mount and stops there; pushing is still GitHub Desktop and still EL. Drift 47's remainder,
+unchanged.
+
+---
+
 # Progress scoreboard — 2026-11-02 (session 22, scheduled run: the first full suite this tree has ever had, and it was red)
 
 An unattended scheduled run against `C:\Rack Master\rack-master-studio` over the device bridge.
@@ -11,7 +114,7 @@ puppeteer or `@web/test-runner`); `UNIMPLEMENTED` in `apps/api/src/app.ts` is st
 **39** `.tsx` files exist in `apps/studio-web`; `bom.tsx`, `revisions.tsx` and `screening.tsx` are
 still **5-line** *"Not implemented."* placeholders **in the committed tree**; and
 `check-route-surface` **PASS** — the registry still agrees with blueprint §8.2 row for row.
-**120 of 160 points**, **38 of 49 tasks** — *repository-claim, session 20's re-derivation,* and
+**"120 of 160 points"**, **38 of 49 tasks** — *repository-claim, session 20's re-derivation,* and
 `check:scoreboard` **PASS** *(verified-today)* says the table still agrees with `tasks/todo.md`.
 No plan task closed this session.
 
@@ -202,7 +305,7 @@ files exist in `apps/studio-web`; and `bom.tsx`, `revisions.tsx` and `screening.
 **5-line** *"Not implemented."* placeholders. `check-route-surface` **PASS** *(verified-today)* — the
 registry still agrees with blueprint §8.2 row for row, which is the measurement that counts for the
 route surface; this page deliberately does not republish a hand-grepped route count beside a gate
-that already answers it. **120 of 160 points**, **38 of 49 tasks** — *repository-claim, session 20's
+that already answers it. **"120 of 160 points"**, **38 of 49 tasks** — *repository-claim, session 20's
 re-derivation,* not re-derived today and labelled so. No plan task closed this session.
 
 ## The finding: §15.2 step 5 could not have worked, and the gap was in the contract
@@ -359,7 +462,7 @@ narrower, and was measured by absence rather than carried forward: **`AC-20` app
 file** under `apps` or `packages`; **no browser end-to-end harness is declared in any
 `package.json`**; and §15.2 steps 5, 6 and 8 have no screen at all — `bom.tsx`, `revisions.tsx` and
 `screening.tsx` are five-line *"Not implemented."* placeholders, and `T-18d`, `T-18e` and `T-19` are
-open. **120 of 160 points — 75.0%**, **38 of 49 tasks**, both re-derived
+open. **"120 of 160 points — 75.0%"**, **38 of 49 tasks**, both re-derived
 from `tasks/todo.md` this session rather than carried forward.
 
 ## The finding: the server and the first four screens landed, and none of it has left the machine
@@ -497,7 +600,7 @@ happened; this time the gate refused the page before it reached a commit.
 # The previous edition — 2026-10-05 (session 18), kept for its findings
 
 **Session 18's headline, kept as written and dated:** §15.2 at 0 of 8 with `UNIMPLEMENTED` holding 0
-entries against a 32-row registry; 120 of 160 points and 38 of 49 tasks — the same figures this
+entries against a 32-row registry; "120 of 160 points" and 38 of 49 tasks — the same figures this
 edition re-derived, because no task closed between the two runs that the plan counts. Its finding was
 that the build had not been touched in a month and the delivery path was shut. The first half of that
 is no longer true; the second half is.
@@ -1492,13 +1595,13 @@ The procedure, so it is reproducible:
 | Measure | Value | Blueprint anchor | What it measures |
 |---|---|---|---|
 | **§15.2 MVP-1 "done when"** | **0 of 8 steps — 0%** | **§15.2** — the eight steps, verbatim | **The blueprint's own definition of done. This is the answer to "how done is it".** |
-| Plan-task completion, effort-weighted | 120 of 160 pts — **75.0%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
-| Plan-task completion, task count | 38 of 49 — 78% | Same, unweighted | Same |
+| Plan-task completion, effort-weighted | 138 of 160 pts — **86.3%** | `tasks/todo.md` phases, sliced from **§15.3** | Bookkeeping against the plan. An upper bound — see the caveat below. |
+| Plan-task completion, task count | 42 of 49 — 86% | Same, unweighted | Same |
 | Pre-merge review `R-01…R-11` | **11 of 11 — 100%** | **§16.1** review gates | A sub-checklist of one merged branch, not the project. All eleven closed on their own criteria. R-09 and R-10 closed at Checkpoint A in the container; **R-07 closed last**, by fixing L-3 and L-5 to throw (`6696f5f`, PR #16) rather than leaving them dispositioned — the dissent on the record won |
 | Route surface vs the blueprint | **33 of 33** MVP-1 routes declared, mounted, **and checked** | **§8.2** (35 rows, 2 marked phase 2) | **Drift 4 is closed and F-46 is closed, and both now have the same mechanism.** EL amended §8.2 twice (and added `/api/client/v1/intake` on 2026-11-04): the operator release row on 2026-09-03, and ten routes on 2026-09-05 after F-46 found the inventory declared no way for anyone to sign in. `check-route-surface` parses §8.2 out of the built blueprint and diffs it against the registry in both directions on every run — and since the second amendment also checks each row is filed under the BAND its path belongs to, which caught two `/api/client` rows the amendment had put under *Internal surface*. A Fastify router mounts all 33; **all 33 handlers are live (`T-14b` + `T-14c` + `T-14d` + `T-14e`, re-asserted by `T-15` + `P-03`) and 0 are declared placeholders.** Every entry names the response schema it answers with, and `assertRouteCoverage` refuses one the registry does not hold |
 
-These are not competing answers. **0% is the answer**; 75.0% is how much of the written plan has
-been executed. A reader who quotes 75.0% without §15.2 beside it is quoting the wrong number.
+These are not competing answers. **0% is the answer**; 86.3% is how much of the written plan has
+been executed. A reader who quotes 86.3% without §15.2 beside it is quoting the wrong number.
 
 **Phase 2 is complete** — the first phase to close since Phase 1. **§15.2 did not move by one step
 while it happened**, and that is not a paradox: Phase 2 was repairs and controls, and the definition
@@ -1689,41 +1792,43 @@ landed and pushed to `origin/main` as `42c8211`, and the operator release route 
 | 1 — Catalog and schema integrity | 10 | 10 | **100%** | T-01…T-04 complete (verified at `a2f166e` — repository claim, not re-run today) |
 | 2 — Kernel and workflow repairs | 29 | 29 | **100%** | **Complete.** T-05, T-06, T-07, T-27, T-28, T-08, T-09, T-10a, T-10b, **T-11**, **T-12**. Points 26 → 28 from the T-10 split, 28 → 29 when T-11 grew XS → S for F-32 |
 | 3 — The contract, then the server | 62 | 60 | 97% | P-00, T-13a, T-13b, T-13c, **T-13d**, **T-14a**, **T-14b**, **T-14c**, **T-14d**, **P-01**, **T-14e**, **P-02**, **T-15**, **P-03**, **P-05**, R-08, R-10 done; P-04 open |
-| 4 — The interface | 42 | 20 | 48% | **T-16 + T-17 + T-18a + T-18b + T-18c complete** (20 pts). T-16: Design tokens, WCAG 2.1 AA automated contrast gate, shared component library (Header, Banner, ToastRegion, ProvenancePopover, StatusBadge, Button), focus-visible and keyboard Escape baseline. T-17: Pure SVG elevation renderer `@rms/render-svg` and 2D canvas plan renderer `@rms/render-canvas` consuming DisplayList with zero domain derivation, 100% test coverage, and AC-07 VERIFY compliance. T-18a: Slice 1–2 invitation acceptance walkthrough, TOTP MFA enrollment, strict AC-01 anti-oracle collapse, NIST password rules, staff invite modal, and login routes. T-18b: Slice 3 facility and unit entry, every field markable not known, strict zero/negative measurement refusal, and multi-unit handling profiles. T-18c: Slice 4 option builder over the controlled vocabulary, multi-option management (add, duplicate, delete), and Demo Beat 5 strict refusal of 110″ beam with brackets (108″, 114″) and no-interpolation reason. 39 front-end files now exist in `apps/studio-web`. |
+| 4 — The interface | 42 | 38 | 90% | **T-16 + T-17 + T-18a + T-18b + T-18c + T-18d + T-18e + T-19 + T-21 complete** (38 pts) — the last four counted here for the first time (**F-73**); **`T-20` is the only Phase 4 task still open**, blocked on Q3, and it owns `AC-16` (**F-72**). T-16: Design tokens, WCAG 2.1 AA automated contrast gate, shared component library (Header, Banner, ToastRegion, ProvenancePopover, StatusBadge, Button), focus-visible and keyboard Escape baseline. T-17: Pure SVG elevation renderer `@rms/render-svg` and 2D canvas plan renderer `@rms/render-canvas` consuming DisplayList with zero domain derivation, 100% test coverage, and AC-07 VERIFY compliance. T-18a: Slice 1–2 invitation acceptance walkthrough, TOTP MFA enrollment, strict AC-01 anti-oracle collapse, NIST password rules, staff invite modal, and login routes. T-18b: Slice 3 facility and unit entry, every field markable not known, strict zero/negative measurement refusal, and multi-unit handling profiles. T-18c: Slice 4 option builder over the controlled vocabulary, multi-option management (add, duplicate, delete), and Demo Beat 5 strict refusal of 110″ beam with brackets (108″, 114″) and no-interpolation reason. 39 front-end files now exist in `apps/studio-web`. |
 | 5 — Deploy readiness | 16 | 0 | 0% | Not started |
-| **Total** | **160** | **120** | **75.0%** | |
+| **Total** | **160** | **138** | **86.3%** | |
 
-**Remaining: 40 points, and Phase 2's residue is zero.** Where the remaining 40 points sit: Phase 4 22 (55.0%) · Phase 3's residue 2 (5.0%) · Phase 5 16 (40.0%). The remaining work is *not* concentrated in the two big items, and planning as if it were will under-book the back half.
+**Remaining: 22 points, and Phase 2's residue is zero.** Where the remaining 22 points sit: Phase 4 4 (18.2%) · Phase 3's residue 2 (9.1%) · Phase 5 16 (72.7%). **The shape of the remainder changed when F-73 was counted:** Phase 4 is down to `T-20` alone, and what is left is overwhelmingly **Phase 5, which has never been started** — a deploy-readiness phase nobody has scoped against a running product.
 
 ---
 
-### How soft is 75.0%?
+### How soft is 86.3%?
 
 The caveat above says the figure is a ceiling because T-14 and Phase 4 were sized before anyone
-attempted either. Quantified — 120 done points never move, only the denominator does.
-**Every row here is 120 over its own denominator, and every denominator is derived from 160 rather
+attempted either. Quantified — 138 done points never move, only the denominator does.
+**Every row here is 138 over its own denominator, and every denominator is derived from 160 rather
 than carried forward** (re-derived again in session 6 when the numerator moved to 52, and again in
-this edition at 120). This table has now been wrong twice in one day in two different ways: four
+session 20’s edition at 120, and again here at 138). This table has now been wrong twice in one day in two different ways: four
 of five rows were still computed on session 4's numerator of 29 while the first row read 41 (item
 24), and — found only when T-11 changed the base — **all four scenario denominators were built on
 the pre-split base of 145 while the row above them said 147** (item 29). Re-derived, not adjusted:
 
 | T-14 | Phase 4 | Denominator | Completion | Scenario |
 |---|---|---|---|---|
-| 20 | 42 | 160 | **75.0%** | **T-14a–e as confirmed by EL (five M)** — the published figure |
-| 20 | 63 | 181 | 66.3% | Phase 4 ×1.5 |
-| 20 | 84 | 202 | 59.4% | Phase 4 ×2 |
-| 30 | 84 | 212 | 56.6% | T-14a–e ×1.5, Phase 4 ×2 |
-| 40 | 84 | 222 | 54.1% | T-14a–e ×2, Phase 4 ×2 |
-| 40 | 126 | 266 | 45.1% | T-14a–e ×2, Phase 4 ×3 |
+| 20 | 42 | 160 | **86.3%** | **T-14a–e as confirmed by EL (five M)** — the published figure |
+| 20 | 63 | 181 | 76.2% | Phase 4 ×1.5 |
+| 20 | 84 | 202 | 68.3% | Phase 4 ×2 |
+| 30 | 84 | 212 | 65.1% | T-14a–e ×1.5, Phase 4 ×2 |
+| 40 | 84 | 222 | 62.2% | T-14a–e ×2, Phase 4 ×2 |
+| 40 | 126 | 266 | 51.9% | T-14a–e ×2, Phase 4 ×3 |
 
-Even at triple, the figure moves about twenty points. **The ceiling is real but shallow**, so
-75.0% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
+Even at triple, the figure moves about thirty-four points. **The ceiling is real but shallow**, so
+86.3% is not worth re-deriving — and §15.2 stays **0 of 8** in every scenario, which is why that
 is the number to quote and this one is not. The second row is new and is not a scenario: it is the
 breakdown actually on the table, and it is what this file publishes the day EL confirms it.
 
-**Where the remaining 40 points sit:** Phase 4 22 (55.0%) · Phase 3's residue 2 (5.0%) ·
-Phase 5 16 (40.0%) · Phase 2's residue 0. Neither large block is a majority. *(This paragraph read
+**Where the remaining 22 points sit:** Phase 4 4 (18.2%) · Phase 3's residue 2 (9.1%) ·
+Phase 5 16 (72.7%) · Phase 2's residue 0. **Phase 5 is now a clear majority of what is left** —
+*"neither large block is a majority"* stopped being true the moment T-18d, T-18e, T-19 and T-21
+were counted (F-73). *(This paragraph read
 "116 … Phase 2's residue 16" until session 6 while the table above it said 100 — drift 30. It then
 read "98 … 42.9% · 40.8% · 16.3%" for a full edition after T-14a moved the numerator, while the
 sentence thirty lines above it already said 94 — **drift 50**, and the first defect

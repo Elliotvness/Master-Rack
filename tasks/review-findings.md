@@ -3134,3 +3134,74 @@ stays name-based: any other anonymous computation in a studio render is equally 
 A structural rule (for example, no arithmetic on `@rms/*` geometry inside a component body) would
 be the mechanism the purpose describes; not written here.
 
+
+## F-71 — `main` is red on an assertion that was never green, and the test is the wrong half *(raised 2026-11-09 by an unattended `pnpm verify` in the container; **open**)*
+
+**What happened.** `packages/studio-model/src/fix-proposals.test.ts` expects the narrow-aisle fix
+proposal to read *"Widen Aisle 1 frame-to-frame to 138.3""* and it reads *132.3"*. The test and the
+production change arrived together in `4e3b47c` (2026-11-06); checked out alone in a worktree, that
+commit fails the same assertion. **The assertion has never passed in any tree.** The commit body is
+empty, so the evidence the house rule asks for — the planted failure, its output, the exit code —
+was never written, and nothing has run the suite on this tree since.
+
+**The code is right.** Measured through `planGeometry` on the continuity fixture: `truckRAS` 66.3",
+required clear 126.3", `overhang` 3" per face, frame-to-frame 132", clear between loads 126".
+`plan.ts` derives `clearBetweenLoads = frameToFrame − a.overhang − b.overhang` — the two faces
+bounding an aisle remove 6", not 12 — so the 0.3" shortfall targets 132.3" and lands the clear
+distance exactly on 126.3". The expected 138.3" assumes 6" per side. **Accepting it would widen
+every aisle 6" beyond the operational target**, which is floor space the client pays for, so the
+direction of the error matters: the over-wide proposal looks safe and reads as conservative.
+
+**Remedy, not applied here.** Correct the expectation and the test's own title — which states the
+wrong arithmetic in prose — and leave the kernel alone. Not applied in this run because an
+unattended session should not land a change to a derivation's expected output without the
+adversarial review AD-7 asks for, and because nothing can be pushed from the bridge in any case.
+
+**What it says about the controls.** CI fires on `push: branches: ['**']`, and the tip is pushed, so
+a run exists for it. Nobody read it. *Pushed ≠ a run exists ≠ green ≠ someone read it* is written in
+`CLAUDE.md` and this is its first instance with a red run behind it rather than a missing one.
+
+## F-72 — the preliminary PDF is watermarked, carries no disclaimer, and nothing asserts the per-page property *(raised 2026-11-09 while grading AC-16; **open**)*
+
+**What happened.** `apps/api/src/outbox/pdf-job.ts` renders a real multi-page PDF-1.4 and its
+`buildPageStream` does put the diagonal `PRELIMINARY - NOT FOR CONSTRUCTION` mark, the document
+number carrying the P revision code, and a 16-character manifest hash on **every** page. AC-16 asks
+for four things on every page: the watermark, **the full disclaimer text**, the revision code and
+the short-form manifest hash. *Verified-today:* the string `disclaim` appears **zero** times in
+`pdf-job.ts`, while the submit route accepts a `disclaimer_version_id` and records it. **A
+disclaimer version is pinned to the submission and its text is never rendered into the document the
+client receives.**
+
+**And the per-page claim has no control behind it.** The renderer's own docstring says
+*"watermarked `PRELIMINARY — NOT FOR CONSTRUCTION` on every page"*. The tests over it assert
+`pageCount` — 2 for the empty case, 9 for 300 bays — and nothing else about page content. No test
+fails if the watermark, the revision code or the manifest hash is emitted on the first page only.
+**This is the house defect in its narrowest form yet**: the mechanism exists, is correct, and is
+unguarded, so the next edit to `buildPageStream` is unprotected.
+
+**Not a regression, and `AC-16` is honestly unticked.** Checkpoint C records `AC-16` open and
+`T-20` — *"`render-pdf` + `E-08` watermarked client PDF, blocked on Q3"* — as the owning task, which
+is the one Phase 4 task still open. This entry exists so the gap is a finding with a mechanism
+attached rather than a checkbox: the per-page assertion is cheap and does not wait on Q3.
+
+## F-73 — four completed tasks sat uncounted because nothing compares the scoreboard to the plan *(raised 2026-11-09 by re-deriving the denominator; **remedied** in this edition, **open** as a mechanism)*
+
+**What happened.** `tasks/todo.md` carries ✅ marks for `T-18d`, `T-18e` and `T-19` dated 2026-11-04
+and for `T-21` dated 2026-10-18. No copy of the scoreboard counted any of them: Phase 4 published
+20 of 42 points and the total 120 of 160, for one full edition in T-21's case and a fortnight in
+all. Corrected in this edition to 38 and 138, with the task count moving to 42 of 49.
+
+**Both gates were green over it, and both were right to be.** `check-scoreboard-sync` compares
+`progress.md` with `progress.html` — they agreed. `check-claims` re-derives packages, test files,
+migrations, routes and front-end files from the code — all correct. **Neither reads
+`tasks/todo.md`.** Drift 43 recorded this exact shape in session 9 — *"a task can be complete in the
+code, counted on the scoreboard, and open in the plan at the same time, and nothing in `verify`
+compares the plan to either"* — and this is the same hole in the opposite direction: complete in the
+code **and** in the plan, uncounted on the scoreboard.
+
+**Open: the denominator is not fully derivable.** A pass over `tasks/todo.md` resolves 142 points
+from the plan's own size markers. The other 18 sit on `P-00`, `T-14a`, `T-14d`, `T-14e` and `R-08`,
+whose sizes exist only in prose (EL's *"T-14a–e at 160 points"*, 2026-09-03). The task count of 49
+re-derives exactly. A checker that re-derives done-points and the denominator from the plan and
+diffs them against the phase table is the missing mechanism; it needs those five sizes written as
+markers first.
