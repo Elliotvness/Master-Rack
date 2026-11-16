@@ -1,3 +1,139 @@
+# Progress scoreboard — 2026-11-16 (session 24, scheduled run: CI has been red for thirteen days at a step that runs before the tests, and the red test everyone is watching is behind it)
+
+An unattended scheduled run against `C:\Rack Master\rack-master-studio` over the device bridge, with
+the suite, a real PostgreSQL 16.15 and the repository's own pinned secret scanner re-run in the
+container from a `git bundle` and a worktree archive of the device's own tip. Every figure labelled
+*verified-today* was produced by a command run in this session or read off a page fetched in it;
+every figure labelled *repository-claim* was read off an earlier document and is not a measurement
+of this run.
+
+**The stored task prompt is stale for the second edition running and was not followed.** It still
+opens with *"push `6f05043`, R-10 commit review, R-08 catalog-as-data, merge PR #1"*, all of which
+landed sessions ago. The run re-measured instead.
+
+**No task landed, so no number on the phase table moved.** §15.2 is **0 of 8**; the plan sits at
+**138 of 160** effort points and **42 of 49** tasks, unchanged from session 23 and re-derived from
+`tasks/todo.md` today rather than carried forward. What changed is what is known about the build.
+
+## The finding: CI is red, it has been red since 2026-11-03, and it dies before the tests — F-74
+
+*Verified-today*, read off the Actions history at `github.com/Elliotvness/Master-Rack`:
+
+| | |
+|---|---|
+| Last green run on `main` | **#176, 2026-11-03**, nightly schedule |
+| Runs since, on the first page of `branch:main` | **25, every one failed**, 2026-11-08 → 2026-11-16 |
+| Of those, nightly runs | **9 consecutive**, the latest **#252 at 15:56 UTC today** |
+| Error annotation | **step 4 of `verify`** — #252 *"exit code 1"*, #242 *"exit code 22"* |
+
+The job logs need a sign-in and were not read. So the step was **reproduced** instead. The repo's
+own pinned binary — gitleaks **v8.30.1**, fetched from the URL in `ci.yml` and **checksum-verified
+against the SHA-256 in `ci.yml`: OK** — run the way `ci.yml` runs it, against the clean committed tip
+in a container worktree:
+
+```
+gitleaks detect --source . --redact            241 commits scanned.  leaks found: 5   exit 1
+gitleaks detect --source . --redact --no-git                         leaks found: 4   exit 1
+```
+
+**Secret scanning is the first step after checkout, and it exits 1.** Nothing downstream has run on
+any commit since 2026-11-03 — not typecheck, not lint, not migrations, not the suite, not one
+checker. That the secret scan is red and that CI is red were each measured on their own; joining
+them at step 4 is an inference from the exit codes and the step order, and is labelled as one.
+
+**There is no leaked credential.** All four working-tree findings are test data: an `mfa_secret_hash`
+literal in `apps/api/src/dto/audiences.test.ts`, and three `idempotency-key` and `key:` literals in
+`apps/api/src/app.db.test.ts`. The fifth is history-only — the **T-11 planted credential** at
+`062b7b8`, which `.gitleaks.toml` says "matches nothing" and which has matched every scan since the
+day it was written, because `detect` reads history and removing a file does not unmatch it
+(**F-75**, the recurring defect in its purest form: a control that states its own method, and the
+statement is false).
+
+**The remedy is an allowlist, narrow and commented, proven to still fire on a real planted secret
+before it counts.** Widening the scanner until it passes is the move this project refuses; so is
+deleting the step.
+
+## What this does to F-71
+
+F-71's entry, written 2026-11-09, reads: *"CI fires on `push: branches: ['**']`, and the tip is
+pushed, so a run exists for it. Nobody read it."* Both halves were true and the conclusion drawn
+from them was wrong. **The runs exist, they are red, and they are red for a reason that has nothing
+to do with F-71.** `main` has been red twice over for thirteen days with one cause on the record, and
+the failing test is sitting behind a gate that never opens. *Pushed ≠ a run exists ≠ green ≠ someone
+read it* now has its sharpest instance: the state of the build was inferred from the workflow file
+rather than from the run, in the same paragraph that quotes the rule against doing so.
+
+**F-71 itself is unchanged and was re-measured, not re-read.** *Verified-today*, full suite against a
+real PostgreSQL 16.15 with `RMS_REQUIRE_DB=1`, migrations **15, OK**, `check:rls` **PASS**:
+
+```
+Test Files  1 failed | 95 passed (96)
+     Tests  1 failed | 2411 passed (2412)      0 skipped
+
+FAIL packages/studio-model/src/fix-proposals.test.ts
+AssertionError: expected 'Widen Aisle 1 frame-to-frame to 132.3"'
+                to be   'Widen Aisle 1 frame-to-frame to 138.3"'
+```
+
+The arithmetic was re-derived from the source rather than quoted from the previous edition.
+`fix-proposals.ts` computes `targetFrameToFrame = aisle.frameToFrame + shortfall`, and `plan.ts`
+derives `clearBetweenLoads = frameToFrame − a.overhang − b.overhang` — two faces, 3" each, **6"
+removed per aisle, not 12**. Adding the 0.3" shortfall to frame-to-frame therefore adds exactly 0.3"
+of clear: 132.3" frame-to-frame yields the 126.3" the rule asks for. **The expectation is the wrong
+half, the kernel is right, and 138.3" would widen every aisle 6" past the operational target** — floor
+space the client pays for, proposed by a fix that reads as the conservative one. Remedy unchanged and
+still not applied here: an unattended session does not land a change to a derivation's expected
+output without the adversarial review AD-7 asks for.
+
+**Coverage is still ungraded.** `pnpm coverage` aborts on the failing test, so the gate that was F-65
+one edition ago is neither green nor red for the third edition running.
+
+## The working tree is not clean, and that is new
+
+Every scheduled edition before this one measured a clean tree. *Verified-today* on the mount: **9
+modified files and 2 new ones**, **+3,908 / −783** lines with line-ending noise excluded, last touched
+**2026-11-11 08:13 UTC** — five days ago. It is Studio work: the elevation route and its SVG, the
+options and revisions routes, `studio.css`, the theme tokens, and a new
+`packages/kernel-derive/src/structural-calc.ts` with its own 243-line test file.
+
+**It builds and it passes.** *Verified-today* on the working tree: typecheck **PASS**, lint **PASS**,
+`structural-calc.test.ts` **8 tests, green**, and the only red in 2,412 tests is F-71.
+
+**But it makes a second gate red, and that one is new.** `check:claims` **FAILS** on the working tree
+and **PASSES** on the committed tip — measured both ways. The new test file moves the repository from
+95 test files to 96, while `tasks/progress.html` and `claude-resume-prompt.md` both state 95:
+
+```
+claude-resume-prompt.md · test files: states 95, the code says 96. Derivation: testFiles.
+progress.html          · test files: states 95, the code says 96. Derivation: testFiles.
+```
+
+**Not corrected here, deliberately.** The figure is only 96 while uncommitted work that nobody has
+reviewed stays in the tree; if EL amends or drops it, 95 is right again. Editing a stated count to
+match an unreviewed working tree is the inverse of the rule this project runs on. **Decision for EL:**
+commit the Studio work and move both counts to 96, or set it aside and leave them. Either closes it;
+guessing from here does not.
+
+## What else was measured, and what could not be
+
+*Verified-today.* **17 of the 18 checkers PASS** on the working tree — boundaries, apps, provenance,
+language, content hash, spot-record, lockfile, determinism, scoreboard, types-only, server-owned,
+route surface, parity, prose, aliases, findings, covconfig — with `check:claims` the one failure, as
+above. Packages **15**, migrations **15**, route registry **34** entries with `check:routesurface`
+agreeing row for row, `.tsx` files **41**, `UNIMPLEMENTED` **5** references in `apps/api/src/app.ts`.
+
+**§15.2 is 0 of 8, re-derived not re-read, and the blocker is where session 23 left it.** `AC-20` is
+ticked in Checkpoint C and `AC-16` is not; `T-20` — the watermarked client PDF — still reads
+*"Blocked on Q3"* and is the one Phase 4 task open. **Q3 is the only thing between this build and a
+§15.2 figure that can move**, and it has been EL's answer to give since before session 23.
+
+**Nothing landed on the remote, again.** *Verified-today* on the mount: `main` is **1 commit ahead of
+`origin/main`** — session 23's own edition, committed on the mount on 2026-11-09 and still only
+there. The bridge has no credential; pushing is GitHub Desktop and still EL. Which means the next CI
+run to judge any of this is the nightly, and the nightly has failed nine times running.
+
+---
+
 # Progress scoreboard — 2026-11-09 (session 23, scheduled run: the plan moved four tasks, the scoreboard did not, and `main` is red on a test that has never passed)
 
 An unattended scheduled run against `C:\Rack Master\rack-master-studio` over the device bridge,

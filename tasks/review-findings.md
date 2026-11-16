@@ -3205,3 +3205,73 @@ whose sizes exist only in prose (EL's *"T-14a–e at 160 points"*, 2026-09-03). 
 re-derives exactly. A checker that re-derives done-points and the denominator from the plan and
 diffs them against the phase table is the missing mechanism; it needs those five sizes written as
 markers first.
+
+## F-74 — CI has been red since 2026-11-03, it dies at the secret scan before a single test runs, and nine consecutive nightlies went unread *(raised 2026-11-16 by reading the Actions history and reproducing the step locally; **open**)*
+
+**What happened.** *Verified-today*, read off `github.com/Elliotvness/Master-Rack/actions/workflows/ci.yml`:
+the last green run on `main` is **#176, 2026-11-03**, triggered by the nightly schedule. **Every run
+since has failed.** The first page of `branch:main` results holds **25 consecutive failures** dated
+2026-11-08 to 2026-11-16 — fifteen pushes and **nine consecutive nightly runs**, the latest **#252
+at 15:56 UTC on 2026-11-16**, which is today. The error annotation on each points at **step 4 of the
+`verify` job**: #252 reads *"Process completed with exit code 1"*, #242 reads *"Process completed
+with exit code 22"*. The job logs require sign-in and were not read.
+
+**The step was reproduced instead of guessed.** The repo's own pinned binary — gitleaks
+**v8.30.1**, downloaded from the URL in `ci.yml` and **checksum-verified against the SHA-256 in
+`ci.yml`: OK** — run as `ci.yml` runs it, from the clean committed tip in a container worktree:
+
+```
+gitleaks detect --source . --redact
+241 commits scanned.   WRN leaks found: 5     exit 1
+gitleaks detect --source . --redact --no-git
+                       WRN leaks found: 4     exit 1
+```
+
+**Secret scanning is the first step after checkout, and it exits 1. Nothing downstream of it has
+run on any commit since 2026-11-03** — not typecheck, not lint, not migrations, not the suite, not
+one checker. The identification of step 4 as that step is an inference from the exit codes and the
+job's step order, not a log read; **that CI is red, and that the secret scan is red, are each
+measured independently.**
+
+**There is no leaked credential.** All four working-tree findings are test data, redacted here by
+rule and location only:
+
+| Rule | Where | What it is |
+|---|---|---|
+| `generic-api-key` | `apps/api/src/dto/audiences.test.ts:503` | an `mfa_secret_hash` literal in a DTO fixture |
+| `generic-api-key` | `apps/api/src/app.db.test.ts:2412` | an `idempotency-key` header value |
+| `generic-api-key` | `apps/api/src/app.db.test.ts:2938` | a `key:` literal in the same suite |
+| `generic-api-key` | `apps/api/src/app.db.test.ts:4037` | a second `idempotency-key` header value |
+
+The fifth, history-only, is the **T-11 planted credential** at `062b7b8` — see F-75. The remedy is
+an allowlist in `.gitleaks.toml` scoped to those paths and that commit, **narrow and commented**, and
+it must be proven to still fire on a real planted secret before it counts (rule 5). Widening the
+scanner to pass is the move this project refuses; so is deleting the step.
+
+**What it says about the controls.** F-71's own entry, written 2026-11-09, states *"CI fires on
+`push: branches: ['**']`, and the tip is pushed, so a run exists for it. Nobody read it."* Both
+halves were right and the conclusion drawn from them was wrong: **the runs exist, they are red, and
+they are red for a reason that has nothing to do with F-71.** The red test is behind a gate that
+never opens, so "`main` is red" has been true twice over for thirteen days with one cause recorded.
+*Pushed ≠ a run exists ≠ green ≠ someone read it* now has its sharpest instance: a run existed, it
+was red, and the edition that quoted the rule still inferred the state of the build from the config
+file rather than from the run.
+
+## F-75 — `.gitleaks.toml` states that its rule "matches nothing", and `detect` reads history, so it has matched since the day it was written *(raised 2026-11-16 while reproducing F-74; **open**)*
+
+**What happened.** `.gitleaks.toml` carries this, verbatim:
+
+> *The fixture that matched it (`tools/secret-scan-fixture.txt`) was removed after the failing run
+> was recorded; the rule stays as the record, matching nothing.*
+
+*Verified-today:* `tools/secret-scan-fixture.txt` is indeed absent from the tree, and
+`gitleaks detect` — which `ci.yml` runs, and which scans **git history**, not the checkout — matches
+`rms-planted-credential` at **`062b7b8`, 2026-09-02**, and will match it in every scan of this
+repository forever. Removing a file does not unmatch a history scan. The sentence is false by the
+mechanism it describes.
+
+**Why it belongs in this register.** It is the recurring defect in its purest form: **a control that
+states its own method and the statement is wrong** — green-looking, honest-sounding, and load-bearing,
+because a reader checking why CI is red would read that comment and rule the planted credential out.
+It cost exactly that today. Remedy: say what `detect` does, and either allowlist the commit
+explicitly or state that the finding is expected and why.
