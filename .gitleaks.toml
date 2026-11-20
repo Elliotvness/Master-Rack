@@ -1,12 +1,16 @@
-# T-11's planted-credential proof (2026-09-02).
+# T-11's planted-credential proof (2026-09-02) & F-74/F-75 allowlist (2026-11-19).
 #
-# The default rules scan for real secret formats. This rule exists so the
-# "a deliberately planted fake credential is caught" criterion can be
-# demonstrated with a pattern no real service uses — GitHub push protection
-# does not recognise it, so the push lands and this step is what goes red.
-# The fixture that matched it (tools/secret-scan-fixture.txt) was removed
-# after the failing run was recorded; the rule stays as the record, matching
-# nothing.
+# The default rules scan for real secret formats. Rule `rms-planted-credential`
+# exists so the "a deliberately planted fake credential is caught" criterion can
+# be demonstrated with a pattern no real service uses — GitHub push protection
+# does not recognise it, so the push lands and the CI secret-scan step goes red.
+#
+# Because `gitleaks detect` scans full git history (not just the working tree),
+# the historical commit 062b7b8a70667ef153beeef07ef1d65f1234a296 that planted
+# `tools/secret-scan-fixture.txt` (before 209964f removed it) remains in history
+# forever and is allowlisted explicitly by commit SHA below (F-75). Any new
+# occurrence of `RMSK_[A-Z0-9]{16,}` in any other commit or the working tree
+# still fails the scan.
 [extend]
 useDefault = true
 
@@ -15,3 +19,18 @@ id = "rms-planted-credential"
 description = "Fake credential planted by T-11 to prove the scanner fires"
 regex = '''RMSK_[A-Z0-9]{16,}'''
 secretGroup = 0
+
+[allowlist]
+description = "T-11 historical planted-fixture commit and deterministic test fixture literals (F-74, F-75)"
+commits = [
+  "062b7b8a70667ef153beeef07ef1d65f1234a296",
+]
+regexTarget = "line"
+regexes = [
+  # SHA-256 of the empty string used as a dummy mfa_secret_hash in audiences.test.ts:
+  '''mfa_secret_hash:\s*'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'''',
+  # Deterministic test idempotency-key literals in apps/api/src/app.db.test.ts:
+  ''''idempotency-key':\s*'idem-t14e-p01-submit'''',
+  '''key:\s*'stuck-claim-key-01'''',
+  ''''idempotency-key':\s*'ac20-valid-submit'''',
+]

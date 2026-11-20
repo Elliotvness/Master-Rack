@@ -1,10 +1,9 @@
 /**
  * @rms/kernel-derive
  *
- * Rack geometry and pallet-position derivation (C-02): bay pitch, run length,
- * overhang allocation, aisle clear width, gross/lost/net positions. Pure
- * arithmetic over provenanced quantities; no catalog or rule number is invented
- * here. No I/O, no clock, no RNG — enforced by tools/check-boundaries.mjs.
+ * Rack geometry, pallet-position derivation (C-02), and cold-formed thin-walled
+ * section & RMI MH16.1 / AISI S100 structural calculations. Pure arithmetic;
+ * no I/O, no clock, no RNG — enforced by tools/check-boundaries.mjs.
  */
 
 export {
@@ -21,3 +20,24 @@ export {
   type PositionAccounting,
   type PositionLoss,
 } from './derive.js';
+
+export {
+  STEEL_GAGE_TABLE,
+  coldWorkFya,
+  computeSectionProperties,
+  evaluateBeamCheck,
+  evaluateColumnCheck,
+  evaluateRackBay,
+  smartSolveRackBay,
+  type BeamCheckInput,
+  type BeamCheckResult,
+  type ColumnCheckInput,
+  type ColumnCheckResult,
+  type FrameBracingStyle,
+  type FrameLegStyle,
+  type RackBayEvaluationInput,
+  type RackBayEvaluationResult,
+  type RackShapeType,
+  type SectionProperties,
+  type SmartSolveCandidate,
+} from './structural-calc.js';

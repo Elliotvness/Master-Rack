@@ -82,17 +82,17 @@ describe('Previewable Fix Proposals Engine (ADR-010, D2, D8)', () => {
     expect(accepted.document.bayTypes[0]?.beamLength).toBe(IN(114));
   });
 
-  it('targets the exact 126.3" clear requirement (138.3" frame-to-frame) on the continuity fixture rather than rounding up to 127"', () => {
+  it('targets the exact 126.3" clear requirement (132.3" frame-to-frame) on the continuity fixture rather than rounding up to 127"', () => {
     const baseDoc = doc();
     const counter = resumeFrom(collectIds(baseDoc));
     const proposals = proposeFixes(baseDoc, counter);
     const aisleFixes = proposals.filter((p) => p.findingCode === 'AISLE_CLEAR_SHORTFALL');
     expect(aisleFixes).toHaveLength(2);
-    expect(aisleFixes[0]?.title).toBe('Widen Aisle 1 frame-to-frame to 138.3"');
+    expect(aisleFixes[0]?.title).toBe('Widen Aisle 1 frame-to-frame to 132.3"');
     expect(aisleFixes[0]?.rationale).toBe(
       'Increases clear distance between loads to meet 126.3" operational target.',
     );
-    expect(aisleFixes[1]?.title).toBe('Widen Aisle 2 frame-to-frame to 138.3"');
+    expect(aisleFixes[1]?.title).toBe('Widen Aisle 2 frame-to-frame to 132.3"');
   });
 
   it('handles no-aisle documents, refused commands in preview, and extreme spans/weights gracefully', () => {

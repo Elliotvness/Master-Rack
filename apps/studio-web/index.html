@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -16,6 +16,11 @@
   <body>
     <div id="root"></div>
     <noscript>Rack Studio needs JavaScript. Nothing here degrades usefully without it.</noscript>
+    <script>
+      if (window.location.protocol === 'file:') {
+        window.location.replace('http://localhost:5179/elevation');
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -67,22 +67,53 @@
   --shadow: 0 1px 2px rgba(43, 43, 45, 0.14), 0 3px 10px rgba(43, 43, 45, 0.1);
   --scrim: rgba(29, 31, 32, 0.45);
 
-  --zinc-950: #09090b;
-  --zinc-900: #18181b;
-  --zinc-800: #27272a;
-  --zinc-700: #3f3f46;
-  --zinc-400: #a1a1aa;
-  --zinc-300: #d4d4d8;
-  --zinc-200: #e4e4e7;
-  --zinc-100: #f4f4f5;
+  --zinc-950: #f4f4f6;
+  --zinc-900: #ffffff;
+  --zinc-800: #e2e4e8;
+  --zinc-700: #c8ccd2;
+  --zinc-400: #52525b;
+  --zinc-300: #3f3f46;
+  --zinc-200: #18181b;
+  --zinc-100: #09090b;
+  --on-accent: #ffffff;
   --safety-orange: #ea580c;
-  --safety-orange-bg: rgba(234, 88, 12, 0.18);
-  --elev-pass: #4ade80;
-  --elev-pass-bg: rgba(34, 197, 94, 0.14);
-  --elev-warn: #fbbf24;
-  --elev-warn-bg: rgba(245, 158, 11, 0.16);
-  --elev-danger: #f87171;
-  --elev-danger-bg: rgba(239, 68, 68, 0.16);
+  --safety-orange-bg: rgba(234, 88, 12, 0.12);
+  --elev-pass: #15803d;
+  --elev-pass-bg: rgba(21, 128, 61, 0.12);
+  --elev-warn: #b45309;
+  --elev-warn-bg: rgba(180, 83, 9, 0.12);
+  --elev-danger: #b91c1c;
+  --elev-danger-bg: rgba(185, 28, 28, 0.12);
+
+  --rc-navy-900: #0c3d64;
+  --rc-navy-800: #1e3a5f;
+  --rc-navy-700: #275a83;
+  --rc-navy-600: #3d6483;
+  --rc-navy-400: #6d8ba2;
+  --rc-navy-200: #99bfdd;
+  --rc-text: #2c3e50;
+  --rc-sky-500: #36a9ee;
+  --rc-sky-600: #0284c7;
+  --rc-sky-soft: #e6f4fe;
+  --rc-sky-hover: #e0f2fe;
+  --rc-bg-page: #f5f9fc;
+  --rc-bg-canvas: #f1f9fe;
+  --rc-bg-inspector: #eef3f7;
+  --rc-card-bg: #ffffff;
+  --rc-border-strong: #ced8e0;
+  --rc-border-mid: #e0e6ec;
+  --rc-border-soft: #eef1f4;
+  --rc-grid-line: #e4eef7;
+  --rc-slab-fill: #e8eff5;
+  --rc-fail: #f43642;
+  --rc-fail-bg: #fee2e2;
+  --rc-fail-ink: #991b1b;
+  --rc-pass: #22c55e;
+  --rc-pass-bg: #dcfce7;
+  --rc-pass-ink: #166534;
+  --rc-warn: #f59e0b;
+  --rc-warn-bg: #fffbeb;
+  --rc-warn-ink: #92400e;
 }
 
 :root[data-theme='dark'] {
@@ -139,6 +170,7 @@
   --zinc-300: #d4d4d8;
   --zinc-200: #e4e4e7;
   --zinc-100: #f4f4f5;
+  --on-accent: #ffffff;
   --safety-orange: #ea580c;
   --safety-orange-bg: rgba(234, 88, 12, 0.18);
   --elev-pass: #4ade80;
@@ -147,6 +179,36 @@
   --elev-warn-bg: rgba(245, 158, 11, 0.16);
   --elev-danger: #f87171;
   --elev-danger-bg: rgba(239, 68, 68, 0.16);
+
+  --rc-navy-900: #e2e8f0;
+  --rc-navy-800: #1e293b;
+  --rc-navy-700: #275a83;
+  --rc-navy-600: #94a3b8;
+  --rc-navy-400: #64748b;
+  --rc-navy-200: #38bdf8;
+  --rc-text: #f1f5f9;
+  --rc-sky-500: #38bdf8;
+  --rc-sky-600: #0284c7;
+  --rc-sky-soft: rgba(56, 189, 248, 0.15);
+  --rc-sky-hover: rgba(56, 189, 248, 0.24);
+  --rc-bg-page: #0f172a;
+  --rc-bg-canvas: #0b1120;
+  --rc-bg-inspector: #111827;
+  --rc-card-bg: #1e293b;
+  --rc-border-strong: #334155;
+  --rc-border-mid: #1e293b;
+  --rc-border-soft: #1e293b;
+  --rc-grid-line: #1e293b;
+  --rc-slab-fill: #1e293b;
+  --rc-fail: #f87171;
+  --rc-fail-bg: rgba(239, 68, 68, 0.2);
+  --rc-fail-ink: #fca5a5;
+  --rc-pass: #4ade80;
+  --rc-pass-bg: rgba(34, 197, 94, 0.2);
+  --rc-pass-ink: #86efac;
+  --rc-warn: #fbbf24;
+  --rc-warn-bg: rgba(245, 158, 11, 0.2);
+  --rc-warn-ink: #fde68a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -204,6 +266,7 @@
     --zinc-300: #d4d4d8;
     --zinc-200: #e4e4e7;
     --zinc-100: #f4f4f5;
+    --on-accent: #ffffff;
     --safety-orange: #ea580c;
     --safety-orange-bg: rgba(234, 88, 12, 0.18);
     --elev-pass: #4ade80;
@@ -212,6 +275,36 @@
     --elev-warn-bg: rgba(245, 158, 11, 0.16);
     --elev-danger: #f87171;
     --elev-danger-bg: rgba(239, 68, 68, 0.16);
+
+    --rc-navy-900: #e2e8f0;
+    --rc-navy-800: #1e293b;
+    --rc-navy-700: #275a83;
+    --rc-navy-600: #94a3b8;
+    --rc-navy-400: #64748b;
+    --rc-navy-200: #38bdf8;
+    --rc-text: #f1f5f9;
+    --rc-sky-500: #38bdf8;
+    --rc-sky-600: #0284c7;
+    --rc-sky-soft: rgba(56, 189, 248, 0.15);
+    --rc-sky-hover: rgba(56, 189, 248, 0.24);
+    --rc-bg-page: #0f172a;
+    --rc-bg-canvas: #0b1120;
+    --rc-bg-inspector: #111827;
+    --rc-card-bg: #1e293b;
+    --rc-border-strong: #334155;
+    --rc-border-mid: #1e293b;
+    --rc-border-soft: #1e293b;
+    --rc-grid-line: #1e293b;
+    --rc-slab-fill: #1e293b;
+    --rc-fail: #f87171;
+    --rc-fail-bg: rgba(239, 68, 68, 0.2);
+    --rc-fail-ink: #fca5a5;
+    --rc-pass: #4ade80;
+    --rc-pass-bg: rgba(34, 197, 94, 0.2);
+    --rc-pass-ink: #86efac;
+    --rc-warn: #fbbf24;
+    --rc-warn-bg: rgba(245, 158, 11, 0.2);
+    --rc-warn-ink: #fde68a;
   }
 }
 

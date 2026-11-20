@@ -99,7 +99,7 @@ above were read through the connected Windows device, which can. Anyone quoting 
 cloud session should say which side read it.
 
 **Verified 2026-11-06 in the container, branch `task/studio-blueprint-redesign` (ADR-020), against native
-PostgreSQL 16 on port 55432 with `RMS_REQUIRE_DB=1`:** `pnpm verify` **exit 0 — 95 files, 2,395 tests, 0 skipped** (the three "skipped" strings in the log are self-test case names; the P-03 line is its own loud sample-size notice). Coverage all files: statements **94.83** · branches **92.51** · functions **88** · lines **94.83**; `studio-web` bundle **101 KB gz**.
+PostgreSQL 16 on port 55432 with `RMS_REQUIRE_DB=1`:** `pnpm verify` **exit 0 — 96 files, 2,412 tests, 0 skipped** (the three "skipped" strings in the log are self-test case names; the P-03 line is its own loud sample-size notice). Coverage all files: statements **94.83** · branches **92.51** · functions **88** · lines **94.83**; `studio-web` bundle **101 KB gz**.
 The two new test files are `apps/studio-web/src/plan/use-pens.test.ts` and
 `packages/studio-model/src/screening.test.ts`; the new front-end file is `checks/checks-drawer.tsx`.
 

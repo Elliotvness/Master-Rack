@@ -248,6 +248,18 @@ describe('routing', () => {
     } finally {
       fetchSpy.mockRestore();
     }
+
+    // Step 5 (PE Submittal & 2-5 Day Turnaround Tracker) & Step 6 (Cloud Project Hub & Team Access)
+    expect(document.getElementById('rev-pe-submittal-panel')).not.toBeNull();
+    expect(document.getElementById('rev-pe-milestone-tracker')).not.toBeNull();
+    const peSubmitBtn = document.getElementById('rev-pe-submit-btn') as HTMLButtonElement;
+    await user.click(peSubmitBtn);
+    expect(document.getElementById('rev-pe-status-badge')?.textContent).toMatch(/IN PE REVIEW/i);
+
+    expect(document.getElementById('rev-cloud-hub-panel')).not.toBeNull();
+    const cloudSaveBtn = document.getElementById('rev-cloud-save-btn') as HTMLButtonElement;
+    await user.click(cloudSaveBtn);
+    expect(document.getElementById('rev-status-notice')?.textContent).toMatch(/Cloud Project Hub/i);
   });
 
   it('/facility renders the Facility view', async () => {
@@ -255,11 +267,22 @@ describe('routing', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Facility' })).not.toBeNull();
   });
 
-  it('/options renders the Option Builder view', async () => {
+  it('/options renders the Option Builder view and Step 1 Part Builder & Multi-Manufacturer Library', async () => {
+    const user = userEvent.setup();
     renderApp('/options');
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Options' }),
     ).not.toBeNull();
+    expect(document.getElementById('part-builder-section')).not.toBeNull();
+    expect(document.getElementById('part-builder-section-svg')).not.toBeNull();
+    expect(document.getElementById('part-builder-props-grid')?.textContent).toContain(
+      'Gross Area Ag:',
+    );
+    const saveCustomBtn = document.getElementById('part-builder-save-custom-btn') as HTMLButtonElement;
+    await user.click(saveCustomBtn);
+    expect(
+      document.querySelectorAll('#part-builder-inventory-table tbody tr').length,
+    ).toBeGreaterThanOrEqual(5);
   });
 
   /** OD-06: micrometres are storage; a person never reads `6096000um`. */
@@ -422,6 +445,41 @@ describe('routing', () => {
     await user.type(ceilingInput, '300{Enter}');
     expect(document.getElementById('elev-clear-height-tag')?.textContent).toContain('300"');
     expect(document.getElementById('elev-clear-height-tag')?.textContent).toContain('VERIFIED');
+
+    // 5. Phase 1 Kernel Integration: Live RMI/AISI Structural & Section Telemetry, Bracing Styles (Z/X/K/D), Leg Profiles (Setback/Slant-Leg), Tunnel Bay, Banana Scale (7"), and SmartSolve
+    const telemetry = document.getElementById('elev-structural-telemetry');
+    expect(telemetry).not.toBeNull();
+    expect(telemetry?.textContent).toContain('Column Unity:');
+    expect(telemetry?.textContent).toContain('Beam Unity:');
+    expect(telemetry?.textContent).toContain('P-Δ B2:');
+    expect(telemetry?.textContent).toContain('Cw=');
+
+    expect(document.getElementById('elevsvg-banana-scale')).not.toBeNull();
+    const bananaBtn = document.getElementById('elev-banana-scale-btn') as HTMLButtonElement;
+    await user.click(bananaBtn);
+    expect(document.getElementById('elevsvg-banana-scale')).toBeNull();
+    await user.click(bananaBtn);
+    expect(document.getElementById('elevsvg-banana-scale')).not.toBeNull();
+
+    const bracingSelect = document.getElementById('elev-bracing-style-select') as HTMLSelectElement;
+    await user.selectOptions(bracingSelect, 'k-pattern');
+    expect(
+      document.getElementById('elevsvg-upright-bracing')?.getAttribute('data-bracing'),
+    ).toBe('k-pattern');
+
+    const frameSelect = document.getElementById('elev-frame-style-select') as HTMLSelectElement;
+    await user.selectOptions(frameSelect, 'setback');
+    expect(document.getElementById('elevsvg-leg-profile-indicator')).not.toBeNull();
+
+    const tunnelBtn = document.getElementById('elev-tunnel-bay-btn') as HTMLButtonElement;
+    await user.click(tunnelBtn);
+    expect(document.getElementById('elevsvg-tunnel-clearance')).not.toBeNull();
+
+    const smartSolveBtn = document.getElementById('elev-smartsolve-btn') as HTMLButtonElement;
+    await user.click(smartSolveBtn);
+    expect(document.getElementById('elev-status-readout')?.textContent).toMatch(
+      /SmartSolve selected/i,
+    );
   });
 
   it('/sheets renders the ANSI D sheet preview, honest fitted scale, and switches sheets (S3.4)', async () => {
